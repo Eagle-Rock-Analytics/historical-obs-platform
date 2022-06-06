@@ -5,12 +5,14 @@ library(tidyverse)
 library(rvest)
 library(janitor)
 
+## Read in HTML table of observations
 content <- read_html("mesowest_stations/MesoWest Weather Summary.html")
 
 table_info <- content %>% html_table(fill = T)
 
 wx_table <- table_info[[6]]
 
+## Clean up table
 wx_cleannames <- wx_table[-c(1:3), ] %>%
   clean_names()
 
@@ -28,6 +30,7 @@ wx_cleanrows <- wx_cleannames[-1,] %>%
          !grepl("Time", LOCAL), # RM unit rows repeats for subtables
          !grepl("^$", LOCAL)) # RM rows that are all empty strings separating subtables
 
+## Count number of stations by network in mesowest
 networks <- wx_cleanrows %>%
   group_by(Network) %>% 
   summarize(stations = n_distinct(Station)) %>%
