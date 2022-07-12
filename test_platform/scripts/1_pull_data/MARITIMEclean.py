@@ -5,7 +5,7 @@
 ## To do so, see code here:
 ## https://www.linkedin.com/pulse/downloading-files-from-remote-sftp-server-directly-aws-tom-reid (if sftp supported)
 ## or here: https://stackoverflow.com/questions/64884023/ftps-to-aws-s3-with-ftplib-and-boto3-error-fileobj-must-implement-read (ftplib only)
-
+### Make sure any code with os.dir works when in AWS S3, or adapt.
 
 ## Load packages
 from ftplib import FTP
@@ -13,6 +13,7 @@ from pydap.client import open_url
 import wget
 import os
 from datetime import datetime, timezone
+import xarray as xr
 
 # Set envr variables
 workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/Maritime/"
@@ -33,8 +34,11 @@ def get_maritime(workdir, get_all = True):
     # TO DO: configure WD to write files to (in AWS)
     
     # Get date of most recently edited file.
-    last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
-    last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
+    try:
+        last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
+        last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
+    except:
+        get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
     #for i in years: # For each year. FOR REAL RUN.
     for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
@@ -77,5 +81,38 @@ def get_maritime(workdir, get_all = True):
 
     ftp.quit() # This is the “polite” way to close a connection
 
+# To download data, run:
+#get_maritime(workdir, get_all = True)
 
-get_maritime(workdir, get_all = True)
+# Read in downloaded data and do first clean.
+## Code written first by file, then rewrite to include merging mult. files (by time or by station?)
+
+# Step one: read in, and drop variables that are not of interest.
+filename = "32302_198901.nc"
+file = os.path.join(workdir, filename) 
+
+# Create list of variables to remove
+dropvars = ['wave_wpm', 'wave_wpm_bnds', 'bottom_depth', 'magnetic_variation','sampling_rates_waves', 'sampling_duration_waves', 'total_intervals_waves', 'significant_wave_height', 'average_wave_period', 'dominant_wave_period','spectral_density_c']
+
+# Read in file and drop variables that aren't of interest.
+ds = xr.open_dataset(file, drop_variables = dropvars)
+print(ds)
+
+# Step two: 
+# In the long run use this code to open and merge multiple files (by station? by year?)
+
+#file = os.path.join(workdir, "*.nc") 
+# def preprocess(ds):
+    # add any preprocessing steps in here.
+    #return preprocessed ds
+#ds = xr.open_mfdataset(file, preprocess = preprocess OR drop_variables = dropvars) # But how to keep dropped variables here?
+
+print(ds)
+#vardrop = ['']
+#ds = ds.drop_vars('sea_surface_temperature')
+#print(ds)
+
+
+# Step 2: join data for buoy by year.
+
+#def clean0_maritime(workdir):
