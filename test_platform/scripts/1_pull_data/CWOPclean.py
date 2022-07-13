@@ -16,6 +16,7 @@ datadir = "/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/te
 # Step 1: download data -- batch download from google drive - folder downloads as a .zip archive
 # For new data downloads only need to do once
 # Tested on 2020 and 2021 data
+## CWOP data report notes you can connect google drive folder to AWS which may be useful for automation
 
 # Step 2: unzip .gz batch files -- This works from the command line, but not in script
 # unzip drive-download.zip -d datadir   # folder name is dependent on when downloaded
@@ -54,13 +55,47 @@ gz_extract(datadir)
 ## Code written based off of test file first
 
 #NOTE:  solar data starts at 11pm UTC
+# therefore, each file comprises mix of data from the named day + last hour of previous day
+# will need to handle
 
 def get_cwop(workdir, get_all = True):
     filename = "L20200101.txt"
     date = open(filename)
     print(date.readline())  # Getting line of text to see format
 
-    # file = os.path.join(workdir, filename)
+    file = os.path.join(workdir, filename)
+
+    # modified from: https://github.com/lohancock/solar-data-parser
+
+    for line in file:  # note this is bad counting on my part for now and just taking rough notes
+        line[:5] = 'station_id'
+        line[6] = '>'
+        line[7:13] = 'time val'
+        line[13] = 'z' # utc time
+        line[14:21] = 'latitude val' # will need to parse based off of WECC boundary
+        line[21] = 'latitude sign'
+        line[22] = '/'
+        line[23:31] = 'longitude val' # will need to parse based off of WECC boundary
+        line[32] = 'longitude sign'
+        line[33] = '_'
+        line[34:38] = 'wind direction'
+        line[38] = '/'
+        line[39:42] = 'wind speed val'
+        line[42] = 'g' # gust designator
+        line[43:46] = 'gust speed val'
+        line[47] = 't' # temperature designator
+        line[48:51] = 'temperature val'
+        line[51] = 'P' # precipitation designator
+        line[52:55] = 'precipitation val, units hundreds of inch'
+        line[55] = 'h' # relative humidity designator
+        line[56:58] = 'relative humidity val, percentage'
+        line[58] = 'b' # barometric pressure designator
+        line[59:64] = 'air pressure val, units mb with 1 decimal place'
+        line[65] = 'L' # irradiance designator
+        line[66:69] = 'irradiance val'
+        line[69:] = 'tech that was used for rad obs -- undefined length'
+
+
     #
     # # Create a list of variables to remove
     # dropvars = [] # empty for now -- SR data is messy
