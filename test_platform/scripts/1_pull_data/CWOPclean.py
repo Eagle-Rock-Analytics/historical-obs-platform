@@ -1,72 +1,76 @@
-### Draft 1: Cleaning script for CWOP network -- solar radiation data ONLY
+# Draft 1: Cleaning script for CWOP network -- solar radiation data ONLY
+# public access years: 2018 - 2022
+# private years: 2009 - 2017
 
-# import wget
 import os
 from datetime import datetime, timezone
 import gzip
-import shutil ## unneccessary now, I think
+import shutil
+import zipfile
+import xarray as xr
+
+# set envr variables
+workdir = "/Users/victoriaford/Desktop/historical_obs/historical-obs-platform/test_platform/scripts/1_pull_data/"
+datadir = "/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/CWOP_SR/"
+
+# Step 1: download data -- batch download from google drive - folder downloads as a .zip archive
+# For new data downloads only need to do once
+# Tested on 2020 and 2021 data
+
+# Step 2: unzip .gz batch files -- This works from the command line, but not in script
+# unzip drive-download.zip -d datadir   # folder name is dependent on when downloaded
+# Step 2b: remove .zip folder from directory?
+
+# def unzip_dir(directory):
+#     os.chdir(directory)
+#     extension = ".zip"
+#     for item in os.listdir(directory):
+#         if item.endswith(extension):
+#             zip_name = os.path.abspath(item)
+#             print('unzipping folder: ', zip_name)
+#             unzip zip_name -d directory               # barks at this line
+#             os.remove(zip_name)
+#
+# unzip_dir(datadir)
 
 
-# Solar radiation data is stored on Google Drive.
-# Each folder contains a year of data (2009-2022), and each file
-# corresponds to a day of data.
+# Step 3: read in and unzip .gz daily files
+def gz_extract(directory): ## modified from https://gist.github.com/kstreepy/a9800804c21367d5a8bde692318a18f5
+    extension = '.gz'
+    os.chdir(directory)
+    for item in os.listdir(directory):
+        if item.endswith(extension):
+            gz_name = os.path.abspath(item)
+            print('unzipping: ', item)
+            file_name = (os.path.basename(gz_name)).rsplit('.',1)[0]
+            with gzip.open(gz_name, 'rb') as f_in, open(file_name, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            os.remove(gz_name)  # removes .gz filenames, cleans up directory for ease
 
-# Step 1: download data
+gz_extract(datadir)
 
-# Step 2: read in and unzip .gz files.
-## Can run gunzip from terminal, but find an approach in python first.
 
-#import gzip
-#with gzip.open('CWOP/SR/L20180101.txt.gz', 'rb') as f:
-#    file_content = f.read()
+# Step 4: read in .txt files -- following maritime script
+## Code written based off of test file first
 
-## Read in .txt file
-# date = open("CWOP/SR/L20180101.txt")
-
-# print(date.readline()) # Get line of text to see format.
-
-## Read in CWOP data using gzip
-
-workdir = "/Users/victoriaford/Desktop/era_files/historical_obs/histobs_dev_code/historical-obs-platform/test_platform/scripts/1_pull_data/"
+#NOTE:  solar data starts at 11pm UTC
 
 def get_cwop(workdir, get_all = True):
-    # for i in ['2021 - 365 files']: #tetsing single year -- google drive folder for SR data
-    # public access years: 2018 - 2022
-    # private years: 2009 - 2017
+    filename = "L20200101.txt"
+    date = open(filename)
+    print(date.readline())  # Getting line of text to see format
 
-    with gzip.open("CWOP/L20210102.txt.gz", "rb") as f_in:
-        file_content = f_in.read()
-        print(file_content)
+    # file = os.path.join(workdir, filename)
+    #
+    # # Create a list of variables to remove
+    # dropvars = [] # empty for now -- SR data is messy
+    # # going to have to cut based off of character limit?
+    #
+    # # Read in file and drop variables that aren't of interest
+    # ds = xr.open_dataset(file, drop_variables=dropvars)
+    # print(ds)
 
-        f_in.close() # closes file
+get_cwop(datadir, get_all=True)
 
 
-        # f_in = open("/CWOP/L20210101.txt")
-        # f_out = gzip.open("/CWOP/L20210101.txt.gz", 'wb')
-        # f_out.writelines(f_in)
-        #
-        #
-        # # print(date.readline())
-        # f_out.close()
-        # f_in.close()
-
-        # write code here
-        # for filename in filenames:
-            # all characters before '>' is station # id number
-            # all characters before 'z' is UTC time
-            # next 8 characters is latitude followed by 'N'
-            # next 9 characters is longitude followed by 'W'
-                # if 'E' is present instead, skip lines?
-            # '_' 3 characters is wind direction
-            # '/' 3 characters plus "g" is wind gusts?
-            #
-
-            # if get_all is False: # following maritime file for now
-            #     file = open(local_filename, 'wb')
-            #     file.close() # closes file
-            # elif get_all is True: # if get_all is true, download all new files?? consider google Drive
-            #     local_filename = os.path.join(workdir, filename)
-            #     file = open(local_filename, 'wb')
-            #     file.close()
-
-get_cwop(workdir, get_all = True)
+    # TO DO: configure WD to write files to (in AWS)
