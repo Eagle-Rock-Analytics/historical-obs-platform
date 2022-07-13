@@ -109,3 +109,18 @@ get_cwop(datadir, get_all=True)
 
 
     # TO DO: configure WD to write files to (in AWS)
+
+
+# TO DO:
+# convert date-time to standard format
+# convert station metadata to standard format
+# lat-lon coordinates
+# station elevation -- may need to calculate using R script
+# station_id
+# network_id
+# add dataset metadata in standard format
+# data source
+# time of download
+# citation info
+# convert missing data to common format
+# convert exisitng qa/qc flags to standard format
