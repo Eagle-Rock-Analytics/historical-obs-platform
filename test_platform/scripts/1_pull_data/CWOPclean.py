@@ -126,3 +126,4 @@ get_cwop(datadir, get_all=True)
 # citation info
 # convert missing data to common format
 # convert exisitng qa/qc flags to standard format
+# check with solar_rad_parser
