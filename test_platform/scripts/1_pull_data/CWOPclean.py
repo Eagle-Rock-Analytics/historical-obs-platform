@@ -1,6 +1,8 @@
 # Draft 1: Cleaning script for CWOP network -- solar radiation data ONLY
 # public access years: 2018 - 2022
 # private years: 2009 - 2017
+# testing using 2020 and 2021
+
 
 import os
 from datetime import datetime, timezone
