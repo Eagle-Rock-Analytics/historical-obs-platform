@@ -1,44 +1,41 @@
-### Draft 1: Cleaning script for ASOS/AWOS network.
+### Scrape script for ASOS/AWOS network through ISD
 
-# ## Load packages
-# import requests
-
-# ## Read in ASOS/AWOS data from ISD using API GET call.
-### To do this, get all station IDs in WECC, download data for all stations, then filter by source.
-
+# Notes:
+# ISD ftp format: Each station has one file per year. The file for each station-year is updated daily for the current year.
+# For first pull, use ftp to update station and file.
+# To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
+# This is a separate function/branch.
 
 ## Load packages
-from ctypes import cast
 from ftplib import FTP
-from pydap.client import open_url
-from regex import F
-import wget
 import os
 from datetime import datetime, timezone
-import xarray as xr
 import pandas as pd
-import fiona
 from shapely.geometry import shape, Point
 import numpy as np
 import pandas as pd
 import geopandas as gp
 from geopandas.tools import sjoin
-import requests
-import re
-import gzip
-
-# ISD ftp format: Each station has one file per year.
-# For first pull, use ftp to update station and file.
-# To pull real-time data, probably write just an API call with date ranges and stations and update the most recent year folder only?
-
 
 # Set envr variables
 workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
+wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
+wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+
+# Function to return wecc shapefiles and combined bounding box given path variables.
+def get_wecc_poly(terrpath, marpath):
+    ## get bbox of WECC to use to filter stations against
+    ## Read in terrestrial WECC shapefile.
+    t = gp.read_file(terrpath)
+    ## Read in marine WECC shapefile.
+    m = gp.read_file(marpath)
+    ## Combine polygons and get bounding box of union.
+    bbox = t.union(m).bounds
+    return t,m, bbox
 
 # Function to get up to date station list
-def get_wecc_stations(): #Could alter script to have shapefile as input also, if there's a use for this.
-## Login.
-
+def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
+    ## Login.
     ## using ftplib, get list of stations as csv
     filename = 'isd-history.csv'
     ftp = FTP('ftp.ncdc.noaa.gov')
@@ -54,54 +51,46 @@ def get_wecc_stations(): #Could alter script to have shapefile as input also, if
     weccstations = stations[(stations['CTRY']=="US")]
 
     # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
-    geometry = [Point(xy) for xy in zip(weccstations['LON'], weccstations['LAT'])]
-    crs = {'init' :'epsg:4326'}
-    weccgeo = gp.GeoDataFrame(weccstations, crs=crs, geometry=geometry)
+    geometry = [Point(xy) for xy in zip(weccstations['LON'], weccstations['LAT'])] # Zip lat lon coords.
+    crs = {'init' :'epsg:4326'} # Set EPSG.
+    weccgeo = gp.GeoDataFrame(weccstations, crs=crs, geometry=geometry) # Convert to geodataframe.
     
     ## get bbox of WECC to use to filter stations against
-    ### FIX to remove hardcoded path var
-    wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-    t = gp.read_file(wecc_terr)
-    ### FIX to remove hardcoded path var
-    wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'
-    m = gp.read_file(wecc_mar)
+    t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
 
     # Get terrestrial stations.
-    weccgeo = weccgeo.to_crs(t.crs)
-    terwecc = sjoin(weccgeo, t, how='left')
-    terwecc = terwecc.dropna()
+    weccgeo = weccgeo.to_crs(t.crs) # Convert to CRS of terrestrial stations.
+    terwecc = sjoin(weccgeo, t, how='left') # Only keep stations in terrestrial WECC region.
+    terwecc = terwecc.dropna() # Drop empty rows.
 
     # Get marine stations.
-    marwecc = sjoin(weccgeo, m, how='left')
-    marwecc = marwecc.dropna()
+    marwecc = sjoin(weccgeo, m, how='left') # Only keep stations in marine WECC region.
+    marwecc = marwecc.dropna() # Drop empty rows.
     
-    # Join and remove duplicates.
-    
+    # Join and remove duplicates using USAF and WBAN as combined unique identifier.
     weccstations = (pd.concat([terwecc.iloc[:,:11], marwecc.iloc[:,:11]], ignore_index=True, sort =False)
             .drop_duplicates(['USAF','WBAN'], keep='first'))
 
-    # Generate ID from USAF/WBAN combo for API call.
+    # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names.
     weccstations['ISD-ID'] = weccstations['USAF']+"-"+weccstations['WBAN'].astype("str")
 
-    # Reformat time strings for API call.
+    # Reformat time strings for FTP/API call.
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
-
-    # Filter stations returning data matching time specifications
-    ### TO WRITE.
 
     weccstations.reset_index()
     return weccstations
 
-# Function to query ftp server for ISD data.
-def get_isd_data(station_list, start_date = None, get_all = True): 
+# Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
+# Start date format: 'YYYY-MM-DD"
+def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True): 
     
     # Remove depracated stations if filtering by time.
     if start_date is not None:
         try:
             station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
         except Exception as e:
-            print("Oops!", e)
+            print("Error:", e) # If error occurs here, function will continue without time filtering. Can add "break" to change this to stop code.
 
     ## Login.
     ## using ftplib
@@ -115,36 +104,41 @@ def get_isd_data(station_list, start_date = None, get_all = True):
     
     # TO DO: configure WD to write files to (in AWS)
     
-    # Get date of most recently edited file.
+    # Get date of most recently edited file. 
+    # Note if using AWS may have to change os function to something that can handle remote repositories. Flagging to revisit.
     try:
         last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
         last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
-    #for i in years: # For each year. FOR REAL RUN.
-    for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
+    for i in years: # For each year / folder.
+    #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
-            if (start_date is not None and int(i)>int(start_date[0:4])) or start_date is None: 
+            if (start_date is not None and int(i)>int(start_date[0:4])) or start_date is None:  
+                # If no start date specified or year of folder is within start date range, download folder.
                 try:
                     ftp.cwd(pwd) # Return to original working directory
                     ftp.cwd(i) # Change working directory to year.
                     filenames = ftp.nlst() # Get list of all file names in folder. 
-                    filefiltlist = stations["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
+                    filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
                     filefiltlist = filefiltlist.tolist() # Convert to list.
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
-                    fileswecc = fileswecc[0:5] # For downloading sample of data, DELETE!! for real run!
+                    #fileswecc = fileswecc[0:5] # For downloading sample of data. FOR TESTING ONLY.
                     for filename in fileswecc:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
                         
                         ### If get_all is False, only download files whose date has changed since the last download.
+                        #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
+                        #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
+                        #### This code could be altered to compare write time and file name if desired.
                         if get_all is False:
                             if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
                                 local_filename = os.path.join(workdir, filename) 
                                 file = open(local_filename, 'wb') # Open destination file.
                                 ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                                print('{} saved'.format(filename))
+                                print('{} saved'.format(filename)) # Helpful for testing, can be removed.
                                 file.close() # Close file
                             else:
                                 print("{} already saved".format(filename))
@@ -152,42 +146,19 @@ def get_isd_data(station_list, start_date = None, get_all = True):
                             local_filename = os.path.join(workdir, filename) 
                             file = open(local_filename, 'wb') # Open destination file.
                             ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                            print('{} saved'.format(filename))
+                            print('{} saved'.format(filename)) # Helpful for testing, can be removed.
                             file.close() # Close file
                 except Exception as e:
-                    print("error in downloading date {}: {}". format(i, e))
+                    print("Error in downloading date {}: {}". format(i, e))
                     next  # Adds error handling in case of missing folder. Skip to next folder.
-            else:
+            else: # If year of folder not in start date range, skip folder.
                 next
             
         else:
-            print(i)
+            next # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired.
 
     ftp.quit() # This is the “polite” way to close a connection
 
-#stations = get_wecc_stations()
-#get_isd_data(stations)
-
-# Start of outline for API approach (scratch notes)
-#get_isd_data(stations, start_date="2020-09-01")
-#     for index, station in station_list.iterrows():
-#         id = station['ISD-ID']
-        
-#         if start_time is None:
-#             start = station['start_time']
-#         else if start_time.:
-#             start = start_time
-
-#         if end_time is None:
-#             end = station['end_time']
-#         else:
-#             end = end_time
-        
-#         print(station)
-#         print(start, end, id)
-#         #url = "https://www.ncei.noaa.gov/access/services/data/v1?dataset=global-hourly&stations={}&startDate={}&endDate={}&format=csv&includeStationName=true&includeStationLocation=1&units=metric".format(stations, start_time, end_time)
-
-# get_isd_data(stations[1:10], start_time = '1920-01-12', end_time = '9201-01-10')
-# #print(url)
-# #response = requests.get(url)
-# #print(response)
+# Run functions
+stations = get_wecc_stations(wecc_terr, wecc_mar)
+get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
