@@ -49,3 +49,5 @@ def gz_extract(directory):
             print('{} saved'. format(file_name)) # Useful check, but can be cleaned up
 
 gz_extract(datadir)
+
+# Useful to add: Error messages/already downloaded messages? 
