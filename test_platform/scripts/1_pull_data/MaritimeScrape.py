@@ -1,4 +1,4 @@
-# Draft 1: Cleaning script for MARITIME network.
+# Scraping script for MARITIME network.
 
 #### TO DO LIST
 # TO DO: specify recipient folder (in AWS?)
@@ -9,8 +9,6 @@
 
 ## Load packages
 from ftplib import FTP
-from pydap.client import open_url
-import wget
 import os
 from datetime import datetime, timezone
 import xarray as xr
@@ -33,15 +31,15 @@ def get_maritime(workdir, get_all = True):
 
     # TO DO: configure WD to write files to (in AWS)
     
-    # Get date of most recently edited file.
+    # Get date of most recently edited file.                   
     try:
         last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
         last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
-    #for i in years: # For each year. FOR REAL RUN.
-    for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
+    for i in years: # For each year. FOR REAL RUN.
+    #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             for j in range(1, 3): # For each month (1-12) ### Return to 13, just 1-3 now for testing.
                 try:
@@ -57,12 +55,15 @@ def get_maritime(workdir, get_all = True):
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
                         
                         ### If get_all is False, only download files whose date has changed since the last download.
+                        #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
+                        #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
+                        #### This code could be altered to compare write time and file name if desired.
                         if get_all is False:
                             if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
                                 local_filename = os.path.join(workdir, filename) 
                                 file = open(local_filename, 'wb') # Open destination file.
                                 ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                                print('{} saved'.format(filename))
+                                print('{} saved'.format(filename)) # Helpful for testing, can be removed.
                                 file.close() # Close file
                             else:
                                 print("{} already saved".format(filename))
@@ -70,7 +71,7 @@ def get_maritime(workdir, get_all = True):
                             local_filename = os.path.join(workdir, filename) 
                             file = open(local_filename, 'wb') # Open destination file.
                             ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                            print('{} saved'.format(filename))
+                            print('{} saved'.format(filename)) # Helpful for testing, can be removed.
                             file.close() # Close file
 
                 except Exception as e:
@@ -82,37 +83,5 @@ def get_maritime(workdir, get_all = True):
     ftp.quit() # This is the “polite” way to close a connection
 
 # To download data, run:
-#get_maritime(workdir, get_all = True)
+get_maritime(workdir, get_all = False)
 
-# Read in downloaded data and do first clean.
-## Code written first by file, then rewrite to include merging mult. files (by time or by station?)
-
-# Step one: read in, and drop variables that are not of interest.
-filename = "32302_198901.nc"
-file = os.path.join(workdir, filename) 
-
-# Create list of variables to remove
-dropvars = ['wave_wpm', 'wave_wpm_bnds', 'bottom_depth', 'magnetic_variation','sampling_rates_waves', 'sampling_duration_waves', 'total_intervals_waves', 'significant_wave_height', 'average_wave_period', 'dominant_wave_period','spectral_density_c']
-
-# Read in file and drop variables that aren't of interest.
-ds = xr.open_dataset(file, drop_variables = dropvars)
-print(ds)
-
-# Step two: 
-# In the long run use this code to open and merge multiple files (by station? by year?)
-
-#file = os.path.join(workdir, "*.nc") 
-# def preprocess(ds):
-    # add any preprocessing steps in here.
-    #return preprocessed ds
-#ds = xr.open_mfdataset(file, preprocess = preprocess OR drop_variables = dropvars) # But how to keep dropped variables here?
-
-print(ds)
-#vardrop = ['']
-#ds = ds.drop_vars('sea_surface_temperature')
-#print(ds)
-
-
-# Step 2: join data for buoy by year.
-
-#def clean0_maritime(workdir):
