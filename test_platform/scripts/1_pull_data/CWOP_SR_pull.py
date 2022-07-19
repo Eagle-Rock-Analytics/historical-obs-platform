@@ -10,10 +10,12 @@
 
 import os
 import gzip
+from zipfile import ZipFile
 import shutil
 
 # set envr variables
-datadir = "/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/CWOP_SR/"
+#datadir = "/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/CWOP_SR/"
+datadir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/CWOP/SR/"
 
 ## Step 1: download data -- batch download from google drive - folder downloads as a .zip archive
 ## For new data downloads only need to do this once
@@ -29,6 +31,7 @@ def unzip_dir(directory):
         if item.endswith(extension):
             zip_name = os.path.abspath(item)
             print('Unzipping year (folder): ', zip_name)
+            ZipFile(zip_name).extractall(directory) # This unzips all files to the directory. (Note you should download the files, rather than the folders from GDrive as the zip will include the file structure.)
             # unzip zip_name -d directory               # barks at this line in script
             os.remove(zip_name)
 
