@@ -15,9 +15,10 @@ import xarray as xr
 
 # Set envr variables
 workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/Maritime/"
+years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
 
 ## Read in MARITIME data using FTP.
-def get_maritime(workdir, get_all = True):
+def get_maritime(workdir, years, get_all = True):
     
     ## Login.
     ## using ftplib
@@ -25,9 +26,6 @@ def get_maritime(workdir, get_all = True):
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
     pwd = ftp.pwd() # Get base file path.
-
-    # Get list of folders (by year) in main FTP folder.
-    years = ftp.nlst()
 
     # TO DO: configure WD to write files to (in AWS)
     
@@ -38,8 +36,8 @@ def get_maritime(workdir, get_all = True):
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
-    for i in years: # For each year. FOR REAL RUN.
-    #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
+    for i in years: # For each year/folder
+    #for i in ['1973', '1989', '2004', '2015', '2021']: # Subset for testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             for j in range(1, 3): # For each month (1-12) ### Return to 13, just 1-3 now for testing.
                 try:
@@ -49,6 +47,7 @@ def get_maritime(workdir, get_all = True):
                     #print(dir)
                     ftp.cwd(dir) # Change working directory to year/month.
                     filenames = ftp.nlst() # Get list of all file names in folder. 
+                    filenames = list(filter(lambda f: f.endswith('.nc'), filenames)) # Only keep .nc files.
                     filenames = filenames[0:5] # For downloading sample of data, DELETE!! for real run!
                     for filename in filenames:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
@@ -83,5 +82,5 @@ def get_maritime(workdir, get_all = True):
     ftp.quit() # This is the “polite” way to close a connection
 
 # To download data, run:
-get_maritime(workdir, get_all = False)
+get_maritime(workdir, years = years, get_all = True)
 
