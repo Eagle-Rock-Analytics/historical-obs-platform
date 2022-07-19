@@ -1,0 +1,10 @@
+# This file keep tracks of all of the abbreviations for data sources being ingested in the Historical Observations Platform for consistent usage.
+# abbrev, long_name
+ASOSAWOS, Automated Surface/Weather Observing Systems
+CWOP, Citizen Weather Observation Program
+CWOP_SR, Citizen Weather Observation Program Solar Radiation Data (separate from CWOP)
+MARITIME, Moored Buoys and Coastal-Marine Automated Network
+
+
+
+# testing delete
