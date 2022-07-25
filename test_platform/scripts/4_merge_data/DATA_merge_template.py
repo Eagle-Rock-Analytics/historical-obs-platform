@@ -20,6 +20,7 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
 ## Reading in all datasources here?
 ## Performance/efficiency checks
 
+
 # Step 2: Merge data
 ## Likely needs extensive error checking + outputs to user
-## Data formatting 
+## Data formatting
