@@ -14,7 +14,8 @@ from sqlalchemy import null
 token = "34e62da9b7c74f15a02ca172e6206bc3" # Synoptic API token
 workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
+save_dir = 'test_platform/data/1_raw_wx/CWOP/'   
 
 # Function to return wecc shapefiles and combined bounding box given path variables.
 def get_wecc_poly(terrpath, marpath):
@@ -49,7 +50,69 @@ def get_meso_metadata(terrpath, marpath):
     except Exception as e:
         print("Error: {}".format(e))
 
-# Option 1: generate JSONS for sets of stations. Still to figure out - how to join etc.
+# Make a csv for each station and save. 
+# To do:
+# Add error handling if request is for too many station hours.
+def get_cwop_station_csv(token, ids, save_dir, start_date = None): 
+# Takes dataframe with two columns, station ID and startdate. Optional parameter to specify later start date ("YYYYMMDDHHMM")
+# no_chunk specifies the number of groups the ID list is split into. Play with this if API starts to break.
+    
+    try:
+        os.mkdir(save_dir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+    except:
+        pass
+
+    for index, id in ids.iterrows(): # For a group of stations
+        # Get list of station IDs
+        # Get first start date in chunk
+        #print(id) # For testing
+        if start_date is None:
+            if id["start"] == np.NaN: # Adding error handling for NaN dates.
+                start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 and on.
+            else:
+                start_api = id["start"]
+        else:
+            start_api = start_date
+
+        end_api = datetime.now().strftime('%Y%m%d%H%M')
+        url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on".format(token, id['STID'], start_api, end_api)
+        #print(url) # For testing.
+        try:
+            #request = requests.get(url)
+            filepath = save_dir+'{}.csv'.format(id["STID"]) # Set path to desired folder. # Write file to name of station ID in synoptic-- Change file name to reflect dates?? 
+            print(filepath)
+            with open(filepath, 'wb') as f, \
+                requests.get(url, stream=True) as r: 
+                if r.status_code == 200: # Add error handling. -- to check, does this return 200 if CSV too big to download?
+                    print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+                    for line in r.iter_lines():
+                        f.write(line+'\n'.encode())
+                        next
+                else:
+                    print("Error: {}".format(r.status_code))
+                    # Save station ID and error to csv for later review?
+                    # If needed, split into smaller chunk? But csv seems to not kick so many errors.
+            # if request['SUMMARY']['RESPONSE_CODE'] == -1 & request['SUMMARY']['RESPONSE_MESSAGE'].startswith("Querying too many station hours"):
+            # # Response when the API call is too large. Split into smaller chunks.
+            #     print("API request too large. Splitting into smaller chunks.")
+            #     chunks = np.array_split(chunk, 3)
+            #     pass # Write code to rerun w/ smaller chunks here.
+            
+            # Parse response into dataframe
+            #### TO DO: clean and parse at the same time here?
+
+        except Exception as e:
+            print("Error: {}".format(e))
+
+ids = get_meso_metadata(wecc_terr, wecc_mar)
+#print(ids)
+get_cwop_station_csv(token = token, ids = ids.sample(n=20), save_dir = save_dir) # Run this with 20 random rows from ids
+
+
+### NOTES FROM ALONG THE WAY
+
+# Option 2: generate JSONS for sets of stations. Still to figure out - how to join etc.
+### Not finished!
 start_date = None
 def get_cwop_stations(token, ids, chunk_size, start_date = None): 
 # Takes dataframe with two columns, station ID and startdate. Optional parameter to specify later start date ("YYYYMMDDHHMM")
@@ -91,51 +154,6 @@ def get_cwop_stations(token, ids, chunk_size, start_date = None):
         # get_cwop_stations(token = token, ids = ids, chunk_size = 5, start_date = "202001010000")
 
 
-# Option 2: make a csv for each station and save. Slow but works! Add error handling if request is for too many station hours.
-def get_cwop_station_csv(token, ids, start_date = None): 
-# Takes dataframe with two columns, station ID and startdate. Optional parameter to specify later start date ("YYYYMMDDHHMM")
-# no_chunk specifies the number of groups the ID list is split into. Play with this if API starts to break.
-    for index, id in ids.iterrows(): # For a group of stations
-        # Get list of station IDs
-        # Get first start date in chunk
-        print(id)
-        if start_date is None:
-            if id["start"] == np.NaN: # Adding error handling for NaN dates.
-                start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 and on.
-            else:
-                start_api = id["start"]
-        else:
-            start_api = start_date
-
-        end_api = datetime.now().strftime('%Y%m%d%H%M')
-        url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc_remove_data=off&qc_flags=on".format(token, id['STID'], start_api, end_api)
-        print(url) # For testing.
-        try:
-            #request = requests.get(url)
-            with open(os.path.split(id["STID"])[1], 'wb') as f, \
-                requests.get(url, stream=True) as r: # Write file to name of station ID in synoptic -- Change file name to reflect dates?? 
-                for line in r.iter_lines():
-                    f.write(line+'\n'.encode())
-                    next
-            # if request.status_code == 200:
-            #     pass
-            #     # WRITE CODE TO SAVE / APPEND.
-            # if request['SUMMARY']['RESPONSE_CODE'] == -1 & request['SUMMARY']['RESPONSE_MESSAGE'].startswith("Querying too many station hours"):
-            # # Response when the API call is too large. Split into smaller chunks.
-            #     print("API request too large. Splitting into smaller chunks.")
-            #     chunks = np.array_split(chunk, 3)
-            #     pass # Write code to rerun w/ smaller chunks here.
-            
-            # Parse response into dataframe
-            #### TO DO: clean and parse at the same time here?
-
-        except Exception as e:
-            print("Error: {}".format(e))
-
-ids = get_meso_metadata(wecc_terr, wecc_mar)
-print(ids)
-get_cwop_station_csv(token = token, ids = ids[1:5])
-       
 # t,m,bbox = get_wecc_poly(wecc_terr, wecc_mar)
 # bbox_api = bbox.loc[0,:].tolist() # [lonmin,latmin,lonmax,latmax]
 # bbox_api = ','.join([str(elem) for elem in bbox_api])
@@ -148,9 +166,6 @@ get_cwop_station_csv(token = token, ids = ids[1:5])
 #url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&network=65&bbox={}&recent=20&output=json&qc_remove_data=off&qc_flags=on".format(token, bbox_api)
 #request = requests.get(url).json()
 #print(request)
-
-
-#### NOTES FROM ALONG THE WAY
 
 #print(bbox_api) For testing
 
