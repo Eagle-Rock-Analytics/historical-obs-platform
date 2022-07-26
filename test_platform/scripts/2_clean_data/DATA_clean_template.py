@@ -91,8 +91,11 @@ return sfcWind_dir
 
 ## Step 2: Read in datafile and drop variables that aren't of interest
 dropvars = ['var1', 'var2', 'var3'] # will depend on each datasource and what it provides
+# alternative: dropvars = [] pulling column headers from data file and doing an anti-join
+# conceptually using pandas: https://stackoverflow.com/questions/38516664/anti-join-pandas
+# datasource would need to have a variable header, at least one does not
 
-### QUESTION FOR GRACE/OWEN: Do we keep the moisture variables if they were needed for RH/TD calculations or drop?
+# Note: keep source variables if they are used for derived priority variables, primarily for qa/qc checks
 
 # ----------------------------------------------------------------------------------------------------------
 # This is based on if files are listed by station
@@ -122,11 +125,11 @@ print(ds)
 # consistent date-time format?
 # a flag/grouping for hourly/sub-hourly
 
-### QUESTION FOR GRACE/OWEN: Do we keep the 'original' and 'converted' variables? Only 'converted' variables would be read by DATA_qaqc.py
+## Keep both the original and converted variables for QA/QC
 
 ## Step 3: Convert station metadata to standard format -- CF compliance
 # Generate unique ID across entire dataset
-# new_ID = network_name + network_id ?
+# new_ID = network_name + "_" + network_id
 
 
 ## Step 4: Convert dataset metadata in standard format -- CF compliance

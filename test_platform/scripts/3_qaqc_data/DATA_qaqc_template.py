@@ -57,6 +57,7 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
         # Example: wind speed and direction
         # If speed is 0, direction should be 0
 
+# Drop original data variables to only keep qa/qc processed converted variables
 
 ## Step 3: Case study analysis for quality check
 ## Is this a separate script once a complete product at this stage or after merging?
