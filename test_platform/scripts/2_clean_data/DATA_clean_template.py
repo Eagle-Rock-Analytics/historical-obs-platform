@@ -32,8 +32,24 @@ workdir = "/path/to/working/directory/where/data/is/for/testing/"
 ## Step 1: Read in files and first pass of clean and organize
 timestamp = datetime.now()
 
+## -----------------------------------------------------------------------------------------------------------------
+## This may happen via various methods depending on how the data is stored
 files = os.listdir(workdir) # Gets list of files in directory to work with
-files = list(filter(lambda f: f.endswith(".nc"), files)) # may need to change extension as needed
+
+## netCDF
+files = list(filter(lambda f: f.endswith(".nc"), files))
+# to be continued
+
+## CSV
+files = list(filter(lambda f: f.endswith(".csv"), files))
+# to be continued
+
+## Text files
+files = list(filter(lambda f: f.endswith(".txt"), files))
+# to be continued
+
+
+# -------------------------------------------------------------------------------------------------------------------
 
 # dimension/variable order
 # For example, air_temperature would have (time x lat x lon x elev x data) dimensions
@@ -48,16 +64,16 @@ clean_vars = ['air_pressure', 'air_temperature', 'dewpoint_temperature',
 
 # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
 def _calc_dewpointtemp(tas, hurs, e):
-    es = 0.611 * exp(5423 * ((1/273) - (1/air_temp)))   # calculates saturation vapor pressure
-    e = (es * rel_humid)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
+    e = (es * hurs)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
     tdps = ((1/273) - 0.0001844 * ln(e/0.611))^-1   # calculates dew point temperature, units = K
 
 return tdps
 
 # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
 def _calc_relhumid(tas, tdps):
-    es = 0.611 * exp(5423 * ((1/273) - (1/air_temp)))   # calculates saturation vapor pressure using air temp
-    e = 0.611 * exp(5423 * ((1/273) - (1/dewpoint_temp)))   # calculates vapor pressure using dew point temp
+    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure using air temp
+    e = 0.611 * exp(5423 * ((1/273) - (1/tdps)))   # calculates vapor pressure using dew point temp
     hurs = 100 * (e/es)
 
 return hurs

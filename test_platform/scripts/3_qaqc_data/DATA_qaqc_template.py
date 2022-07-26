@@ -3,8 +3,9 @@ This script is a template structure for data qa/qc protocols for a variety of da
 ingestion into the Historical Observations Platform.
 Approach:
 (1) Remove duplicate stations
-(2) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
-(3) Case study analysis for accuracy
+(2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
+(3) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
+(4) Case study analysis for accuracy
 Inputs: Cleaned data for an individual network
 Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
@@ -30,7 +31,11 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
 # short distance (40-50km as baseline?)
 
 
-## Step 2: QA/QC (these could potentially be individual steps too)
+## Step 2: Handle variables that report at different intervals and/or change frequency over time
+## Convert to hourly data?
+
+
+## Step 3: QA/QC (these could potentially be individual steps too)
 ## Testing with random subsample to ensure acceptably low level of false positive rates for specified thresholds and tests for each variables
 
 # How to handle existing QA/QC flags -- use tracked qa/qc flags from DATA_clean.py

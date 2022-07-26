@@ -5,7 +5,7 @@ Google Drive.
 Approach:
 (1) Download data, designed for automatic processing
 Inputs: Nothing
-Outputs: Raw data from network, all variables, all times. Organized by either station or time.
+Outputs: Raw data for an individual network, all variables, all times. Organized by either station or time.
 """
 
 ## TO DO LIST
