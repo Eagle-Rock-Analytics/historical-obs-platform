@@ -73,7 +73,18 @@ old_flag = []
 histobs_flag = []
 
 
-# Step 7: Open datafile and merge files by station -- in this script or the next?
+# Step 7: Calculate derived primary variables
+# relative humidity calculation (if not observed)
+# dew point temperature calculation (if not observed)
+# wind speed (sum u and v components)
+# wind direction
+
+
+# Step 8: Generate unique ID across entire dataset
+# new_ID = network_name + network_id ?
+
+
+# Step 9: Open datafile and merge files by station -- in this script or the next?
 
 
 # What needs to be returned here?
