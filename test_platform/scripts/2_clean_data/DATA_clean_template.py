@@ -53,11 +53,9 @@ files = list(filter(lambda f: f.endswith(".txt"), files))
 
 # dimension/variable order
 # For example, air_temperature would have (time x lat x lon x elev x data) dimensions
-clean_dims = ['tiime', 'latidue', 'longitude', 'elevation']
-clean_vars = ['air_pressure', 'air_temperature', 'dewpoint_temperature',
-            'precipitation', 'relative_humidity', 'solar_radiation',
-            'wind_speed', 'wind_direction']
-
+clean_dims = ['time', 'latidue', 'longitude', 'elevation']
+clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+## match these back to their cf compliant names
 
 # If not observed, calculate derived primary variables
 # ** indicates primary approach
