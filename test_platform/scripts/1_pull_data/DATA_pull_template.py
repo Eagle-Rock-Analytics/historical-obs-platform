@@ -1,22 +1,29 @@
-## Historical Observations Platform
-## Template Script for Stage: PULL DATA
+"""
+This script is a template structure for data scraping for a variety of data sources for
+ingestion into the Historical Observations Platform. Available scraping options are: via ftp, API, or
+Google Drive.
+Approach:
+(1) Download data, designed for automatic processing
+Inputs: Nothing
+Outputs: Raw data from network, all variables, all times. Organized by either station or time.
+"""
 
 ## TO DO LIST
 ## Any notes critical for further development, e.g.: AWS implementation
 
-# Step 0: Environment set-up
+## Step 0: Environment set-up
 # Import libraries -- delete as appropriate per datasource
 import os
 from datetime import datetime, timezone
 import xarray as xr
 from ftplib import FTP
 
-
 # Set envr variables
 workdir = "/path/to/working/directory/"
 years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
 
-# Step 1: Download data
+
+## Step 1: Download data
 ## This may happen via various methods depending on how the data is stored
 
 # ------------------------------------------------------------------------------------------------

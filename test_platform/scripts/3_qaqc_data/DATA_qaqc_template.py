@@ -1,11 +1,19 @@
-## ## Historical Observations Platform
-## Template Script for Stage: QA/QC DATA
+"""
+This script is a template structure for data qa/qc protocols for a variety of data sources for
+ingestion into the Historical Observations Platform.
+Approach:
+(1) Remove duplicate stations
+(2) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
+(3) Case study analysis for accuracy
+Inputs: Cleaned data for an individual network
+Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
+"""
 
 ## TO DO LIST
 ## Any notes critical for further development, e.g.: AWS implementation
 
 # Step 0: Environment set-up
-# Import libraries -- delete as appropriate per datasource
+# Import libraries
 import os
 from datetime import datetime, timezone
 import xarray as xr
@@ -16,17 +24,16 @@ workdir = "/path/to/working/directory/"
 years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
 
 
-# Step 1: Remove duplicate Stations
+## Step 1: Remove duplicate stations
 # Alternative spellings of station ids (spelling case)
 # lat-longitude
 # short distance (40-50km as baseline?)
 
 
-# Step 2: QA/QC
-# Testing with random subsample to ensure acceptably low level of false positive rates for
-# specified thresholds and tests for each variables
+## Step 2: QA/QC (these could potentially be individual steps too)
+## Testing with random subsample to ensure acceptably low level of false positive rates for specified thresholds and tests for each variables
 
-# How to handle existing QA/QC flags
+# How to handle existing QA/QC flags -- use tracked qa/qc flags from DATA_clean.py
 
 # Internal variable consistency checks
     # logical checks for climate variables
@@ -46,4 +53,5 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
         # If speed is 0, direction should be 0
 
 
-# Step 3: Case study analysis for quality check
+## Step 3: Case study analysis for quality check
+## Is this a separate script once a complete product at this stage or after merging?
