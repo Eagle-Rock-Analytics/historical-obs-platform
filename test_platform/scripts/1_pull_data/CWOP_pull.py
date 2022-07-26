@@ -1,18 +1,21 @@
-# Use ftp
-# Each directory is year / month / day / LDAD / mesonet / netcdf 
-### We probably want to use this method to filter by bbox and provider: https://madis-data.ncep.noaa.gov/madis_ldad_filter.shtml
+# CWOP pull script
+# This script contains 3 functions. 
+# get_wecc_poly generates a bounding box from WECC shapefiles.
+# get_meso_metadata produces a list of station IDs filtered by bounding box and network (CWOP in this case)
+# get cwop_station_csv saves a csv for each station ID provided, with the option to select a start date for downloads (defaults to station start date).
+## It also produces an error csv noting all station IDs where downloads failed.
+
 import requests
 import geopandas as gp
 import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
-
-from sqlalchemy import null
+import re
+import csv
 
 # Set envr variables
-token = "34e62da9b7c74f15a02ca172e6206bc3" # Synoptic API token
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
+token = "34e62da9b7c74f15a02ca172e6206bc3" # Synoptic API token - should be moved to AWS secrets manager or .env file asap.
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
 save_dir = 'test_platform/data/1_raw_wx/CWOP/'   
@@ -52,45 +55,68 @@ def get_meso_metadata(terrpath, marpath):
 
 # Make a csv for each station and save. 
 # To do:
-# Add error handling if request is for too many station hours.
+# Add error handling.
 def get_cwop_station_csv(token, ids, save_dir, start_date = None): 
 # Takes dataframe with two columns, station ID and startdate. Optional parameter to specify later start date ("YYYYMMDDHHMM")
-# no_chunk specifies the number of groups the ID list is split into. Play with this if API starts to break.
     
     try:
         os.mkdir(save_dir) # Make the directory to save data in. Except used to pass through code if folder already exists.
     except:
         pass
+    
+    # Set up error handling df.
+    errors = {'Station ID':[], 'Time':[], 'Error':[]}
 
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime('%Y%m%d%H%M')
+        
     for index, id in ids.iterrows(): # For a group of stations
-        # Get list of station IDs
-        # Get first start date in chunk
-        #print(id) # For testing
+        
+        # Set start date
         if start_date is None:
-            if id["start"] == np.NaN: # Adding error handling for NaN dates.
-                start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 and on.
+            if id["start"] == "NaN" or pd.isna(id['start']): # Adding error handling for NaN dates.
+                start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 OH:OM and on.
+                # To check: all stations seen so far with NaN return empty data. If true universally, can skip these instead of saving.
             else:
                 start_api = id["start"]
         else:
             start_api = start_date
 
-        end_api = datetime.now().strftime('%Y%m%d%H%M')
+        # Generate URL
         url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on".format(token, id['STID'], start_api, end_api)
         #print(url) # For testing.
+
+        # Try to get station csv.
         try:
             #request = requests.get(url)
             filepath = save_dir+'{}.csv'.format(id["STID"]) # Set path to desired folder. # Write file to name of station ID in synoptic-- Change file name to reflect dates?? 
-            print(filepath)
-            with open(filepath, 'wb') as f, \
-                requests.get(url, stream=True) as r: 
-                if r.status_code == 200: # Add error handling. -- to check, does this return 200 if CSV too big to download?
-                    print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
-                    for line in r.iter_lines():
-                        f.write(line+'\n'.encode())
-                        next
+            #print(filepath)
+            with requests.get(url, stream=True) as r: 
+                if r.status_code == 200: # If API call returns a response
+                    if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
+                        # Get error message and clean.
+                        error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
+                        error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
+                        error_text = re.sub(",.*", "", error_text)
+                        error_text = re.sub('"', '', error_text)
+                        
+                        # Append rows to dictionary
+                        errors['Station ID'].append(id['STID'])
+                        errors['Time'].append(end_api)
+                        errors['Error'].append(error_text)
+                        next  
+                    else:
+                        with open(filepath, 'wb') as f:
+                            print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+                            for line in r.iter_lines():
+                                f.write(line+'\n'.encode())
+                                next
                 else:
+                    errors['Station ID'].append(id['STID'])
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(r.status_code)
                     print("Error: {}".format(r.status_code))
-                    # Save station ID and error to csv for later review?
+
                     # If needed, split into smaller chunk? But csv seems to not kick so many errors.
             # if request['SUMMARY']['RESPONSE_CODE'] == -1 & request['SUMMARY']['RESPONSE_MESSAGE'].startswith("Querying too many station hours"):
             # # Response when the API call is too large. Split into smaller chunks.
@@ -103,13 +129,56 @@ def get_cwop_station_csv(token, ids, save_dir, start_date = None):
 
         except Exception as e:
             print("Error: {}".format(e))
+    
+    # Write errors to csv
+    filepath = save_dir+"errors_cwop_{}.csv".format(end_api) # Set path to save error file.
+    print(errors)
+    with open(filepath, "w") as outfile:
+        # pass the csv file to csv.writer function.
+        writer = csv.writer(outfile)
+    
+        # pass the dictionary keys to writerow
+        # function to frame the columns of the csv file
+        writer.writerow(errors.keys())
+    
+        # make use of writerows function to append
+        # the remaining values to the corresponding
+        # columns using zip function.
+        writer.writerows(zip(*errors.values()))
 
+# Test!
 ids = get_meso_metadata(wecc_terr, wecc_mar)
-#print(ids)
-get_cwop_station_csv(token = token, ids = ids.sample(n=20), save_dir = save_dir) # Run this with 20 random rows from ids
+# Get 3 real rows (or more as desired.)
+ids = ids.sample(3)
+# And make 3 fake rows that might break our code - wrong station id, wrong time, and NaN in time format.
+test = pd.DataFrame({'STID': ["0ier", "E2082", "F2382"],
+                     'start': ["200001010000", "2", "NaN"]})
+ids = ids.append(test, ignore_index = True)
+print(ids)
+get_cwop_station_csv(token = token, ids = ids, save_dir = save_dir) # Run this with our test data.
 
 
-### NOTES FROM ALONG THE WAY
+### NOTES/SCRAPS FROM ALONG THE WAY
+
+# with open("test.csv", 'wb') as f, \
+#                 requests.get("https://api.synopticdata.com/v2/stations/timeseries?token=34e62da9b7c74f15a02ca172e6206bc3&stid=irgt&start=201905132239&end=202207261229&output=csv&qc=on&qc_remove_data=off&qc_flags=on", stream=True) as r: 
+#                 id = "AFtest"
+#                 end_api = "200000000000"
+#                 if r.status_code == 200: # If API call returns a response
+#                     #print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+#                     #print(r.text())
+#                     if "# RESPONSE_MESSAGE" in r.text:
+#                        error_text = str(re.search("(RESPONSE_MESSAGE:.*)",r.text).group(0))
+#                        error_text = error_text.replace("RESPONSE_MESSAGE:", "")
+#                        error = {'Station ID': id, 'Time': end_api, 'Error': error_text} # Add error to error log. 
+#                        print(error)
+#                     #for line in r.iter_lines():
+                        
+#                         #f.write(line+'\n'.encode())
+#                         #next
+
+
+
 
 # Option 2: generate JSONS for sets of stations. Still to figure out - how to join etc.
 ### Not finished!
