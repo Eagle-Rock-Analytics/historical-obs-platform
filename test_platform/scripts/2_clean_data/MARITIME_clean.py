@@ -54,69 +54,122 @@ for file in files:
         ids.append(id)
 
 #print(ids)
-# for file in files:
-#     try:
-#         ## Step 2: Read in datafile and drop variables that aren't of interest
-#         # Define list of column variables to drop.
-#         dropvars = ['wave_wpm', 'wave_wpm_bnds', 'bottom_depth', 'magnetic_variation','sampling_rates_waves', 'sampling_duration_waves', 'total_intervals_waves', 'significant_wave_height', 'average_wave_period', 'dominant_wave_period','spectral_density_c',
-#                         'end_of_wave_data_acquisition_k', 'c11_k']
 
-#         ds = xr.open_dataset(file, drop_variables=dropvars)
+## Step 2: Read in datafile and drop variables that aren't of interest
+# # Define list of column variables to drop.
+# # This method is robust to variables getting added over time.
+    
+# Identify variables of interest and variable names.
+keys = []
+dropvars = ['wave_wpm_bnds'] # Get rid of troublesome var.
+    
+for file in files:
+    ds = xr.open_dataset(file, drop_variables=dropvars)
+    key = list(ds.keys())
+    keys+=key
+
+# Get list of all variables
+mar_vars = list(set(keys)) # Get list of unique vars 
+mar_vars.append('wave_wpm_bnds') # add wave_wpm_bnds back in.
+
+# Identify all variables to keep (this is a very conservative list, could prob cut more.)
+vars_to_keep = ['wind_gust', 'continuous_wind_direction', 'solar_radiation_36', 'wind_speed',
+                    'speed_averaging_method', 'air_temperature', 'continuous_wind_speed',
+                    'hourly_max_gust', 'wind_gust_averaging_period', 'wind_sampling_duration',
+                    'air_pressure_at_sea_level', 'time10_bnds', 'timem_bnds', 'time_wpm_20_bnds',
+                    'dew_point_temperature', 'time_bnds', 'solar_radiation_4_50', 'precipitation',
+                    'wind_direction', 'anemometer_height', 'direction_of_hourly_max_gust']
+
+# Remove these variables from the list of all variables to get drop list.
+dropvars = np.setdiff1d(mar_vars, vars_to_keep)
+print(dropvars)
+for file in files:
+    try:
+        ## Step 2: Read in datafile and drop variables that aren't of interest
+        ds = xr.open_dataset(file, drop_variables=dropvars)
         
-#         ## Step 3: Convert station metadata to standard format -- CF compliance
-#         # Generate unique ID across entire dataset by combining network name and ID.
-#         ds = ds.assign_attrs(station_id = "MARITIME_"+ds.attrs["id"])
-#         # Rename original ID column
-#         ds.attrs['original_id'] = ds.attrs.pop('id')
+        ## Step 3: Convert station metadata to standard format -- CF compliance
 
-#         # Check lat / lon - TO DO 
-#         # Check elev. - TO DO
-
-#         #### TESTING NOTES
-#         # Quick and dirty list of all variables and their attributes
-#         print(list(ds.attrs)) # Global attributes
-#         print(list(ds.keys())) # Variables
-#         for i in list(ds.keys()):
-#             print(i, ds[i].attrs) # Attributes for each variable
-            
-#         ## Step 4: Convert dataset metadata in standard format -- CF compliance
-#         ## Unit check? Conversions needed?
-#         ### SKIPPING FOR NOW.
+        # 3.1 Generate unique ID across entire dataset by combining network name and ID.
+        ds = ds.assign_attrs(station_id = "MARITIME_"+ds.attrs["id"])
+        # Rename original ID column
+        ds.attrs['original_id'] = ds.attrs.pop('id')
         
-#         ## Step 5: Convert missing data to common format -- CF compliance
-#         ## Use NaN
-#         #for var in ds.variables: # Get range of variable values to check for non-NAN NA values. How??
+        # 3.2 Check lat / lon - TO DO 
+        # 3.3 Check elev. - TO DO
+
+        ## Step 4: Convert dataset metadata in standard format -- CF compliance
+        ## Unit check? Conversions needed?
+        ### SKIPPING FOR NOW.
         
-#         # Hacky way to get count of NAs in a column.
-#         print(ds['wind_speed'].sum(skipna=False) - ds['wind_speed'].sum(skipna=True))
-
-#         break
+        ## Step 5: Convert missing data to common format -- CF compliance
+        ## Use NaN
+        #for var in ds.variables: # Get range of variable values to check for non-NAN NA values. How??
         
-#         ## Step 6: If not observed, calculate derived primary variables
-#         # ** indicates primary approach
+        # Hacky way to get count of NAs in a column.
+        #print(ds['wind_speed'].sum(skipna=False) - ds['wind_speed'].sum(skipna=True))
 
-#         # #dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
-#         # ## MARITIME network should have dewpoint but does not appear to????
-#         # tdps = calc._calc_dewpointtemp(tas, hurs, e)
+        #break
+        
+        # Step 6: Standardize variables and variable metadata.
+        # If not observed, calculate derived primary variables
+        # note!!!! not all stations have all columns. Add try / exceptions here or other code to help manage breaks!!
+        #** indicates primary approach
 
-#         # # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
-#         # hurs = calc._calc_relhumid(tas, tdps)
+        # In following order:
+        # clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
 
-#         # # wind speed (necessary input vars: u and v components)
-#         # ## Maritime already has wind speed calculated.
-#         # sfcWind = calc._calc_windmag(u10, v10)
+        # # ps: surface air pressure
+        # if "air_pressure_at_sea_level" in ds.keys():
+        #     ds = ds.assign_attrs(ps = ds.attrs["air_pressure_at_sea_level"]??????) # Convert from mb to Pa
+        #     ds['ps'].attrs['units'] = "Pascals" # Update units
 
-#         # # wind direction (necessary input vars: u and v components)
-#         # ## Maritime already has wind speed calculated.
-#         # sfcWind_dir = calc._calc_winddir(u10, v10)
+        # # tas : air surface temperature
+        # if "air_temperature" in ds.keys():
+        #     ds = ds.assign_attrs(tas = ds.attrs["air_temperature"]+273.15) # Convert from C to K
+        #     ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
 
-#         # ## Step 6: Tracks existing QA/QC flags to standard format
-#         ### again, maritime should have flags but i don't see them currently....
-#         # old_flag = []
-#         # histobs_flag = []
+        print(ds['dew_point_temperature'])
+        # # tdps: dew point temperature
+        # # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
+        # # Only more recent stations have dewpoint temp (dew_point_temperature)
+        # # No stations have vapor pressure or RH.
+        # if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
+        #     ds.attrs['tdps'] = ds.attrs.pop('dew_point_temperature') # Rename.
+        # #tdps = calc._calc_dewpointtemp(tas, hurs, e)
 
-#     except Exception as e:
-#         print("Error processing file {}: {}".format(file, e)) # To do: keep track of these.
+        # # pr: precipitation
+
+        # # hurs: relative humidity
+        # # SKIP BECAUSE NEEDED VARS NOT AVAILABLE.
+        # # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
+        # #hurs = calc._calc_relhumid(tas, tdps)
+
+        # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
+
+        # # sfcWind : wind speed
+        # # # wind speed (necessary input vars: u and v components)
+        # if "wind_speed" in ds.keys(): # If variable already exists, rename.
+        #     pass # Write code to rename var here.
+        # # ## Maritime already has wind speed calculated.
+        # # sfcWind = calc._calc_windmag(u10, v10)
+
+        # # sfcWind_dir: wind direction
+        # # # wind direction (necessary input vars: u and v components)
+        # if "wind_direction" in ds.keys(): # If variable already exists, rename.
+        #     pass # Write code to rename var here.
+        # # ## Maritime already has wind speed calculated.
+        # # sfcWind_dir = calc._calc_winddir(u10, v10)
+
+        # ## Step 6: Tracks existing QA/QC flags to standard format
+        ### again, maritime should have flags but i don't see them currently....
+        # old_flag = []
+        # histobs_flag = []
+
+        # Reorder variables
+
+    except Exception as e:
+       print("Error processing file {}: {}".format(file, e)) # To do: keep track of these.
     
     
     ## Step 7: Open datafile and merge files by station
@@ -130,15 +183,26 @@ for file in files:
     ## Change WD
 
     # For each ID, get list of files with ID in name.
-    for id in ids:
-        file_sub = list(filter(lambda k: id in k, files)) # Add, "MARITIME" in k.
-        print(id, file_sub)
-        id_comb = xr.open_mfdataset(file_sub,combine = 'by_coords', concat_dim="time") # Theoretically works.
-        id.to_netcdf('MARITIME_{}.nc'.format(id)) # Write to one netcdf file
-        # Clean up file_sub files if successful.
+    # for id in ids:
+    #     file_sub = list(filter(lambda k: id in k, files)) # Add, "MARITIME" in k.
+    #     print(id, file_sub)
+    #     id_comb = xr.open_mfdataset(file_sub,combine = 'by_coords', concat_dim="time") # Theoretically works.
+    #     id.to_netcdf('MARITIME_{}.nc'.format(id)) # Write to one netcdf file
+    #     # Clean up file_sub files if successful.
 
 
 #### NOTES
+
+#### TESTING NOTES
+        # Quick and dirty list of all variables and their attributes
+        #print(list(ds.attrs)) # Global attributes
+        #print(list(ds.keys())) # Get all variables
+        #for i in list(ds.keys()):
+        #    print(i, ds[i].attrs) # Attributes for each variable
+            
+        
+
+
 # For each station, join files together (by year or by all time?).
 # Naming conventions for files change over time.
 # MARITIME does not provide a regularly updated spreadsheet / .txt. file of station names (that I could find past 2020.)
