@@ -1,20 +1,52 @@
-# Import library
+"""
+This script is a template structure for data cleaning for the MARITIME network for
+ingestion into the Historical Observations Platform.
+Approach:
+(1) Read through variables, and calculates derived priority variables if not observed
+(2) Drops unnecessary variables
+(3) Converts station metadata to standard format, with unique identifier
+(4) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
+(5) Converts missing data to standard format
+(6) Tracks existing qa/qc flag for review
+(7) Merge files by station, and outputs cleaned variables as a single .nc file for an individual network.
+Inputs: Raw data for MARITIME stations, with each file representing a month of a year.
+Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
+"""
+
+# Step 0: Environment set-up
+# Import libraries
 import os
 import xarray as xr
 from datetime import datetime
 import re
 import geopandas as gp
+import numpy as np
 
-# Read in downloaded data and do first clean.
-## Code written first by file, then rewrite to include merging mult. files (by time or by station?)
+# Set envr variables
+workdir = "test_platform/data/1_raw_wx"
+wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
+wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
 
-# Get current time
+## Step 1: Read in files and first pass of clean and organize
 timestamp = datetime.now()
 
-# Set envr vars.
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/Maritime/"
-wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
+files = os.listdir(workdir) # Gets list of files in directory to work with
+files = list(filter(lambda f: f.endswith(".nc"), files))
+
+# Set target dimension and variable order
+# For example, air_temperature would have (time x lat x lon x elev x data) dimensions
+clean_dims = ['time', 'latitude', 'longitude', 'elevation']
+clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+
+# If not observed, calculate derived primary variables
+# ** indicates primary approach
+
+# dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
+def _calc_dewpointtemp(tas, hurs, e):
+    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
+    e = (es * hurs)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    tdps = ((1/273) - 0.0001844 * ln(e/0.611))^-1   # calculates dew point temperature, units = K
+    return tdps
 
 # Create list of variables to remove
 dropvars = ['wave_wpm', 'wave_wpm_bnds', 'bottom_depth', 'magnetic_variation','sampling_rates_waves', 'sampling_duration_waves', 'total_intervals_waves', 'significant_wave_height', 'average_wave_period', 'dominant_wave_period','spectral_density_c',
