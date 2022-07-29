@@ -47,16 +47,16 @@ def parse_cwop_sr(filepath):
     with open(filepath, 'r') as f:
         lines.append(f.readlines())
 
-    # line = "11655> 011315z 3902.33N /08711.98W _260 /000 g000 t030 P000 h91 b10134 L007 ws31"
-    # line = "CW3702> 011845z 3907.05N /10441.50W _000 /000 g000 t044 r000 p000 P000 h45 b10009 L158 .DsWLL"
+    # line = "11655>011315z3902.33N/08711.98W_260/000g000t030P000h91b10134L007ws31"
+    # line = "CW3702>011845z3907.05N/10441.50W_000/000g000t044r000p000P000h45b10009L158.DsWLL"
 
     # Splits line based off of the following string options, case matters
     for line in lines:
         # remove any item from the "hardware" list to ensure it doesn't interfere with variable extraction
         hardware_opts = ["DsIP", "AmbientCWOP.com", "eMB51", ".WD 31", "ws31", ".DsWLL", "DsVP",
-                            "eCumulusDsVP", "WeatherCatV312B34H31", "eMB50", ".weewx-4.5.1-Vantage"]
+                            "eCumulusDsVP", "WeatherCatV312B34H31", "eMB50", ".weewx-4.5.1-Vantage"] ## technical report indicates there are more than this -- need to flag/automate
         for item in hardware_opts:
-            if item in line::
+            if item in line:
                 line = line[:-len(item)]
 
         line_items = re.split(r"[>z/_gt]", line) ## come back to this later
@@ -100,13 +100,14 @@ def parse_cwop_sr(filepath):
         elif line_items[7][3:] == "b":  # barometric pressure, convert to standardized air pressure, UNIT DEPENDENT DECIMAL PLACE, currently hundredths of hPa
             b_idx = line_items[7][3:].index("b")
             ps = line_items[7][b_idx+4:b_idx+8]
-        elif line_items[7][3:] == "L": # solar radiation, w/m2 -- L is for values below 999 ## known flag is stretches of 998
+        elif line_items[7][3:] == "L": # solar radiation, w/m2 -- L is for values below 999
             L_idx = line_items[7][3:].index("L")
             rsds = line_items[7][L_idx+4:L_idx+7]
-        elif line_items[7][3:] == "l": # solar radiation, w/m2 -- l is for values above 1000 ## known flag is stretches of 998
+        elif line_items[7][3:] == "l": # solar radiation, w/m2 -- l is for values above 1000
             l_idx = line_items[7][3:].index("l")
             rsds = line_items[7][l_idx+4:l_idx+7]
-
+        elif
+            print("Error -- unknown variable flag present in data, please confirm")
 
 parse_cwop_sr(date)
 
