@@ -20,15 +20,35 @@ import xarray as xr
 from datetime import datetime
 import re
 import geopandas as gp
-#import calc # import calc.py
 import numpy as np
 import xarray as xr
+from calc import _calc_relhumid, get_wecc_poly
+import csv
 
-# Set envr variables
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/Maritime/"
-#workdir = "test_platform/data/1_raw_wx/MARITIME/"
+# Set envr variables and calculate any needed variables
+homedir = os.getcwd()
+workdir = "test_platform/data/1_raw_wx/MARITIME/"
+savedir = "test_platform/data/2_clean_wx/MARITIME/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
+
+# Set up directory to save files, if it doesn't already exist.
+try:
+    os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+except:
+    pass
+
+try:
+    t, m, bbox = get_wecc_poly(wecc_terr, wecc_mar)
+    lonmin, lonmax = float(bbox['minx']), float(bbox['maxx']) 
+    latmin, latmax = float(bbox['miny']), float(bbox['maxy']) 
+except: # If geospatial call fails, hardcode.
+    lonmin, lonmax = -139.047795, -102.03721
+    latmin, latmax = 30.142739, 60.003861
+
+## Set up csv to record any files not cleaned and reason.
+errors = {'File':[], 'Time':[], 'Error':[]}
+end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
 
 ## Step 1: Read in files and first pass of clean and organize
 timestamp = datetime.now()
@@ -40,8 +60,8 @@ clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir
 
 # Read in files.
 ### note: add functionality here to only pull ~new/uncleaned~ files
-os.chdir(workdir) # Change directory to where files saved.
-files = os.listdir(workdir) # Gets list of files in directory to work with
+os.chdir(workdir) # Change directory to where raw files saved.
+files = os.listdir() # Gets list of files in directory to work with
 files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
 
 # Get list of station IDs from filename and clean.
@@ -53,7 +73,6 @@ for file in files:
     if id not in ids:
         ids.append(id)
 
-#print(ids)
 
 ## Step 2: Read in datafile and drop variables that aren't of interest
 # # Define list of column variables to drop.
@@ -61,33 +80,96 @@ for file in files:
     
 # Identify variables of interest and variable names.
 keys = []
-dropvars = ['wave_wpm_bnds'] # Get rid of troublesome var.
+coords = [] # Coordinates need to be dropped seperately. Get list of coordinates.
+dropvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
     
+
 for file in files:
-    ds = xr.open_dataset(file, drop_variables=dropvars)
-    key = list(ds.keys())
-    keys+=key
+    try:
+        ds = xr.open_dataset(file, drop_variables=dropvars)
+        key = list(ds.keys())
+        coord = list(ds.coords)
+        keys+=key
+        coords+=coord
+    except Exception as e:
+        errors['File'].append(file)
+        errors['Time'].append(end_api)
+        errors['Error'].append(e)
+        next
 
 # Get list of all variables
 mar_vars = list(set(keys)) # Get list of unique vars 
-mar_vars.append('wave_wpm_bnds') # add wave_wpm_bnds back in.
+mar_vars = mar_vars + dropvars # add troublesome vars back in.
+
+#print(mar_vars)
 
 # Identify all variables to keep (this is a very conservative list, could prob cut more.)
-vars_to_keep = ['wind_gust', 'continuous_wind_direction', 'solar_radiation_36', 'wind_speed',
-                    'speed_averaging_method', 'air_temperature', 'continuous_wind_speed',
-                    'hourly_max_gust', 'wind_gust_averaging_period', 'wind_sampling_duration',
-                    'air_pressure_at_sea_level', 'time10_bnds', 'timem_bnds', 'time_wpm_20_bnds',
-                    'dew_point_temperature', 'time_bnds', 'solar_radiation_4_50', 'precipitation',
-                    'wind_direction', 'anemometer_height', 'direction_of_hourly_max_gust']
+vars_to_keep = ['solar_radiation_36', # Solar radiation
+                'wind_speed', # Wind speed
+                'speed_averaging_method', # Info on QAQC flags for wind.
+                'air_temperature', # Air temp
+                'wind_sampling_duration', # Duration of averaging for wind speed.
+                'air_pressure_at_sea_level', # Air pressure
+                'time10_bnds', 'timem_bnds', 'time_bnds', # Time bounds for later (could prob only keep one)
+                'dew_point_temperature',  # Dew point
+                'precipitation', # Precipitation
+                'wind_direction', # Wind direction
+                'anemometer_height'] # For QA/QC
+
+
+# Identify list of coordinates to drop
+mar_coords = list(set(coords))
+coords_to_remove = ['depth', 'timem', 'time_wpm_20', 'time10', 'wave_wpm']
+
+## Vars I removed we may want:
+## continuous_wind_speed: with duration specified in comment (generally 10min). optional, while wind_speed always reported.
+## wind gust    
 
 # Remove these variables from the list of all variables to get drop list.
 dropvars = np.setdiff1d(mar_vars, vars_to_keep)
-print(dropvars)
+
+#print(dropvars)
+
 for file in files:
     try:
         ## Step 2: Read in datafile and drop variables that aren't of interest
         ds = xr.open_dataset(file, drop_variables=dropvars)
+
+        # Quality control
+        ## Before we clean, skip any files that don't have data in them. (save to error list?)
+        if not list(ds.data_vars):
+            errors['File'].append(file)
+            errors['Time'].append(end_api)
+            errors['Error'].append("No variables recorded in file")
+            next
+
+        ## Before we clean, require lat/lon coordinates and filter by location in WECC.
         
+        if 'lat' or 'lon' in ds.keys():
+            #Filter to only keep lat and lon in WECC.
+            if float(max(ds['lat'])) > latmax or float(min(ds['lat'])) < latmin or float(max(ds['lon'])) > lonmax or float(min(ds['lon'])) < lonmin:
+                errors['File'].append(file)
+                errors['Time'].append(end_api)
+                errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(max(ds['lat'])), float(min(ds['lat']))))
+                next 
+            elif float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                errors['File'].append(file)
+                errors['Time'].append(end_api)
+                errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                next
+            else:
+                print("File {} in WECC!".format(file))
+        else:
+            errors['File'].append(file)
+            errors['Time'].append(end_api)
+            errors['Error'].append("No geospatial coordinates found in file")
+            next
+        
+        # Remove unwanted coordinates.
+        ctr = [x for x in coords_to_remove if x in ds.keys()] # Filter coords to remove list by coordinates found in dataset.
+        ds = ds.drop_dims(ctr) # Drop coordinates.
+
+
         ## Step 3: Convert station metadata to standard format -- CF compliance
 
         # 3.1 Generate unique ID across entire dataset by combining network name and ID.
@@ -99,7 +181,6 @@ for file in files:
         # 3.3 Check elev. - TO DO
 
         ## Step 4: Convert dataset metadata in standard format -- CF compliance
-        ## Unit check? Conversions needed?
         ### SKIPPING FOR NOW.
         
         ## Step 5: Convert missing data to common format -- CF compliance
@@ -119,48 +200,62 @@ for file in files:
         # In following order:
         # clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
 
-        # # ps: surface air pressure
-        # if "air_pressure_at_sea_level" in ds.keys():
-        #     ds = ds.assign_attrs(ps = ds.attrs["air_pressure_at_sea_level"]??????) # Convert from mb to Pa
-        #     ds['ps'].attrs['units'] = "Pascals" # Update units
+        # ps: surface air pressure
+        if "air_pressure_at_sea_level" in ds.keys():
+            ds['ps'] = ds["air_pressure_at_sea_level"]*100 # Convert from mb to Pa
+            ds['ps'].attrs['units'] = "Pascal" # Update units
+            ds = ds.rename({'air_pressure_at_sea_level': 'ps_raw'}) # Convert from mb to Pa
+            
+        # tas : air surface temperature
+        if "air_temperature" in ds.keys():
+            ds['tas'] = ds["air_temperature"]+273.15 # Convert from C to K
+            ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
+            ds = ds.rename({'air_temperature': 'tas_raw'})
 
-        # # tas : air surface temperature
-        # if "air_temperature" in ds.keys():
-        #     ds = ds.assign_attrs(tas = ds.attrs["air_temperature"]+273.15) # Convert from C to K
-        #     ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
+        # tdps: dew point temperature
+        # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
+        # Only more recent stations have dewpoint temp (dew_point_temperature)
+        # No stations have vapor pressure or RH, so no calculations possible.
+        if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
+            ds['tdps'] = ds["dew_point_temperature"]+273.15 # Convert from C to K
+            ds['tdps'].attrs['units'] = "degree_Kelvin"
+            ds = ds.rename({'dew_point_temperature': 'tdps_raw'})
+        
+        # # pr: precipitation - DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE DURING NEXT STAGE.
+        if "precipitation" in ds.keys():
+            ds = ds.rename({'precipitation': 'p_raw'})
+            #ds['p'] = ds['precipitation'] # Convert mm to kg m-2 s-1 - do in next stage.
 
-        print(ds['dew_point_temperature'])
-        # # tdps: dew point temperature
-        # # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
-        # # Only more recent stations have dewpoint temp (dew_point_temperature)
-        # # No stations have vapor pressure or RH.
-        # if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
-        #     ds.attrs['tdps'] = ds.attrs.pop('dew_point_temperature') # Rename.
-        # #tdps = calc._calc_dewpointtemp(tas, hurs, e)
-
-        # # pr: precipitation
-
-        # # hurs: relative humidity
-        # # SKIP BECAUSE NEEDED VARS NOT AVAILABLE.
-        # # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
-        # #hurs = calc._calc_relhumid(tas, tdps)
+        # hurs: relative humidity
+        # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
+        ## Vapor pressure not a variable measured by this network.
+        if 'tas' and 'tdps' in ds.keys():
+            ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps'])
 
         # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
+        # Still to do.
+        if 'solar_radiation_36' in ds.keys():
+            try:
+                print(ds['solar_radiation_36'].attrs['long_name']) #solar_radiation_wavelength_less_than_3_6_um
+                print(ds['solar_radiation_36'].attrs)
+            except:
+                next
 
         # # sfcWind : wind speed
-        # # # wind speed (necessary input vars: u and v components)
-        # if "wind_speed" in ds.keys(): # If variable already exists, rename.
-        #     pass # Write code to rename var here.
-        # # ## Maritime already has wind speed calculated.
-        # # sfcWind = calc._calc_windmag(u10, v10)
-
+        ### In maritime we have:
+        ## wind_speed: average wind speed (with duration of averaging specified in wind_sampling_duration)
+        ## speed_averaging_method: contains QAQC flags.
+        if "wind_speed" in ds.keys(): # If variable already exists, rename. Units already in m s-1.
+            ds = ds.rename({'wind_speed': 'sfcWind'})
+        
         # # sfcWind_dir: wind direction
-        # # # wind direction (necessary input vars: u and v components)
-        # if "wind_direction" in ds.keys(): # If variable already exists, rename.
-        #     pass # Write code to rename var here.
-        # # ## Maritime already has wind speed calculated.
-        # # sfcWind_dir = calc._calc_winddir(u10, v10)
-
+        if "wind_direction" in ds.keys(): # If variable already exists, rename.
+            ds = ds.rename({'wind_direction': 'sfcWind_dir'}) # Already in degrees.
+        
+        # # Reorder variables
+        #print(ds.keys())
+        # ds = ds['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+        #print(ds)
         # ## Step 6: Tracks existing QA/QC flags to standard format
         ### again, maritime should have flags but i don't see them currently....
         # old_flag = []
@@ -169,9 +264,31 @@ for file in files:
         # Reorder variables
 
     except Exception as e:
-       print("Error processing file {}: {}".format(file, e)) # To do: keep track of these.
-    
-    
+        errors['File'].append(file)
+        errors['Time'].append(end_api)
+        errors['Error'].append(e)
+        next
+        
+# Write cleaned files to netcdf - in progress.
+os.chdir(homedir)
+os.chdir(savedir) # Change directory to where files saved.
+
+# Write errors to csv
+filepath = "errors_cwop_{}.csv".format(end_api) # Set path to save error file.
+#print(errors)
+with open(filepath, "w") as outfile:
+    # pass the csv file to csv.writer function.
+    writer = csv.writer(outfile)
+
+    # pass the dictionary keys to writerow
+    # function to frame the columns of the csv file
+    writer.writerow(errors.keys())
+
+    # make use of writerows function to append
+    # the remaining values to the corresponding
+    # columns using zip function.
+    writer.writerows(zip(*errors.values()))
+
     ## Step 7: Open datafile and merge files by station
 
     # For each station ID, read in all files.
