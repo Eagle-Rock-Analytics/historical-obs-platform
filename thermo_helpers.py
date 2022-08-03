@@ -1,17 +1,32 @@
+"""
+This script calculates alternative units for variables with multiple commonly used units.
+"""
 
+# Time conversions
 def preprocessing(ds):
-    ds = ds.expand_dims('time')   
+    ds = ds.expand_dims('time')
     return ds
 
 
+# Temperature conversions
 def c_to_f(temperature):
-    return ((temperature * (9/5)) + 32.)
-
+    return (temperature * (9/5)) + 32.
 
 def f_to_c(temperature):
-    return ((temperature - 32.) * (5/9))
+    return (temperature - 32.) * (5/9)
 
 
+# Air pressure conversions
+def mb_to_pa(pressure):     # this one also works for hPa to Pa
+    return pressure * 100
+
+
+# Rainfall/snowfall conversions
+def inches_to_mm(precip):
+    return precip / 25.4
+
+
+# Dewpoint temperature calculations
 def dewpoint_from_relative_humidity(temperature, relative_humidity):
     import numpy as np
     r"""Calculate the ambient dewpoint given air temperature and relative humidity.
@@ -32,7 +47,6 @@ def dewpoint_from_relative_humidity(temperature, relative_humidity):
     if np.any(relative_humidity > 1.0):
         warnings.warn('Relative humidity >120%, ensure proper units.')
     return dewpoint(relative_humidity * saturation_vapor_pressure(temperature))
-
 
 def dewpoint(vapor_pressure):
     import numpy as np
@@ -57,10 +71,11 @@ def dewpoint(vapor_pressure):
 
     """
     val = np.log(vapor_pressure / 6.112)
-    return ((243.5 * val) 
+    return ((243.5 * val)
                     / (17.67 - val))
-    
 
+
+# Sat vapor pressure calculation
 def saturation_vapor_pressure(temperature):
     import numpy as np
     r"""Calculate the saturation water vapor (partial) pressure.
@@ -82,13 +97,15 @@ def saturation_vapor_pressure(temperature):
     The formula used is that from [Bolton1980]_ for T in degrees Celsius:
     .. math:: 6.112 e^\frac{17.67T}{T + 243.5}
     """
-    return (6.112 * np.exp((17.67 * temperature) 
+    return (6.112 * np.exp((17.67 * temperature)
                                     / (temperature + 243.5)))
 
+
+# Relative humidity calculation
 def relative_humidity_from_dewpoint(temperature,dewpoint):
     temperature = f_to_c(temperature)
-    dewpoint = f_to_c(dewpoint) 
-    
+    dewpoint = f_to_c(dewpoint)
+
     e = saturation_vapor_pressure(dewpoint)
     e_s = saturation_vapor_pressure(temperature)
     return (e / e_s)
@@ -102,7 +119,7 @@ def relative_humidity_from_dewpoint(temperature,dewpoint):
 
 
 # def read_netcdfs(files, dim, transform_func=None):
-#     # usage 
+#     # usage
 #     # combined = read_netcdfs('/all/my/files/*.nc', dim='time')
 #     from glob import glob
 #     def process_one_path(path):
