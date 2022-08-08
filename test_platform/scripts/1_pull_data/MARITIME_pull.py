@@ -18,7 +18,6 @@ import csv
 # Set envr variables
 workdir = "test_platform/data/1_raw_wx/MARITIME/"
 years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
-kml_file = "https://www.ndbc.noaa.gov/kml/marineobs_by_owner.kml"
 
 # Set up directory to save files, if it doesn't already exist.
 try:
@@ -59,7 +58,7 @@ def get_maritime(workdir, years, get_all = True):
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
     #for i in years: # For each year/folder
-    for i in ['1973', '1989', '2004', '2015', '2021']: # Subset for testing
+    for i in ['2015', '2017', '2021']: # Subset for testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             for j in range(1, 13): # For each month (1-12) 
                 try:
@@ -70,7 +69,7 @@ def get_maritime(workdir, years, get_all = True):
                     ftp.cwd(dir) # Change working directory to year/month.
                     filenames = ftp.nlst() # Get list of all file names in folder. 
                     filenames = list(filter(lambda f: f.endswith('.nc'), filenames)) # Only keep .nc files.
-                    filenames = list(filter(lambda f: (f.startswith('46') or f[0].isalpha()), filenames)) # Only keep files with start with "46" (Pacific Ocean) or a letter (CMAN buoys.)
+                    filenames = list(filter(lambda f: (f.startswith('46') or f.startswith('NDBC_46') or (f[0].isalpha() and not f.startswith("NDBC"))), filenames)) # Only keep files with start with "46" (Pacific Ocean) or a letter (CMAN buoys.)
                     #filenames.append("fake") To test error writing csv.
                     for filename in filenames:
                         try:

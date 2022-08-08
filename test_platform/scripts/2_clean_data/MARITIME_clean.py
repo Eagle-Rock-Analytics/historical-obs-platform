@@ -24,6 +24,7 @@ import numpy as np
 import xarray as xr
 from calc import _calc_relhumid, get_wecc_poly
 import csv
+import netCDF4
 
 # Set envr variables and calculate any needed variables
 homedir = os.getcwd()
@@ -31,6 +32,10 @@ workdir = "test_platform/data/1_raw_wx/MARITIME/"
 savedir = "test_platform/data/2_clean_wx/MARITIME/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
+
+
+
+# If file written prior to 2015:
 
 # Set up directory to save files, if it doesn't already exist.
 try:
@@ -306,6 +311,43 @@ with open(filepath, "w") as outfile:
     #     id_comb = xr.open_mfdataset(file_sub,combine = 'by_coords', concat_dim="time") # Theoretically works.
     #     id.to_netcdf('MARITIME_{}.nc'.format(id)) # Write to one netcdf file
     #     # Clean up file_sub files if successful.
+
+
+
+# NetCDF files fom 2015-present use a nested group structure. As of 08/22 the netcdf4 package, rather than xarray is used to access groups and variables.
+
+## From: https://stackoverflow.com/questions/31931483/programmatically-list-all-variables-of-a-netcdf-file-using-netcdf4-and-python
+os.chdir(workdir)
+
+dropvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
+ds = netCDF4.Dataset('NDBC_46001_201501_D2_v00.nc')
+print(ds['/payload_1'].groups['barometer_2'])
+
+exit()
+
+def expand_var_list(var_list, group):
+    for var_key, _ in group.variables.items():
+        var_list.append(var_key)
+    
+    for _, sub_group in group.groups.items():
+        expand_var_list(var_list, sub_group)
+
+all_vars = []
+with netCDF4.Dataset("NDBC_46001_201501_D2_v00.nc", "r") as root_group:
+    expand_var_list(all_vars, root_group)
+print(all_vars)
+
+exit()
+
+## PLAY:
+os.chdir(workdir)
+dropvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
+ds = Dataset('NDBC_46001_201501_D2_v00.nc')
+print(ds.groups)
+#ds = xr.open_dataset('NDBC_46001_201501_D2_v00.nc', drop_variables=dropvars) #, group = 'payload_1/anemometer_1'
+print(ds['/payload_1/anemometer_1/'])    
+exit()
+
 
 
 #### NOTES
