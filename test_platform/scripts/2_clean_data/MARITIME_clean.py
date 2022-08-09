@@ -28,7 +28,6 @@ import csv
 import netCDF4 as nc4
 
 ### TO DO:
-# Record list of drop vars for each DS
 # Keep anemometer height
 # Keep anemometer manufacturer + part number
 
@@ -44,6 +43,20 @@ try:
     os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
 except:
     pass
+
+# Testing
+os.chdir(workdir) # Change directory to where raw files saved.
+files = os.listdir() # Gets list of files in directory to work with
+files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+files_old = [i for i in files if any(i for j in list(range(1980, 2015)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+files_new = [i for i in files if i not in files_old] # Get all other file names.
+dropvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
+
+for file in files:
+    if file in files_new: # If file newer than 2015, process to remove group structure.
+        # Get global attributes from main file
+        ds = xr.open_dataset(file, drop_variables=dropvars)
+        print(ds.attrs['geospatial_lat_max'], ds.attrs['geospatial_lat_min'])
 
 # Step 0: Get list of all variables and generate list of variables to remove from dataset.
 ## FUNCTION: Generate list of variables, drop variables from collection of files.
@@ -197,8 +210,7 @@ def get_vars(workdir, savedir):
 #test = get_vars(workdir, savedir)
 #print(test)
 
-
-# FUNCTION: Clean MARITIME data.
+## FUNCTION: Clean MARITIME data.
 # Input: workdir, savedir.
 # Note that this function searches for a csv called removevars.csv in the savedir folder. If file doesn't exist, script will call get_vars function.
 def clean_maritime(workdir, savedir):
@@ -269,6 +281,23 @@ def clean_maritime(workdir, savedir):
             if file in files_new: # If file newer than 2015, process to remove group structure.
                 # Get global attributes from main file
                 ds = xr.open_dataset(file, drop_variables=dropvars)
+                
+                ## Before we clean, require lat/lon coordinates and filter by location in WECC.
+                ### STOPPED HERE ON 08/09: lat/lon recorded differently between new and old file types.
+                if 'geospatial_lat_min' and 'geospatial_lat_max' and 'geospatial_lon_min' and 'geospatial_lat_max' in ds.attrs:
+                    if float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                        continue
+                    else:
+                        print("File {} in WECC!".format(file)) # Just for testing, remove for final.
+                else:
+                    errors['File'].append(file)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No geospatial coordinates found in file")
+                    continue
+
                 # Get list of sensors from global attributes
                 if 'sensor_suite' in ds.attrs:
                     sensor_list = ds.attrs['sensor_suite'].split(',')
@@ -306,47 +335,53 @@ def clean_maritime(workdir, savedir):
                         sensor_height = sensor_type+"_height"  
                         ds.attrs[sensor_height] = ds_temp.attrs['height_of_instrument'] # Assign install date as attribute
                     del(ds_temp)
+                
+                # If after merging, ds is empty, record error and skip file.
+                if not list(ds.data_vars):
+                    errors['File'].append(file)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No variables recorded in file")
+                    continue
             
             # For older files, simply read in.
             if file in files_old:
                 ds = xr.open_dataset(file, drop_variables=dropvars)
-
-
-    
         
-            # Quality control
-            ## Before we clean, skip any files that don't have data in them. (save to error list?)
-            if not list(ds.data_vars):
-                errors['File'].append(file)
-                errors['Time'].append(end_api)
-                errors['Error'].append("No variables recorded in file")
-                continue
-
-            ## Before we clean, require lat/lon coordinates and filter by location in WECC.
-            
-            if 'lat' or 'lon' in ds.keys():
-                #Filter to only keep lat and lon in WECC.
-                if float(max(ds['lat'])) > latmax or float(min(ds['lat'])) < latmin or float(max(ds['lon'])) > lonmax or float(min(ds['lon'])) < lonmin:
+                # Quality control
+                ## Before we clean, skip any files that don't have data in them (and save to error list).
+                if not list(ds.data_vars):
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(max(ds['lat'])), float(min(ds['lat']))))
+                    errors['Error'].append("No variables recorded in file")
                     continue
-                elif float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+
+                ## Before we clean, require lat/lon coordinates and filter by location in WECC.
+                if 'lat' or 'lon' in ds.keys():
+                    #Filter to only keep lat and lon in WECC.
+                    if float(max(ds['lat'])) > latmax or float(min(ds['lat'])) < latmin or float(max(ds['lon'])) > lonmax or float(min(ds['lon'])) < lonmin:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(max(ds['lat'])), float(min(ds['lat']))))
+                        continue
+                    elif float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                        continue
+                    #else:
+                    #    print("File {} in WECC!".format(file)) # Just for testing, remove for final.
+                else:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                    errors['Error'].append("No geospatial coordinates found in file")
                     continue
-                #else:
-                #    print("File {} in WECC!".format(file)) # Just for testing, remove for final.
-            else:
-                errors['File'].append(file)
-                errors['Time'].append(end_api)
-                errors['Error'].append("No geospatial coordinates found in file")
-                continue
 
+            # Now, both old and new files are in ds format.
             # Remove unwanted coordinates.
             ctr = [x for x in coords_to_remove if x in ds.keys()] # Filter coords to remove list by coordinates found in dataset.
             ds = ds.drop_dims(ctr) # Drop coordinates.
+
+### STOPPED HERE ON 08/09. Above needs testing as well.
 
             ## Step 3: Convert station metadata to standard format
 
