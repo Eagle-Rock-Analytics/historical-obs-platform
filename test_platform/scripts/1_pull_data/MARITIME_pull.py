@@ -58,7 +58,7 @@ def get_maritime(workdir, years, get_all = True):
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
     #for i in years: # For each year/folder
-    for i in ['2015', '2017', '2021']: # Subset for testing
+    for i in ['2021']: # Subset for testing (don't download files older than 1980)
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             for j in range(1, 13): # For each month (1-12) 
                 try:
