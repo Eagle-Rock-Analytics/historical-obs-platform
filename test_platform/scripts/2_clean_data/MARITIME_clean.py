@@ -16,7 +16,6 @@ Outputs: Cleaned data for an individual network, priority variables, all times. 
 # Step 0: Environment set-up
 # Import libraries
 import os
-from regex import D
 import xarray as xr
 from datetime import datetime
 import re
@@ -25,7 +24,6 @@ import numpy as np
 import xarray as xr
 from calc import _calc_relhumid, get_wecc_poly
 import csv
-import netCDF4 as nc4
 import itertools
 
 ### TO DO:
@@ -46,35 +44,20 @@ try:
 except:
     pass
 
-# # Testing - delete
-# os.chdir(workdir) # Change directory to where raw files saved.
-# files = os.listdir() # Gets list of files in directory to work with
-# #files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# #files_old = [i for i in files if any(i for j in list(range(1980, 2015)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
-# #files_new = [i for i in files if i not in files_old] # Get all other file names.
-# dropvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
-# files = "NDBC_46025_201702_D4_v00.nc"
-
-# for file in files:
-# #    if file in files_new: # If file newer than 2015, process to remove group structure.
-#         # Get global attributes from main file
-#         ds = xr.open_dataset(file, drop_variables=dropvars)
-#         print(ds)
-
 # Step 0: Get list of all variables and generate list of variables to remove from dataset.
 ## FUNCTION: Generate list of variables, drop variables from collection of files.
 # Input: workdir and savedir. Output: 2 csvs: 1) of removed variables and 2) error file. Also returns list of removed variables.
 # This function natively generates a list of all variables (including from groups), compares them against a list of variables to keep
 # and prints a list of removed variables to a csv in the save directory. This should be run occasionally but not daily.
 
-def get_vars(homedir, workdir, savedir):
+def get_vars(homedir, workdir, savedir, **options):
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
     os.chdir(homedir)
     os.chdir(workdir) # Change directory to where raw files saved.
     files = os.listdir() # Gets list of files in directory to work with
     files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-    files_old = [i for i in files if any(i for j in list(range(1980, 2015)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
     files_new = [i for i in files if i not in files_old] # Get all other file names.
     keys = []
     coords = [] # Coordinates need to be dropped seperately. Get list of coordinates.
@@ -82,7 +65,7 @@ def get_vars(homedir, workdir, savedir):
     badvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
 
     for file in files:
-        if file in files_new: # If file newer than 2015, process to remove group structure.
+        if file in files_new: # If file from 2011 or later, process to remove group structure.
             try:
                 # Get global attributes from main file
                 ds = xr.open_dataset(file, drop_variables=badvars)
@@ -105,8 +88,16 @@ def get_vars(homedir, workdir, savedir):
                 else: # Otherwise, try all possible sensors manually. To do this, combine payload 1-5(?) with sensor 1.
                     payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
                     sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
+                    if options.get("sensors") == "secondary": # If function specified to download backup sensors.
+                        sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_2', 'wave_sensor_2']
                     paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
-                    
+
+
+                # How to deal with barometer 1 nas - sub in barometer / backup instrument.
+                # primary, secondary for raw.
+                # instrument info for each.
+                # SAVE SECONDARY SENSORS as _secondary.nc
+
                 for path in paths: # For each sensor
                     try:
                         ds_temp = xr.open_dataset(file, drop_variables=badvars, group = path) # Open sensor data
@@ -156,7 +147,7 @@ def get_vars(homedir, workdir, savedir):
                     'wind_sampling_duration', # Duration of averaging for wind speed.
                     'air_pressure_at_sea_level', # Air pressure 
                     'air_pressure', ## QUESTION - air pressure at sea level or air pressure??
-                    'time10_bnds', 'timem_bnds', 'time_bnds', # Time bounds for later (could prob only keep one)
+                    #'time10_bnds', 'timem_bnds', 'time_bnds', # Time bounds - not saved for now as they cause errors.
                     'dew_point_temperature',  # Dew point
                     'precipitation', # Precipitation
                     'wind_direction', # Wind direction
@@ -232,7 +223,7 @@ def get_vars(homedir, workdir, savedir):
 ## FUNCTION: Clean MARITIME data.
 # Input: workdir, savedir.
 # Note that this function searches for a csv called removevars.csv in the savedir folder. If file doesn't exist, script will call get_vars function.
-def clean_maritime(homedir, workdir, savedir):
+def clean_maritime(homedir, workdir, savedir, **options):
     
     # Set directory to parent git directory (historical-obs-platform folder)
     os.chdir(homedir)
@@ -267,13 +258,13 @@ def clean_maritime(homedir, workdir, savedir):
 
     ### Note: Useful for code where stations are together, but not necessary for this script. Leaving here commented in case needed.
     # # Get list of station IDs from filename and clean.
-    # ids = list()
-    # for file in files:
-    #     id = re.sub('_[0-9]{6,6}.*.nc', "",file) # Remove all YYYYMM (and trailing metadata/file extension)
-    #     id = re.sub('NDBC_', "", id) # Remove leading NDBC
-    #     id = re.sub("_", "", id) # Remove any remaining underscores
-    #     if id not in ids:
-    #         ids.append(id)
+    ids = list()
+    for file in files:
+        id = re.sub('_[0-9]{6,6}.*.nc', "",file) # Remove all YYYYMM (and trailing metadata/file extension)
+        id = re.sub('NDBC_', "", id) # Remove leading NDBC
+        id = re.sub("_", "", id) # Remove any remaining underscores
+        if id not in ids:
+            ids.append(id)
 
     # ## Step 2: Read in datafile and drop variables that aren't of interest
     # # # Read in list of column variables to drop. If no list, call get_vars().
@@ -294,321 +285,438 @@ def clean_maritime(homedir, workdir, savedir):
     coords_to_remove = ['depth', 'timem', 'time_wpm_20', 'time10', 'wave_wpm'] # Hardcoded for now, could get moved. These are a list of coords that throw errors consistently.
     
     # # Split files into those written before 2015 and those written after.
-    files_old = [i for i in files if any(i for j in list(range(1980, 2015)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
     files_new = [i for i in files if i not in files_old] # Get all other file names.
     
-    # Read in data files.
+    # Read in data files by station ID, clean, and merge.
     os.chdir(workdir)
-    for file in files:
-        try:
-            if file in files_new: # If file newer than 2015, process to remove group structure.
-                # Get global attributes from main file
-                ds = xr.open_dataset(file, drop_variables=dropvars)
-                
-                ## Before we clean, require lat/lon coordinates and filter by location in WECC.
-                ### STOPPED HERE ON 08/09: lat/lon recorded differently between new and old file types.
-                if 'geospatial_lat_min' and 'geospatial_lat_max' and 'geospatial_lon_min' and 'geospatial_lat_max' in ds.attrs:
-                    if float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
-                        errors['File'].append(file)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
-                        continue
-                    else:
-                        pass 
-                        #print("File {} in WECC!".format(file)) # Just for testing, remove for final.
-                else:
-                    errors['File'].append(file)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append("No geospatial coordinates found in file")
-                    continue
-
-                # Get list of sensors from global attributes
-                # Some sensors have a 'sensor_suite' attribute, which we use to get the exact paths of sensors.
-                if 'sensor_suite' in ds.attrs:
-                    sensor_list = ds.attrs['sensor_suite'].split(',')
-                    sensor_list = [k for k in sensor_list if k.endswith("1")] # Get data from primary sensor - may change depending on email response.
-                    sensor_list = sorted(sensor_list)
-                    sensors = set([i[11:] for i in sensor_list]) # Get unique list of sensors found in dataset.
-                    paths = []
-                    # Decision: Only keep first instance of a sensor if reported across multiple payloads. [ revisit pending email response ]
-                    for sensor in sensors:
-                        index = [idx for idx, s in enumerate(sensor_list) if str(sensor) in s][0]
-                        path = sensor_list[index]
-                        paths.append(path)
+    for i in ids: # For each station
+    #for i in ['46023', '46125']: # For testing
+        ds_stat = None # Initialize ds_stat
+        file_count = 0
+        stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
+        for file in stat_files: # For each file
+            try:
+                if file in files_new: # If file newer than 2015, process to remove group structure.
                     
-                else: # Otherwise, try all possible sensors manually. To do this, combine payload 1-5(?) with sensor 1.
-                    payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
-                    sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
-                    paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
-                    
-                for path in paths: # For each sensor
-                    try:
-                        ds_temp = xr.open_dataset(file, drop_variables=dropvars, group = path) # Open sensor data and drop variables from dropvar list.
-                    except Exception as e:
-                        #print(file, e) # To revisit: not reporting error here because some groups don't have sensor list (and so we have to try the full suite.)
-                        continue # Continue to next branch
-                    ds = xr.merge([ds, ds_temp], compat = 'override') # Move sensor data to main ds
+                    # Get global attributes from main file
+                    ds = xr.open_dataset(file, drop_variables=dropvars)
 
-                    # Add sensor attributes to main dataset if they exist.
-                    if 'manufacturer' and 'part_number' in ds_temp.attrs:
-                        sensor_name = str(ds_temp.attrs['manufacturer'])+" "+str(ds_temp.attrs['part_number'])# Get sensor data as string from dataframe.
-                        sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1]) # Remove all spaces and numbers
-                    elif 'manufacturer' in ds_temp.attrs:
-                        sensor_name = str(ds_temp.attrs['manufacturer'])# Get sensor data as string from dataframe.
-                        sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1])
-                    else:
-                        sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1])
-                        sensor_name = "Unknown"
-                    ds.attrs[sensor_type] = sensor_name # Assign sensor manufacturing info as attribute.
-
-                    install_name = sensor_type+"_install_date"  
-                    if 'install date' in ds_temp.attrs:
-                        ds.attrs[install_name] = ds_temp.attrs['install_date'] # Assign install date as attribute
-                    else:
-                        ds.attrs[install_name] = "Unknown"
-
-                    if 'height_of_instrument' in ds_temp.attrs: # TO RESOLVE: MAKE ANEMOMETER HEIGHT A VAR (as it is in pre 2015 data) OR AN ATTR?
-                        if path.find("anemometer")>=0: # If anemometer, keep height of instrument as variable.
-                            ds['anemometer_height'] = ds_temp.attrs['height_of_instrument']
+                    ## Before we clean, require lat/lon coordinates and filter by location in WECC.
+                    if 'geospatial_lat_min' and 'geospatial_lat_max' and 'geospatial_lon_min' and 'geospatial_lat_max' in ds.attrs:
+                        if float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                            errors['File'].append(file)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                            continue
                         else:
-                            sensor_height = sensor_type+"_height"  
-                            ds.attrs[sensor_height] = ds_temp.attrs['height_of_instrument'] # Assign sensor height as attribute where provided.
-                    del(ds_temp)
-                
-                # If after merging, ds is empty, record error and skip file.
-                if not list(ds.data_vars):
-                    errors['File'].append(file)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append("No variables recorded in file")
-                    continue
-                
-            # For older files, simply read in and drop vars from dropvar list.
-            if file in files_old:
-                ds = xr.open_dataset(file, drop_variables=dropvars)
-        
-                # Quality control
-                ## Before we clean, skip any files that don't have data in them (and save to error list).
-                if not list(ds.data_vars):
-                    errors['File'].append(file)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append("No variables recorded in file")
-                    continue
+                            pass 
+                            #print("File {} in WECC!".format(file)) # Just for testing, remove for final.
+                    else:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("No geospatial coordinates found in file")
+                        continue
 
-                ## Before we clean, require lat/lon coordinates and filter by location in WECC.
-                if 'lat' or 'lon' in ds.keys():
-                    #Filter to only keep lat and lon in WECC.
-                    if float(max(ds['lat'])) > latmax or float(min(ds['lat'])) < latmin or float(max(ds['lon'])) > lonmax or float(min(ds['lon'])) < lonmin:
+                    # Get list of sensors from global attributes
+                    # Some sensors have a 'sensor_suite' attribute, which we use to get the exact paths of sensors.
+                    if 'sensor_suite' in ds.attrs:
+                        full_sensor_list = ds.attrs['sensor_suite'].split(',')
+                        sensor_list = [k for k in full_sensor_list if k.endswith("1")] # Get data from primary sensors
+                        if options.get("sensors") == "secondary":
+                            sensor_list = [k for k in full_sensor_list if k.endswith("2")] # Get data from secondar sensors
+                        sensor_list = sorted(sensor_list)
+                        sensors = set([i[11:] for i in sensor_list]) # Get unique list of sensors found in dataset.
+                        paths = []
+                        # Decision: Only keep first instance of a sensor if reported across multiple payloads.
+                        # This decision is robust to the E & M sensor types discussed in email communications with Dawn, 
+                        # where E is primary and M is secondary, because E sensors are always on payloads preceding M sensors.
+                        for sensor in sensors:
+                            index = [idx for idx, s in enumerate(sensor_list) if str(sensor) in s][0]
+                            path = sensor_list[index]
+                            paths.append(path)
+                        
+                    else: 
+                        payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
+                        sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
+                        if options.get("sensors") == "secondary":
+                            sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_2', 'wave_sensor_2']
+                        
+                        # Option 1: Simple, easy, works with "override" feature of xarray.merge to keep the first instance of a variable 
+                        # (by default, the one from the lowest number payload.)
+                        # Ignores the "M" feature altogether (I think impact here is minimal, see notes in option 2)
+                        paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
+
+                        # Option 2: Incorporating "M" data.
+                        # I wrote this method
+                        # paths = []
+                        # for sensor in sensors:                
+                        #     for payload in payloads:
+                                
+                        #         try:
+                        #             # For each sensor, open payloads in order.
+                        #             ds_temp = xr.open_dataset(file, drop_variables=dropvars, group = payload) 
+                        #             payload_id = ds_temp.attrs["payload_id"]
+                        #             group = payload+sensor
+                        #             ds_temp = xr.open_dataset(file, drop_variables=dropvars, group = group) # If file able to open
+                        #             paths.append(group) # Append to path list
+                        #             break # and move to next sensor
+                        #         except:
+                        #             # If there are no "sensor_2" for any given sensor in a payload, make a last check to see if any payloads are designated as "M" (secondary) in type.
+                        #             if "M" in payload_id: # If payload designated as payload of secondary sensors, take sensor even if labelled as 1.
+                        #                 try:
+                        #                     print(payload_id)
+                        #                     sensor = sensor.replace(sensor[len(sensor) - 1:], "1")
+                        #                     print(payload_id, sensor) # Haven't yet seen this actually trigger so this works theoretically but needs to be tested still.
+                        #                     group = payload+sensor
+                        #                     ds_temp = xr.open_dataset(file, drop_variables=dropvars, group = group) # If file able to open
+                        #                     paths.append(group)
+                        #                 except:
+                        #                     continue # Onto the next sensor.
+                        #             continue
+
+                    if paths is None: # If no sensors, go to next file.
+                        continue
+
+                    for path in paths: # For each sensor
+                        try:
+                            ds_temp = xr.open_dataset(file, drop_variables=dropvars, group = path) # Open sensor data and drop variables from dropvar list.
+                            
+                        except Exception as e:
+                            #print(file, e) # To revisit: not reporting error here because some groups don't have sensor list (and so we have to try the full suite.)
+                            continue # Continue to next branch
+                        
+                        ds = xr.merge([ds, ds_temp], compat = 'override') # Move sensor data to main ds
+                        
+                        # Add sensor attributes to main dataset if they exist.
+                        if 'manufacturer' and 'part_number' in ds_temp.attrs:
+                            sensor_name = str(ds_temp.attrs['manufacturer'])+" "+str(ds_temp.attrs['part_number'])# Get sensor data as string from dataframe.
+                            sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1]) # Remove all spaces and numbers
+                        elif 'manufacturer' in ds_temp.attrs:
+                            sensor_name = str(ds_temp.attrs['manufacturer'])# Get sensor data as string from dataframe.
+                            sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1])
+                        else:
+                            sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1])
+                            sensor_name = "Unknown"
+                        ds.attrs[sensor_type] = sensor_name # Assign sensor manufacturing info as attribute.
+
+                        install_name = sensor_type+"_install_date"  
+                        if 'install date' in ds_temp.attrs:
+                            ds.attrs[install_name] = ds_temp.attrs['install_date'] # Assign install date as attribute
+                        else:
+                            ds.attrs[install_name] = "Unknown"
+
+                        if 'height_of_instrument' in ds_temp.attrs: # TO RESOLVE: MAKE ANEMOMETER HEIGHT A VAR (as it is in pre 2015 data) OR AN ATTR?
+                            if path.find("anemometer")>=0: # If anemometer, keep height of instrument as variable.
+                                ds['anemometer_height'] = ds_temp.attrs['height_of_instrument']
+                            else:
+                                sensor_height = sensor_type+"_height"  
+                                ds.attrs[sensor_height] = ds_temp.attrs['height_of_instrument'] # Assign sensor height as attribute where provided.
+                        del(ds_temp)
+
+                    # If after merging, ds is empty, record error and skip file.
+                    if not list(ds.data_vars):
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(max(ds['lat'])), float(min(ds['lat']))))
+                        errors['Error'].append("No variables recorded in file")
                         continue
-                    elif float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                    
+                # For older files, simply read in and drop vars from dropvar list.
+                if file in files_old:
+                    
+                    ds = xr.open_dataset(file, drop_variables=dropvars)
+            
+                    if options.get("sensors") == "secondary": # If function specified to download backup sensors.
+                        pass # TO DO - Are there secondary sensors in pre 2010 files? Waiting on email response.
+                        #print(ds.attrs)
+                        #print(ds.keys())
+                        #continue # Older files do not have secondary sensors????, so simply skip them.
+
+                    # Quality control
+                    ## Before we clean, skip any files that don't have data in them (and save to error list).
+                    if not list(ds.data_vars):
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                        errors['Error'].append("No variables recorded in file")
                         continue
-                    #else:
-                    #    print("File {} in WECC!".format(file)) # Just for testing, remove for final.
+
+                    ## Before we clean, require lat/lon coordinates and filter by location in WECC.
+                    if 'lat' or 'lon' in ds.keys():
+                        #Filter to only keep lat and lon in WECC.
+                        if float(max(ds['lat'])) > latmax or float(min(ds['lat'])) < latmin or float(max(ds['lon'])) > lonmax or float(min(ds['lon'])) < lonmin:
+                            errors['File'].append(file)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(max(ds['lat'])), float(min(ds['lat']))))
+                            continue
+                        elif float(ds.attrs['geospatial_lat_min']) < latmin or float(ds.attrs['geospatial_lat_max']) > latmax or float(ds.attrs['geospatial_lon_min']) < lonmin or float(ds.attrs['geospatial_lon_max']) > lonmax:
+                            errors['File'].append(file)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(float(ds.attrs['geospatial_lat_min']), float(ds.attrs['geospatial_lon_min'])))
+                            continue
+                        #else:
+                        #    print("File {} in WECC!".format(file)) # Just for testing, remove for final.
+                    else:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("No geospatial coordinates found in file")
+                        continue
+
+                # Now, both old and new files are in ds format.
+                # Remove unwanted coordinates.
+                ctr = [x for x in coords_to_remove if x in ds.keys()] # Filter coords to remove list by coordinates found in dataset.
+                ds = ds.drop_dims(ctr) # Drop coordinates.
+                
+                ## Step 3: Convert station metadata to standard format
+
+                # 3.1 Generate unique ID across entire dataset by combining network name and ID.
+                ds = ds.assign_attrs(station_id = "MARITIME_"+ds.attrs["id"])
+                # Rename original ID column
+                ds.attrs['original_id'] = ds.attrs.pop('id')
+                
+                # 3.2  Organize netCDF dimensions and coordinates.
+                ## Make dataset into 3 dimensions: lat, lon and time.
+                ## For newer files, move latitude and longitude to coordinates, rather than variable.
+                if 'latitude' and 'longitude' in ds.keys():
+                    ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
+                    # Use multindex to reorganize dimensions.
+                    ds = ds.set_index(station=["lat", "lon"])
+                    # Unstack the MultiIndex
+                    ds = ds.unstack()
+    
+                # Remove station from coords
+                if 'station' in ds.coords:
+                    # Create MultiIndex coordinate
+                    ds = ds.set_index(station=["lat", "lon"])
+                    # Unstack the MultiIndex
+                    ds = ds.unstack()
+
+                # 3.3 Check elev. - original dataset is CF-compliant, data should be in standard format.
+                ## Can be found in geospatial_vertical_max/min, with accompanying metadata.
+                ### TO DECIDE: How to clean this, esp. if the value varies across files?
+                #print(ds.attrs)
+                #print(ds.attrs['geospatial_vertical_min'])
+                
+                ## Step 4: Convert dataset metadata in standard format -- CF compliance - to be finalized, overwrite existing metadata.
+                ds = ds.assign_attrs(title = "MARITIME cleaned")
+                ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
+                ds = ds.assign_attrs(source = "")
+                ds = ds.assign_attrs(history = "MARITIME_clean.py")
+                ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
+                ds = ds.assign_attrs(license = "")
+                ds = ds.assign_attrs(citation = "")
+                ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
+                
+                ## Step 5: Convert missing data to common format -- CF compliance
+                for var in ds.variables: 
+                    try:
+                        ds = ds.where(ds[var] != 9.969209968386869e+36) # Replace any identified NA values by using mask.
+                        #print([var, float(ds[var].min()), float(ds[var].max())]) 
+                        # ^ Code to run to print min and max to visually ID non-NAN NA values. Commented out but useful for future scripts.
+                    except:
+                        continue  
+                
+                ### Note! THIS DOES NOT REMOVE NAs in the coords (lat/lon). How to treat these????
+
+                # Step 6: Standardize variables and variable metadata.
+                # If not observed, calculate derived primary variables if possible.
+                #** indicates primary approach
+
+                # ps: surface air pressure
+                ## Two variables provided for some datasets, and they should be identical (sensors at sea level).
+                ## Take "air pressure" as primary, and use "air pressure at sea level" if not.
+                ## Tested to confirm there is no difference between the two when both values exist.
+
+                ## TO DECIDE: Delete ps at sea level if ps adjusted exists??
+                if "air_pressure" in ds.keys():
+                    ds['ps'] = ds["air_pressure"]*100 # Convert from mb to Pa
+                    ds['ps'].attrs['units'] = "Pascal" # Update units
+                    ds = ds.rename({'air_pressure': 'ps_raw'}) # Convert from mb to Pa
+
+                elif "air_pressure_at_sea_level" in ds.keys():
+                    ds['ps'] = ds["air_pressure_at_sea_level"]*100 # Convert from mb to Pa
+                    ds['ps'].attrs['units'] = "Pascal" # Update units
+                    ds = ds.rename({'air_pressure_at_sea_level': 'ps_raw'}) # Convert from mb to Pa
+                    
+                # tas : air surface temperature
+                if "air_temperature" in ds.keys():
+                    ds['tas'] = ds["air_temperature"]+273.15 # Convert from C to K
+                    ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
+                    ds = ds.rename({'air_temperature': 'tas_raw'})
+
+                # tdps: dew point temperature
+                # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
+                # Only more recent stations have dewpoint temp (dew_point_temperature)
+                # No stations have vapor pressure or RH, so no calculations possible.
+                if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
+                    ds['tdps'] = ds["dew_point_temperature"]+273.15 # Convert from C to K
+                    ds['tdps'].attrs['units'] = "degree_Kelvin"
+                    ds = ds.rename({'dew_point_temperature': 'tdps_raw'})
+                
+                # # pr: precipitation 
+                # DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE DURING NEXT STAGE, as we will aggregate over the hour.
+                if "precipitation" in ds.keys():
+                    ds = ds.rename({'precipitation': 'p_raw'})
+
+                # hurs: relative humidity
+                # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
+                ## Vapor pressure not a variable measured by this network.
+                if 'relative_humidity' in ds.keys():
+                    ds = ds.rename({'relative_humidity': 'hurs'})
+                elif 'tas' and 'tdps' in ds.keys():
+                    ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps'])
+
+                # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
+                # Note that this occurs so infrequently that I still need to check units are correct. Thus print statement left in for now.
+                if 'solar_radiation_36' in ds.keys():
+                    ds = ds.rename({'solar_radiation_36' : 'rsds'})
+                    #print(ds['rsds'].attrs)
+                    
+                # # sfcWind : wind speed
+                ### In maritime we have:
+                ## wind_speed: average wind speed (with duration of averaging specified in wind_sampling_duration)
+                ## speed_averaging_method: contains QAQC flags.
+                if "wind_speed" in ds.keys(): # If variable already exists, rename. Units already in m s-1.
+                    ds = ds.rename({'wind_speed': 'sfcWind'})
+                
+                # # sfcWind_dir: wind direction
+                if "wind_direction" in ds.keys(): # If variable already exists, rename.
+                    ds = ds.rename({'wind_direction': 'sfcWind_dir'}) # Already in degrees.
+                
+                
+                # ## Step 6: Tracks existing QA/QC flags to standard format
+                # Files older than 2015 have no built in QA/QC flags (as far as I see).
+                ## Keep both flags (detail and qc) for now.
+
+                # ps: surface air pressure # TO DO: decide which to use.
+                if 'air_pressure_qc' in ds.keys():
+                    ds = ds.rename({'air_pressure_qc': 'ps_qc',
+                                    'air_pressure_detail_qc': 'ps_detail_qc'})
+
+                elif 'air_pressure_at_sea_level_qc' in ds.keys():
+                    ds = ds.rename({'air_pressure_at_sea_level_qc': 'ps_qc',
+                                    'air_pressure_detail__at_sea_level_qc': 'ps_detail_qc'})
+                
+                # tas : air surface temperature
+                if 'air_temperature_qc' in ds.keys():
+                    ds = ds.rename({'air_temperature_qc': 'tas_qc',
+                                    'air_temperature_detail_qc': 'tas_detail_qc'})
+                
+                # tdps: dew point temperature
+                if 'dew_point_temperature_qc' in ds.keys():
+                    ds = ds.rename({'dew_point_temperature_qc': 'tdps_qc',
+                                    'dew_point_temperature_detail_qc': 'tdps_detail_qc'})
+                
+                # # pr: precipitation 
+                if 'precipitation_qc' in ds.keys():
+                    ds = ds.rename({'precipitation_qc': 'pr_qc',
+                                    'dew_point_temperature_detail_qc': 'pr_detail_qc'})
+
+                # hurs: relative humidity
+                if 'relative_humidity_qc' in ds.keys():
+                    ds = ds.rename({'relative_humidity_qc': 'hurs_qc',
+                                    'relative_humidity_detail_qc': 'hurs_detail_qc'})
+                
+                # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
+                if 'solar_radiation_36_qc' in ds.keys():
+                    ds = ds.rename({'solar_radiation_36_qc': 'rsds_qc',
+                                    'solar_radiation_36_detail_qc': 'rsds_detail_qc'})
+                
+                # # sfcWind : wind speed
+                # Add wind speed calculation method to flags here.
+                if 'wind_speed_qc' in ds.keys():
+                    ds = ds.rename({'wind_speed_qc': 'sfcWind_qc',
+                                    'wind_speed_detail_qc': 'sfcWind_detail_qc'})
+
+                # # sfcWind_dir: wind direction
+                if 'wind_direction_qc' in ds.keys():
+                    ds = ds.rename({'wind_direction_qc': 'sfcWind_dir_qc',
+                                    'wind_direction_detail_qc': 'sfcWind_dir_detail_qc'})
+            
+                # latitude
+                if 'latitude_qc' in ds.keys():
+                    ds = ds.rename({'latitude_qc': 'lat_qc',
+                                    'latitude_detail_qc': 'lat_detail_qc'})
+            
+                # longitude
+                if 'longitude_qc' in ds.keys():
+                    ds = ds.rename({'longitude_qc': 'lon_qc',
+                                    'longitude_detail_qc': 'lon_detail_qc'})
+
+            
+                # Final cleaning steps.
+
+                # Anemometer height: make either into attribute or into var across all dfs.
+                # Speed averaging method and wind sampling duration - rename to conform or make attrs if the same across all values?
+                #print(np.unique(ds['wind_sampling_duration']))
+                #print(np.unique(ds['speed_averaging_method']))
+
+                # # Reorder variables
+                # In following order:
+                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir'] # To decide, do we want to order QC flags next to vars or at the end?
+                desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+                new_index = desired_order + rest_of_vars
+                ds = ds[new_index]
+
+                #print(list(ds.variables))
+                # REMOVE ANY EXTRA METADATA - to do.
+
+                ## Step 7: Merge files by station
+
+                # Merge file to previous time period data for same station.
+                if ds_stat is None:
+                    ds_stat = ds # For first file in station, set ds_stat to be original ds.
                 else:
-                    errors['File'].append(file)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append("No geospatial coordinates found in file")
-                    continue
+                    ds_stat = xr.merge([ds_stat,ds]) # Otherwise, merge new records to first ds.
+                    if ds_stat.attrs["time_coverage_start"]>ds.attrs["time_coverage_start"]: # If dataset merged begins before ds_stat
+                        ds_stat.attrs["time_coverage_start"]=ds.attrs["time_coverage_start"] # Update time coverage to match.
+                    elif ds_stat.attrs["time_coverage_end"]<ds.attrs["time_coverage_end"]: # Otherwise if dataset merged begins after ds_stat
+                        ds_stat.attrs["time_coverage_end"]=ds.attrs["time_coverage_end"] # Update time coverage to match. 
+                    #ds_stat.attrs['time_coverage_duration'] = ds_stat.attrs["time_coverage_end"] - ds_stat.attrs["time_coverage_start"] # TO DO: or to delete?
+                    file_count +=1
+                    ds_stat.attrs['raw_files_merged'] = file_count # Keep count of how many files merged per station.
 
-            # Now, both old and new files are in ds format.
-            # Remove unwanted coordinates.
-            ctr = [x for x in coords_to_remove if x in ds.keys()] # Filter coords to remove list by coordinates found in dataset.
-            ds = ds.drop_dims(ctr) # Drop coordinates.
-            
-            # Tested and works above as of 08.10
-### STOPPED HERE ON 08/09. Above needs testing as well.
-
-            ## Step 3: Convert station metadata to standard format
-
-            # 3.1 Generate unique ID across entire dataset by combining network name and ID.
-            ds = ds.assign_attrs(station_id = "MARITIME_"+ds.attrs["id"])
-            # Rename original ID column
-            ds.attrs['original_id'] = ds.attrs.pop('id')
-            
-            # 3.2  Organize netCDF dimensions and coordinates.
-            ## Make dataset into 3 dimensions: lat, lon and time.
-            ## For newer files, move latitude and longitude to coordinates, rather than variable.
-            if 'latitude' and 'longitude' in ds.keys():
-                ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
-                # Use multindex to reorganize dimensions.
-                ds = ds.set_index(station=["lat", "lon"])
-                # Unstack the MultiIndex
-                ds = ds.unstack()
+                # Testing only: delete later.
+                # time = ds.attrs["time_coverage_start"][:7]
+                # #print(timestamp)
+                # filename = ds_stat.attrs["station_id"]+"_"+time+".nc" # Make file name
+                # if options.get("sensors") == "secondary": # If function specified to download backup sensors.
+                #     filename = ds_stat.attrs["station_id"]+"_"+time+"_secondary.nc"
+                # filepath = homedir+"/"+savedir+filename # Write file path
+                # #print(filepath)
+                # ds.to_netcdf(path = filepath) # Save station file.
+                # print("Saving {}".format(filename))
                 
-            # Remove station from coords
-            if 'station' in ds.coords:
-                # Create MultiIndex coordinate
-                ds = ds.set_index(station=["lat", "lon"])
-                # Unstack the MultiIndex
-                ds = ds.unstack()
+            except Exception as e:
+                print(file, e) # For testing only.
+                errors['File'].append(file)
+                errors['Time'].append(end_api)
+                errors['Error'].append(e)
+                continue
 
-            # 3.3 Check elev. - original dataset is CF-compliant, data should be in standard format.
-            ## Can be found in geospatial_vertical_max/min, with accompanying metadata.
-            ### TO DECIDE: How to clean this, esp. if the value varies?
-            #print(ds.attrs)
-            #print(ds.attrs['geospatial_vertical_min'])
-            
-            ## Step 4: Convert dataset metadata in standard format -- CF compliance - to be finalized, overwrite existing metadata.
-            ds = ds.assign_attrs(title = "MARITIME cleaned")
-            ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
-            ds = ds.assign_attrs(source = "")
-            ds = ds.assign_attrs(history = "MARITIME_clean.py")
-            ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
-            ds = ds.assign_attrs(license = "")
-            ds = ds.assign_attrs(citation = "")
-            ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-            
-            ## Step 5: Convert missing data to common format -- CF compliance
-            #for var in ds.variables: # Get range of variable values to check for non-NAN NA values. How??
-            ### THIS IS EXTREMELY UGLY. FIND BETTER METHOD!
-            # nas = ['-999', '-9999','n/a', 'NA', 'none', "NaN", 'NAN', 'nan', "1989-05-01T00:00:00.000000000"]
-            # stamp = "1989-05-01T00:00:00.000000000"
-            # na_list = []
-            # #print(ds.sel(time = stamp))
-            # for item in nas:
-            #     try:
-            #         #print(item)
-            #         print(ds.sel(time = item))
-            #         na_list += item
-            #         print(ds.sel(wind_speed = item))
-            #         na_list += item
-            #         print(ds.sel(air_temperature = item))
-            #         na_list += item
-            #         # If any of these return errors, then the value has not been found for that variable.
-            #     except:
-            #         continue
-            # print(na_list)
-            
-            # ## Use NaN
-            # # ds_masked = ds.where(ds['var'] != -9999.) # Replace -9999 here with any identified NA values. 
-            
-            # Step 6: Standardize variables and variable metadata.
-            # If not observed, calculate derived primary variables if possible.
-            #** indicates primary approach
-
-            # ps: surface air pressure
-            ## Two variables provided for some datasets, and they should be identical (sensors at sea level).
-            ## Take "air pressure" as primary, and use "air pressure at sea level" if not.
-            ## Tested to confirm there is no difference between the two when both values exist.
-            if "air_pressure" in ds.keys():
-                ds['ps'] = ds["air_pressure_at_sea_level"]*100 # Convert from mb to Pa
-                ds['ps'].attrs['units'] = "Pascal" # Update units
-                ds = ds.rename({'air_pressure_at_sea_level': 'ps_raw'}) # Convert from mb to Pa
-
-            elif "air_pressure_at_sea_level" in ds.keys():
-                ds['ps'] = ds["air_pressure_at_sea_level"]*100 # Convert from mb to Pa
-                ds['ps'].attrs['units'] = "Pascal" # Update units
-                ds = ds.rename({'air_pressure_at_sea_level': 'ps_raw'}) # Convert from mb to Pa
-                
-            # tas : air surface temperature
-            if "air_temperature" in ds.keys():
-                ds['tas'] = ds["air_temperature"]+273.15 # Convert from C to K
-                ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
-                ds = ds.rename({'air_temperature': 'tas_raw'})
-
-            # tdps: dew point temperature
-            # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
-            # Only more recent stations have dewpoint temp (dew_point_temperature)
-            # No stations have vapor pressure or RH, so no calculations possible.
-            if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
-                ds['tdps'] = ds["dew_point_temperature"]+273.15 # Convert from C to K
-                ds['tdps'].attrs['units'] = "degree_Kelvin"
-                ds = ds.rename({'dew_point_temperature': 'tdps_raw'})
-            
-            # # pr: precipitation 
-            # DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE DURING NEXT STAGE, as we will aggregate over the hour.
-            if "precipitation" in ds.keys():
-                ds = ds.rename({'precipitation': 'p_raw'})
-
-            # hurs: relative humidity
-            # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
-            ## Vapor pressure not a variable measured by this network.
-            if 'relative_humidity' in ds.keys():
-                ds = ds.rename({'relative_humidity': 'hurs'})
-            elif 'tas' and 'tdps' in ds.keys():
-                ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps'])
-
-            # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
-            # Note that this occurs so infrequently that I still need to check units are correct. Thus print statement left in for now.
-            if 'solar_radiation_36' in ds.keys():
-                ds = ds.rename({'solar_radiation_36' : 'rsds'})
-                print(ds['rsds'].attrs)
-                
-            # # sfcWind : wind speed
-            ### In maritime we have:
-            ## wind_speed: average wind speed (with duration of averaging specified in wind_sampling_duration)
-            ## speed_averaging_method: contains QAQC flags.
-            if "wind_speed" in ds.keys(): # If variable already exists, rename. Units already in m s-1.
-                ds = ds.rename({'wind_speed': 'sfcWind'})
-            
-            # # sfcWind_dir: wind direction
-            if "wind_direction" in ds.keys(): # If variable already exists, rename.
-                ds = ds.rename({'wind_direction': 'sfcWind_dir'}) # Already in degrees.
-            
-            
-            # ## Step 6: Tracks existing QA/QC flags to standard format
-            # Files older than 2015 have no built in QA/QC flags (as far as I see).
-
-            # ps: surface air pressure
-            if 'air_pressure_qc' in ds.keys():
-                pass 
-            elif 'air_pressure_at_sea_level_qc' in ds.keys():
-                pass
-            
-            # tas : air surface temperature
-            if 'air_temperature_qc' in ds.keys():
-                pass
-            
-            # tdps: dew point temperature
-            if 'dew_point_temperature_qc' in ds.keys():
-                pass
-            
-            # # pr: precipitation 
-            if 'precipitation_qc' in ds.keys():
-                pass
-
-            # hurs: relative humidity
-            if 'relative_humidity_qc' in ds.keys():
-                pass
-            
-            # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
-            if 'solar_radiation_36_qc' in ds.keys():
-                pass
-            
-            # # sfcWind : wind speed
-            # Add wind speed calculation method to flags here.
-            if 'wind_speed_qc' in ds.keys():
-                print(ds['wind_speed_qc'])
-                print(ds['wind_speed_detail_qc'])
-                break
-
-            # # sfcWind_dir: wind direction
-            if 'wind_direction_qc' in ds.keys():
-                pass
-        
-            # # Reorder variables
-            # In following order:
-            desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-            desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
-            rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
-            new_index = desired_order + rest_of_vars
-            ds = ds[new_index]
-
-
-        except Exception as e:
-            print(e) # For testing only.
-            errors['File'].append(file)
-            errors['Time'].append(end_api)
-            errors['Error'].append(e)
+        # For each station, save one file.
+        # Write files to netCDF
+        if ds_stat is None: # If file is skipped, ds_stat will be equivalent to none.
+            print("File {} not saved.".format(file))
             continue
+        else:
+            try:
+                filename = ds_stat.attrs["station_id"]+".nc" # Make file name
+                if options.get("sensors") == "secondary": # If function specified to download backup sensors.
+                    filename = ds_stat.attrs["station_id"]+"_secondary.nc"
+                filepath = homedir+"/"+savedir+filename # Write file path
+                ds_stat.to_netcdf(path = filepath) # Save station file.
+                print("Saving {} with dims {}".format(filename, ds_stat.dims))
+                ds.close() # Close dataframe.
+            except Exception as e:
+                print(filename, e)
+                errors['File'].append(filename)
+                errors['Time'].append(end_api)
+                errors['Error'].append(e)
+                continue
 
     #Write errors to csv
-    filepath = "errors_maritime_{}.csv".format(end_api) # Set path to save error file.
+    filepath = homedir+"/"+savedir+"errors_maritime_{}.csv".format(end_api) # Set path to save error file.
     #print(errors)
     with open(filepath, "w") as outfile:
         # pass the csv file to csv.writer function.
@@ -623,30 +731,114 @@ def clean_maritime(homedir, workdir, savedir):
         # columns using zip function.
         writer.writerows(zip(*errors.values()))
 
-clean_maritime(homedir, workdir, savedir)       
+clean_maritime(homedir, workdir, savedir)   
+#clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup data.
+# 
+# 
 
-# # Write cleaned files to netcdf - in progress.
+# TESTING.
+
+### NOTES on sensor structure.
+# E sensors always precede M in payload.
+# E sensors may not be the same as M sensors (e.g., the list of sensors might not be overlapping at all.)
+# Strategic decision: always pull barometer 1 from payload 1, then barometer 1 from payload 2 if payload 1 doesn't have it.
+
 # os.chdir(homedir)
-# os.chdir(savedir) # Change directory to where files saved.
+
+# # Read in files.
+# os.chdir(workdir) # Change directory to where raw files saved.
+# files = os.listdir() # Gets list of files in directory to work with
+# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+
+# # # Split files into those written before 2015 and those written after.
+# files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+# files_new = [i for i in files if i not in files_old] # Get all other file names.
+
+# badvars = ['wave_wpm_bnds', 'wave_f40_bnds', 'wave_f40', 'wave_wa', 'wave_wa_bnds'] # Get rid of troublesome var.
+# payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
+# paths = []
+# # Read in data files by station ID, clean, and merge. 
+# for file in files_new: # If file newer than 2015, process to remove group structure.
+#     sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
+#     for sensor in sensors:                
+#         for payload in payloads:
+#             try:
+#                 # Get global attributes from main file
+#                 ds = xr.open_dataset(file, drop_variables=badvars, group = payload)
+#                 group = payload+sensor
+#                 ds = xr.open_dataset(file, drop_variables=badvars, group = group)
+#                 print(file, group)
+#                 paths.append(group)
+#                 break               
+#             except:
+#                 continue
+# #print(paths)
 
 
-    ## Step 7: Open datafile and merge files by station
 
-    # For each station ID, read in all files.
-    
-    ## Save each cleaned file in the new working directory. 
-    # Then, as last line of script, scan to see if there is more than one file per station id
-    # and read in and merge cleaned files together if so.
-    
-    ## Change WD
+        #         print(file, payload, ds.attrs['payload_id'])
+        #         for j in sensors:
+        #             group = payload+j
+        #             try:
+        #                 ds = xr.open_dataset(file, drop_variables=badvars, group = group)
+        #                 print(j, group)
+        #                 next
+        #             except:
+        #                 continue
+        #     if "M" in ds.attrs["payload_id"]:
+        #         print(file, payload, ds.attrs['payload_id'])
+        #         sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
+        #         for j in sensors:
+        #             group = payload+j
+        #             try:
+        #                 ds = xr.open_dataset(file, drop_variables=badvars, group = group)
+        #                 print(j, group)
+        #                 next
+        #             except:
+        #                 continue
+        #         #group = payload+"air_temperature_sensor_1"
+        #         #ds = xr.open_dataset(file, drop_variables=badvars, group = group)
+        #         #print(ds)
+        # except Exception as e:
+        #     #print(e)
+        #     continue
 
-    # For each ID, get list of files with ID in name.
-    # for id in ids:
-    #     file_sub = list(filter(lambda k: id in k, files)) # Add, "MARITIME" in k.
-    #     print(id, file_sub)
-    #     id_comb = xr.open_mfdataset(file_sub,combine = 'by_coords', concat_dim="time") # Theoretically works.
-    #     id.to_netcdf('MARITIME_{}.nc'.format(id)) # Write to one netcdf file
-    #     # Clean up file_sub files if successful.
+#os.chdir(workdir)
+#test = xr.open_dataset("NDBC_46001_201101_D1_v00.nc", drop_variables = ["time_bnds", "time10_bnds", "timem_bnds", "wave_wpm_bnds"], group = "payload_1")
+#print(test)
+#print(test.attrs)
+# ### TESTING.
+# # Test vars
+# #%%
+# import matplotlib.pyplot as plt
+# import xarray as xr
+# savedir = "data/2_clean_wx/MARITIME/"
+# os.chdir(savedir)
+# ds = xr.open_dataset("MARITIME_46023.nc")
+# #ds['ps'].plot() # Looks good.
+# ds['tdps'].plot()
+# test = ds['tdps'].where(ds.tdps<9.96921e+36, drop = True)
+# test.plot()
+# # # Test merge.
+# os.chdir(savedir)
+# ds = xr.open_dataset("MARITIME_46023.nc")
+# ds1 = xr.open_dataset("MARITIME_46023_198901.nc")
+# ds2 = xr.open_dataset("MARITIME_46023_198902.nc")
+# ds3 = xr.open_dataset("MARITIME_46023_198903.nc")
+# ds4 = xr.open_dataset("MARITIME_46023_198904.nc")
+# ds5 = xr.open_dataset("MARITIME_46023_198905.nc")
+# ds6 = xr.open_dataset("MARITIME_46023_198906.nc")
+
+#print(ds)
+#ds_test = xr.merge([ds1,ds2,ds3,ds4,ds5,ds6])
+
+# Check they are the same - all values should return true.
+# for key in ds.keys():
+#     print ('checking %s ' % key)
+#     print ('-- identical in ds and ds_test : %s' % \
+#            np.allclose(ds[key], ds_test[key], equal_nan=True))
+
+
 
 ### NOTES
 
@@ -726,7 +918,7 @@ clean_maritime(homedir, workdir, savedir)
 
 #### NOTES
 
-# For files after 2015
+# For files after 2011
 # # Each file has multiple payloads for the same data.
 # e.g.
 # print(ds['payload_1/anemometer_1/wind_speed'][:]-ds['payload_1/anemometer_2/wind_speed'][:]) # Range from -0.9 to 0.2
@@ -840,3 +1032,5 @@ clean_maritime(homedir, workdir, savedir)
 # Step 2: join data for buoy by year.
 
 #def clean0_maritime(workdir):
+
+# %%
