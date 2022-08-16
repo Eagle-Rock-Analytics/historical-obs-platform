@@ -57,7 +57,7 @@ def get_vars(homedir, workdir, savedir, **options):
     os.chdir(workdir) # Change directory to where raw files saved.
     files = os.listdir() # Gets list of files in directory to work with
     files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2010.
     files_new = [i for i in files if i not in files_old] # Get all other file names.
     keys = []
     coords = [] # Coordinates need to be dropped seperately. Get list of coordinates.
@@ -91,12 +91,6 @@ def get_vars(homedir, workdir, savedir, **options):
                     if options.get("sensors") == "secondary": # If function specified to download backup sensors.
                         sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_2', 'wave_sensor_2']
                     paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
-
-
-                # How to deal with barometer 1 nas - sub in barometer / backup instrument.
-                # primary, secondary for raw.
-                # instrument info for each.
-                # SAVE SECONDARY SENSORS as _secondary.nc
 
                 for path in paths: # For each sensor
                     try:
@@ -285,7 +279,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
     coords_to_remove = ['depth', 'timem', 'time_wpm_20', 'time10', 'wave_wpm'] # Hardcoded for now, could get moved. These are a list of coords that throw errors consistently.
     
     # # Split files into those written before 2015 and those written after.
-    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2014.
+    files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2010.
     files_new = [i for i in files if i not in files_old] # Get all other file names.
     
     # Read in data files by station ID, clean, and merge.
@@ -347,7 +341,9 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         # Ignores the "M" feature altogether (I think impact here is minimal, see notes in option 2)
                         paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
 
-                        # Option 2: Incorporating "M" data.
+                        # Option 2: Incorporating "M" data. (Scrapped for now, could get used in future iterations)
+                        # Future work could also incorporate release variables.
+
                         # I wrote this method
                         # paths = []
                         # for sensor in sensors:                
@@ -388,7 +384,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         
                         ds = xr.merge([ds, ds_temp], compat = 'override') # Move sensor data to main ds
                         
-                        # Add sensor attributes to main dataset if they exist.
+                        # Add sensor attributes to main dataset if they exist. - as vars, not as attrs - TO DO.
                         if 'manufacturer' and 'part_number' in ds_temp.attrs:
                             sensor_name = str(ds_temp.attrs['manufacturer'])+" "+str(ds_temp.attrs['part_number'])# Get sensor data as string from dataframe.
                             sensor_type = re.sub('[^a-zA-Z]+', '', path.rsplit('/', 1)[-1]) # Remove all spaces and numbers
@@ -400,11 +396,13 @@ def clean_maritime(homedir, workdir, savedir, **options):
                             sensor_name = "Unknown"
                         ds.attrs[sensor_type] = sensor_name # Assign sensor manufacturing info as attribute.
 
-                        install_name = sensor_type+"_install_date"  
-                        if 'install date' in ds_temp.attrs:
-                            ds.attrs[install_name] = ds_temp.attrs['install_date'] # Assign install date as attribute
-                        else:
-                            ds.attrs[install_name] = "Unknown"
+                        
+                        # Delete - can be inferred from column above
+                        # install_name = sensor_type+"_install_date"  
+                        # if 'install date' in ds_temp.attrs:
+                        #     ds.attrs[install_name] = ds_temp.attrs['install_date'] # Assign install date as attribute
+                        # else:
+                        #     ds.attrs[install_name] = "Unknown"
 
                         if 'height_of_instrument' in ds_temp.attrs: # TO RESOLVE: MAKE ANEMOMETER HEIGHT A VAR (as it is in pre 2015 data) OR AN ATTR?
                             if path.find("anemometer")>=0: # If anemometer, keep height of instrument as variable.
@@ -468,29 +466,44 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 
                 ## Step 3: Convert station metadata to standard format
 
-                # 3.1 Generate unique ID across entire dataset by combining network name and ID.
-                ds = ds.assign_attrs(station_id = "MARITIME_"+ds.attrs["id"])
-                # Rename original ID column
-                ds.attrs['original_id'] = ds.attrs.pop('id')
-                
-                # 3.2  Organize netCDF dimensions and coordinates.
+                # 3.1  Organize netCDF dimensions and coordinates.
+                ## TO DO - reorg.
+                ## Two dims - station and time.
+                # lat and lon as coords.
                 ## Make dataset into 3 dimensions: lat, lon and time.
                 ## For newer files, move latitude and longitude to coordinates, rather than variable.
-                if 'latitude' and 'longitude' in ds.keys():
-                    ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
-                    # Use multindex to reorganize dimensions.
-                    ds = ds.set_index(station=["lat", "lon"])
-                    # Unstack the MultiIndex
-                    ds = ds.unstack()
-    
+            
+                # Generate unique ID across entire dataset by combining network name and ID.
+                id = "MARITIME_"+ds.attrs["id"]
+                ds['original_id'] = ds.attrs['id'] # Keep original ID as var.
+                    
                 # Remove station from coords
-                if 'station' in ds.coords:
-                    # Create MultiIndex coordinate
-                    ds = ds.set_index(station=["lat", "lon"])
-                    # Unstack the MultiIndex
-                    ds = ds.unstack()
+                if 'station' in ds.coords: ### IN PROGRESS as of 8.16.
+                    ds['station'][0] = id
+                    print(ds)
+                    #ds = ds.set_index(station='station_id')
+                    #print(ds)
+                    continue
 
-                # 3.3 Check elev. - original dataset is CF-compliant, data should be in standard format.
+                elif 'latitude' and 'longitude' in ds.keys():
+                    ds = ds.assign_coords(station = str(id))
+                    #ds["station_id"] = [str(id)]
+                    ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
+                    ds = ds.set_coords(("lat", "lon"))
+                    #ds = ds.set_index(station = "station_id")
+                    ds = ds.expand_dims("station")
+                    # Use multindex to reorganize dimensions.
+                    #print(ds)
+                    continue
+
+                break
+                    
+                # Test!!!!
+
+                # 3.3 Check elev. - original dataset is CF-compliant, data should be in standard format. --> as var?
+# IS THERE A VAR FOR BUOY HEIGHT?
+# Average min and max and report as variable (hourly average elev)
+
                 ## Can be found in geospatial_vertical_max/min, with accompanying metadata.
                 ### TO DECIDE: How to clean this, esp. if the value varies across files?
                 #print(ds.attrs)
@@ -533,6 +546,11 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     ds = ds.rename({'air_pressure': 'ps_raw'}) # Convert from mb to Pa
 
                 elif "air_pressure_at_sea_level" in ds.keys():
+                    # Convert to air pressure at station level.
+                    # Get station height.
+                    # get barometer height and add to elevation.
+
+
                     ds['ps'] = ds["air_pressure_at_sea_level"]*100 # Convert from mb to Pa
                     ds['ps'].attrs['units'] = "Pascal" # Update units
                     ds = ds.rename({'air_pressure_at_sea_level': 'ps_raw'}) # Convert from mb to Pa
@@ -553,7 +571,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     ds = ds.rename({'dew_point_temperature': 'tdps_raw'})
                 
                 # # pr: precipitation 
-                # DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE DURING NEXT STAGE, as we will aggregate over the hour.
+                # DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE (Hourly accum) DURING NEXT STAGE, as we will aggregate over the hour.
                 if "precipitation" in ds.keys():
                     ds = ds.rename({'precipitation': 'p_raw'})
 
@@ -564,11 +582,12 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     ds = ds.rename({'relative_humidity': 'hurs'})
                 elif 'tas' and 'tdps' in ds.keys():
                     ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps'])
+                # Add raw column. TO do.
 
                 # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
                 # Note that this occurs so infrequently that I still need to check units are correct. Thus print statement left in for now.
                 if 'solar_radiation_36' in ds.keys():
-                    ds = ds.rename({'solar_radiation_36' : 'rsds'})
+                    ds = ds.rename({'solar_radiation_36' : 'rsds'}) # To do.
                     #print(ds['rsds'].attrs)
                     
                 # # sfcWind : wind speed
@@ -672,7 +691,6 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         ds_stat.attrs["time_coverage_start"]=ds.attrs["time_coverage_start"] # Update time coverage to match.
                     elif ds_stat.attrs["time_coverage_end"]<ds.attrs["time_coverage_end"]: # Otherwise if dataset merged begins after ds_stat
                         ds_stat.attrs["time_coverage_end"]=ds.attrs["time_coverage_end"] # Update time coverage to match. 
-                    #ds_stat.attrs['time_coverage_duration'] = ds_stat.attrs["time_coverage_end"] - ds_stat.attrs["time_coverage_start"] # TO DO: or to delete?
                     file_count +=1
                     ds_stat.attrs['raw_files_merged'] = file_count # Keep count of how many files merged per station.
 
