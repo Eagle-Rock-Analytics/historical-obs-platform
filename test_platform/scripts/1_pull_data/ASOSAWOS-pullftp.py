@@ -18,9 +18,16 @@ import geopandas as gp
 from geopandas.tools import sjoin
 
 # Set envr variables
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
-wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+savedir = "test_platform/data/1_raw_wx/ASOSAWOS"
+wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
+wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+
+# Set up directory to save files, if it doesn't already exist.
+try:
+    os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+except:
+    pass
+
 
 # Function to return wecc shapefiles and combined bounding box given path variables.
 def get_wecc_poly(terrpath, marpath):
@@ -83,7 +90,7 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
 # Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
 # Start date format: 'YYYY-MM-DD"
-def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True): 
+def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True): 
     
     # Remove depracated stations if filtering by time.
     if start_date is not None:
@@ -107,7 +114,7 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
     # Get date of most recently edited file. 
     # Note if using AWS may have to change os function to something that can handle remote repositories. Flagging to revisit.
     try:
-        last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
+        last_edit_time = max([f for f in os.scandir(savedir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
         last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
@@ -135,7 +142,7 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                         #### This code could be altered to compare write time and file name if desired.
                         if get_all is False:
                             if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                local_filename = os.path.join(workdir, filename) 
+                                local_filename = os.path.join(savedir, filename) 
                                 file = open(local_filename, 'wb') # Open destination file.
                                 ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
                                 print('{} saved'.format(filename)) # Helpful for testing, can be removed.
@@ -143,7 +150,7 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                             else:
                                 print("{} already saved".format(filename))
                         elif get_all is True: # If get_all is true, download all files in folder.
-                            local_filename = os.path.join(workdir, filename) 
+                            local_filename = os.path.join(savedir, filename) 
                             file = open(local_filename, 'wb') # Open destination file.
                             ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
                             print('{} saved'.format(filename)) # Helpful for testing, can be removed.
@@ -161,4 +168,4 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
 
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
+get_isd_data_ftp(stations, savedir, start_date = "2010-01-10", get_all = True)
