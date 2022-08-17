@@ -9,7 +9,7 @@ import numpy as np
 import geopandas as gp
 from math import exp, log
 
-# Spatial operations
+## Spatial operations
 
 ## Input vars: shapefiles for maritime and terrestrial WECC boundaries
 ## Outputs: spatial objects for each shapefile, and bounding box for their union.
@@ -24,15 +24,18 @@ def get_wecc_poly(terrpath, marpath):
     return t,m, bbox
 
 
-# Derived variable calculations
+## Derived variable calculations
 
-## dew point temperature calculation 
-## (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
-def _calc_dewpointtemp(tas, hurs, e):
+## dew point temperature calculation -- there are 2 options requiring some combination of three variables - air temp + relative humidity + vapor pressure)
+def _calc_dewpointtemp_opt1(tas, hurs): # requires only air temperature and relative humidity
     es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
     e = (es * hurs)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
     tdps = ((1/273) - 0.0001844 * log(e/0.611))^-1   # calculates dew point temperature, units = K
     return tdps
+
+def _calc_dewpointtemp_opt2(e):   # requires only vapor pressure
+    tdps = ((1/273) - 0.0001844 * log(e/0.611))^-1   # calculates dew point temperature, units = K
+
 
 # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
 def _calc_relhumid(tas, tdps):
