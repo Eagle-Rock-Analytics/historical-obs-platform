@@ -7,6 +7,7 @@ by other scripts.
 # Libraries
 import numpy as np
 import geopandas as gp
+import math
 from numpy import sqrt, exp, log
 
 # Spatial operations
@@ -50,3 +51,9 @@ def _calc_windmag(u10, v10):
 def _calc_winddir(u10, v10):
     pass        # this is a complicated calculation -- looking for options
     #return sfcWind_dir
+
+# calculate station air pressure from sea level air pressure
+# necessary input vars: elevation (m), temperature (in K) and pressure at sea level (hectopascals/mb).
+def _calc_ps(psl, elev, temp):
+    ps = psl * math.e**(-elev/(temp*29.263))
+    return ps

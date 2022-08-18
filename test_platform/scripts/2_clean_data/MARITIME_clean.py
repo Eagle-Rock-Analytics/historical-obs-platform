@@ -12,10 +12,9 @@ Approach:
 Inputs: Raw data for MARITIME stations, with each file representing a month of a year.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
-# To do
-# - Resolve HCF errors
-# Station 46014: throws error, can't convert "NA" string into float
-# Station 46089: throws error: no attr 'lat'
+# Small errors still coming up in error file, to be fixed with more time/capacity.
+# Resolve HCF errors
+# Station 46089: throws error, can't convert "NA" string into float. Some data (likely lat/lon) is tripping this.
 
 # Step 0: Environment set-up
 # Import libraries
@@ -91,7 +90,7 @@ def get_vars(homedir, workdir, savedir, **options):
                     payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
                     sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
                     if options.get("sensors") == "secondary": # If function specified to download backup sensors.
-                        sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_2', 'wave_sensor_2']
+                        sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_1', 'wave_sensor_2']
                     paths = [''.join(chunks) for chunks in itertools.product(payloads, sensors)] # Generate all possible combinations of paths.
 
                 for path in paths: # For each sensor
@@ -327,7 +326,8 @@ def clean_maritime(homedir, workdir, savedir, **options):
         dropvars = get_vars(homedir, workdir, savedir)
     
     # Identify list of coordinates to drop
-    coords_to_remove = ['depth', 'timem', 'time_wpm_20', 'time10', 'wave_wpm'] # Hardcoded for now, could get moved. These are a list of coords that throw errors consistently.
+    coords_to_remove = ['depth', 'timem', 'time_wpm_20', 'time_wpm_40', 'time_bnds', 'time10', 'wave_wpm'] 
+    # Hardcoded for now, could get moved. These are a list of coords that throw errors consistently.
     
     # # Split files into those written before 2015 and those written after.
     files_old = [i for i in files if any(i for j in list(range(1980, 2011)) if str(j) in i)] # Get all file names which include any year from 1980-2010.
@@ -336,7 +336,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
     # Read in data files by station ID, clean, and merge.
     os.chdir(workdir)
     for i in ids: # For each station
-    #for i in ['46023', '46125']: # For testing
+    #for i in ['46023', '46125', '46027']: # For testing
         ds_stat = None # Initialize ds_stat
         file_count = 0
         stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
@@ -369,7 +369,8 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         full_sensor_list = ds.attrs['sensor_suite'].split(',')
                         sensor_list = [k for k in full_sensor_list if k.endswith("1")] # Get data from primary sensors
                         if options.get("sensors") == "secondary":
-                            sensor_list = [k for k in full_sensor_list if k.endswith("2")] # Get data from secondar sensors
+                            sensor_list = [k for k in full_sensor_list if k.endswith("2")] # Get data from secondary sensors
+                            sensor_list.append("gps_1") # Need lat and lon for script to work, there is no gps 2 typically.
                         sensor_list = sorted(sensor_list)
                         sensors = set([i[11:] for i in sensor_list]) # Get unique list of sensors found in dataset.
                         paths = []
@@ -385,7 +386,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         payloads = ['/payload_1/', '/payload_2/', '/payload_3/', '/payload_4/', '/payload_5/']
                         sensors = ['anemometer_1', 'humidity_sensor_1', 'ocean_temperature_sensor_1', 'air_temperature_sensor_1', 'barometer_1', 'gps_1', 'wave_sensor_1']
                         if options.get("sensors") == "secondary":
-                            sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_2', 'wave_sensor_2']
+                            sensors = ['anemometer_2', 'humidity_sensor_2', 'ocean_temperature_sensor_2', 'air_temperature_sensor_2', 'barometer_2', 'gps_1', 'wave_sensor_2'] # GPS as 1 because we need lat and lon always.
                         
                         # Option 1: Simple, easy, works with "override" feature of xarray.merge to keep the first instance of a variable 
                         # (by default, the one from the lowest number payload.)
@@ -442,8 +443,8 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     
                     ds = xr.open_dataset(file, drop_variables=dropvars)
                     
-                    if options.get("sensors") == "secondary": # If function specified to download backup sensors.
-                        pass # TO DO - Are there secondary sensors in pre 2010 files? Waiting on email response.
+                    #if options.get("sensors") == "secondary": # If function specified to download backup sensors.
+                    #    pass # TO DO - Are there secondary sensors in pre 2010 files? Waiting on email response.
                         #print(ds.attrs)
                         #print(ds.keys())
                         #continue # Older files do not have secondary sensors????, so simply skip them.
@@ -483,7 +484,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 ds = ds.drop_dims(ctr) # Drop coordinates.
                 
                 ## Step 3: Convert station metadata to standard format
-
+                
                 # 3.1  Organize netCDF dimensions and coordinates.
                 ## Two dims - station ID and time.
                 # lat and lon as coordinates dependent on station and time.
@@ -492,9 +493,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 id = "MARITIME_"+ds.attrs["id"]
                 ds['original_id'] = ds.attrs['id'] # Keep original ID as var.
                     
-                # For old files: 
-                if 'station' in ds.coords: 
-
+                if file in files_old: # Works to reorder old files.
                     # Convert lat to array to make it a function of time
                     lat = [float(ds['lat'])]
                     lat = np.asarray(lat*len(ds['time']))
@@ -516,24 +515,35 @@ def clean_maritime(homedir, workdir, savedir, **options):
 
                     # reassign lat and lon as coordinates
                     ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
-                    
-                # For newer files: dims are station and time, lat and lon depend both on station and on time.
-                elif 'latitude' and 'longitude' in ds.keys():
+
+                if file in files_new:
+                    try:
+                        ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
+                    except:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("No geospatial coordinates found in file")
+                        continue
                     ds = ds.assign_coords(station = str(id))
-                    ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
                     ds = ds.expand_dims("station")
                     ds = ds.assign_coords(lat = (["station","time"],ds['lat'].data), lon = (["station","time"], ds['lon'].data))
-                    #ds = ds.set_coords(("lat", "lon"))
                     
+
                 # 3.3 Set elevation for station and sensors
                 stat_elevs = elevs[elevs["Station_ID"] == ds["original_id"]]
                 
                 if stat_elevs.empty == False:
+                    
+                    #Fix NAs
+                    stat_elevs = stat_elevs.replace("NA", np.nan)
+                    
                     # reassign station and sensor elevations as coordinates
                     elev = np.asarray([float(stat_elevs['Site_Elevation'])]*len(ds['time']))
                     tas_elev = np.asarray([float(stat_elevs['Air_Temp_Elevation'])]*len(ds['time']))
                     anem_elev = np.asarray([float(stat_elevs['Anemometer_Elevation'])]*len(ds['time']))
                     bar_elev = np.asarray([float(stat_elevs['Barometer_Elevation'])]*len(ds['time']))
+                
+                    
                     
                 elif stat_elevs.empty: # A few stations are missing in the table. If no value returned, insert NAs.
                     #print("Station elevations not found") # Helpful for ID'ing stations with missing data, comment out for final run.
@@ -575,13 +585,22 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         #print([var, float(ds[var].min()), float(ds[var].max())]) 
                         # ^ Code to run to print min and max to visually ID non-NAN NA values. Commented out but useful for future scripts.
                     except:
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Error removing masking NA values in variables..")
                         continue  
                 
                 # Where lat or lon is = this value, remove observation.
-                ds = ds.where(ds.lat!= 9.969209968386869e+36, drop = True)
-                ds = ds.where(ds.lon!= 9.969209968386869e+36, drop = True)
+                try:
+                    ds = ds.where(ds['lat']!= 9.969209968386869e+36, drop = True)
+                    ds = ds.where(ds['lon']!= 9.969209968386869e+36, drop = True)
+                except:
+                    errors['File'].append(file)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("Error removing observations missing lat/lon coordinates.")
+                    continue
                 
-                # Test this works.
+                # Code to test this works.
                 # for var in ["lat", "lon"]: 
                 #     try:
                 #         print([var, float(ds[var].min()), float(ds[var].max())]) 
@@ -613,16 +632,27 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         ds = ds.drop("air_pressure_at_sea_level") # Remove second air pressure var if it exists.
 
                 elif "air_pressure_at_sea_level" in ds.keys():
-                    if np.isrealobj(ds['barometer_elev']):
-                        # Convert to air pressure at station level.
-                        # Inputs: psl, elev, temp
-                        ps = _calc_ps(ds['air_pressure_at_sea_level'], ds['barometer_elev'], ds['tas'])
-                        ds['ps'] = ps*100 # Convert from mb to Pa
-                        ds['ps'].attrs['units'] = "Pascal" # Update units
-                        ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'}) # Rename original obs.
-                    else:
-                        print("Help!")
-                        
+                    # Note there are a few stations which don't have barometer elevation from chart or sensor data.
+                    # These cannot be converted, but we leave the raw data here.
+                    if 'barometer_elev' in ds.keys():
+                        if stat_elevs['Barometer_Elevation'] is not np.nan:
+                            # Convert to air pressure at station level.
+                            # Inputs: psl, elev, temp
+                            ps = _calc_ps(ds['air_pressure_at_sea_level'], ds['barometer_elev'], ds['tas'])
+                            if np.isnan(ps).all(): # If all values NA, don't save as variable, just keep raw data.
+                                ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'})
+                            else:
+                                ds['ps'] = ps*100 # Convert from mb to Pa
+                                ds['ps'].attrs['units'] = "Pascal" # Update units
+                                ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'}) # Rename original obs.
+
+                    elif 'barometer_height' in ds.attrs:
+                        # Haven't seen an instance where barometer height gleaned from metadata but station not in table.
+                        # Print statement here should catch this if so, remove after testing if not triggered.
+                        print(ds.attrs['barometer_height'])
+                        #ps = _calc_ps(ds['air_pressure_at_sea_level'], ds.attrs['barometer_height'], ds['tas'])
+                        break  # For testing.
+                                
                 # tdps: dew point temperature
                 # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
                 # Only more recent stations have dewpoint temp (dew_point_temperature)
@@ -733,14 +763,6 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 #print(np.unique(ds['wind_sampling_duration']))
                 #print(np.unique(ds['speed_averaging_method']))
 
-                # # Reorder variables
-                # In following order:
-                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-                desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
-                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
-                new_index = desired_order + rest_of_vars
-                ds = ds[new_index]
-
                 #print(list(ds.variables))
                 # REMOVE ANY EXTRA METADATA - to do.
                 # Remove any pesky coordinates.
@@ -749,6 +771,14 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 if 'time_bnds' in ds.coords:
                     ds = ds.drop_dims('time_bnds')
                     print(ds)
+
+                # # Reorder variables
+                # In following order:
+                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+                desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+                new_index = desired_order + rest_of_vars
+                ds = ds[new_index]
 
                 ## Step 7: Merge files by station
 
@@ -820,7 +850,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
         writer.writerows(zip(*errors.values()))
 
 #clean_maritime(homedir, workdir, savedir)   
-clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup data.
+#clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup data.
 
 
 ## notes
@@ -856,6 +886,21 @@ clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup 
                         #             continue
 
 # TESTING.
+
+
+# A station that should not have 'ps' bc barometer elevation doesn't exist from either source.
+#os.chdir(savedir)
+#test = xr.open_dataset("MARITIME_46023.nc")
+
+# Open a 'normal' file and run through var values.
+os.chdir(savedir)
+test = xr.open_dataset("MARITIME_46040.nc")
+print(test)
+for var in test.variables: 
+    try:
+        print([var, float(test[var].min()), float(test[var].max())]) 
+    except:
+        continue
 
 ### NOTES on sensor structure.
 # E sensors always precede M in payload.
@@ -922,10 +967,6 @@ clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup 
         #     #print(e)
         #     continue
 
-#os.chdir(workdir)
-#test = xr.open_dataset("NDBC_46001_201101_D1_v00.nc", drop_variables = ["time_bnds", "time10_bnds", "timem_bnds", "wave_wpm_bnds"], group = "payload_1")
-#print(test)
-#print(test.attrs)
 # ### TESTING.
 # # Test vars
 # #%%
