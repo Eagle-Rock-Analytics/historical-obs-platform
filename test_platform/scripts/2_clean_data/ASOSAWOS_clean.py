@@ -27,7 +27,9 @@ import gzip
 import pandas as pd
 from pathlib import Path
 
-#from calc import _calc_relhumid, get_wecc_poly, _calc_ps # To do: fix
+#from calc import _calc_relhumid, get_wecc_poly, _calc_ps 
+# 
+# # To do: fix calc import, correct relative humidity and station pressure calculations.
 
 # Set envr variables and calculate any needed variables
 
@@ -49,7 +51,7 @@ else:
             if os.path.exists('.git'):
                 homedir = os.getcwd()
 
-#print(homedir) # To test if above works
+print(homedir) # To test if above works
 #homedir = os.getcwd() # To do: resolve directory issue.
 
 workdir = "test_platform/data/1_raw_wx/ASOSAWOS/"
@@ -71,7 +73,7 @@ def clean_asosawos(homedir, workdir, savedir):
     os.chdir(workdir)
     files = os.listdir() # Gets list of files in directory to work with
     files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
-
+    
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
@@ -97,7 +99,8 @@ def clean_asosawos(homedir, workdir, savedir):
 
     # Use ID to grab all files linked to station.
     #for id in ids:
-    for id in ids:
+    for id in ['723676-23048', '723965-93209']: # For testing.
+    #for id in ids:
         subfiles = list(filter(lambda f: id in f, files))
         station_id = "ASOSAWOS_"+id.replace("-", "")
         #print(id, subfiles)
@@ -106,6 +109,7 @@ def clean_asosawos(homedir, workdir, savedir):
         df = pd.DataFrame(columns = ['station_id', 'time', 'latitude', 'longitude', 'elevation', 'data_source', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'])
         
         for file in subfiles: # For each file
+            #print(file, df)
             try:
                 with gzip.open(file, "rt") as f: # Open file
                     csvreader = csv.reader(f)
@@ -128,7 +132,7 @@ def clean_asosawos(homedir, workdir, savedir):
                         else:
                             data_source = str(string[27])
                             if data_source not in ["6","7"]: # If observation not from desired source.
-                                #print(subfiles[0], obs)
+                                print(file, data_source) # May be removing records we want to keep. To do: revisit.
                                 errors['File'].append(file)
                                 errors['Time'].append(end_api)
                                 errors['Error'].append("File from non-ASOS/AWOS data source")
@@ -260,10 +264,9 @@ def clean_asosawos(homedir, workdir, savedir):
                                 
                                 if ps_string is not None: # If precip data exists
                                     ps_string = ps_string.group() # Access string from match.
-                                    
                                     ps_altimeter = float(ps_string[0:5])/10 # HPa
                                     ps_altimeter_qc = ps_string[5]
-                                    ps = float(ps_string[6:10])/10 # HPa
+                                    ps = float(ps_string[6:11])/10 # HPa
                                     ps_qc = ps_string[11]
 
                                 else:
@@ -272,11 +275,47 @@ def clean_asosawos(homedir, workdir, savedir):
                                     ps_altimeter = np.nan
                                     ps_altimeter_qc = np.nan
 
-
+                                # Standardize NAs
+                                try:
+                                    if latitude == 99.999 or longitude == 99.999:
+                                        continue # If lat or lon values are NA, skip observation.
+                                    if elevation == 9999:
+                                        elevation = np.nan
+                                    if ps == 9999.9:
+                                        ps = np.nan
+                                    if ps_altimeter == 9999.9:
+                                        ps_altimeter = np.nan
+                                    if psl == 9999.9:
+                                        psl = np.nan
+                                    if tas == 999.9:
+                                        tas = np.nan
+                                    if tdps == 999.9:
+                                        tdps = np.nan
+                                    if pr == 999.9:
+                                        pr = np.nan
+                                    if pr_duration == 99:
+                                        pr_duration = np.nan
+                                    if hurs == 999.9:
+                                        hurs = np.nan
+                                    if hurs_duration == 99:
+                                        hurs_duration = np.nan
+                                    if hurs_temp == 999.9:
+                                        hurs_temp = np.nan
+                                    if rsds == 9999:
+                                        rsds = np.nan
+                                    if rsds_duration == 9999:
+                                        rsds_duration = np.nan
+                                    if sfcWind_dir == 999:
+                                        sfcWind_dir = np.nan
+                                    if sfcWind == 999.9:
+                                        sfcWind = np.nan
+                                except Exception as e:
+                                    print(e) # Add error handling?
+                                
                                 # For each row of data, append data to row.
-                                row = [station_id, time, latitude, longitude, elevation, data_source, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
-                                row = pd.DataFrame([row], columns = df.columns)
-                                df = df.append(row, ignore_index = True)
+                                data = [station_id, time, latitude, longitude, elevation, data_source, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
+                                data = pd.DataFrame([data], columns = df.columns)
+                                df = df.append(data, ignore_index = True)
                                 
                                 # # Scrap. Just for speed of testing different files.
                                 # if len(df)>5:
@@ -286,12 +325,14 @@ def clean_asosawos(homedir, workdir, savedir):
                 errors['File'].append(file)
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
-                            
+
+        if df.empty is True:
+            print("df {} not saved".format (file))
 
         if df.empty is False: # If there is data in the dataframe, convert to xarray object.
             try:
                 ds = df.to_xarray()
-
+                
                 # Update dimensions and coordinates
 
                 # Add dimensions: station ID and time.
@@ -411,6 +452,8 @@ def clean_asosawos(homedir, workdir, savedir):
                     ds['psl_raw'].attrs['units'] = "hPa"
                     ds['psl_raw'].attrs['ancillary_variables'] = "ps psl_qc" # List other variables associated with variable (QA/QC)
 
+                
+                
                 # tdps: dew point temperature (K)
                 # tdps always provided by ISD reports, so no need to calculate here.
                 if "tdps" in ds.keys(): # If variable already exists, rename.
@@ -470,7 +513,7 @@ def clean_asosawos(homedir, workdir, savedir):
                     ds['hurs_temp'].attrs['long_name'] = "average_air_temperature_at_hurs_instrument"
                     ds['hurs_temp'].attrs['units'] = "degree_celsius" 
                     ds['hurs_temp'].attrs['ancillary_variables'] = "hurs hurs_qc hurs_flag hurs_temp hurs_temp_qc hurs_temp_flag" # List other variables associated with variable (QA/QC)
-
+                
                 elif 'tas' and 'tdps' in ds.keys():
                     #ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps']) # Fix calc import
                     ds['hurs'].attrs['long_name'] = "relative_humidity" # Note some here will be avg. and some not, will have to align when we merge down.
@@ -495,7 +538,7 @@ def clean_asosawos(homedir, workdir, savedir):
                 if 'rsds' in ds.keys():
                     #print(ds['rsds'].values[0])
                     if np.isnan(ds['rsds'].values[0]).all(): # If all values are NA
-                        continue
+                        pass # Continue and don't add this variable.
                     else: # Otherwise, add variables.
                         ds['rsds'].attrs['long_name'] = "solar_radiation"
                         ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
@@ -514,7 +557,8 @@ def clean_asosawos(homedir, workdir, savedir):
                     
                         ds['rsds_flag'].attrs['flag_values'] = "00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10-93, 94-97, 98, 99"
                         ds['rsds_flag'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                    
+
+                   
                 # sfcWind : wind speed (m/s) (Method of calculation may vary, standardize during hourly merge or QA/QC process.)
                 if "sfcWind" in ds.keys(): # No conversions needed, do not add raw column.
                     ds['sfcWind'].attrs['long_name'] = "wind_speed"
@@ -559,9 +603,21 @@ def clean_asosawos(homedir, workdir, savedir):
                     ds['data_source'].attrs['flag_values'] = "[6, 7]"
                     ds['data_source'].attrs['flag_meanings'] = "ASOSAWOS ASOSAWOS_merged_with_USAF_surface_hourly" 
 
-                # Test
-                print(ds)
-            
+                # # Reorder variables
+                # In following order:
+                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+                desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+                new_index = desired_order + rest_of_vars
+                ds = ds[new_index]
+
+                # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                # for var in ds.variables:
+                #     try:
+                #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                #     except:
+                #         next
+                
             except Exception as e: # If error in xarray reorganization
                 print(file, e)
                 errors['File'].append(station_id)
@@ -571,7 +627,7 @@ def clean_asosawos(homedir, workdir, savedir):
 
             # Write station file to netcdf.
             if ds is None: # Should be caught be error handling above, but add in case.
-                print("File {} not saved.".format(file))
+                print("ds {} not saved.".format(file))
                 continue
             
             else:
@@ -592,6 +648,7 @@ def clean_asosawos(homedir, workdir, savedir):
 
     #Write errors to csv
     filepath = homedir+"/"+savedir+"errors_asosawos_{}.csv".format(end_api) # Set path to save error file.
+    print(filepath)
     #print(errors)
     with open(filepath, "w") as outfile:
         # pass the csv file to csv.writer function.
@@ -606,5 +663,47 @@ def clean_asosawos(homedir, workdir, savedir):
         # columns using zip function.
         writer.writerows(zip(*errors.values()))
 
+# Run function
 clean_asosawos(homedir, workdir, savedir)
 
+# Testing:
+## Import file.
+# os.chdir(savedir)
+# test = xr.open_dataset("ASOSAWOS_72367623048.nc") 
+# # 2001-2011 in NM desert.
+# # Testing multi-year merges work as expected.
+# print(test)
+# print(str(test['time'].min())) # Get start time
+# print(str(test['time'].max())) # Get end time
+
+
+# ## Inspect vars and attributes
+# ## 
+# for var in test.variables: 
+#     try:
+#         print([var, float(test[var].min()), float(test[var].max())]) 
+#     except:
+#         continue
+
+# # Get a few rows
+# print(test.sel(time = "2011-05")) # In desert, expect very low tdps.
+
+# # Next test.
+# test = xr.open_dataset("ASOSAWOS_72396593209.nc") # 2011 data for Paso Robles.
+# print(test)
+# print(str(test['time'].min())) # Get start time
+# print(str(test['time'].max())) # Get end time
+
+
+# ## Inspect vars and attributes
+# ## 
+# for var in test.variables: 
+#     try:
+#         print([var, float(test[var].min()), float(test[var].max())]) 
+#     except:
+#         continue
+
+# # Get a few rows
+# print(test.sel(time = "2011-05")) # In desert, expect very low tdps.
+
+# test = xr.open_dataset("ASOSAWOS_72396593209.nc")
