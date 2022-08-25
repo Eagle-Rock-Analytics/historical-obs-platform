@@ -28,13 +28,13 @@ import pandas as pd
 from pathlib import Path
 
 #from calc import _calc_relhumid, get_wecc_poly, _calc_ps 
-# 
 # # To do: fix calc import, correct relative humidity and station pressure calculations.
 
 # Set envr variables and calculate any needed variables
 
-# Set home directory to be where the .git folder is
+# Experimental: Set home directory to be where the .git folder is
 # Temporary workaround for setting homedir to be head of git repository.
+# Only works when current WD is inside of git repository, note!
 if os.path.exists('.git'):
     homedir = os.getcwd()
 else:
@@ -51,9 +51,7 @@ else:
             if os.path.exists('.git'):
                 homedir = os.getcwd()
 
-print(homedir) # To test if above works
-#homedir = os.getcwd() # To do: resolve directory issue.
-
+#homedir = os.getcwd() # 
 workdir = "test_platform/data/1_raw_wx/ASOSAWOS/"
 savedir = "test_platform/data/2_clean_wx/ASOSAWOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
@@ -65,12 +63,12 @@ try:
 except:
     pass
 
-
 ## FUNCTION: Clean ASOSAWOS data.
 # Input: homedir, workdir, savedir.
 def clean_asosawos(homedir, workdir, savedir):
 
     os.chdir(workdir)
+    
     files = os.listdir() # Gets list of files in directory to work with
     files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
     
@@ -98,15 +96,15 @@ def clean_asosawos(homedir, workdir, savedir):
 
 
     # Use ID to grab all files linked to station.
-    #for id in ids:
-    for id in ['723676-23048', '723965-93209']: # For testing.
+    for id in ids:
+    #for id in ['723676-23048', '723965-93209']: # For testing.
     #for id in ids:
         subfiles = list(filter(lambda f: id in f, files))
         station_id = "ASOSAWOS_"+id.replace("-", "")
         #print(id, subfiles)
         
         # Initialize dataframe.
-        df = pd.DataFrame(columns = ['station_id', 'time', 'latitude', 'longitude', 'elevation', 'data_source', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'])
+        df = pd.DataFrame(columns = ['station_id', 'time', 'latitude', 'longitude', 'elevation', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_qc', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'])
         
         for file in subfiles: # For each file
             #print(file, df)
@@ -130,196 +128,187 @@ def clean_asosawos(homedir, workdir, savedir):
                             errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(latitude, longitude))
                             break # Go to next file.
                         else:
-                            data_source = str(string[27])
-                            if data_source not in ["6","7"]: # If observation not from desired source.
-                                print(file, data_source) # May be removing records we want to keep. To do: revisit.
-                                errors['File'].append(file)
-                                errors['Time'].append(end_api)
-                                errors['Error'].append("File from non-ASOS/AWOS data source")
-                                break
-                            elif data_source in ["6","7"]:
-                                #print(string)
-                                # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time
-                                time = datetime.strptime(string[15:27], '%Y%m%d%H%M')
+                            # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time
+                            time = datetime.strptime(string[15:27], '%Y%m%d%H%M')
+                            
+                            # POS 47-51: GEOPHYSICAL-POINT-OBSERVATION elevation dimension
+                            elevation = float(string[46:51])
+                            # POS 57-60: METEOROLOGICAL-POINT-OBSERVATION quality control process name
+                            qaqc_process = string[56:60] 
+                            #V01 = No A or M Quality Control applied
+                            #V02 = Automated Quality Control
+                            #V03 = subjected to Quality Control
+
+                            # Mandatory data
+
+                            #POS: 61-63: WIND-OBSERVATION direction angle
+                            sfcWind_dir = int(string[60:63]) # Units degrees
+
+                            #POS: 64-64: WIND-OBSERVATION direction quality code
+                            sfcWind_dir_qc = string[63]
+
+                            #POS: 65-65 WIND-OBSERVATION type code
+                            sfcWind_method = string[64]
+
+                            #POS: 66-69: WIND-OBSERVATION speed rate
+                            sfcWind = float(string[65:69])/10 # Units m/s
+
+                            #POS: 70-70: WIND-OBSERVATION speed quality code
+                            sfcWind_qc = string[69]
+                            # Note: One row returns A here, this is an error.
+
+                            #POS 88-92: AIR-TEMPERATURE-OBSERVATION air temperature
+                            tas = float(string[87:92])/10
+
+                            #POS 93: AIR-TEMPERATURE-OBSERVATION air temperature quality code
+                            tas_qc = string[92]
+
+                            #POS 94-98: AIR-TEMPERATURE-OBSERVATION dew point temperature
+                            tdps = float(string[93:98])/10
+
+                            #POS 99-99: AIR-TEMPERATURE-OBSERVATION dew point quality code
+                            tdps_qc = string[98]
+
+                            #POS 100-104: ATMOSPHERIC-PRESSURE-OBSERVATION sea level pressure
+                            psl = float(string[99:104])/10 # In hectopascals, CONVERT.
+
+                            #POS 105-105: ATMOSPHERIC-PRESSURE-OBSERVATION sea level pressure quality code
+                            psl_qc = string[104]
+                            
+                            # Additional data - begins with ADD
+                            
+                            # Liquid precipitation - begins with AA[1-4]
+
+                            # Figure out length of precip. string.
+                            precip_len = re.search("(?<=AA)[\d]", string)
+
+                            if precip_len is not None: # If precip data exists
+                                # Get everything after AA#
+                                # QA/QC codes include letters. So, use precip_length to pull string of correct length.
+                                precip = re.search("(?<=AA1|AA2|AA3|AA4)[\da-zA-Z]{8}", string).group() # Get the 8 strings after AA1/2/3/4
+                                pr_duration = int(precip[0:2]) # Hours
+                                pr = float(precip[2:6])/10 # In mm
+                                pr_depth_qc = int(precip[6:7]) # QA for precipitation depth
+                                pr_qc = precip[7:8] # QA for precipitation data.
                                 
-                                # POS 47-51: GEOPHYSICAL-POINT-OBSERVATION elevation dimension
-                                elevation = float(string[46:51])
-                                # POS 57-60: METEOROLOGICAL-POINT-OBSERVATION quality control process name
-                                qaqc_process = string[56:60] 
-                                #V01 = No A or M Quality Control applied
-                                #V02 = Automated Quality Control
-                                #V03 = subjected to Quality Control
+                                # Take first measurement as primary, unless missing.
+                                if float(precip[2:6]) == 9999:
+                                    if str(precip_len.group()) != "1":
+                                        # If precip depth of first report is missing.
+                                        precip = re.search("(?<=AA1|AA2|AA3|AA4)[\da-zA-Z]{16}", string).group() # Get second set of precip values.
+                                        pr_duration = int(precip[8:10]) # Hours
+                                        pr = float(precip[10:14])/10 # In mm
+                                        pr_depth_qc = int(precip[14:15]) # QA for precipitation depth
+                                        pr_qc = precip[15:16] # QA for precipitation data.
+                            else:
+                                pr = np.nan
+                                pr_qc = np.nan
+                                pr_duration = np.nan
+                                pr_depth_qc = np.nan
 
-                                # Mandatory data
-
-                                #POS: 61-63: WIND-OBSERVATION direction angle
-                                sfcWind_dir = int(string[60:63]) # Units degrees
-
-                                #POS: 64-64: WIND-OBSERVATION direction quality code
-                                sfcWind_dir_qc = string[63]
-
-                                #POS: 65-65 WIND-OBSERVATION type code
-                                sfcWind_method = string[64]
-
-                                #POS: 66-69: WIND-OBSERVATION speed rate
-                                sfcWind = float(string[65:69])/10 # Units m/s
-
-                                #POS: 70-70: WIND-OBSERVATION speed quality code
-                                sfcWind_qc = string[69]
-                                # Note: One row returns A here, this is an error.
-
-                                #POS 88-92: AIR-TEMPERATURE-OBSERVATION air temperature
-                                tas = float(string[87:92])/10
-
-                                #POS 93: AIR-TEMPERATURE-OBSERVATION air temperature quality code
-                                tas_qc = string[92]
-
-                                #POS 94-98: AIR-TEMPERATURE-OBSERVATION dew point temperature
-                                tdps = float(string[93:98])/10
-
-                                #POS 99-99: AIR-TEMPERATURE-OBSERVATION dew point quality code
-                                tdps_qc = string[98]
-
-                                #POS 100-104: ATMOSPHERIC-PRESSURE-OBSERVATION sea level pressure
-                                psl = float(string[99:104])/10 # In hectopascals, CONVERT.
-
-                                #POS 105-105: ATMOSPHERIC-PRESSURE-OBSERVATION sea level pressure quality code
-                                psl_qc = string[104]
+                            # Relative humidity - shouldn't be in this dataset, but capture if it is.
+                            
+                            hurs_string = re.search("(?<=CH1|CH2)[\da-zA-Z]{15}", string) #Section starts with CH 
+                            
+                            if hurs_string is not None: # If precip data exists
+                                hurs_string = hurs_string.group() # Access string from match.
                                 
-                                # Additional data - begins with ADD
+                                hurs_duration = int(hurs_string[0:2]) # Minutes
+                                hurs_temp = int(hurs_string[2:7])/10 # In deg. C
+                                hurs_temp_qc = hurs_string[7]
+                                hurs_temp_flag = int(hurs_string[8])
+                                hurs = int(hurs_string[9:13])/10 # In percent
+                                hurs_qc = hurs_string[13]
+                                hurs_flag = int(hurs_string[14])
+
+                            else:
+                                hurs = np.nan
+                                hurs_qc = np.nan
+                                hurs_flag = np.nan
+                                hurs_duration = np.nan
+                                hurs_temp = np.nan
+                                hurs_temp_qc = np.nan
+                                hurs_temp_flag = np.nan
+                            
+                            # Solar radiation - "global irradiance" in our dataset.
+                            # Not keeping "direct beam irradiance", "diffuse irradiance" which are also provided in same string.
+                            rsds_string = re.search("(?<=GM1)[\da-zA-Z]{11}", string) #Section starts with CH 
+                            
+                            if rsds_string is not None: # If precip data exists
+                                rsds_string = rsds_string.group() # Access string from match.
                                 
-                                # Liquid precipitation - begins with AA[1-4]
+                                rsds_duration = float(rsds_string[0:4]) # Time period over which solar radiation integrated, in minutes
+                                rsds = float(rsds_string[4:8]) # In w/m2
+                                rsds_flag = rsds_string[8:10]
+                                rsds_qc = rsds_string[10:12]
 
-                                # Figure out length of precip. string.
-                                precip_len = re.search("(?<=AA)[\d]", string)
+                            else:
+                                rsds = np.nan
+                                rsds_duration = np.nan
+                                rsds_qc = np.nan
+                                rsds_flag = np.nan
 
-                                if precip_len is not None: # If precip data exists
-                                    # Get everything after AA#
-                                    # QA/QC codes include letters. So, use precip_length to pull string of correct length.
-                                    precip = re.search("(?<=AA1|AA2|AA3|AA4)[\da-zA-Z]{8}", string).group() # Get the 8 strings after AA1/2/3/4
-                                    pr_duration = int(precip[0:2]) # Hours
-                                    pr = float(precip[2:6])/10 # In mm
-                                    pr_depth_qc = int(precip[6:7]) # QA for precipitation depth
-                                    pr_qc = precip[7:8] # QA for precipitation data.
-                                    
-                                    # Take first measurement as primary, unless missing.
-                                    if float(precip[2:6]) == 9999:
-                                        if str(precip_len.group()) != "1":
-                                            # If precip depth of first report is missing.
-                                            precip = re.search("(?<=AA1|AA2|AA3|AA4)[\da-zA-Z]{16}", string).group() # Get second set of precip values.
-                                            pr_duration = int(precip[8:10]) # Hours
-                                            pr = float(precip[10:14])/10 # In mm
-                                            pr_depth_qc = int(precip[14:15]) # QA for precipitation depth
-                                            pr_qc = precip[15:16] # QA for precipitation data.
-                                else:
-                                    pr = np.nan
-                                    pr_qc = np.nan
-                                    pr_duration = np.nan
-                                    pr_depth_qc = np.nan
+                            # Station pressure
+                            ps_string = re.search("(?<=MA1)[\da-zA-Z]{12}", string) #Section starts with CH 
+                            
+                            if ps_string is not None: # If precip data exists
+                                ps_string = ps_string.group() # Access string from match.
+                                ps_altimeter = float(ps_string[0:5])/10 # HPa
+                                ps_altimeter_qc = ps_string[5]
+                                ps = float(ps_string[6:11])/10 # HPa
+                                ps_qc = ps_string[11]
 
-                                # Relative humidity - shouldn't be in this dataset, but capture if it is.
-                                
-                                hurs_string = re.search("(?<=CH1|CH2)[\da-zA-Z]{15}", string) #Section starts with CH 
-                                
-                                if hurs_string is not None: # If precip data exists
-                                    hurs_string = hurs_string.group() # Access string from match.
-                                    
-                                    hurs_duration = int(hurs_string[0:2]) # Minutes
-                                    hurs_temp = int(hurs_string[2:7])/10 # In deg. C
-                                    hurs_temp_qc = hurs_string[7]
-                                    hurs_temp_flag = int(hurs_string[8])
-                                    hurs = int(hurs_string[9:13])/10 # In percent
-                                    hurs_qc = hurs_string[13]
-                                    hurs_flag = int(hurs_string[14])
+                            else:
+                                ps = np.nan
+                                ps_qc = np.nan
+                                ps_altimeter = np.nan
+                                ps_altimeter_qc = np.nan
 
-                                else:
-                                    hurs = np.nan
-                                    hurs_qc = np.nan
-                                    hurs_flag = np.nan
-                                    hurs_duration = np.nan
-                                    hurs_temp = np.nan
-                                    hurs_temp_qc = np.nan
-                                    hurs_temp_flag = np.nan
-                                
-                                # Solar radiation - "global irradiance" in our dataset.
-                                # Not keeping "direct beam irradiance", "diffuse irradiance" which are also provided in same string.
-                                rsds_string = re.search("(?<=GM1)[\da-zA-Z]{11}", string) #Section starts with CH 
-                                
-                                if rsds_string is not None: # If precip data exists
-                                    rsds_string = rsds_string.group() # Access string from match.
-                                    
-                                    rsds_duration = float(rsds_string[0:4]) # Time period over which solar radiation integrated, in minutes
-                                    rsds = float(rsds_string[4:8]) # In w/m2
-                                    rsds_flag = rsds_string[8:10]
-                                    rsds_qc = rsds_string[10:12]
-
-                                else:
-                                    rsds = np.nan
-                                    rsds_duration = np.nan
-                                    rsds_qc = np.nan
-                                    rsds_flag = np.nan
-
-                                # Station pressure
-                                ps_string = re.search("(?<=MA1)[\da-zA-Z]{12}", string) #Section starts with CH 
-                                
-                                if ps_string is not None: # If precip data exists
-                                    ps_string = ps_string.group() # Access string from match.
-                                    ps_altimeter = float(ps_string[0:5])/10 # HPa
-                                    ps_altimeter_qc = ps_string[5]
-                                    ps = float(ps_string[6:11])/10 # HPa
-                                    ps_qc = ps_string[11]
-
-                                else:
+                            # Standardize NAs
+                            try:
+                                if latitude == 99.999 or longitude == 99.999:
+                                    continue # If lat or lon values are NA, skip observation.
+                                if elevation == 9999:
+                                    elevation = np.nan
+                                if ps == 9999.9:
                                     ps = np.nan
-                                    ps_qc = np.nan
+                                if ps_altimeter == 9999.9:
                                     ps_altimeter = np.nan
-                                    ps_altimeter_qc = np.nan
-
-                                # Standardize NAs
-                                try:
-                                    if latitude == 99.999 or longitude == 99.999:
-                                        continue # If lat or lon values are NA, skip observation.
-                                    if elevation == 9999:
-                                        elevation = np.nan
-                                    if ps == 9999.9:
-                                        ps = np.nan
-                                    if ps_altimeter == 9999.9:
-                                        ps_altimeter = np.nan
-                                    if psl == 9999.9:
-                                        psl = np.nan
-                                    if tas == 999.9:
-                                        tas = np.nan
-                                    if tdps == 999.9:
-                                        tdps = np.nan
-                                    if pr == 999.9:
-                                        pr = np.nan
-                                    if pr_duration == 99:
-                                        pr_duration = np.nan
-                                    if hurs == 999.9:
-                                        hurs = np.nan
-                                    if hurs_duration == 99:
-                                        hurs_duration = np.nan
-                                    if hurs_temp == 999.9:
-                                        hurs_temp = np.nan
-                                    if rsds == 9999:
-                                        rsds = np.nan
-                                    if rsds_duration == 9999:
-                                        rsds_duration = np.nan
-                                    if sfcWind_dir == 999:
-                                        sfcWind_dir = np.nan
-                                    if sfcWind == 999.9:
-                                        sfcWind = np.nan
-                                except Exception as e:
-                                    print(e) # Add error handling?
-                                
-                                # For each row of data, append data to row.
-                                data = [station_id, time, latitude, longitude, elevation, data_source, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
-                                data = pd.DataFrame([data], columns = df.columns)
-                                df = df.append(data, ignore_index = True)
-                                
-                                # # Scrap. Just for speed of testing different files.
-                                # if len(df)>5:
-                                #     break
+                                if psl == 9999.9:
+                                    psl = np.nan
+                                if tas == 999.9:
+                                    tas = np.nan
+                                if tdps == 999.9:
+                                    tdps = np.nan
+                                if pr == 999.9:
+                                    pr = np.nan
+                                if pr_duration == 99:
+                                    pr_duration = np.nan
+                                if hurs == 999.9:
+                                    hurs = np.nan
+                                if hurs_duration == 99:
+                                    hurs_duration = np.nan
+                                if hurs_temp == 999.9:
+                                    hurs_temp = np.nan
+                                if rsds == 9999:
+                                    rsds = np.nan
+                                if rsds_duration == 9999:
+                                    rsds_duration = np.nan
+                                if sfcWind_dir == 999:
+                                    sfcWind_dir = np.nan
+                                if sfcWind == 999.9:
+                                    sfcWind = np.nan
+                            except Exception as e:
+                                print(e) # Add error handling?
+                            
+                            # For each row of data, append data to row.
+                            data = [station_id, time, latitude, longitude, elevation, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_qc, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
+                            data = pd.DataFrame([data], columns = df.columns)
+                            df = df.append(data, ignore_index = True)
+                            
+                            # # Scrap. Just for speed of testing different files.
+                            # if len(df)>5:
+                            #     break
             except Exception as e:
                 print(file, e)
                 errors['File'].append(file)

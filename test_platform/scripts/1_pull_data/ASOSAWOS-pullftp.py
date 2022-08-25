@@ -40,7 +40,8 @@ def get_wecc_poly(terrpath, marpath):
     bbox = t.union(m).bounds
     return t,m, bbox
 
-# Function to get up to date station list
+# Function to get up to date station list of ASOS AWOS stations in WECC.
+# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
 def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
     ## Login.
     ## using ftplib, get list of stations as csv
@@ -59,8 +60,7 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
     # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
     geometry = [Point(xy) for xy in zip(weccstations['LON'], weccstations['LAT'])] # Zip lat lon coords.
-    crs = {'init' :'epsg:4326'} # Set EPSG.
-    weccgeo = gp.GeoDataFrame(weccstations, crs=crs, geometry=geometry) # Convert to geodataframe.
+    weccgeo = gp.GeoDataFrame(weccstations, crs='EPSG:4326', geometry=geometry) # Convert to geodataframe.
     
     ## get bbox of WECC to use to filter stations against
     t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
@@ -79,14 +79,24 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
             .drop_duplicates(['USAF','WBAN'], keep='first'))
 
     # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names.
-    weccstations['ISD-ID'] = weccstations['USAF']+"-"+weccstations['WBAN'].astype("str")
+    # Add leading zeros where they are missing from WBAN stations.
+    weccstations['ISD-ID'] = weccstations['USAF']+"-"+weccstations['WBAN'].astype("str").str.pad(5, side = "left", fillchar = "0")
 
     # Reformat time strings for FTP/API call.
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
 
-    weccstations.reset_index()
-    return weccstations
+    # Now, read in ASOSAWOS csv and use to filter to only keep ASOS/AWOS stations.
+    # Source: https://www.aviationweather.gov/docs/metar/stations.txt
+    # Last downloaded: 08.25.22
+    asosawos = pd.read_csv('test_platform/scripts/2_clean_data/asosawos_stations.csv')
+    asosawos = asosawos.loc[(asosawos['A']=="A") | (asosawos['A']=="W")] # A = ASOS, W = AWOS
+    asosawos['ICAO'] = asosawos['ICAO'].astype(str) # Fix data types
+    weccstations['ICAO'] = weccstations['ICAO'].astype(str) # Fix data types
+    asosawos = pd.merge(asosawos, weccstations, on = 'ICAO', how = 'inner') # Join by matching ICAO IDs.
+    
+    asosawos.reset_index()
+    return asosawos
 
 # Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
 # Start date format: 'YYYY-MM-DD"
