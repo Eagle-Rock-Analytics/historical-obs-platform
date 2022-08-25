@@ -24,7 +24,6 @@ from datetime import datetime
 import re
 import geopandas as gp
 import numpy as np
-import xarray as xr
 from calc import _calc_relhumid, get_wecc_poly, _calc_ps
 import csv
 import itertools
@@ -46,6 +45,7 @@ except:
     pass
 
 # Step 0: Get list of all variables and generate list of variables to remove from dataset.
+
 ## FUNCTION: Generate list of variables, drop variables from collection of files.
 # Input: workdir and savedir. Output: 2 csvs: 1) of removed variables and 2) error file. Also returns list of removed variables.
 # This function natively generates a list of all variables (including from groups), compares them against a list of variables to keep
@@ -212,6 +212,11 @@ def get_vars(homedir, workdir, savedir, **options):
 
     return dropvars
 
+## FUNCTION: Generate list of station and instrument elevations.
+# Input: url to tables on NDBC website. Output: returns dataframe of stations and elevations. Called internally in clean_maritime() function.
+# This function generates a dataframe of station elevations and instrument elevations from the NDBC website, as this data is frequently missing from the data source.
+# This is joined by station to the xarray dataframes in the clean_maritime() function.
+
 def get_elevs(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -255,6 +260,47 @@ def get_elevs(url):
     df = pd.concat([df, dftemp])
     return df
     
+# FUNCTION: Get list of ASOS/AWOS IDs in ISD dataset. 
+# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
+def get_ids(homedir):
+    os.chdir("test_platform/scripts/2_clean_data/")
+    isd = pd.read_csv("isd-history.csv")
+    isd = isd[isd['CTRY']=="US"]
+
+    asosawos = pd.read_csv('asosawos_stations.csv')
+    asosawos = asosawos.loc[(asosawos['A']=="A") | (asosawos['A']=="W")]
+
+    # Use ICAO as matching column because neither datasource has any NA values here.
+    # Fix column types.
+    asosawos['ICAO'] = asosawos['ICAO'].astype(str)
+    isd['ICAO'] = isd['ICAO'].astype(str)
+    # Merge on ICAO.
+    join = pd.merge(asosawos, isd, on = 'ICAO', how = 'inner')
+    # Get station IDs from USAF and WBAN id columns
+    join['station-id'] = join['USAF'].astype(str)+"-"+join['WBAN'].astype(str)
+    os.chdir(homedir) # Return to homedirectory
+    return join['station-id']
+
+test = get_ids(homedir)
+print(test)
+# missing['LAT_clean'] = missing['LAT_clean'].round(3)
+# missing['LON_clean'] = missing['LON_clean'].round(3)
+# print(missing)
+
+# test2 = pd.merge(missing, isd, left_on=['LAT_clean', 'LON_clean'], right_on=["LAT", "LON"], how = "inner") # About 9 more stations.
+# print(test2)
+# Try match by name.
+#test2 = pd.merge(missing, isd, left_on = 'STATION', right_on = "STATION NAME", how = 'inner') # 10 more match.
+#print(test2)
+# # Group by station and get last ending date.
+# finaldate = test.loc[test.groupby('ICAO').END.idxmax()]
+# print(finaldate['END'].min())
+# print(len(finaldate[(finaldate['END'].astype('str').str.contains("2022")==False)]))
+
+# finaldate['END'] = pd.to_datetime(finaldate["END"])
+# finaldate.hist(column = 'END')
+#print(asosawos)
+
 ## FUNCTION: Clean MARITIME data.
 # Input: workdir, savedir.
 # Note that this function searches for a csv called removevars.csv in the savedir folder. If file doesn't exist, script will call get_vars function.
@@ -893,14 +939,14 @@ def clean_maritime(homedir, workdir, savedir, **options):
 #test = xr.open_dataset("MARITIME_46023.nc")
 
 # Open a 'normal' file and run through var values.
-os.chdir(savedir)
-test = xr.open_dataset("MARITIME_46040.nc")
-print(test)
-for var in test.variables: 
-    try:
-        print([var, float(test[var].min()), float(test[var].max())]) 
-    except:
-        continue
+# os.chdir(savedir)
+# test = xr.open_dataset("MARITIME_46040.nc")
+# print(test)
+# for var in test.variables: 
+#     try:
+#         print([var, float(test[var].min()), float(test[var].max())]) 
+#     except:
+#         continue
 
 ### NOTES on sensor structure.
 # E sensors always precede M in payload.
