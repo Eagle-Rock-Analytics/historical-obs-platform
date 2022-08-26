@@ -171,6 +171,9 @@ def _calc_ps(psl, elev, temp):
     Calculates station air pressure from sea level air pressure, if station pressure is not available
     Inputs: sea level pressure (mb/hPa), elevation (m), and air temperature (K)
     Returns: air pressure (mb/hPa)
+    Note: this calculation checks out using 2 different formula, with differences at the second decimal place:
+    https://keisan.casio.com/exec/system/1224575267
+    https://www.mide.com/air-pressure-at-altitude-calculator
     """
     ps = psl * math.e**(-elev/(temp*29.263))
     return ps
