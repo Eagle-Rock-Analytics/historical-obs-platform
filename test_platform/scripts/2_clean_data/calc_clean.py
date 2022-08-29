@@ -90,7 +90,7 @@ def _unit_moisture_gkg_to_kgkg(data):
     Inputs: moisture ratio (g/kg)
     Returns: moisture ratio (kg/kg)
     """
-    data = data / 1000
+    data = data / 1000.
     return data
 
 ## Precipitation conversions: Desired working unit should be mm/TIME
@@ -114,6 +114,27 @@ def _unit_elev_ft_to_m(data):
     data = data / 0.3048
     return data
 
+## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
+## Example: Latitude is provided as "3902.33"
+def _lat_dms_to_dd(data):
+    """
+    Converts latitude from decimal-minutes-seconds to decimal degrees
+    Input: latitude (DMS) example: 3902.33
+    Returns: latitude (dd) example: 39.16
+    """
+    data = data[:2] + data[2:4]/60 + data[5:]/3600
+    return data
+
+def _lon_dms_to_dd(data):
+    """
+    Converts longitude from decimal-minutes-seconds to decimal degrees
+    and ensures that western hemisphere lons are negative by convention
+    Input: longitude(DMS) example: 12201.38
+    Returns: longitude (dd) example: -122.02
+    """
+    data = -1 * data[:3] + data[3:5]/60 + data[6:]/3600
+    return data
+
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
 def _calc_dewpointtemp_opt1(tas, hurs):
@@ -123,7 +144,7 @@ def _calc_dewpointtemp_opt1(tas, hurs):
     Returns: dew point temperature (K)
     """
     es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
-    e = (es * hurs)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    e = (es * hurs)/100.                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
     tdps = ((1/273) - 0.0001844 * log(e/0.611))^-1   # calculates dew point temperature, units = K
     return tdps
 
@@ -155,7 +176,7 @@ def _calc_windmag(u10, v10):
     sfcWind = np.sqrt((u10)^2  + (v10)^2)   # calculates wind magnitude, units = ms-1
     return sfcWind
 
-def _calc_winddir(u10, v10):
+def _calc_winddir(u10, v10):    # This function would only be needed if wind components are provided, but direction is not
     """
     Calculates wind direction
     Inputs: u and v wind components (both m/s)
@@ -165,7 +186,6 @@ def _calc_winddir(u10, v10):
     pass        # this is a complicated calculation -- looking for options
     #return sfcWind_dir
 
-## CHECK THIS CALCULATION
 def _calc_ps(psl, elev, temp):
     """
     Calculates station air pressure from sea level air pressure, if station pressure is not available
