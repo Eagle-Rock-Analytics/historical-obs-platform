@@ -49,46 +49,6 @@ files = list(filter(lambda f: f.endswith(".txt"), files))
 # to be continued
 
 
-# -------------------------------------------------------------------------------------------------------------------
-
-# dimension/variable order
-# For example, air_temperature would have (time x lat x lon x elev x data) dimensions
-clean_dims = ['time', 'latidue', 'longitude', 'elevation']
-clean_vars = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-## match these back to their cf compliant names
-
-# If not observed, calculate derived primary variables
-# ** indicates primary approach
-
-# dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
-def _calc_dewpointtemp(tas, hurs, e):
-    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
-    e = (es * hurs)/100                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
-    tdps = ((1/273) - 0.0001844 * ln(e/0.611))^-1   # calculates dew point temperature, units = K
-
-return tdps
-
-# relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
-def _calc_relhumid(tas, tdps):
-    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure using air temp
-    e = 0.611 * exp(5423 * ((1/273) - (1/tdps)))   # calculates vapor pressure using dew point temp
-    hurs = 100 * (e/es)
-
-return hurs
-
-# wind speed (necessary input vars: u and v components)
-def _calc_windmag(u10, v10):
-    sfcWind = np.sqrt((u10)^2  + (v10)^2)   # calculates wind magnitude, units = ms-1
-
-return sfcWind
-
-# wind direction (necessary input vars: u and v components)
-def _calc_winddir(u10, v10):
-    pass        # this is a complicated calculation -- looking for options
-
-return sfcWind_dir
-
-
 ## Step 2: Read in datafile and drop variables that aren't of interest
 dropvars = ['var1', 'var2', 'var3'] # will depend on each datasource and what it provides
 # alternative: dropvars = [] pulling column headers from data file and doing an anti-join
@@ -109,7 +69,6 @@ for file in files:
 
 # This is based on if files are listed by date (CWOP_SR is an example)
 # TBD
-
 
 # ----------------------------------------------------------------------------------------------------------
 
