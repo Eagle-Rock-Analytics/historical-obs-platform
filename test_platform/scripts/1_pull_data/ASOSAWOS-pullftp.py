@@ -11,14 +11,14 @@ from ftplib import FTP
 import os
 from datetime import datetime, timezone
 import pandas as pd
-from shapely.geometry import shape, Point
-import numpy as np
+from shapely.geometry import Point
 import pandas as pd
 import geopandas as gp
+import csv
 from geopandas.tools import sjoin
 
 # Set envr variables
-savedir = "test_platform/data/1_raw_wx/ASOSAWOS"
+savedir = "test_platform/data/1_raw_wx/ASOSAWOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
 
@@ -102,6 +102,10 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 # Start date format: 'YYYY-MM-DD"
 def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True): 
     
+    # Set up error handling
+    errors = {'Date':[], 'Time':[], 'Error':[]}
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
     # Remove depracated stations if filtering by time.
     if start_date is not None:
         try:
@@ -129,10 +133,10 @@ def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True):
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
-    for i in years: # For each year / folder.
-    #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
+    #for i in years: # For each year / folder.
+    for i in ['1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
-            if (start_date is not None and int(i)>int(start_date[0:4])) or start_date is None:  
+            if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
                 # If no start date specified or year of folder is within start date range, download folder.
                 try:
                     ftp.cwd(pwd) # Return to original working directory
@@ -141,7 +145,7 @@ def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True):
                     filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
                     filefiltlist = filefiltlist.tolist() # Convert to list.
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
-                    #fileswecc = fileswecc[0:5] # For downloading sample of data. FOR TESTING ONLY.
+                    fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
                     for filename in fileswecc:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
@@ -167,6 +171,10 @@ def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True):
                             file.close() # Close file
                 except Exception as e:
                     print("Error in downloading date {}: {}". format(i, e))
+                    errors['Date'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
+
                     next  # Adds error handling in case of missing folder. Skip to next folder.
             else: # If year of folder not in start date range, skip folder.
                 next
@@ -176,6 +184,23 @@ def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True):
 
     ftp.quit() # This is the “polite” way to close a connection
 
+    #Write errors to csv
+    filepath = savedir+"errors_asosawos_{}.csv".format(end_api) # Set path to save error file.
+    #print(errors)
+    with open(filepath, "w") as outfile:
+        # pass the csv file to csv.writer function.
+        writer = csv.writer(outfile)
+
+        # pass the dictionary keys to writerow
+        # function to frame the columns of the csv file
+        writer.writerow(errors.keys())
+
+        # make use of writerows function to append
+        # the remaining values to the corresponding
+        # columns using zip function.
+        writer.writerows(zip(*errors.values()))
+
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_isd_data_ftp(stations, savedir, start_date = "2010-01-10", get_all = True)
+print(stations) # For testing.
+get_isd_data_ftp(stations, savedir, start_date = "2010-01-01", get_all = True)
