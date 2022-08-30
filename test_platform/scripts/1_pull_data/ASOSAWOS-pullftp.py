@@ -1,12 +1,20 @@
-### Scrape script for ASOS/AWOS network through ISD
+"""
+This script downloads ASOS and AWOS data from ISD using ftp.
+Approach:
+(1) Get station list (does not need to be re-run constantly)
+(2) Download data using station list.
+Inputs: path to savedir (directory to save files to), station list (optional), start date of file pull (optional),
+parameter to only download changed files (optional)
+Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
 
-# Notes:
-# ISD ftp format: Each station has one file per year. The file for each station-year is updated daily for the current year.
-# For first pull, use ftp to update station and file.
-# To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
-# This is a separate function/branch.
+Notes:
+The file for each station-year is updated daily for the current year. 
+To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
+This is a separate function/branch.
+"""
 
-## Load packages
+## Step 0: Environment set-up
+# Import libraries
 from ftplib import FTP
 import os
 from datetime import datetime, timezone
@@ -22,14 +30,9 @@ savedir = "test_platform/data/1_raw_wx/ASOSAWOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
 
-# Set up directory to save files, if it doesn't already exist.
-try:
-    os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
-except:
-    pass
-
-
 # Function to return wecc shapefiles and combined bounding box given path variables.
+# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
+# Both paths given relative to home directory for git project.
 def get_wecc_poly(terrpath, marpath):
     ## get bbox of WECC to use to filter stations against
     ## Read in terrestrial WECC shapefile.
@@ -42,6 +45,8 @@ def get_wecc_poly(terrpath, marpath):
 
 # Function to get up to date station list of ASOS AWOS stations in WECC.
 # Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
+# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
+# Both paths given relative to home directory for git project.
 def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
     ## Login.
     ## using ftplib, get list of stations as csv
@@ -98,10 +103,22 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     asosawos.reset_index()
     return asosawos
 
-# Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
-# Start date format: 'YYYY-MM-DD"
-def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True): 
+# Function: query ftp server for ASOS-AWOS data and download zipped files.
+# Run this one time to get all historical data or to update changed files for all years.
+# Inputs: 
+# Station_list: Returned from get_wecc_stations() function.
+# Startdir: path to save directory (relative to top git repository folder)
+# Start date: format 'YYYY-MM-DD" (optional)
+# get_all: True or False. If False, only download files whose last edit date is newer than
+#  the most recent files downloaded in the save folder. Only use to update a complete set of files.
+def get_asosawos_data_ftp(station_list, savedir, start_date = None, get_all = True): 
     
+    # Set up directory to save files, if it doesn't already exist.
+    try:
+        os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+    except:
+        pass
+
     # Set up error handling
     errors = {'Date':[], 'Time':[], 'Error':[]}
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
@@ -203,4 +220,4 @@ def get_isd_data_ftp(station_list, savedir, start_date = None, get_all = True):
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
 print(stations) # For testing.
-get_isd_data_ftp(stations, savedir, start_date = "2010-01-01", get_all = True)
+get_asosawos_data_ftp(stations, savedir, start_date = "2010-01-01", get_all = True)
