@@ -220,4 +220,4 @@ def get_asosawos_data_ftp(station_list, savedir, start_date = None, get_all = Tr
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
 print(stations) # For testing.
-get_asosawos_data_ftp(stations, savedir, start_date = "2010-01-01", get_all = True)
+get_asosawos_data_ftp(stations, savedir, start_date = "1980-01-01", get_all = True)
