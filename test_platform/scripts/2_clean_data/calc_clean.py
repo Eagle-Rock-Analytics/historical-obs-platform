@@ -7,9 +7,9 @@ for the Historical Observations Platform.
 ## Example: from calc_pull import get_wecc_poly
 
 ## Import Libraries
-import numpy as np
 import geopandas as gp
-from math import exp, log
+import numpy as np
+from math import e
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
@@ -111,11 +111,12 @@ def _unit_elev_ft_to_m(data):
     Input: elevation (feet)
     Returns: elevation (m)
     """
-    data = data / 0.3048
+    data = data * 0.3048
     return data
 
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
 ## Example: Latitude is provided as "3902.33"
+## Need to also accomodate inputs such as: 41° 56' 54.3732"
 def _lat_dms_to_dd(data):
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
@@ -143,18 +144,18 @@ def _calc_dewpointtemp_opt1(tas, hurs):
     Inputs: air temperature (K), relative humidity (0-100 scale)
     Returns: dew point temperature (K)
     """
-    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
-    e = (es * hurs)/100.                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
-    tdps = ((1/273) - 0.0001844 * log(e/0.611))^-1   # calculates dew point temperature, units = K
+    es = 0.611 * np.exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
+    e_vap = (es * hurs)/100.                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))^-1   # calculates dew point temperature, units = K
     return tdps
 
-def _calc_dewpointtemp_opt2(e):
+def _calc_dewpointtemp_opt2(e_vap):
     """
     Calculates dew point temperature, method 2
     Inputs: vapor pressure (Pa)
     Returns: dew point temperature (K)
     """
-    tdps = ((1/273) - 0.0001844 * log(e/0.611))^-1   # calculates dew point temperature, units = K
+    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))^-1   # calculates dew point temperature, units = K
 
 def _calc_relhumid(tas, tdps):
     """
@@ -162,9 +163,9 @@ def _calc_relhumid(tas, tdps):
     Inputs: air temperature, dewpoint temperature (both K)
     Returns: realtive humidity (%, or 0-100 scale)
     """
-    es = 0.611 * exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure using air temp
-    e = 0.611 * exp(5423 * ((1/273) - (1/tdps)))   # calculates vapor pressure using dew point temp
-    hurs = 100 * (e/es)
+    es = 0.611 * np.exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure using air temp
+    e_vap = 0.611 * np.exp(5423 * ((1/273) - (1/tdps)))   # calculates vapor pressure using dew point temp
+    hurs = 100 * (e_vap/es)
     return hurs
 
 def _calc_windmag(u10, v10):
@@ -196,4 +197,5 @@ def _calc_ps(psl, elev, temp):
     https://www.mide.com/air-pressure-at-altitude-calculator
     """
     ps = psl * math.e**(-elev/(temp*29.263))
+    # ps = psl * np.exp**(-elev/(temp*29.263)) ## testing this version
     return ps

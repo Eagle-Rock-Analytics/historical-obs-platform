@@ -7,10 +7,7 @@ for the Historical Observations Platform.
 ## Example: from calc_pull import get_wecc_poly
 
 ## Import Libraries
-import numpy as np
 import geopandas as gp
-from math import exp, log
-
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
