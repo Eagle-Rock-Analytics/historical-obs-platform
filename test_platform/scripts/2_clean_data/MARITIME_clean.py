@@ -24,15 +24,30 @@ from datetime import datetime
 import re
 import geopandas as gp
 import numpy as np
-from calc import _calc_relhumid, get_wecc_poly, _calc_ps
 import csv
 import itertools
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+# Import calc function (remove this try statement once calc PR merged.)
+try:
+    from calc_clean import _calc_relhumid, get_wecc_poly, _calc_ps
+except:
+    print("Calc_clean.py import error.")
+
 # Set envr variables and calculate any needed variables
-homedir = os.getcwd()
+
+# Set path to head of git repository.
+homedir = os.getcwd() # Get current working directory.
+if "historical-obs-platform" in homedir: # If git folder in path
+    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
+    os.chdir(homedir) # Change directory.
+else:
+    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
+    exit()
+
+# Set relative paths to other folders and objects in repository.
 workdir = "test_platform/data/1_raw_wx/MARITIME/"
 savedir = "test_platform/data/2_clean_wx/MARITIME/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
