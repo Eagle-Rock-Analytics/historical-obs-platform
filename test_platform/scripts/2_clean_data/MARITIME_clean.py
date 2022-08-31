@@ -28,11 +28,12 @@ import csv
 import itertools
 import pandas as pd
 import requests
+import math
 from bs4 import BeautifulSoup
 
 # Import calc function (remove this try statement once calc PR merged.)
 try:
-    from calc_clean import _calc_relhumid, get_wecc_poly, _calc_ps
+    import calc_clean
 except:
     print("Calc_clean.py import error.")
 
@@ -292,7 +293,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
     try:
         wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp' # Harded-coded because these should not move.
         wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
-        t, m, bbox = get_wecc_poly(wecc_terr, wecc_mar)
+        t, m, bbox = calc_clean.get_wecc_poly(wecc_terr, wecc_mar)
         lonmin, lonmax = float(bbox['minx']), float(bbox['maxx']) 
         latmin, latmax = float(bbox['miny']), float(bbox['maxy']) 
     except: # If geospatial call fails, hardcode.
@@ -302,6 +303,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
     ## Set up csv to record any files not cleaned and reason.
     errors = {'File':[], 'Time':[], 'Error':[]}
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+    timestamp = datetime.now().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
 
     # Read in sensor heights from NDBC website.
     # From https://www.ndbc.noaa.gov/bmanht.shtml
@@ -362,6 +364,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
     os.chdir(workdir)
     for i in ids: # For each station
     #for i in ['46023', '46125', '46027']: # For testing
+        #print(i) # For testing.
         ds_stat = None # Initialize ds_stat
         file_count = 0
         stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
@@ -553,6 +556,25 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     ds = ds.expand_dims("station")
                     ds = ds.assign_coords(lat = (["station","time"],ds['lat'].data), lon = (["station","time"], ds['lon'].data))
                     
+                # Set attributes for dimensional data.
+                # Time
+                ds['time'].attrs['long_name'] = "time"
+                ds['time'].attrs['standard_name'] = "time"
+                ds['time'].attrs['comment'] = "In UTC."
+                
+                # Station ID
+                ds['station'].attrs['long_name'] = "station_id"
+                ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
+                
+                # Latitude
+                ds['lat'].attrs['long_name'] = "latitude"
+                ds['lat'].attrs['standard_name'] = "latitude"
+                ds['lat'].attrs['units'] = "degrees_north"
+                
+                # Longitude
+                ds['lon'].attrs['long_name'] = "longitude"
+                ds['lon'].attrs['standard_name'] = "longitude"
+                ds['lon'].attrs['units'] = "degrees_east"
 
                 # 3.3 Set elevation for station and sensors
                 stat_elevs = elevs[elevs["Station_ID"] == ds["original_id"]]
@@ -568,7 +590,6 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     anem_elev = np.asarray([float(stat_elevs['Anemometer_Elevation'])]*len(ds['time']))
                     bar_elev = np.asarray([float(stat_elevs['Barometer_Elevation'])]*len(ds['time']))
                 
-                    
                     
                 elif stat_elevs.empty: # A few stations are missing in the table. If no value returned, insert NAs.
                     #print("Station elevations not found") # Helpful for ID'ing stations with missing data, comment out for final run.
@@ -588,7 +609,34 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 ds['tas_elev'] = (['station', 'time'], tas_elev)
                 ds['anemometer_elev'] = (['station', 'time'], anem_elev)
                 ds['barometer_elev'] = (['station', 'time'], bar_elev)
+
+                # Add attributes for elevation variables
+                # Station elevation
+                ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
+                ds['elevation'].attrs['long_name'] = "station_elevation"
+                ds['elevation'].attrs['units'] = "meter"
+                ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
+                ds['elevation'].attrs['comment'] = "Sourced from https://www.ndbc.noaa.gov/bmanht.shtml on {} UTC".format(timestamp)
                 
+                # Air temperature elevation
+                ds['tas_elev'].attrs['long_name'] = "air_temp_sensor_elevation"
+                ds['tas_elev'].attrs['units'] = "meter"
+                ds['tas_elev'].attrs['positive'] = "up" # Define which direction is positive
+                ds['tas_elev'].attrs['comment'] = "Height in meters above site. Sourced from https://www.ndbc.noaa.gov/bmanht.shtml on {} UTC".format(timestamp)
+                
+                # Anemometer elevation
+                ds['anemometer_elev'].attrs['long_name'] = "anemometer_elevation"
+                ds['anemometer_elev'].attrs['units'] = "meter"
+                ds['anemometer_elev'].attrs['positive'] = "up" # Define which direction is positive
+                ds['anemometer_elev'].attrs['comment'] = "Height in meters above site. Sourced from https://www.ndbc.noaa.gov/bmanht.shtml on {} UTC".format(timestamp)
+                
+                # Barometer elevation
+                ds['barometer_elev'].attrs['long_name'] = "barometer_elevation"
+                ds['barometer_elev'].attrs['units'] = "meter"
+                ds['barometer_elev'].attrs['positive'] = "up" # Define which direction is positive
+                ds['barometer_elev'].attrs['comment'] = "Height in meters above mean sea level. Sourced from https://www.ndbc.noaa.gov/bmanht.shtml on {} UTC".format(timestamp)
+                
+
                 # 3.4 Standardize sensor metadata
                 ### Note that anemometer height from dataset (as att) and elev (as var) from table are not equivalent.
                 #  Not used currently, but flag for future ref.
@@ -597,7 +645,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 ds = ds.assign_attrs(title = "MARITIME cleaned")
                 ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source = "")
-                ds = ds.assign_attrs(history = "MARITIME_clean.py")
+                ds = ds.assign_attrs(history = "MARITIME_clean.py script run on {} UTC".format(timestamp))
                 ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
                 ds = ds.assign_attrs(license = "")
                 ds = ds.assign_attrs(citation = "")
@@ -641,70 +689,133 @@ def clean_maritime(homedir, workdir, savedir, **options):
                    
                 # tas : air surface temperature
                 if "air_temperature" in ds.keys():
-                    ds['tas'] = ds["air_temperature"]+273.15 # Convert from C to K
-                    ds['tas'].attrs['units'] = "degree_Kelvin" # Update units
-                    ds = ds.rename({'air_temperature': 'tas_raw'})
+                    # Update attributes for tas.
+                    ds = ds.rename({'air_temperature': 'tas'})
+                    if ds['tas'].attrs['units']=="degree_Celsius": # If data originally in C (old files)
+                        ds['tas_raw'] = ds['tas'] # Move original data to raw column.
+                        try: 
+                            ds['tas'] = calc_clean._unit_degC_to_K(ds['tas'])
+                        except:
+                            print("tas: calc_clean.py not working.")
+                            ds['tas'] = ds['tas'] + 273.15 # Convert to K (backup method)
+                        ds['tas'].attrs['ancillary_variables'] = "tas_raw" # List other variables associated with variable (QA/QC)
+                        ds['tas'].attrs['comment'] = "Converted from Celsius."
 
+                    ds['tas'].attrs['long_name'] = "air_temperature"
+                    ds['tas'].attrs['standard_name'] = "air_temperature"
+                    ds['tas'].attrs['units'] = "degree_Kelvin"
+            
                 # ps: surface air pressure
                 ## Two variables provided for some datasets, and they should be identical (sensors at sea level).
                 ## Take "air pressure" as primary, and use converted "air pressure at sea level" if not.
 
-                if "air_pressure" in ds.keys():
-                    ds['ps'] = ds["air_pressure"]*100 # Convert from mb to Pa
-                    ds['ps'].attrs['units'] = "Pascal" # Update units
-                    ds = ds.rename({'air_pressure': 'ps_raw'}) # Convert from mb to Pa
+                if "air_pressure" in ds.keys(): # If station air pressure in data
+                    # Update station air pressure attributes.
+                    ds = ds.rename({'air_pressure': 'ps'}) # Rename column.
+                    ds['ps'].attrs['long_name'] = "station_air_pressure"
+                    ds['ps'].attrs['standard_name'] = "air_pressure"
+                    ds['ps'].attrs['units'] = "Pa"
+                    
+                    # If data also contains air pressure at sea level, remove.
                     if "air_pressure_at_sea_level" in ds.keys():
-                        ds = ds.drop("air_pressure_at_sea_level") # Remove second air pressure var if it exists.
+                        ds = ds.drop("air_pressure_at_sea_level")
 
+                # Otherwise, use sea level air pressure to convert to station level pressure.
                 elif "air_pressure_at_sea_level" in ds.keys():
                     # Note there are a few stations which don't have barometer elevation from chart or sensor data.
                     # These cannot be converted, but we leave the raw data here.
+                    ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'}) # Rename column
                     if 'barometer_elev' in ds.keys():
                         if stat_elevs['Barometer_Elevation'] is not np.nan:
-                            # Convert to air pressure at station level.
+                            # Convert to air pressure at barometer level.
                             # Inputs: psl, elev, temp
-                            ps = _calc_ps(ds['air_pressure_at_sea_level'], ds['barometer_elev'], ds['tas'])
+                            try:
+                                # Note here, we convert psl_raw from mb to Pa by multiplying by 100.
+                                ps = calc_clean._calc_ps(ds['psl_raw']*100, ds['barometer_elev'], ds['tas'])  # Input units needed here are Pa, m, K.
+                            except:
+                                print("ps: calc_clean.py not working.") 
+                                ps = ds['psl_raw']*100*math.e**(-ds['barometer_elev']/(ds['tas']*29.263)) # Backup method, remove once calc_clean works consistently?
+                            
                             if np.isnan(ps).all(): # If all values NA, don't save as variable, just keep raw data.
-                                ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'})
+                                pass
                             else:
-                                ds['ps'] = ps*100 # Convert from mb to Pa
-                                ds['ps'].attrs['units'] = "Pascal" # Update units
-                                ds = ds.rename({'air_pressure_at_sea_level': 'psl_raw'}) # Rename original obs.
+                                ds['ps'] = ps
+                                ds['ps'].attrs['long_name'] = "station_air_pressure"
+                                ds['ps'].attrs['standard_name'] = "air_pressure"
+                                ds['ps'].attrs['units'] = "Pa"
+                                ds['ps'].attrs['ancillary_variables'] = "psl_raw"
+                                ds['ps'].attrs['comment'] = "Converted from sea level pressure (in mb) using calc_clean.py."
 
+                                ds['psl_raw'].attrs['long_name'] = "sea_level_air_pressure"
+                                ds['psl_raw'].attrs['standard_name'] = "air_pressure_at_sea_level"
+                                ds['psl_raw'].attrs['units'] = "millibar"
+                                ds['psl_raw'].attrs['ancillary_variables'] = "ps"
+                                
                     elif 'barometer_height' in ds.attrs:
                         # Haven't seen an instance where barometer height gleaned from metadata but station not in table.
                         # Print statement here should catch this if so, remove after testing if not triggered.
                         print(ds.attrs['barometer_height'])
                         #ps = _calc_ps(ds['air_pressure_at_sea_level'], ds.attrs['barometer_height'], ds['tas'])
                         break  # For testing.
-                                
+           
                 # tdps: dew point temperature
                 # dew point temperature calculation (necessary input vars: requires at least 2 of three - air temp + relative humidity + vapor pressure)
                 # Only more recent stations have dewpoint temp (dew_point_temperature)
                 # No stations have vapor pressure or RH, so no calculations possible.
                 if "dew_point_temperature" in ds.keys(): # If variable already exists, rename.
-                    ds['tdps'] = ds["dew_point_temperature"]+273.15 # Convert from C to K
+                    ds = ds.rename({'dew_point_temperature': 'tdps'})
+                    if ds['tdps'].attrs['units']=="degree_Celsius": # If data originally in C (old files)
+                        ds['tdps_raw'] = ds['tas'] # Move original data to raw column.
+                        try: 
+                            ds['tdps'] = calc_clean._unit_degC_to_K(ds['tas'])
+                        except:
+                            print("tdps: calc_clean.py not working.")
+                            ds['tdps'] = ds['tdps'] + 273.15 # Convert to K (backup method)
+                        ds['tdps'].attrs['ancillary_variables'] = "tdps_raw" # List other variables associated with variable (QA/QC)
+                        ds['tdps'].attrs['comment'] = "Converted from Celsius."
+
+                    ds['tdps'].attrs['long_name'] = "dew_point_temperature"
+                    ds['tdps'].attrs['standard_name'] = "dew_point_temperature"
                     ds['tdps'].attrs['units'] = "degree_Kelvin"
-                    ds = ds.rename({'dew_point_temperature': 'tdps_raw'})
-                
+                    
                 # # pr: precipitation 
                 # DO CONVERSIONS FROM RAINFALL TO RAINFALL RATE (Hourly accum) DURING NEXT STAGE, as we will aggregate over the hour.
                 if "precipitation" in ds.keys():
                     ds = ds.rename({'precipitation': 'pr_raw'})
-
+                    ds['pr_raw'].attrs['long_name'] = "precipitation"
+                    ds['pr_raw'].attrs['units'] = "mm"
+                    
                 # hurs: relative humidity
                 # relative humidity calculation (necessary input vars: air temp + dew point**, air temp + vapor pressure, air pressure + vapor pressure)
                 ## Vapor pressure not a variable measured by this network.
                 if 'relative_humidity' in ds.keys():
                     ds = ds.rename({'relative_humidity': 'hurs'})
-                    ds['hurs_raw'] = ds['hurs'] # Add raw column if data originally provided.
+                    ds['hurs'].attrs['long_name'] = "average_relative_humidity"
+                    ds['hurs'].attrs['standard_name'] = "relative_humidity" 
+                    ds['hurs'].attrs['units'] = "percent" 
+                    
                 elif 'tas' and 'tdps' in ds.keys():
-                    ds['hurs'] = _calc_relhumid(ds['tas'], ds['tdps'])
+                    try:
+                        ds['hurs'] = calc_clean._calc_relhumid(ds['tas'], ds['tdps'])
+                    except:
+                        print("hurs: calc_clean.py not working.")
+                        es = 0.611 * np.exp(5423 * ((1/273) - (1/ds['tas'])))
+                        e = 0.611 * np.exp(5423 * ((1/273) - (1/ds['tdps'])))
+                        ds['hurs'] = 100 * (e/es)
+                    ds['hurs'].attrs['long_name'] = "relative_humidity" # Note some here will be avg. and some not, will have to align when we merge down.
+                    ds['hurs'].attrs['standard_name'] = "relative_humidity" 
+                    ds['hurs'].attrs['units'] = "percent" 
+                    ds['hurs'].attrs['comment'] = "Calculated from air temperature and dew point temperature."
+
 
                 # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
                 # Note that this occurs so infrequently that I still need to check units are correct. Thus print statement left in for now.
                 if 'solar_radiation_36' in ds.keys():
-                    ds = ds.rename({'solar_radiation_36' : 'rsds'}) # To do.
+                    ds = ds.rename({'solar_radiation_36' : 'rsds'})
+                    ds['rsds'].attrs['long_name'] = "solar_radiation"
+                    ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
+                    ds['rsds'].attrs['units'] = "W m-2"
+                    ds['rsds'].attrs['comment'] = "Waveband range includes everything smaller than 3.6 micrometers."
                     print(ds['rsds'].attrs)
                     
                 # # sfcWind : wind speed
@@ -713,18 +824,39 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 ## speed_averaging_method: contains QAQC flags.
                 if "wind_speed" in ds.keys(): # If variable already exists, rename. Units already in m s-1.
                     ds = ds.rename({'wind_speed': 'sfcWind'})
+                    ds['sfcWind'].attrs['long_name'] = "wind_speed"
+                    ds['sfcWind'].attrs['standard_name'] = "wind_speed"
+                    ds['sfcWind'].attrs['units'] = "m s-1"
+                    ds['sfcWind'].attrs['comment'] = "Time of averaging may vary. See sfcWind_method."
 
                 # Rename wind sampling duration to sfcWind_method.
+                # Note some dfs have this even without having wind data, so we add an extra if clause here.
                 if "wind_sampling_duration" in ds.keys():
-                    ds = ds.rename({'wind_sampling_duration': "sfcWind_method"})
+                    if 'sfcWind' in ds.keys():
+                        ds = ds.rename({'wind_sampling_duration': "sfcWind_duration"})
+                        ds['sfcWind_duration'].attrs['long_name'] = "wind_speed_averaging_duration"
+                        ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_duration"
+
+                if 'speed_averaging_method' in ds.keys():
+                    if 'sfcWind' in ds.keys():
+                        ds = ds.rename({'speed_averaging_method': "sfcWind_method"})
+                        ds['sfcWind_method'].attrs['long_name'] = "wind_speed_averaging_method"
+                        if 'ancillary_variables' in ds['sfcWind'].attrs:
+                            ds['sfcWind'].attrs['ancillary_variables'] = ds['sfcWind'].attrs['ancillary_variables']+" sfcWind_method"
+                        else:                
+                            ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_method"
                 
                 # # sfcWind_dir: wind direction
                 if "wind_direction" in ds.keys(): # If variable already exists, rename.
                     ds = ds.rename({'wind_direction': 'sfcWind_dir'}) # Already in degrees.
-                
+                    ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
+                    ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
+                    ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
+                    
                 # ## Step 6: Tracks existing QA/QC flags to standard format
                 # Files older than 2015 have no built in QA/QC flags (as far as I see).
                 ## Keep both flags (detail and qc) for now.
+                # QAQC flags already in CF-compliant format (flag values / flag meanings)
 
                 # ps: surface air pressure
                 if 'air_pressure_qc' in ds.keys():
@@ -733,64 +865,103 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     if "air_pressure_at_sea_level_qc" in ds.keys():
                         ds = ds.drop("air_pressure_at_sea_level_qc")
                         ds = ds.drop("air_pressure_at_sea_level_detail_qc")
+                    
+                    # Add to ancillary variables if it already exists, or make attribute if not.
+                    if "ancillary_variables" in ds['ps'].attrs:
+                        ds['ps'].attrs['ancillary_variables'] = ds['ps'].attrs['ancillary_variables']+" ps_qc ps_detail_qc"
+                    else:
+                        ds['ps'].attrs['ancillary_variables'] = "ps_qc ps_detail_qc"
 
+                                
                 elif 'air_pressure_at_sea_level_qc' in ds.keys():
-                    ds = ds.rename({'air_pressure_at_sea_level_qc': 'ps_qc',
-                                    'air_pressure_at_sea_level_detail_qc': 'ps_detail_qc'})
-                
+                    ds = ds.rename({'air_pressure_at_sea_level_qc': 'psl_qc',
+                                    'air_pressure_at_sea_level_detail_qc': 'psl_detail_qc'})
+                    if "ancillary_variables" in ds['psl_raw'].attrs:
+                        ds['psl_raw'].attrs['ancillary_variables'] = ds['psl_raw'].attrs['ancillary_variables']+" psl_qc psl_detail_qc"
+                    else:
+                        ds['psl_raw'].attrs['ancillary_variables'] = "psl_qc psl_detail_qc"
+                    
                 # tas : air surface temperature
                 if 'air_temperature_qc' in ds.keys():
                     ds = ds.rename({'air_temperature_qc': 'tas_qc',
                                     'air_temperature_detail_qc': 'tas_detail_qc'})
-                
+                    if "ancillary_variables" in ds['tas'].attrs:
+                        ds['tas'].attrs['ancillary_variables'] = ds['tas'].attrs['ancillary_variables']+" tas_qc tas_detail_qc"
+                    else:
+                        ds['tas'].attrs['ancillary_variables'] = "tas_qc tas_detail_qc"    
+                    
                 # tdps: dew point temperature
                 if 'dew_point_temperature_qc' in ds.keys():
                     ds = ds.rename({'dew_point_temperature_qc': 'tdps_qc',
                                     'dew_point_temperature_detail_qc': 'tdps_detail_qc'})
+                    if "ancillary_variables" in ds['tdps'].attrs:
+                        ds['tdps'].attrs['ancillary_variables'] = ds['tdps'].attrs['ancillary_variables']+" tdps_qc tdps_detail_qc"
+                    else:
+                        ds['tdps'].attrs['ancillary_variables'] = "tdps_qc tdps_detail_qc" 
                 
                 # # pr: precipitation 
                 if 'precipitation_qc' in ds.keys():
                     ds = ds.rename({'precipitation_qc': 'pr_qc',
                                     'dew_point_temperature_detail_qc': 'pr_detail_qc'})
-
+                    if "ancillary_variables" in ds['pr'].attrs:
+                        ds['pr_raw'].attrs['ancillary_variables'] = ds['pr_raw'].attrs['ancillary_variables']+" pr_qc pr_detail_qc"
+                    else:
+                        ds['pr_raw'].attrs['ancillary_variables'] = "pr_qc pr_detail_qc" 
+                    
                 # hurs: relative humidity
                 if 'relative_humidity_qc' in ds.keys():
                     ds = ds.rename({'relative_humidity_qc': 'hurs_qc',
                                     'relative_humidity_detail_qc': 'hurs_detail_qc'})
-                
+                    if "ancillary_variables" in ds['hurs'].attrs:
+                        ds['hurs'].attrs['ancillary_variables'] = ds['hurs'].attrs['ancillary_variables']+" hurs_qc hurs_detail_qc"
+                    else:
+                        ds['hurs'].attrs['ancillary_variables'] = "hurs_qc hurs_detail_qc" 
+                    
                 # # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation)
                 if 'solar_radiation_36_qc' in ds.keys():
                     ds = ds.rename({'solar_radiation_36_qc': 'rsds_qc',
                                     'solar_radiation_36_detail_qc': 'rsds_detail_qc'})
-                
+                    if "ancillary_variables" in ds['rsds'].attrs:
+                        ds['rsds'].attrs['ancillary_variables'] = ds['rsds'].attrs['ancillary_variables']+" rsds_qc rsds_detail_qc"
+                    else:
+                        ds['rsds'].attrs['ancillary_variables'] = "rsds_qc rsds_detail_qc" 
+                    
                 # # sfcWind : wind speed
                 # Add wind speed calculation method to flags here.
                 if 'wind_speed_qc' in ds.keys():
                     ds = ds.rename({'wind_speed_qc': 'sfcWind_qc',
                                     'wind_speed_detail_qc': 'sfcWind_detail_qc'})
+                    if "ancillary_variables" in ds['sfcWind'].attrs:
+                        ds['sfcWind'].attrs['ancillary_variables'] = ds['sfcWind'].attrs['ancillary_variables']+" sfcWind_qc sfcWind_detail_qc"
+                    else:
+                        ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc sfcWind_detail_qc" 
+    
 
                 # # sfcWind_dir: wind direction
                 if 'wind_direction_qc' in ds.keys():
                     ds = ds.rename({'wind_direction_qc': 'sfcWind_dir_qc',
                                     'wind_direction_detail_qc': 'sfcWind_dir_detail_qc'})
+                    if "ancillary_variables" in ds['sfcWind_dir'].attrs:
+                        ds['sfcWind_dir'].attrs['ancillary_variables'] = ds['sfcWind_dir'].attrs['ancillary_variables']+" sfcWind_dir_qc sfcWind_dir_detail_qc"
+                    else:
+                        ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc sfcWind_dir_detail_qc" 
+                    
             
                 # latitude
                 if 'latitude_qc' in ds.keys():
                     ds = ds.rename({'latitude_qc': 'lat_qc',
                                     'latitude_detail_qc': 'lat_detail_qc'})
+                    ds['lat'].attrs['ancillary_variables'] = "lat_qc lat_detail_qc" 
+                    
             
                 # longitude
                 if 'longitude_qc' in ds.keys():
                     ds = ds.rename({'longitude_qc': 'lon_qc',
                                     'longitude_detail_qc': 'lon_detail_qc'})
+                    ds['lon'].attrs['ancillary_variables'] = "lon_qc lon_detail_qc" 
 
             
                 # Final cleaning steps.
-
-                # Anemometer height: make either into attribute or into var across all dfs.
-                # Speed averaging method and wind sampling duration - rename to conform or make attrs if the same across all values?
-                #print(np.unique(ds['wind_sampling_duration']))
-                #print(np.unique(ds['speed_averaging_method']))
 
                 #print(list(ds.variables))
                 # REMOVE ANY EXTRA METADATA - to do.
@@ -799,15 +970,15 @@ def clean_maritime(homedir, workdir, savedir, **options):
                     ds = ds.drop_dims('time_wpm_40')
                 if 'time_bnds' in ds.coords:
                     ds = ds.drop_dims('time_bnds')
-                    print(ds)
 
-                # # Reorder variables
-                # In following order:
-                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-                desired_order = [i for i in desired_order if i in list(ds.keys())] # Only keep vars which are in ds.
-                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
-                new_index = desired_order + rest_of_vars
-                ds = ds[new_index]
+                if 'wavesensor' in ds.keys():
+                    ds = ds.drop("wavesensor")
+
+                if 'oceantemperaturesensor' in ds.keys():
+                    ds = ds.drop("oceantemperaturesensor")
+
+                if 'original_id' in ds.keys():
+                    ds = ds.drop("original_id")
 
                 ## Step 7: Merge files by station
 
@@ -822,6 +993,7 @@ def clean_maritime(homedir, workdir, savedir, **options):
                         ds_stat.attrs["time_coverage_end"]=ds.attrs["time_coverage_end"] # Update time coverage to match. 
                     file_count +=1
                     ds_stat.attrs['raw_files_merged'] = file_count # Keep count of how many files merged per station.
+
 
                 # Testing only: delete later.
                 # time = ds.attrs["time_coverage_start"][:7]
@@ -842,11 +1014,32 @@ def clean_maritime(homedir, workdir, savedir, **options):
                 continue
 
         # For each station, save one file.
-        # Write files to netCDF
+        
         if ds_stat is None: # If file is skipped, ds_stat will be equivalent to none.
-            print("File {} not saved.".format(file))
+            print("Station data for station {} not saved.".format(i))
             continue
+        
         else:
+        # # Reorder variables
+        # In following order:
+            desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+            desired_order = [j for j in desired_order if j in list(ds_stat.keys())] # Only keep vars which are in ds.
+            if bool(desired_order) is False: # If none of the actual variables are found in station data, skip.
+                errors['File'].append(i)
+                errors['Time'].append(end_api)
+                errors['Error'].append("No desired variables found in station data.")
+                #print(list(ds_stat.keys())) # Testing
+                #print("No desired variables found in data for station {}.".format(id)) # Testing
+                continue
+        
+            # Else here is implied, if desired_order is exists code continues to run.
+            rest_of_vars = [i for i in list(ds_stat.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+            new_index = desired_order + rest_of_vars
+            ds_stat = ds_stat[new_index] # Reorder columns.
+
+            # Write files to netCDF
+            #print(ds_stat) #For testing
+            #print(list(ds_stat.keys())) # For testing.
             try:
                 filename = id+".nc" # Make file name
                 if options.get("sensors") == "secondary": # If function specified to download backup sensors.
@@ -878,7 +1071,8 @@ def clean_maritime(homedir, workdir, savedir, **options):
         # columns using zip function.
         writer.writerows(zip(*errors.values()))
 
-#clean_maritime(homedir, workdir, savedir)   
+# Run function
+clean_maritime(homedir, workdir, savedir)   
 #clean_maritime(homedir, workdir, savedir, sensors = "secondary")   # For backup data.
 
 
