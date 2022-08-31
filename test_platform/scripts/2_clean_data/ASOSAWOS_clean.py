@@ -363,6 +363,7 @@ def clean_asosawos(homedir, workdir, savedir):
                 ds = ds.rename({'longitude': 'lon'})# Rename to lon
 
                 # Elevation
+                ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
                 ds['elevation'].attrs['long_name'] = "station_elevation"
                 ds['elevation'].attrs['units'] = "meter"
                 ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
