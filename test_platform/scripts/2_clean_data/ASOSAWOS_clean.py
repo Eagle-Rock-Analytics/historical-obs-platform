@@ -35,26 +35,16 @@ except:
 
 # Set envr variables and calculate any needed variables
 
-# Experimental/temporary pre-AWS: Set home directory to be where the .git folder is
-# Temporary workaround for setting homedir to be head of git repository.
-# Only works when current WD is inside of git repository, note!
-if os.path.exists('.git'):
-    homedir = os.getcwd()
+# Set path to head of git repository.
+homedir = os.getcwd() # Get current working directory.
+if "historical-obs-platform" in homedir: # If git folder in path
+    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
+    os.chdir(homedir) # Change directory.
 else:
-    os.chdir("..")
-    if os.path.exists('.git'):
-        homedir = os.getcwd()
-    else:
-        os.chdir("..")
-        if os.path.exists('.git'):
-            homedir = os.getcwd()
-        else:
-            os.chdir("..")
-            print(os.getcwd())
-            if os.path.exists('.git'):
-                homedir = os.getcwd()
+    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
+    exit()
 
-#homedir = os.getcwd() # 
+# Set relative paths to other folders and objects in repository.
 workdir = "test_platform/data/1_raw_wx/ASOSAWOS/"
 savedir = "test_platform/data/2_clean_wx/ASOSAWOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
@@ -364,11 +354,13 @@ def clean_asosawos(homedir, workdir, savedir):
                 ds['latitude'].attrs['long_name'] = "latitude"
                 ds['latitude'].attrs['standard_name'] = "latitude"
                 ds['latitude'].attrs['units'] = "degrees_north"
+                ds = ds.rename({'latitude': 'lat'})# Rename to lat
                 
                 # Longitude
                 ds['longitude'].attrs['long_name'] = "longitude"
                 ds['longitude'].attrs['standard_name'] = "longitude"
                 ds['longitude'].attrs['units'] = "degrees_east"
+                ds = ds.rename({'longitude': 'lon'})# Rename to lon
 
                 # Elevation
                 ds['elevation'].attrs['long_name'] = "station_elevation"
