@@ -44,24 +44,24 @@ def _unit_degF_to_K(data):
     data = (5/9) * (data - 32) + 273.15
     return data
 
-## Air pressure conversions: Desired working unit should be mb or hPa
-def _unit_pres_pa_to_hpa(data):
+## Air pressure conversions: Desired working unit should be Pa
+def _unit_pres_hpa_to_pa(data):
     """
-    Converts air pressure from pascals to hectopascals
-    Inputs: air pressure (Pa)
-    Returns: air pressure (hPa)
-    Note: this also works for the conversion to mb
+    Converts air pressure from hectopascals to pascals
+    Inputs: air pressure (hPa)
+    Returns: air pressure (Pa)
+    Note: this also works for the conversion from mb
     """
-    data = data / 100.
+    data = data * 100.
     return data
 
-def _unit_pres_inHg_to_hpa(data):
+def _unit_pres_inHg_to_pa(data):
     """
     Converts air pressure from inHg to hectopascals
     Inputs: air pressure (inHg)
-    Returns: air pressure (hPa)
+    Returns: air pressure (Pa)
     """
-    data = data * 33.8639
+    data = data * 3386.39
     return data
 
 ## Wind speed conversions: Desired working unit should be m/s
@@ -116,7 +116,7 @@ def _unit_elev_ft_to_m(data):
 
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
 ## Example: Latitude is provided as "3902.33"
-## Need to also accomodate inputs such as: 41° 56' 54.3732"
+## Need to also accomodate inputs such as:  -- TO DO
 def _lat_dms_to_dd(data):
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
@@ -156,6 +156,7 @@ def _calc_dewpointtemp_opt2(e_vap):
     Returns: dew point temperature (K)
     """
     tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))^-1   # calculates dew point temperature, units = K
+    return tdps
 
 def _calc_relhumid(tas, tdps):
     """
