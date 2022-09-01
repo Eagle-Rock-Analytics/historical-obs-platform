@@ -116,14 +116,17 @@ def _unit_elev_ft_to_m(data):
 
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
 ## Example: Latitude is provided as "3902.33"
-## Need to also accomodate inputs such as:  -- TO DO
+## Need to also accomodate inputs such as: 41° 56' 54.3732"
 def _lat_dms_to_dd(data):
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
     Input: latitude (DMS) example: 3902.33
     Returns: latitude (dd) example: 39.16
     """
-    data = data[:2] + data[2:4]/60 + data[5:]/3600
+    if "°" in data: # needs testing
+        data = data[:2] + data[4:6]/60 + data[8:]/3600
+    else:
+        data = data[:2] + data[2:4]/60 + data[5:]/3600
     return data
 
 def _lon_dms_to_dd(data):
@@ -133,8 +136,14 @@ def _lon_dms_to_dd(data):
     Input: longitude(DMS) example: 12201.38
     Returns: longitude (dd) example: -122.02
     """
-    data = -1 * data[:3] + data[3:5]/60 + data[6:]/3600
+    # need to check if -180 to 180, or 0 to 360
+    if "°" in data:
+        data = data[:4] + data[7:9]/60 + data[12:]/3600
+    else:
+        data = -1 * data[:3] + data[3:5]/60 + data[6:]/3600
     return data
+
+
 
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
