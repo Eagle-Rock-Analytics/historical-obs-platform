@@ -9,7 +9,6 @@ for the Historical Observations Platform.
 ## Import Libraries
 import geopandas as gp
 import numpy as np
-from math import e
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
@@ -116,17 +115,14 @@ def _unit_elev_ft_to_m(data):
 
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
 ## Example: Latitude is provided as "3902.33"
-## Need to also accomodate inputs such as: 41° 56' 54.3732"
+## Need to also accomodate inputs such as: 41° 56' 54.3732" -- TO DO, tricky to test
 def _lat_dms_to_dd(data):
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
     Input: latitude (DMS) example: 3902.33
     Returns: latitude (dd) example: 39.16
     """
-    if "°" in data: # needs testing
-        data = data[:2] + data[4:6]/60 + data[8:]/3600
-    else:
-        data = data[:2] + data[2:4]/60 + data[5:]/3600
+    data = float(data[:2]) + float(data[2:4])/60 + float(data[5:])/3600
     return data
 
 def _lon_dms_to_dd(data):
@@ -137,13 +133,11 @@ def _lon_dms_to_dd(data):
     Returns: longitude (dd) example: -122.02
     """
     # need to check if -180 to 180, or 0 to 360
-    if "°" in data:
-        data = data[:4] + data[7:9]/60 + data[12:]/3600
+    if float(data) >= 0:
+        data = -1 * (float(data[:3]) + float(data[3:5])/60 + float(data[6:])/3600)
     else:
-        data = -1 * data[:3] + data[3:5]/60 + data[6:]/3600
-    return data
-
-
+        data = data.strip('-')
+        data = -1 *(float(data[:3]) + float(data[3:5])/60 + float(data[6:])/3600)
 
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
@@ -155,7 +149,7 @@ def _calc_dewpointtemp_opt1(tas, hurs):
     """
     es = 0.611 * np.exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
     e_vap = (es * hurs)/100.                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
-    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))^-1   # calculates dew point temperature, units = K
+    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))**-1   # calculates dew point temperature, units = K
     return tdps
 
 def _calc_dewpointtemp_opt2(e_vap):
@@ -164,7 +158,7 @@ def _calc_dewpointtemp_opt2(e_vap):
     Inputs: vapor pressure (Pa)
     Returns: dew point temperature (K)
     """
-    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))^-1   # calculates dew point temperature, units = K
+    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))**-1   # calculates dew point temperature, units = K
     return tdps
 
 def _calc_relhumid(tas, tdps):
@@ -184,7 +178,7 @@ def _calc_windmag(u10, v10):
     Inputs: u and v wind components (both m/s)
     Returns: wind speed/magnitude (m/s)
     """
-    sfcWind = np.sqrt((u10)^2  + (v10)^2)   # calculates wind magnitude, units = ms-1
+    sfcWind = np.sqrt((u10)**2  + (v10)**2)   # calculates wind magnitude, units = ms-1
     return sfcWind
 
 def _calc_winddir(u10, v10):    # This function would only be needed if wind components are provided, but direction is not
@@ -206,6 +200,5 @@ def _calc_ps(psl, elev, temp):
     https://keisan.casio.com/exec/system/1224575267
     https://www.mide.com/air-pressure-at-altitude-calculator
     """
-    ps = psl * math.e**(-elev/(temp*29.263))
-    # ps = psl * np.exp**(-elev/(temp*29.263)) ## testing this version
+    ps = psl * np.exp(-elev/(temp*29.263))
     return ps
