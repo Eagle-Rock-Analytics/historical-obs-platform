@@ -9,6 +9,7 @@ for the Historical Observations Platform.
 ## Import Libraries
 import geopandas as gp
 import numpy as np
+import string
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
@@ -125,7 +126,7 @@ def _lat_dms_to_dd(data):
     data = float(data[:2]) + float(data[2:4])/60 + float(data[5:])/3600
     return data
 
-def _lon_dms_to_dd(data):
+def _lon_dms_to_dd(data): ## THIS IS NOT WORKING
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
@@ -134,10 +135,46 @@ def _lon_dms_to_dd(data):
     """
     # need to check if -180 to 180, or 0 to 360
     if float(data) >= 0:
-        data = -1 * (float(data[:3]) + float(data[3:5])/60 + float(data[6:])/3600)
+        _deg = float(data[:3])
+        _min = float(data[3:5])
+        _sec = float(data[6:])
+        data = -1 * (_deg + _min/60 + _sec/3600)
     else:
         data = data.strip('-')
-        data = -1 *(float(data[:3]) + float(data[3:5])/60 + float(data[6:])/3600)
+        _deg = float(data[:3])
+        _min = float(data[3:5])
+        _sec = float(data[6:])
+        data = -1 * (_deg + _min/60 + _sec/3600)
+    return data
+
+import string
+
+# don't use a mutable set for this purpose
+GIVEN = frozenset(string.digits + '.' + 'NSEW' + "nsew")
+def uses_other_chars(s, given=GIVEN):
+    return not set(s) <= given
+
+def _lon_DMm_to_Dd(data):
+    """
+    This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d)
+    for the WESTERN HEMISPHERE.
+    Also includes handling because some stations do not report in LORAN coordinates.
+    """
+    _deg = float(data[:3])
+    _mm = float(data[3:])
+    data = -1 * (_deg + _mm/60)
+    return data
+
+def _lat_DMm_to_Dd(data):
+    """
+    This is specific to CWOP latitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d).
+    Also includes handling because some stations do not report in LORAN coordinates.
+    """
+    _deg = float(data[:2])
+    _mm = float(data[2:])
+    data = (_deg + _mm/60)
+    return data
+
 
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
