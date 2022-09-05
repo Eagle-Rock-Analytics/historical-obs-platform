@@ -26,6 +26,16 @@ import csv
 from geopandas.tools import sjoin
 
 # Set envr variables
+
+# Set path to head of git repository.
+homedir = os.getcwd() # Get current working directory.
+if "historical-obs-platform" in homedir: # If git folder in path
+    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
+    os.chdir(homedir) # Change directory.
+else:
+    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
+    exit()
+
 savedir = "test_platform/data/1_raw_wx/ASOSAWOS/"
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
@@ -72,11 +82,11 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
     # Get terrestrial stations.
     weccgeo = weccgeo.to_crs(t.crs) # Convert to CRS of terrestrial stations.
-    terwecc = sjoin(weccgeo, t, how='left') # Only keep stations in terrestrial WECC region.
+    terwecc = sjoin(weccgeo.dropna(), t, how='left') # Only keep stations in terrestrial WECC region.
     terwecc = terwecc.dropna() # Drop empty rows.
 
     # Get marine stations.
-    marwecc = sjoin(weccgeo, m, how='left') # Only keep stations in marine WECC region.
+    marwecc = sjoin(weccgeo.dropna(), m, how='left') # Only keep stations in marine WECC region.
     marwecc = marwecc.dropna() # Drop empty rows.
     
     # Join and remove duplicates using USAF and WBAN as combined unique identifier.
@@ -150,8 +160,8 @@ def get_asosawos_data_ftp(station_list, savedir, start_date = None, get_all = Tr
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
-    #for i in years: # For each year / folder.
-    for i in ['1989', '2004', '2015', '2021']: # For testing
+    for i in years: # For each year / folder.
+    #for i in ['1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
                 # If no start date specified or year of folder is within start date range, download folder.
@@ -219,5 +229,5 @@ def get_asosawos_data_ftp(station_list, savedir, start_date = None, get_all = Tr
 
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-print(stations) # For testing.
+#print(stations) # For testing.
 get_asosawos_data_ftp(stations, savedir, start_date = "1980-01-01", get_all = True)

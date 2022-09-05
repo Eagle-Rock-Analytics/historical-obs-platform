@@ -9,7 +9,7 @@ Approach:
 (5) Converts missing data to standard format
 (6) Tracks existing qa/qc flag for review
 (7) Merge files by station, and outputs cleaned variables as a single .nc file for an individual network.
-Inputs: Raw data for MARITIME stations, with each file representing a month of a year.
+Inputs: Raw data for ASOS and AWOS stations, with each file representing a month of a year.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 """
@@ -95,8 +95,8 @@ def clean_asosawos(homedir, workdir, savedir):
 
 
     # Use ID to grab all files linked to station.
-    #for id in ids:
-    for id in ['720619-99999', '722689-99999', '726664-94173']: # For testing, pick 3 stations.
+    for id in ids:
+    #for id in ['720619-99999', '722689-99999', '726664-94173']: # For testing, pick 3 stations.
         subfiles = list(filter(lambda f: id in f, files))
         subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
         print(subfiles) # For testing: to know which files are getting 
@@ -107,8 +107,8 @@ def clean_asosawos(homedir, workdir, savedir):
         station_id = "ASOSAWOS_"+id.replace("-", "")
         #print(id, subfiles)
         
-        # Initialize dataframe.
-        df = pd.DataFrame(columns = ['station_id', 'time', 'latitude', 'longitude', 'elevation', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_qc', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'])
+        # Initialize list of dictionaries.
+        data = {'station_id':[], 'time':[], 'latitude':[], 'longitude':[], 'elevation':[], 'qaqc_process':[], 'ps':[], 'ps_qc':[], 'ps_altimeter':[], 'ps_altimeter_qc':[], 'psl':[], 'psl_qc':[], 'tas':[], 'tas_qc':[], 'tdps':[], 'tdps_qc':[], 'pr':[], 'pr_qc':[], 'pr_duration':[], 'pr_depth_qc':[], 'hurs':[], 'hurs_qc':[], 'hurs_flag':[], 'hurs_duration':[], 'hurs_temp':[], 'hurs_temp_qc':[], 'hurs_temp_flag':[], 'rsds':[], 'rsds_duration':[], 'rsds_qc':[], 'rsds_flag':[], 'sfcWind':[], 'sfcWind_qc':[], 'sfcWind_dir':[], 'sfcWind_method':[], 'sfcWind_dir_qc':[]}
         
         for file in subfiles: # For each file
             #print(file, df)
@@ -305,21 +305,29 @@ def clean_asosawos(homedir, workdir, savedir):
                             except Exception as e:
                                 print(e) # Could add more robust error handling here if desired, but should not be necessary.
                             
-                            # For each row of data, append data to row.
-                            data = [station_id, time, latitude, longitude, elevation, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_qc, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
-                            data = pd.DataFrame([data], columns = df.columns)
-                            df = df.append(data, ignore_index = True)
+                            # For each row of data, append data to list.
+                            columns = ['station_id', 'time', 'latitude', 'longitude', 'elevation', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_qc', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'] 
+                            variables = [station_id, time, latitude, longitude, elevation, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_qc, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
+                            
+                            for i,j in zip(columns, variables):
+                                data[i].append(j)
+
                             
                             # For testing: progress update. Print status update every 1k rows.
                             # If station reports every 10 min, expect up to 50k observations per year.
-                            if len(df)%1000==0:
-                                print("{} observations parsed.".format(len(df)))
+                            if len(data)%1000==0:
+                                print("{} observations parsed.".format(len(data)))
+                                
+                            
                             
             except Exception as e:
                 print(file, e)
                 errors['File'].append(file)
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
+        
+        # Take all lists and convert to dataframe.
+        df = pd.DataFrame.from_dict(data)                    
 
         if df.empty is True:
             print("df {} not saved".format(file))
@@ -645,10 +653,10 @@ def clean_asosawos(homedir, workdir, savedir):
             
             else:
                 try:
-                    print(ds) # For testing.
+                    #print(ds) # For testing.
                     filename = station_id+".nc" # Make file name
                     filepath = homedir+"/"+savedir+filename # Write file path
-                    print(filepath)
+                    #print(filepath)
 
                     ds.to_netcdf(path = filepath) # Save station file.
                     print("Saving {} with dims {}".format(filename, ds.dims))
@@ -662,7 +670,7 @@ def clean_asosawos(homedir, workdir, savedir):
 
     #Write errors to csv
     filepath = homedir+"/"+savedir+"errors_asosawos_{}.csv".format(end_api) # Set path to save error file.
-    print(filepath)
+    #print(filepath)
     #print(errors)
     with open(filepath, "w") as outfile:
         # pass the csv file to csv.writer function.
