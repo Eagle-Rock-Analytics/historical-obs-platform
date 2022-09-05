@@ -327,7 +327,9 @@ def clean_asosawos(homedir, workdir, savedir):
                 errors['Error'].append(e)
         
         # Take all lists and convert to dataframe.
+        # Remove any variables where all the data is nan.
         df = pd.DataFrame.from_dict(data)                    
+        #df = df.dropna(axis=1, how='all') # Optional: Remove all variables that are only "nan". Current decision is not to do this.
 
         if df.empty is True:
             print("df {} not saved".format(file))
@@ -335,6 +337,7 @@ def clean_asosawos(homedir, workdir, savedir):
         if df.empty is False: # If there is data in the dataframe, convert to xarray object.
             try:
                 ds = df.to_xarray()
+                
                 # Update dimensions and coordinates
 
                 # Add dimensions: station ID and time.
