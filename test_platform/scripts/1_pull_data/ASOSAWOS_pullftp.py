@@ -1,28 +1,48 @@
-### Scrape script for ASOS/AWOS network through ISD
+"""
+This script downloads ASOS and AWOS data from ISD using ftp.
+Approach:
+(1) Get station list (does not need to be re-run constantly)
+(2) Download data using station list.
+Inputs: path to savedir (directory to save files to), station list (optional), start date of file pull (optional),
+parameter to only download changed files (optional)
+Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
 
-# Notes:
-# ISD ftp format: Each station has one file per year. The file for each station-year is updated daily for the current year.
-# For first pull, use ftp to update station and file.
-# To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
-# This is a separate function/branch.
+Notes:
+The file for each station-year is updated daily for the current year. 
+To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
+This is a separate function/branch.
+"""
 
-## Load packages
+## Step 0: Environment set-up
+# Import libraries
 from ftplib import FTP
 import os
 from datetime import datetime, timezone
 import pandas as pd
-from shapely.geometry import shape, Point
-import numpy as np
+from shapely.geometry import Point
 import pandas as pd
 import geopandas as gp
+import csv
 from geopandas.tools import sjoin
 
 # Set envr variables
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
-wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+
+# Set path to head of git repository.
+homedir = os.getcwd() # Get current working directory.
+if "historical-obs-platform" in homedir: # If git folder in path
+    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
+    os.chdir(homedir) # Change directory.
+else:
+    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
+    exit()
+
+savedir = "test_platform/data/1_raw_wx/ASOSAWOS/"
+wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
+wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
 
 # Function to return wecc shapefiles and combined bounding box given path variables.
+# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
+# Both paths given relative to home directory for git project.
 def get_wecc_poly(terrpath, marpath):
     ## get bbox of WECC to use to filter stations against
     ## Read in terrestrial WECC shapefile.
@@ -33,7 +53,10 @@ def get_wecc_poly(terrpath, marpath):
     bbox = t.union(m).bounds
     return t,m, bbox
 
-# Function to get up to date station list
+# Function to get up to date station list of ASOS AWOS stations in WECC.
+# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
+# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
+# Both paths given relative to home directory for git project.
 def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
     ## Login.
     ## using ftplib, get list of stations as csv
@@ -52,19 +75,18 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
     # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
     geometry = [Point(xy) for xy in zip(weccstations['LON'], weccstations['LAT'])] # Zip lat lon coords.
-    crs = {'init' :'epsg:4326'} # Set EPSG.
-    weccgeo = gp.GeoDataFrame(weccstations, crs=crs, geometry=geometry) # Convert to geodataframe.
+    weccgeo = gp.GeoDataFrame(weccstations, crs='EPSG:4326', geometry=geometry) # Convert to geodataframe.
     
     ## get bbox of WECC to use to filter stations against
     t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
 
     # Get terrestrial stations.
     weccgeo = weccgeo.to_crs(t.crs) # Convert to CRS of terrestrial stations.
-    terwecc = sjoin(weccgeo, t, how='left') # Only keep stations in terrestrial WECC region.
+    terwecc = sjoin(weccgeo.dropna(), t, how='left') # Only keep stations in terrestrial WECC region.
     terwecc = terwecc.dropna() # Drop empty rows.
 
     # Get marine stations.
-    marwecc = sjoin(weccgeo, m, how='left') # Only keep stations in marine WECC region.
+    marwecc = sjoin(weccgeo.dropna(), m, how='left') # Only keep stations in marine WECC region.
     marwecc = marwecc.dropna() # Drop empty rows.
     
     # Join and remove duplicates using USAF and WBAN as combined unique identifier.
@@ -72,19 +94,45 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
             .drop_duplicates(['USAF','WBAN'], keep='first'))
 
     # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names.
-    weccstations['ISD-ID'] = weccstations['USAF']+"-"+weccstations['WBAN'].astype("str")
+    # Add leading zeros where they are missing from WBAN stations.
+    weccstations['ISD-ID'] = weccstations['USAF']+"-"+weccstations['WBAN'].astype("str").str.pad(5, side = "left", fillchar = "0")
 
     # Reformat time strings for FTP/API call.
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
 
-    weccstations.reset_index()
-    return weccstations
-
-# Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
-# Start date format: 'YYYY-MM-DD"
-def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True): 
+    # Now, read in ASOSAWOS csv and use to filter to only keep ASOS/AWOS stations.
+    # Source: https://www.aviationweather.gov/docs/metar/stations.txt
+    # Last downloaded: 08.25.22
+    asosawos = pd.read_csv('test_platform/scripts/2_clean_data/asosawos_stations.csv')
+    asosawos = asosawos.loc[(asosawos['A']=="A") | (asosawos['A']=="W")] # A = ASOS, W = AWOS
+    asosawos['ICAO'] = asosawos['ICAO'].astype(str) # Fix data types
+    weccstations['ICAO'] = weccstations['ICAO'].astype(str) # Fix data types
+    asosawos = pd.merge(asosawos, weccstations, on = 'ICAO', how = 'inner') # Join by matching ICAO IDs.
     
+    asosawos.reset_index()
+    return asosawos
+
+# Function: query ftp server for ASOS-AWOS data and download zipped files.
+# Run this one time to get all historical data or to update changed files for all years.
+# Inputs: 
+# Station_list: Returned from get_wecc_stations() function.
+# Startdir: path to save directory (relative to top git repository folder)
+# Start date: format 'YYYY-MM-DD" (optional)
+# get_all: True or False. If False, only download files whose last edit date is newer than
+#  the most recent files downloaded in the save folder. Only use to update a complete set of files.
+def get_asosawos_data_ftp(station_list, savedir, start_date = None, get_all = True): 
+    
+    # Set up directory to save files, if it doesn't already exist.
+    try:
+        os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+    except:
+        pass
+
+    # Set up error handling
+    errors = {'Date':[], 'Time':[], 'Error':[]}
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
     # Remove depracated stations if filtering by time.
     if start_date is not None:
         try:
@@ -107,15 +155,15 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
     # Get date of most recently edited file. 
     # Note if using AWS may have to change os function to something that can handle remote repositories. Flagging to revisit.
     try:
-        last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
+        last_edit_time = max([f for f in os.scandir(savedir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
         last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
     for i in years: # For each year / folder.
-    #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
+    #for i in ['1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
-            if (start_date is not None and int(i)>int(start_date[0:4])) or start_date is None:  
+            if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
                 # If no start date specified or year of folder is within start date range, download folder.
                 try:
                     ftp.cwd(pwd) # Return to original working directory
@@ -124,7 +172,7 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                     filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
                     filefiltlist = filefiltlist.tolist() # Convert to list.
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
-                    #fileswecc = fileswecc[0:5] # For downloading sample of data. FOR TESTING ONLY.
+                    fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
                     for filename in fileswecc:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
@@ -135,7 +183,7 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                         #### This code could be altered to compare write time and file name if desired.
                         if get_all is False:
                             if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                local_filename = os.path.join(workdir, filename) 
+                                local_filename = os.path.join(savedir, filename) 
                                 file = open(local_filename, 'wb') # Open destination file.
                                 ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
                                 print('{} saved'.format(filename)) # Helpful for testing, can be removed.
@@ -143,13 +191,17 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                             else:
                                 print("{} already saved".format(filename))
                         elif get_all is True: # If get_all is true, download all files in folder.
-                            local_filename = os.path.join(workdir, filename) 
+                            local_filename = os.path.join(savedir, filename) 
                             file = open(local_filename, 'wb') # Open destination file.
                             ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
                             print('{} saved'.format(filename)) # Helpful for testing, can be removed.
                             file.close() # Close file
                 except Exception as e:
                     print("Error in downloading date {}: {}". format(i, e))
+                    errors['Date'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
+
                     next  # Adds error handling in case of missing folder. Skip to next folder.
             else: # If year of folder not in start date range, skip folder.
                 next
@@ -159,6 +211,23 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
 
     ftp.quit() # This is the “polite” way to close a connection
 
+    #Write errors to csv
+    filepath = savedir+"errors_asosawos_{}.csv".format(end_api) # Set path to save error file.
+    #print(errors)
+    with open(filepath, "w") as outfile:
+        # pass the csv file to csv.writer function.
+        writer = csv.writer(outfile)
+
+        # pass the dictionary keys to writerow
+        # function to frame the columns of the csv file
+        writer.writerow(errors.keys())
+
+        # make use of writerows function to append
+        # the remaining values to the corresponding
+        # columns using zip function.
+        writer.writerows(zip(*errors.values()))
+
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
+#print(stations) # For testing.
+get_asosawos_data_ftp(stations, savedir, start_date = "1980-01-01", get_all = True)
