@@ -57,10 +57,13 @@ filename = "L20200102.txt"
 file = os.path.join(raw_datadir, filename) # pathway to file
 
 #------------------------------------------------------------------------------------------------------------
-## Get CWOP SOLAR RAD STATION ELEVATIONS
+## Get CWOP SOLAR RAD STATION ELEVATIONS -- leaving this out for now
 def get_cwop_elevs(filepath):
+    """
+    This function obtains the elevations for stations based on their lat and lon positions.
+    """
     # calculate elevation -- from CWOP_SR they use a website to determine elevations -- url api?
-    print("Testing: Grabbing elevations for stations")
+    # print("Forgoing this for now")
 
 get_cwop_elevs(file)
 
@@ -91,13 +94,13 @@ def parse_cwop_sr(filepath):
     files = list(filter(lambda f: f.endswith(".txt"), files))
     # print(files)
 
-    ## Obtaining station elevations  -- IN PROGRESS
-    try:
-        # url = "https://www.ndbc.noaa.gov/bmanht.shtml"
-        elevs = get_cwop_elevs()
-    except Exception as e:
-        print('Testing: Reading elevations for stations')
-        # continue
+    ## Obtaining station elevations -- to be done after qa/qc
+    # try:
+    #     # url = "https://www.ndbc.noaa.gov/bmanht.shtml"
+    #     elevs = get_cwop_elevs()
+    # except Exception as e:
+    #     print('Testing: Reading elevations for stations')
+    #     # continue
 
     for i in ['L20200102']: #, 'L20200629', 'L20201231']:  # TESTING
         print("Cleaning: {}".format(i))
@@ -109,60 +112,68 @@ def parse_cwop_sr(filepath):
         try:
             for line in f:
                 # Strips off the leading station_id, not of equal character length
-                line_items_step1 = re.split(r">", line) # Strip off station_id first
-                station_id = line_items_step1[0]
+                line_items_step1 = re.split(r"[>zh/_]", line) # Strip off station_id first ## NEED TO TEST IF H AS UTC GETS CAPTURED
+                stn_id = line_items_step1[0]
+
                 ## Removing data outside WECC region first before any other conversions
                 ## Lat-lon conversion: strip hemisphere designator, convert to decimal degrees, removes data outside WECC region of interest
                 ## [0-6] is utc time -- can't strip first because of bad-data flags in lat-lon
-                lat_raw = line_items_step1[1][7:15] # [15] is /
-                lon_raw = line_items_step1[1][16:25] # [25] is _
+                lat_raw = line_items_step1[2] # [15] is /
+                lon_raw = line_items_step1[3] # [25] is _
                 try:
-                    if lat_raw[-1:] == "N" or lat_raw[-1:] == "n":
-                        if calc_clean.uses_other_chars(lat_raw) == False: # data is good
-                            if lat_raw[2] != ".":
-                                lat_clean = calc_clean._lat_DMm_to_Dd(lat_raw[:-1])
-                            else:
-                                if lat_raw[5] == ".":
-                                    lat_clean = lat_raw[:-1]
-                                else:
-                                    lat_clean = calc_clean._lat_dms_to_dd(lat_raw[:-1])
-                        if lat_clean < latmin or lat_clean > latmax: # getting rid of latitude locations outside WECC region
-                            errors['File'].append(filename)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append("Line of data not in WECC. Lat: {}".format(lat_clean))
-                            continue
-                        else:
-                            lat_clean = lat_clean
+                    if lon_raw[-1] == "W" or lon_raw[-1] == "w": # This also catches some "bad coded" missing lat-lon coords
+                        if lon_raw[3] == "." and lon_raw[6] == ".": # XX.XX.XX format -- separate DMS format
+                            lon_clean = calc_clean._lon_dms_to_dd(lon_raw[:-1])
+                        elif lon_raw[1] == "." and lon_raw[17] == "+": # X.Xe+00X notation.... apparently just one station - but it is in WECC
+                            lon_raw = lon_raw[:-1]
+                            _deg = float(lon_raw[:3]) * 10
+                            _min = float(lon_raw[22:25]) + float(lon_raw[-3:])
+                            lon_clean = -1 * (_deg + (_min)/60)
+                        elif lon_raw[5] != ".": # XX.XXXX format -- already in Dd but some obs are badly formatted (XX instead of XXX for lon)
+                            lon_clean = -1 * float(lon_raw[:-1])
+                            # print(stn_id, lon_raw, lon_clean)
+                        else: # LORAN format (DDMM.mm) -- most obs will fall in this category
+                            lon_clean = calc_clean._lon_DMm_to_Dd(lon_raw[:-1])
                     else:
-                        errors['File'].append(filename)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("Line of data not in WECC. Lat: {}".format(lat_clean))
-                        continue
+                        continue # Skips if it is the wrong hemisphere
 
-                    if lon_raw[-1:] == "W" or lon_raw[-1:] == "w":
-                        if calc_clean.uses_other_chars(lon_raw) == False: # data is good
-                            if lon_raw[3] == ".":
-                                lon_clean = calc_clean._lon_dms_to_dd(lon_raw[:-1])
-                            else:
-                                lon_clean = calc_clean._lon_DMm_to_Dd(lon_raw[:-1])
-                        else:
-                            print('Bad Data Coding for Longitude') # bad data
-                        # if lon_clean < lonmin or lon_clean > lonmax:  # get_wecc_poly
-                        # if lon_clean > -139.047795 and lon_clean < -102.03721: # hard coding, since get_wecc_poly not behaving
-                        #     lon_clean = lon_clean
-                        # else:
-                        #     print('not in wecc poly')
-                        #     errors['File'].append(filename)
-                        #     errors['Time'].append(end_api)
-                        #     errors['Error'].append("Line of data not in WECC. Lon: {}".format(lon_clean))
-                        #     continue
+                    if lon_clean < lonmax and lon_clean > lonmin:
+                        lon_clean = lon_clean # inside WECC
                     else:
                         errors['File'].append(filename)
                         errors['Time'].append(end_api)
                         errors['Error'].append("Line of data not in WECC. Lon: {}".format(lon_clean))
+                        continue # west of WECC
+
+                    if len(lat_raw) > 4:    # Specifically catches some "bad coded" missing lat-lon coords
+                        if lat_raw[0] != "-" and (lat_raw[-1] == "N" or lat_raw[-1] == "n"): # More catching of bad coded lat-lon coords
+                            if lat_raw[2] == "." and lat_raw[5] == ".": # XX.XX.XX format -- separate DMS format
+                                lat_clean = calc_clean._lat_dms_to_dd(lat_raw[:-1])
+                            elif lat_raw[1] == "." and lat_raw[17] == "+":  # X.Xe+00X notation.... apparently just one station - but it is in WECC
+                                lat_raw = lat_raw[:-1]
+                                _deg = float(lat_raw[:3]) * 10
+                                _min = float(lat_raw[23:26]) + float(lat_raw[-3:])
+                                lat_clean = _deg + _min/60
+                            elif lat_raw[2] == "." and lat_raw[5] != ".": # XX.XXXX format -- already in Dd but some obs are badly formatted
+                                lat_clean = float(lat_raw[:-1])
+                            elif lat_raw[2] == ",": # europeans
+                                lat_raw = lat_raw[:-1]
+                                lat_clean = float(lat_raw[:2]) + float(lat_raw[3:])/100
+                            else:   # LORAN format (DDMM.mm) -- most obs will fall in this category
+                                lat_clean = calc_clean._lat_DMm_to_Dd(lat_raw[:-1])
+                        else:
+                            continue # wrong hemisphere
+                    else:
                         continue
+
+                    if lat_clean < latmax and lat_clean > latmin:
+                        lat_clean = lat_clean
+                    else:
+                        errors['File'].append(filename)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Line of data not in WECC. Lat: {}".format(lat_clean))
+                        continue # south or north of WECC
                 except Exception as e:
-                    print('something is breaking here')
                     continue # Continue to next branch
 
                 # Writing to file after geographic subsetting
@@ -175,7 +186,7 @@ def parse_cwop_sr(filepath):
                 ## Keep the data from previous day, because it will get merged by station anyways
                 filename_date_raw = datetime.strptime(filename[1:-4].strip(), "%Y%m%d").date()  # filename date
                 yesterday_date_raw = filename_date_raw + timedelta(days=-1) # previous day date - for 11pm UTC tracking
-                utc_time_idx = line_items_step1[1][:6]
+                utc_time_idx = line_items_step1[1]
                 data_date_raw = datetime.strptime(utc_time_idx[:2], "%d").date()    # date according to data
                 data_time_raw = datetime.strptime(utc_time_idx[2:], "%H%M").time() # time according to data
 
@@ -407,6 +418,9 @@ parse_cwop_sr(file)
         #         ds['pr'].attrs['standard_name'] = "precipitation"
         #         ds['pr'].attrs['units'] = "mm"
         #
+
+            ### Error call: '00' can either be 0% or 100%
+            ### https://weather.gladstonefamily.net/aprswxnet.html
         #     # relative humiidity (%)
         #     if "relative_humidity" in ds.keys():
         #         ds = ds.rename({'relative_humidity': 'hurs'})
