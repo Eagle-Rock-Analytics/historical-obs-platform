@@ -175,7 +175,6 @@ def _lat_DMm_to_Dd(data):
     data = (_deg + _mm/60)
     return data
 
-
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
 def _calc_dewpointtemp_opt1(tas, hurs):
