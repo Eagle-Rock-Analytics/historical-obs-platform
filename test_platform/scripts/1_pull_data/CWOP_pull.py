@@ -39,7 +39,7 @@ else:
 # Set file and folder paths relative to home directory.
 wecc_terr = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
 wecc_mar = 'test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp' 
-save_dir = 'test_platform/data/1_raw_wx/CWOP/'   
+savedir = 'test_platform/data/1_raw_wx/CWOP/'   
 
 # Function: return wecc shapefiles and combined bounding box given path variables.
 # Inputs: path to terrestrial and marine WECC shapefiles relative to home directory.
@@ -83,13 +83,13 @@ def get_meso_metadata(token, terrpath, marpath):
 # Inputs:
 # (1) token: Synoptic API token, stored in config.py file
 # (2) ids: Takes dataframe with two columns, station ID and startdate. These are the stations to be downloaded, generated from get_meso_metadata.
-# (3) save_dir: path to directory where files should be saved.
+# (3) savedir: path to directory where files should be saved.
 # (4) start_date: If none, download data starting on 1980-01-01. Otherwise, download data after start date ("YYYYMMDDHHMM").
 # Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
-def get_cwop_station_csv(token, ids, save_dir, start_date = None): 
+def get_cwop_station_csv(token, ids, savedir, start_date = None, **options): 
     
     try:
-        os.mkdir(save_dir) # Make the directory to save data in. Except used to pass through code if folder already exists.
+        os.mkdir(savedir) # Make the directory to save data in. Except used to pass through code if folder already exists.
     except:
         pass
     
@@ -99,7 +99,7 @@ def get_cwop_station_csv(token, ids, save_dir, start_date = None):
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime('%Y%m%d%H%M')
         
-    for index, id in ids.iterrows(): # For a group of stations
+    for index, id in ids.iterrows(): # For each station
         
         # Set start date
         if start_date is None:
@@ -120,7 +120,12 @@ def get_cwop_station_csv(token, ids, save_dir, start_date = None):
         # Try to get station csv.
         try:
             #request = requests.get(url)
-            filepath = save_dir+'{}.csv'.format(id["STID"]) # Set path to desired folder. # Write file to name of station ID in synoptic-- Change file name to reflect dates?? 
+            filepath = savedir+'{}.csv'.format(id["STID"]) # Set path to desired folder. # Write file to name of station ID in synoptic.
+
+            # If **options timeout = True, save file as STID_2.csv
+            if options.get("timeout") == True:
+                filepath = savedir+'{}_2.csv'.format(id["STID"])
+
             #print(filepath)
             with requests.get(url, stream=True) as r: 
                 if r.status_code == 200: # If API call returns a response
@@ -162,8 +167,8 @@ def get_cwop_station_csv(token, ids, save_dir, start_date = None):
             print("Error: {}".format(e))
     
     # Write errors to csv
-    filepath = save_dir+"errors_cwop_{}.csv".format(end_api) # Set path to save error file.
-    print(errors)
+    filepath = savedir+"errors_cwop_{}.csv".format(end_api) # Set path to save error file.
+    #print(errors)
     with open(filepath, "w") as outfile:
         # pass the csv file to csv.writer function.
         writer = csv.writer(outfile)
@@ -179,7 +184,56 @@ def get_cwop_station_csv(token, ids, save_dir, start_date = None):
 
 # Run script.
 ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
-get_cwop_station_csv(token = config.token, ids = ids, save_dir = save_dir)
+get_cwop_station_csv(token = config.token, ids = ids.sample(40), savedir = savedir) # .Sample() subset is for testing, remove for full run. 
+
+# Quality control: if any files return status 408 error, split request into smaller requests and re-run.
+# Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
+def get_cwop_station_timeout_csv(token, savedir):
+    
+    ids_split = []
+
+    files = os.listdir(savedir) # Gets list of files in directory to work with
+    files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+
+    for file in files:
+        with open(savedir+file,'r') as file: 
+            data = file.readlines() 
+            lastRow = data[-1] 
+            if 'Timeout' in lastRow: # If timeout recorded
+                lastrealrow = data[-2] # Get last row of recorded data
+                station = lastrealrow.split(",")[0] # Get station ID
+                time = lastrealrow.split(",")[1] # Get last completed timestamp
+                ids_split.append([station, time]) # Add to dataframe
+                
+
+    ids_split = pd.DataFrame(ids_split, columns = ['STID', 'start']) 
+    ids_split['start'] = pd.to_datetime(ids_split['start'], format='%Y-%m-%dT%H:%M:%SZ')
+    ids_split['start'] = ids_split['start'].dt.strftime('%Y%m%d%H%M')
+    if ids_split.empty is False:
+        print(ids_split)
+        get_cwop_station_csv(token, ids = ids_split, savedir = savedir, timeout = True)
+
+        # Check to see if any of the split files needs to be split again.
+        files = os.listdir(savedir) # Gets list of files in directory to work with
+        files = list(filter(lambda f: f.endswith("_2.csv"), files)) # Get list of file names
+
+        for file in files:
+            with open(savedir+file,'r') as file: 
+                data = file.readlines() 
+                lastRow = data[-1] 
+                if 'Timeout' in lastRow: # If timeout recorded
+                    lastrealrow = data[-2] # Get last row of recorded data
+                    station = lastrealrow.split(",")[0] # Get station ID
+                    time = lastrealrow.split(",")[1] # Get last completed timestamp
+                    ids_split.append([station, time]) # Add to dataframe
+                    if ids_split.empty is False:
+                        print("Attention!: Run this script again on _2.csv files.")
+
+    elif ids_split.empty is True:
+        return
+
+get_cwop_station_timeout_csv(token = config.token, savedir = savedir)
+
 
 # Test: run on subset!
 # # Get 3 real rows (or more as desired.)
@@ -190,7 +244,7 @@ get_cwop_station_csv(token = config.token, ids = ids, save_dir = save_dir)
 #                      'start': ["200001010000", "2", "NaN"]})
 # ids = ids.append(test, ignore_index = True)
 # print(ids)
-#get_cwop_station_csv(token = config.token, ids = ids, save_dir = save_dir) # Run this with our test data.
+#get_cwop_station_csv(token = config.token, ids = ids, savedir = savedir) # Run this with our test data.
 
 
 ### NOTES/SCRAPS FROM ALONG THE WAY
