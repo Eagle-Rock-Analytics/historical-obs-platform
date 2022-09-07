@@ -126,7 +126,7 @@ def _lat_dms_to_dd(data):
     data = float(data[:2]) + float(data[2:4])/60 + float(data[5:])/3600
     return data
 
-def _lon_dms_to_dd(data): ## THIS IS NOT WORKING
+def _lon_dms_to_dd(data): 
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
@@ -248,4 +248,5 @@ def _calc_ps_alt(alt, elev):
     """
     alt = alt / 3386.39 # Convert altimeter from Pa to inHg for use in formula
     ps = alt * ((288-0.0065*elev)/288)**5.2561
+    ps = _unit_pres_inHg_to_pa(ps) # Convert back to Pa from inHg
     return ps
