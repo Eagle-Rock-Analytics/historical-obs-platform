@@ -1,5 +1,7 @@
 ### Scrape script for ASOS/AWOS network through ISD
 
+# STILL TO DO: change save function on get_isd_data_ftp
+
 # Notes:
 # ISD ftp format: Each station has one file per year. The file for each station-year is updated daily for the current year.
 # For first pull, use ftp to update station and file.
@@ -16,11 +18,16 @@ import numpy as np
 import pandas as pd
 import geopandas as gp
 from geopandas.tools import sjoin
+import boto3 # For AWS integration.
 
-# Set envr variables
-workdir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/ASOS/"
-wecc_terr = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp'
-wecc_mar = '/home/ella/Desktop/Eagle Rock/Historical Data Platform /historical-obs-platform/test_platform/data/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp'    
+# Set AWS credentials
+s3 = boto3.client('s3')
+bucket_name = 'wecc-historical-wx'
+directory = '1_raw_wx/CWOP/'
+
+# Set paths to WECC shapefiles in AWS bucket.
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
 # Function to return wecc shapefiles and combined bounding box given path variables.
 def get_wecc_poly(terrpath, marpath):
@@ -161,4 +168,5 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
 
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
+print(stations)
+#get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
