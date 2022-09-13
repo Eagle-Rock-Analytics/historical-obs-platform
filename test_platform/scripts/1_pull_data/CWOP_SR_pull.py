@@ -52,7 +52,7 @@ def unzip_dir(directory):
             # unzip zip_name -d directory               # barks at this line in script
             os.remove(zip_name)
 
-unzip_dir(datadir)
+unzip_dir(raw_datadir)
 
 ## Step 3: read in and unzip .gz daily files
 ## Modified from https://gist.github.com/kstreepy/a9800804c21367d5a8bde692318a18f5
@@ -68,6 +68,6 @@ def gz_extract(directory):
             os.remove(gz_name)  # Removes .gz filenames, cleans up directory for ease
             print('{} saved'. format(file_name)) # Useful check, but can be cleaned up
 
-gz_extract(datadir)
+gz_extract(raw_datadir)
 
 # Useful to add: Error messages/already downloaded messages?

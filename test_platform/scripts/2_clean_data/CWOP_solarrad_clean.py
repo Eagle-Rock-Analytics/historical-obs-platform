@@ -15,7 +15,15 @@ Inputs: Raw data for an individual network
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
 
-## Testing using 2020 and 2021
+## NOTE
+## This script currently ONLY parses out the data from cwop solar radiation data from the text files, but does not clean them according to our desired format.
+## There is extensive catch-all flags for latitude and longitude to handle the different input of values that may be useful for other station platforms.
+## Based on testing, we have determined that the MADIS-version of CWOP does include solar radiation data including all time stamps where there is no/missing data
+## and should be the preferred dataset to use.
+## Therefore, the solar radiation only data (text files) should only be used if needed for further qa/qc purposes.
+
+
+## Testing using 2020 and individual files from 2018-2022 
 
 ## Step 0: Environment set-up
 ## Import libraries
@@ -62,12 +70,16 @@ def get_cwop_elevs(filepath):
     """
     This function obtains the elevations for stations based on their lat and lon positions.
     """
-    # calculate elevation -- from CWOP_SR they use a website to determine elevations -- url api?
-    # print("Forgoing this for now")
+    # calculate elevation -- from CWOP_SR they use a website to determine elevations -- url api? dem?
+    print("Forgoing this for now")
 
 get_cwop_elevs(file)
 
 #------------------------------------------------------------------------------------------------------------
+gd = 0
+good_stns = []
+all_stns = []
+
 ## Parse through variables
 def parse_cwop_sr(filepath):
     """
@@ -94,13 +106,13 @@ def parse_cwop_sr(filepath):
     files = list(filter(lambda f: f.endswith(".txt"), files))
     # print(files)
 
-    ## Obtaining station elevations -- to be done after qa/qc
-    # try:
-    #     # url = "https://www.ndbc.noaa.gov/bmanht.shtml"
-    #     elevs = get_cwop_elevs()
-    # except Exception as e:
-    #     print('Testing: Reading elevations for stations')
-    #     # continue
+    # Obtaining station elevations -- to be done after qa/qc
+    try:
+        # url = "https://www.ndbc.noaa.gov/bmanht.shtml"
+        elevs = get_cwop_elevs()
+    except Exception as e:
+        print('Testing: Reading elevations for stations')
+        # continue
 
     for i in ['L20200102']: #, 'L20200629', 'L20201231']:  # TESTING
         print("Cleaning: {}".format(i))
@@ -114,6 +126,7 @@ def parse_cwop_sr(filepath):
                 # Strips off the leading station_id, not of equal character length
                 line_items_step1 = re.split(r"[>zh/_]", line) # Strip off station_id first ## NEED TO TEST IF H AS UTC GETS CAPTURED
                 stn_id = line_items_step1[0]
+                all_stns.append(stn_id)
 
                 ## Removing data outside WECC region first before any other conversions
                 ## Lat-lon conversion: strip hemisphere designator, convert to decimal degrees, removes data outside WECC region of interest
@@ -129,6 +142,12 @@ def parse_cwop_sr(filepath):
                             _deg = float(lon_raw[:3]) * 10
                             _min = float(lon_raw[22:25]) + float(lon_raw[-3:])
                             lon_clean = -1 * (_deg + (_min)/60)
+                        elif lon_raw[4] == "-": # Actual "-, ', '' " format with space before first number in lon
+                            lon_raw = lon_raw[:-1]
+                            _deg = float(lon_raw[1:4])
+                            _min = float(lon_raw[5:7])
+                            _sec = float(lon_raw[8:10])
+                            lon_clean = -1 * (_deg + _min/60 + _sec/3600)
                         elif lon_raw[5] != ".": # XX.XXXX format -- already in Dd but some obs are badly formatted (XX instead of XXX for lon)
                             lon_clean = -1 * float(lon_raw[:-1])
                             # print(stn_id, lon_raw, lon_clean)
@@ -159,6 +178,12 @@ def parse_cwop_sr(filepath):
                             elif lat_raw[2] == ",": # europeans
                                 lat_raw = lat_raw[:-1]
                                 lat_clean = float(lat_raw[:2]) + float(lat_raw[3:])/100
+                            elif lat_raw[2] == "-": # Actual "-, ', '' " format
+                                lat_raw = lat_raw[:-1]
+                                _deg = float(lat_raw[:2])
+                                _min = float(lat_raw[3:5])
+                                _sec = float(lat_raw[6:8])
+                                lat_clean = _deg + _min/60 + _sec/3600
                             else:   # LORAN format (DDMM.mm) -- most obs will fall in this category
                                 lat_clean = calc_clean._lat_DMm_to_Dd(lat_raw[:-1])
                         else:
@@ -168,6 +193,8 @@ def parse_cwop_sr(filepath):
 
                     if lat_clean < latmax and lat_clean > latmin:
                         lat_clean = lat_clean
+                        gd += 1
+                        good_stns.append(stn_id)
                     else:
                         errors['File'].append(filename)
                         errors['Time'].append(end_api)
@@ -175,6 +202,8 @@ def parse_cwop_sr(filepath):
                         continue # south or north of WECC
                 except Exception as e:
                     continue # Continue to next branch
+
+                good_data = gd
 
                 # Writing to file after geographic subsetting
                 stn_filepath = clean_datadir + "cwop_solarrad_stations.csv"
@@ -334,8 +363,49 @@ def parse_cwop_sr(filepath):
 
 parse_cwop_sr(file)
 
+#-------------------------------------------------------------------------------
+## Prints useful metrics about cwop-solar rad data for comparison to cwop archive
+print('Usable data: ', good_data)
 
-        # #----------------------------------
+fp = open(file, "r")
+for count, line in enumerate(fp):
+    pass
+print('Total Lines of data: ', count + 1)
+print('Percentage usable: ', good_data/(count+1))
+
+g_res = np.array(good_stns)
+good_cwop_stns_n = len(np.unique(g_res))
+# print(np.unique(g_res))
+
+res = np.array(all_stns)
+all_cwop_stns_n = len(np.unique(res))
+
+print("Usable # of stations: ", good_cwop_stns_n)
+print("Total # of stations : ", all_cwop_stns_n)
+print("Percentage of usable stations: ", good_cwop_stns_n / all_cwop_stns_n)
+
+os.chdir(homedir + "/test_platform/scripts/2_clean_data/")
+cwop_data = pd.read_csv("active_list.csv", usecols=["Call/CW"])     ## official full list
+cwop_data_arr = np.array(cwop_data)
+
+overlap = np.isin(cwop_data_arr, np.unique(g_res), assume_unique=True)
+stn_ct = 0
+for i in overlap:
+    if i == True:
+        # print('there is a station in CWOP_SR in CWOP')
+        stn_ct += 1
+    else:
+        # print('there is no station overlap between CWOP_SR and CWOP')
+        continue
+# print(overlap)
+
+print('Number of CWOP_SR stations in CWOP: ', stn_ct)
+print('Those stations are: ', cwop_data_arr[overlap])
+
+
+
+# Everything below this line is testing/code dump space
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
         #
         #     id = "CWOP_SR_"+ds.attrs["id"]
         #     ds['original_id'] = ds.attrs['id'] # Keep original ID as variable
@@ -456,28 +526,28 @@ parse_cwop_sr(file)
 # parse_cwop_sr(file)
 
 #------------------------------------------------------------------------------------------------------------
-# def get_ids(raw_datadir):
-#     """
-#     Pulls in station list, and returns list of station IDs.
-#     TO DO: compare CWOP and CWOP SOLAR RAD stations for overlapping cwop_stations
-#     """
-#     print(station_id)
-#
-#     filepath = "cwop_solarrad_stations.csv"
-#     with open(filepath, "w") as outfile:
-#         writer = csv.writer(outfile)
-#         writer.writerow(station_id)
-#
-#     ## os.chdir(clean_datadir)
-#     ## cwop_sr = pd.read_csv("cwop_solarrad_stations.csv")
-#     ## cwop = pd.read_csv("cwop_stations.csv")
-#     ##
-#     ## for item in cwop_sr:
-#     ##     if item not found in cwop
-#     ##     print('{} station not found in cwop station list'.format(item))
-#
-# test = get_ids(raw_datadir)
-# print(test) ###
+def get_ids(raw_datadir):
+    """
+    Pulls in station list, and returns list of station IDs.
+    TO DO: compare CWOP and CWOP SOLAR RAD stations for overlapping cwop_stations
+    """
+    print(station_id)
+
+    filepath = "cwop_solarrad_stations.csv"
+    with open(filepath, "w") as outfile:
+        writer = csv.writer(outfile)
+        writer.writerow(station_id)
+
+    ## os.chdir(clean_datadir)
+    ## cwop_sr = pd.read_csv("cwop_solarrad_stations.csv")
+    ## cwop = pd.read_csv("cwop_stations.csv")
+    ##
+    ## for item in cwop_sr:
+    ##     if item not found in cwop
+    ##     print('{} station not found in cwop station list'.format(item))
+
+test = get_ids(raw_datadir)
+print(test) ###
 
 #------------------------------------------------------------------------------------------------------------
 
