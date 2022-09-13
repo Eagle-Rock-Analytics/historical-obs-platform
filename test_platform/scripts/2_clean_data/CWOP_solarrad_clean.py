@@ -23,7 +23,7 @@ Outputs: Cleaned data for an individual network, priority variables, all times. 
 ## Therefore, the solar radiation only data (text files) should only be used if needed for further qa/qc purposes.
 
 
-## Testing using 2020 and individual files from 2018-2022 
+## Testing using 2020 and individual files from 2018-2022
 
 ## Step 0: Environment set-up
 ## Import libraries
@@ -71,6 +71,13 @@ def get_cwop_elevs(filepath):
     This function obtains the elevations for stations based on their lat and lon positions.
     """
     # calculate elevation -- from CWOP_SR they use a website to determine elevations -- url api? dem?
+    # options to investigate
+    # url api: Google Elevation API - limited to 100 locations per request, paid version also available
+    # url api: Open-Elevation - https://open-elevation.com/ (free and open source)
+    # url api: https://stackoverflow.com/questions/68534454/python-obtaining-elevation-from-latitude-and-longitude-values
+    # url api? https://www.gpsvisualizer.com/ (potentially limited by one elevation at a time, but a good resource)
+    # dem: USGS NED - https://www.sciencebase.gov/catalog/item/4f4e48b1e4b07f02db530759 +
+    # https://gis.stackexchange.com/questions/228920/getting-elevation-at-particular-coordinate-lat-lon-programmatically-but-offli
     print("Forgoing this for now")
 
 get_cwop_elevs(file)
@@ -186,9 +193,9 @@ def parse_cwop_sr(filepath):
                                 lat_clean = _deg + _min/60 + _sec/3600
                             else:   # LORAN format (DDMM.mm) -- most obs will fall in this category
                                 lat_clean = calc_clean._lat_DMm_to_Dd(lat_raw[:-1])
-                        else:
+                        else: # southern hemisphere catch
                             continue # wrong hemisphere
-                    else:
+                    else: # bad latitude data coding catch
                         continue
 
                     if lat_clean < latmax and lat_clean > latmin:
@@ -209,7 +216,7 @@ def parse_cwop_sr(filepath):
                 stn_filepath = clean_datadir + "cwop_solarrad_stations.csv"
                 with open(stn_filepath, "w") as outfile:
                     writer = csv.writer(outfile)
-                    writer.writerow([station_id]) # Would be great if was station_id, first date, last date of coverage
+                    writer.writerow([station_id, lat_clean, lon_clean]) # Would be great if was station_id, first date, last date of coverage
 
                 ## Note: Solar data starts at 11pm UTC in each file - each file comprises mix of data from the named day + last hour of previous day
                 ## Keep the data from previous day, because it will get merged by station anyways
@@ -327,6 +334,10 @@ def parse_cwop_sr(filepath):
                 # if 's_raw' in var_list:     # snowfall in inches in last 24 hours
                 #     s_raw = line_items_step3[-1][var_list['s_raw']+4:var_list['s_raw']+7]
 
+## FUTURE STEPS FORWARD IF NEEDED
+## 1 - Split by station_id
+## 2 - Get everything into netcdf format with properly designed attribute organization
+## 3 - Save resulting files: netcdf file for data per station for all time slices, with error csv files as needed
 
             ## Write files to a new netcdf
             # desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
@@ -524,30 +535,6 @@ print('Those stations are: ', cwop_data_arr[overlap])
         #     writer.writerows(zip(*errors.values()))
 # print("{} cleaned".format(filename))
 # parse_cwop_sr(file)
-
-#------------------------------------------------------------------------------------------------------------
-def get_ids(raw_datadir):
-    """
-    Pulls in station list, and returns list of station IDs.
-    TO DO: compare CWOP and CWOP SOLAR RAD stations for overlapping cwop_stations
-    """
-    print(station_id)
-
-    filepath = "cwop_solarrad_stations.csv"
-    with open(filepath, "w") as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow(station_id)
-
-    ## os.chdir(clean_datadir)
-    ## cwop_sr = pd.read_csv("cwop_solarrad_stations.csv")
-    ## cwop = pd.read_csv("cwop_stations.csv")
-    ##
-    ## for item in cwop_sr:
-    ##     if item not found in cwop
-    ##     print('{} station not found in cwop station list'.format(item))
-
-test = get_ids(raw_datadir)
-print(test) ###
 
 #------------------------------------------------------------------------------------------------------------
 
