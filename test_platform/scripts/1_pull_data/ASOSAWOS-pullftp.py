@@ -28,6 +28,18 @@ directory = '1_raw_wx/ASOSAWOS/'
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
+# Function to write FTP data directly to AWS S3 folder.
+# ftp here is the current ftp connection
+# file is the filename
+# directory is the desired path (set of folders) in AWS
+def ftp_to_aws(ftp, file, directory):
+    r=BytesIO()
+    ftp.retrbinary('RETR '+file, r.write)
+    r.seek(0)
+    s3.upload_fileobj(r, bucket_name, directory+file)
+    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    r.close() # Close file
+
 # Function to return wecc shapefiles and combined bounding box given path variables.
 def get_wecc_poly(terrpath, marpath):
     ## get bbox of WECC to use to filter stations against
@@ -47,11 +59,8 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     ftp = FTP('ftp.ncdc.noaa.gov')
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub/data/noaa/')  # Change WD.
-    file = open(filename, 'wb') # Open destination file.
-    ftp.retrbinary('RETR '+ filename, file.write) # Write file
-    print('{} saved'.format(filename))
-    file.close()                                 
-
+    ftp_to_aws(ftp, filename, directory)
+    
     ## Read in csv and only filter to include US stations.
     stations = pd.read_csv("isd-history.csv")
     weccstations = stations[(stations['CTRY']=="US")]
@@ -87,17 +96,6 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     weccstations.reset_index()
     return weccstations
 
-# Function to write FTP data directly to AWS S3 folder.
-# ftp here is the current ftp connection
-# file is the filename
-# directory is the desired path (set of folders) in AWS
-def ftp_to_aws(ftp, file, directory):
-    r=BytesIO()
-    ftp.retrbinary('RETR '+file, r.write)
-    r.seek(0)
-    s3.upload_fileobj(r, bucket_name, directory+file)
-    print('{} saved'.format(file)) # Helpful for testing, can be removed.
-    r.close() # Close file
 
 # Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
 # Start date format: 'YYYY-MM-DD"
