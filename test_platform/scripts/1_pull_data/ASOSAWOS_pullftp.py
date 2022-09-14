@@ -114,7 +114,6 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     obj = s3.get_object(Bucket= bucket_name, Key= '1_raw_wx/ASOSAWOS/asosawos_stations.csv') 
     # get object and file (key) from bucket
     asosawos = pd.read_csv(obj['Body'])
-    print(asosawos)
     asosawos = asosawos.loc[(asosawos['A']=="A") | (asosawos['A']=="W")] # A = ASOS, W = AWOS
     asosawos['ICAO'] = asosawos['ICAO'].astype(str) # Fix data types
     weccstations['ICAO'] = weccstations['ICAO'].astype(str) # Fix data types
@@ -235,4 +234,4 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
 #print(stations) # For testing.
-get_asosawos_data_ftp(stations[0:2], bucket_name, directory, start_date = "2003-01-01", get_all = True)
+get_asosawos_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
