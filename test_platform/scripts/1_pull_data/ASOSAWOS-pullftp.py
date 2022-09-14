@@ -17,7 +17,7 @@ import pandas as pd
 import geopandas as gp
 from geopandas.tools import sjoin
 import boto3 # For AWS integration.
-from io import BytesIO
+from io import BytesIO, StringIO
 
 # Set AWS credentials
 s3 = boto3.client('s3')
@@ -115,10 +115,16 @@ def get_isd_data_ftp(station_list, bucket_name, directory, start_date = None, ge
     ftp.cwd('pub/data/noaa')  # Change WD.
     pwd = ftp.pwd() # Get base file path.
 
+    # Set up error handling df.
+    errors = {'File':[], 'Time':[], 'Error':[]}
+
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime('%Y%m%d%H%M')
+
     # Get list of folders (by year) in main FTP folder.
     years = ftp.nlst()
     
-    # TO DO: configure WD to write files to (in AWS)
+    
     
     # Get date of most recently edited file. 
     # Note if using AWS may have to change os function to something that can handle remote repositories. Flagging to revisit.
@@ -136,12 +142,12 @@ def get_isd_data_ftp(station_list, bucket_name, directory, start_date = None, ge
             files = item['Key']
             alreadysaved.append(files) 
         alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
-        print(alreadysaved)
+        
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
     # Set up AWS to write to bucket.
-    s3 = boto3.resource('s3')
+    s3 = boto3.client('s3')
 
     for i in years: # For each year / folder.
     #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
@@ -157,24 +163,31 @@ def get_isd_data_ftp(station_list, bucket_name, directory, start_date = None, ge
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
                     #fileswecc = fileswecc[0:5] # For downloading sample of data. FOR TESTING ONLY.
                     for filename in fileswecc:
-                        modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
-                        modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
-                        
-                        ### If get_all is False, only download files that are not already in the folder, or that have been updated since the last download.
-                        if get_all is False:
-                            if filename in alreadysaved: # If filename already in saved bucket
-                                if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                    ftp_to_aws(ftp, filename, directory)    
-                                else:
-                                    print("{} already saved".format(filename))
-                            else:
-                                ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+                        try:
+                            modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+                            modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
                             
-                        elif get_all is True: # If get_all is true, download all files in folder.
-                            ftp_to_aws(ftp, filename, directory) 
+                            ### If get_all is False, only download files that are not already in the folder, or that have been updated since the last download.
+                            if get_all is False:
+                                if filename in alreadysaved: # If filename already in saved bucket
+                                    if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+                                        ftp_to_aws(ftp, filename, directory)    
+                                    else:
+                                        print("{} already saved".format(filename))
+                                else:
+                                    ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+                                
+                            elif get_all is True: # If get_all is true, download all files in folder.
+                                ftp_to_aws(ftp, filename, directory) 
+                        except Exception as e:
+                            errors['File'].append(filename)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append(e)
                             
                 except Exception as e:
-                    print("Error in downloading date {}: {}". format(i, e))
+                    errors['File'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
                     next  # Adds error handling in case of missing folder. Skip to next folder.
             else: # If year of folder not in start date range, skip folder.
                 next
@@ -182,9 +195,16 @@ def get_isd_data_ftp(station_list, bucket_name, directory, start_date = None, ge
         else:
             next # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired.
 
+    # Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_asosawos_{}.csv".format(end_api))
+    
     ftp.quit() # This is the “polite” way to close a connection
 
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-print(stations)
-get_isd_data_ftp(stations, bucket_name, directory, start_date = "1980-01-10", get_all = False)
+#print(stations)
+get_isd_data_ftp(stations, bucket_name, directory, start_date = "1980-01-01", get_all = True)

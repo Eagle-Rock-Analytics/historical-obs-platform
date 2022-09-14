@@ -121,7 +121,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     errors = pd.DataFrame(errors)
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cwop_{}.csv".format(end_api))
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_maritime_{}.csv".format(end_api))
     
     ftp.quit() # This is the “polite” way to close a connection
 
