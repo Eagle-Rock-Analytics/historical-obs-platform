@@ -12,10 +12,27 @@ import os
 import gzip
 from zipfile import ZipFile
 import shutil
+import re
 
 # set envr variables
-#datadir = "/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/CWOP_SR/"
-datadir = "/home/ella/Desktop/Eagle-Rock/Historical-Data-Platform/CWOP/SR/"
+homedir = os.getcwd() # Get current working directory.
+if "historical-obs-platform" in homedir: # If git folder in path
+    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
+    os.chdir(homedir) # Change directory.
+else:
+    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
+    exit()
+
+raw_datadir = homedir + "/test_platform/data/1_raw_wx/CWOP_SR/"
+
+## Set up directory to save files, if it doesn't already exist.
+# try:
+#     os.mkdir(raw_datadir) # Make folder to save cleaned data
+#     print("Directory for {} created".format(re.split("/", raw_datadir)[-2]))
+# except:
+#     print("Directory for {} exists".format(re.split("/", raw_datadir)[-2]))
+#     pass    # Pass if folder already exists
+
 
 ## Step 1: download data -- batch download from google drive - folder downloads as a .zip archive
 ## For new data downloads only need to do this once
@@ -35,7 +52,7 @@ def unzip_dir(directory):
             # unzip zip_name -d directory               # barks at this line in script
             os.remove(zip_name)
 
-unzip_dir(datadir)
+unzip_dir(raw_datadir)
 
 ## Step 3: read in and unzip .gz daily files
 ## Modified from https://gist.github.com/kstreepy/a9800804c21367d5a8bde692318a18f5
@@ -51,6 +68,6 @@ def gz_extract(directory):
             os.remove(gz_name)  # Removes .gz filenames, cleans up directory for ease
             print('{} saved'. format(file_name)) # Useful check, but can be cleaned up
 
-gz_extract(datadir)
+gz_extract(raw_datadir)
 
-# Useful to add: Error messages/already downloaded messages? 
+# Useful to add: Error messages/already downloaded messages?

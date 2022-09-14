@@ -115,60 +115,52 @@ def _unit_elev_ft_to_m(data):
     return data
 
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
-## Example: Latitude is provided as "3902.33"
-## Need to also accomodate inputs such as: 41° 56' 54.3732" -- TO DO, tricky to test
+## Need to also accomodate inputs such as: 41.56.54
 def _lat_dms_to_dd(data):
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
-    Input: latitude (DMS) example: 3902.33
+    Input: latitude (DMS) example: 39.02.33
     Returns: latitude (dd) example: 39.16
     """
-    data = float(data[:2]) + float(data[2:4])/60 + float(data[5:])/3600
+    data = float(data[:2]) + float(data[3:5])/60 + float(data[6:])/3600
     return data
 
 def _lon_dms_to_dd(data): 
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
-    Input: longitude(DMS) example: 12201.38
+    Input: longitude(DMS) example: 122.01.38
     Returns: longitude (dd) example: -122.02
     """
     # need to check if -180 to 180, or 0 to 360
-    if float(data) >= 0:
+    if data[0] != "-":
         _deg = float(data[:3])
-        _min = float(data[3:5])
-        _sec = float(data[6:])
+        _min = float(data[4:6])
+        _sec = float(data[7:])
         data = -1 * (_deg + _min/60 + _sec/3600)
     else:
         data = data.strip('-')
         _deg = float(data[:3])
-        _min = float(data[3:5])
-        _sec = float(data[6:])
+        _min = float(data[4:6])
+        _sec = float(data[7:])
         data = -1 * (_deg + _min/60 + _sec/3600)
     return data
 
-import string
-
-# don't use a mutable set for this purpose
-GIVEN = frozenset(string.digits + '.' + 'NSEW' + "nsew")
-def uses_other_chars(s, given=GIVEN):
-    return not set(s) <= given
-
 def _lon_DMm_to_Dd(data):
     """
-    This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d)
-    for the WESTERN HEMISPHERE.
-    Also includes handling because some stations do not report in LORAN coordinates.
-    """
-    _deg = float(data[:3])
-    _mm = float(data[3:])
-    data = -1 * (_deg + _mm/60)
-    return data
-
+    This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d) for the WESTERN HEMISPHERE.
+    Input: longitude (DDDMM.mm) example: 12234.72
+    Returns: longitude (D.d) example: 122.578
+     _min = float(data[:3])
+     _sec = float(data[3:])
+     data = -1 * (_deg + _mm/60)
+     return data
+     
 def _lat_DMm_to_Dd(data):
     """
     This is specific to CWOP latitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d).
-    Also includes handling because some stations do not report in LORAN coordinates.
+    Input: latitude (DDMM.mm) example: 4413.95
+    Returns: latitude (D.d) example: 44.2325
     """
     _deg = float(data[:2])
     _mm = float(data[2:])
