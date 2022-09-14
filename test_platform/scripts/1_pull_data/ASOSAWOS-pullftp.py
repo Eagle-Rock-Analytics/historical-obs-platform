@@ -1,7 +1,5 @@
 ### Scrape script for ASOS/AWOS network through ISD
 
-# STILL TO DO: change save function on get_isd_data_ftp
-
 # Notes:
 # ISD ftp format: Each station has one file per year. The file for each station-year is updated daily for the current year.
 # For first pull, use ftp to update station and file.
@@ -19,11 +17,12 @@ import pandas as pd
 import geopandas as gp
 from geopandas.tools import sjoin
 import boto3 # For AWS integration.
+from io import BytesIO
 
 # Set AWS credentials
 s3 = boto3.client('s3')
 bucket_name = 'wecc-historical-wx'
-directory = '1_raw_wx/CWOP/'
+directory = '1_raw_wx/ASOSAWOS/'
 
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
@@ -88,9 +87,21 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     weccstations.reset_index()
     return weccstations
 
+# Function to write FTP data directly to AWS S3 folder.
+# ftp here is the current ftp connection
+# file is the filename
+# directory is the desired path (set of folders) in AWS
+def ftp_to_aws(ftp, file, directory):
+    r=BytesIO()
+    ftp.retrbinary('RETR '+file, r.write)
+    r.seek(0)
+    s3.upload_fileobj(r, bucket_name, directory+file)
+    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    r.close() # Close file
+
 # Function to query ftp server for ISD data. Run this one time to get all historical data or to update changed files for all years.
 # Start date format: 'YYYY-MM-DD"
-def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True): 
+def get_isd_data_ftp(station_list, bucket_name, directory, start_date = None, get_all = True): 
     
     # Remove depracated stations if filtering by time.
     if start_date is not None:
@@ -113,12 +124,27 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
     
     # Get date of most recently edited file. 
     # Note if using AWS may have to change os function to something that can handle remote repositories. Flagging to revisit.
+
     try:
-        last_edit_time = max([f for f in os.scandir(workdir)], key=lambda x: x.stat().st_mtime).stat().st_mtime
-        last_edit_time = datetime.fromtimestamp(last_edit_time, tz=timezone.utc)
+        s3 = boto3.client('s3')
+        objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
+        all = objects['Contents']     
+        # Get date of last edited file   
+        latest = max(all, key=lambda x: x['LastModified'])
+        last_edit_time = latest['LastModified']
+        # Get list of all file names
+        alreadysaved = []
+        for item in all:
+            files = item['Key']
+            alreadysaved.append(files) 
+        alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
+        print(alreadysaved)
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
  
+    # Set up AWS to write to bucket.
+    s3 = boto3.resource('s3')
+
     for i in years: # For each year / folder.
     #for i in ['1973', '1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
@@ -136,25 +162,19 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
                         
-                        ### If get_all is False, only download files whose date has changed since the last download.
-                        #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
-                        #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
-                        #### This code could be altered to compare write time and file name if desired.
+                        ### If get_all is False, only download files that are not already in the folder, or that have been updated since the last download.
                         if get_all is False:
-                            if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                local_filename = os.path.join(workdir, filename) 
-                                file = open(local_filename, 'wb') # Open destination file.
-                                ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                                print('{} saved'.format(filename)) # Helpful for testing, can be removed.
-                                file.close() # Close file
+                            if filename in alreadysaved: # If filename already in saved bucket
+                                if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+                                    ftp_to_aws(ftp, filename, directory)    
+                                else:
+                                    print("{} already saved".format(filename))
                             else:
-                                print("{} already saved".format(filename))
+                                ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+                            
                         elif get_all is True: # If get_all is true, download all files in folder.
-                            local_filename = os.path.join(workdir, filename) 
-                            file = open(local_filename, 'wb') # Open destination file.
-                            ftp.retrbinary('RETR '+ filename, file.write) # Write file -- EDIT FILE NAMING CONVENTION?
-                            print('{} saved'.format(filename)) # Helpful for testing, can be removed.
-                            file.close() # Close file
+                            ftp_to_aws(ftp, filename, directory) 
+                            
                 except Exception as e:
                     print("Error in downloading date {}: {}". format(i, e))
                     next  # Adds error handling in case of missing folder. Skip to next folder.
@@ -169,4 +189,4 @@ def get_isd_data_ftp(station_list, workdir, start_date = None, get_all = True):
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
 print(stations)
-#get_isd_data_ftp(stations, workdir, start_date = "2020-01-10", get_all = True)
+get_isd_data_ftp(stations, bucket_name, directory, start_date = "1980-01-10", get_all = False)
