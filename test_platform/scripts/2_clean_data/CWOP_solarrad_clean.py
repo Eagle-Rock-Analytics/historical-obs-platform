@@ -330,7 +330,8 @@ def parse_cwop_sr(filepath):
                     errors['Error'].append("Line of data in {} for station_id {} does not have observations for {}.".format(filename, station_id, utc_time_clean))
                     continue
 
-                ## Snowfall is listed in the documentation but is seemingly not actually provided
+                ## Snowfall is listed in the APRS documentation but is seemingly not actually provided
+                ## Snowfall only makes into the MADIS dataset due to manual reporting: https://madis.ncep.noaa.gov/snow_project.shtml
                 # if 's_raw' in var_list:     # snowfall in inches in last 24 hours
                 #     s_raw = line_items_step3[-1][var_list['s_raw']+4:var_list['s_raw']+7]
 
