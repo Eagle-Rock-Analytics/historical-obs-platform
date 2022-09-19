@@ -1,12 +1,15 @@
-# Scraping script for MARITIME network.
+"""
+This script downloads MARITIME data from NCEI using ftp.
+Approach:
+(1) Download data using station list.
+Inputs: bucket name in AWS, directory to save file to (folder path), range of years of data to download,
+parameter to only download changed files (optional)
+Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per month.
 
-#### TO DO LIST
-# TO DO: specify recipient folder (in AWS?)
-## To do so, see code here:
-## https://www.linkedin.com/pulse/downloading-files-from-remote-sftp-server-directly-aws-tom-reid (if sftp supported)
-## or here: https://stackoverflow.com/questions/64884023/ftps-to-aws-s3-with-ftplib-and-boto3-error-fileobj-must-implement-read (ftplib only)
-### Make sure any code with os.dir works when in AWS S3, or adapt.
-
+Notes:
+1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
+See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
+"""
 ## Load packages
 from ftplib import FTP
 from datetime import datetime, timezone
