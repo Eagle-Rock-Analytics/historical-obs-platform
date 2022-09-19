@@ -23,7 +23,7 @@ from io import BytesIO, StringIO
 import calc_pull
 
 ## Set AWS credentials
-s3 = boto3.client("s3")
+s3 = boto3.resource("s3")
 bucket_name = "wecc-historical-wx"
 directory = "1_raw_wx/CWOP/"
 
@@ -130,12 +130,12 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
         # Try to get station csv.
         try:
             #request = requests.get(url)
-            filepath = "https://{}.s3.us-west-2.amazonaws.com/{}{}.csv".format(bucket_name, directory, id["STID"])
+            s3_obj = s3.Object(bucket_name, directory+"{}.csv".format(id["STID"]))
             # filepath = savedir+'{}.csv'.format(id["STID"]) # Set path to desired folder. # Write file to name of station ID in synoptic.
 
             # If **options timeout = True, save file as STID_2.csv
             if options.get("timeout") == True:
-                filepath = "https://{}.s3.us-west-2.amazonaws.com/{}{}_2.csv".format(bucket_name, directory, id["STID"])
+                s3_obj = s3.Object(bucket_name, directory+"{}_2.csv".format(id["STID"]))
                 # filepath = savedir+'{}_2.csv'.format(id["STID"])
 
             with requests.get(url, stream=True) as r:
@@ -153,7 +153,8 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
                         errors['Error'].append(error_text)
                         next
                     else:
-                        id.to_csv(filepath)
+                        # s3_obj = s3.Object(bucket_name, directory+"{}.csv".format(id["STID"]))
+                        s3_obj.put(Body=r.content)
                         print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
 
                         # with open(filepath, 'wb') as f:
