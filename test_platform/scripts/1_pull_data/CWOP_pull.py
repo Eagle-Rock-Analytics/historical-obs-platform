@@ -22,6 +22,7 @@ import calc_pull
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
+s3_cl = boto3.client('s3') # for lower-level processes
 bucket_name = "wecc-historical-wx"
 directory = "1_raw_wx/CWOP/"
 
@@ -146,14 +147,14 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
     errors = pd.DataFrame(errors)
     errors.to_csv(csv_buffer_err)
     content = csv_buffer_err.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_cwop_{}.csv".format(end_api))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_cwop_{}.csv".format(end_api))
 
 # Quality control: if any files return status 408 error, split request into smaller requests and re-run.
 # Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
 def get_cwop_station_timeout_csv(token, bucket_name, directory):
     ids_split = []
-    res = s3.list_objects(Bucket=bucket_name, Prefix=directory)
-    files = res("Contents")
+    for item in s3.Bucket(bucket_name).objects.all():
+        files = item.key
     files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
 
     for file in files:
@@ -174,8 +175,8 @@ def get_cwop_station_timeout_csv(token, bucket_name, directory):
         get_cwop_station_csv(token, bucket_name, directory, ids = ids_split, timeout = True)
 
         # Check to see if any of the split files needs to be split again.
-        res = s3.list_objects(Bucket=bucket_name, Prefix=directory)
-        files = res("Contents")
+        for item in s3.Bucket(bucket_name).objects.all():
+            files = item.key
         files = list(filter(lambda f: f.endswith("_2.csv"), files)) # Get list of file names
 
         for file in files:
