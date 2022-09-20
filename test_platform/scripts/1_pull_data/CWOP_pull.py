@@ -12,12 +12,10 @@ Outputs:
 
 # Step 0: Environment set-up
 import requests
-import geopandas as gp
 import pandas as pd
 from datetime import datetime
 import os
 import re
-import csv
 import boto3
 from io import BytesIO, StringIO
 import calc_pull
@@ -34,16 +32,6 @@ except:
     exit()
 
 # Set envr variables
-
-# Set path to head of git repository.
-homedir = os.getcwd() # Get current working directory.
-if "historical-obs-platform" in homedir: # If git folder in path
-    homedir = homedir[0:homedir.index("historical-obs-platform")]+"historical-obs-platform" # Set path to top folder.
-    os.chdir(homedir) # Change directory.
-else:
-    print("Error: Set current working directory to the git repository or a subfolder, and then rerun script.")
-    exit()
-
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
@@ -79,8 +67,10 @@ def get_meso_metadata(token, terrpath, marpath):
 # Inputs:
 # (1) token: Synoptic API token, stored in config.py file
 # (2) ids: Takes dataframe with two columns, station ID and startdate. These are the stations to be downloaded, generated from get_meso_metadata.
-# (3) savedir: path to directory where files should be saved.
-# (4) start_date: If none, download data starting on 1980-01-01. Otherwise, download data after start date ("YYYYMMDDHHMM").
+# (3) bucket_name: name of AWS bucket
+# (4) directory: folder path in AWS bucket
+# (5) start_date: If none, download data starting on 1980-01-01. Otherwise, download data after start date ("YYYYMMDDHHMM").
+# (6) options: timeout = True will identify and download any station data that timed out the API request.
 # Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
 def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, **options):
 
@@ -139,7 +129,6 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
                         errors['Error'].append(error_text)
                         next
                     else:
-                        # s3_obj = s3.Object(bucket_name, directory+"{}.csv".format(id["STID"]))
                         s3_obj.put(Body=r.content)
                         print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
 
@@ -148,16 +137,6 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
                     errors['Time'].append(end_api)
                     errors['Error'].append(r.status_code)
                     print("Error: {}".format(r.status_code))
-
-                    # If needed, split into smaller chunk? But csv seems to not kick so many errors.
-            # if request['SUMMARY']['RESPONSE_CODE'] == -1 & request['SUMMARY']['RESPONSE_MESSAGE'].startswith("Querying too many station hours"):
-            # # Response when the API call is too large. Split into smaller chunks.
-            #     print("API request too large. Splitting into smaller chunks.")
-            #     chunks = np.array_split(chunk, 3)
-            #     pass # Write code to rerun w/ smaller chunks here.
-
-            # Parse response into dataframe
-            #### TO DO: clean and parse at the same time here?
 
         except Exception as e:
             print("Error: {}".format(e))
@@ -168,11 +147,6 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
     errors.to_csv(csv_buffer_err)
     content = csv_buffer_err.getvalue()
     s3.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_cwop_{}.csv".format(end_api))
-
-# Run script.
-ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
-get_cwop_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(40)) # .Sample() subset is for testing, remove for full run.
-
 
 # Quality control: if any files return status 408 error, split request into smaller requests and re-run.
 # Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
@@ -219,6 +193,9 @@ def get_cwop_station_timeout_csv(token, bucket_name, directory):
     elif ids_split.empty is True:
         return
 
+# Run script.
+ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
+get_cwop_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing, remove for full run.
 get_cwop_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
 
 
