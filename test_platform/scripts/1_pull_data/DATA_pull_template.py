@@ -17,10 +17,15 @@ import os
 from datetime import datetime, timezone
 import xarray as xr
 from ftplib import FTP
+import calc_pull
+import boto3
+from io import BytesIO, StringIO
 
 # Set envr variables
-workdir = "/path/to/working/directory/"
-years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
+s3 = boto3.resource("s3")
+s3_cl = boto3.client("s3") # for lower level processes
+bucket_name = "wecc-historical-wx"
+directory = ""
 
 
 ## Step 1: Download data
