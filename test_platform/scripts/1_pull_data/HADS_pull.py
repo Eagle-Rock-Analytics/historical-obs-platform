@@ -19,10 +19,9 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 import requests
 import pandas as pd
 from datetime import datetime
-import os
 import re
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 import calc_pull
 
 ## Set AWS credentials
@@ -194,17 +193,19 @@ def get_hads_station_timeout_csv(token, bucket_name, directory):
 # Run script.
 ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
 print(ids)
-get_hads_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing, remove for full run.
+get_hads_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(40)) # .Sample() subset is for testing, remove for full run.
 get_hads_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
    
+
+###
+# Notes / in progress
+
+# ISD 
 # Run functions
 #stations = get_hads_stations(wecc_terr, wecc_mar)
 #print(stations) # For testing.
 #get_asosawos_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
 
-
-###
-# Notes / in progress
 
 # Function to get up to date station list of ASOS AWOS stations in WECC.
 # Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
