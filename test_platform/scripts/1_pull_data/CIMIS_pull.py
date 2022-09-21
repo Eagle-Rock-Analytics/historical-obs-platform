@@ -20,25 +20,14 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 from ftplib import FTP
 from datetime import datetime, timezone
 import pandas as pd
-from shapely.geometry import Point
-import pandas as pd
-import geopandas as gp
-from geopandas.tools import sjoin
 import boto3 # For AWS integration.
 from io import BytesIO, StringIO
-import calc_pull
-import wget
 
 # Set envr variables
-
 # Set AWS credentials
 s3 = boto3.client('s3')
 bucket_name = 'wecc-historical-wx'
 directory = '1_raw_wx/CIMIS/'
-
-# Set paths to WECC shapefiles in AWS bucket.
-wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
 # Function to write FTP data directly to AWS S3 folder.
 # ftp here is the current ftp connection
