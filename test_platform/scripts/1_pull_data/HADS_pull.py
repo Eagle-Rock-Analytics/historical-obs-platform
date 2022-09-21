@@ -26,6 +26,8 @@ import calc_pull
 import geopandas as gp
 from shapely.geometry import Point
 from geopandas.tools import sjoin
+import requests 
+from bs4 import BeautifulSoup 
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -101,8 +103,153 @@ def get_hads_stations(terrpath, marpath):
 test = get_hads_stations(wecc_terr, wecc_mar)
 print(test)
 
+def get_file_links(url): 
+      
+    # create response object 
+    r = requests.get(url) 
+      
+    # create beautiful-soup object 
+    soup = BeautifulSoup(r.content,'html5lib') 
+      
+    # find all links on web-page 
+    links = soup.findAll('a') 
+  
+    # filter the link sending with dat.gz
+    file_links = [url + link['href'] for link in links if link['href'].endswith('dat.gz')] 
 
-## USING SYNOPTIC - only 2003 and on.
+    # get all 'last modified' dates
+    dates = soup.find_all(string=re.compile(r'\d{4}-\d{2}-\d{2}')) # Get all dates from website.
+    dates = [i.strip() for i in dates]
+    links = list(zip(file_links, dates))
+    return links 
+
+def link_to_aws(links, bucket_name, directory): 
+    s3 = boto3.resource("s3")
+    for link in links: 
+  
+        '''iterate through all links in links 
+        and download them one by one'''
+
+        # UPDATE TO REFLECT ZIPPED LIST - TO DO.  
+        # obtain filename by splitting url and getting 
+        # last string 
+        file_name = link.split('/')[-1] 
+        s3_obj = s3.Object(bucket_name, directory+file_name)
+    
+        # create response object 
+        with requests.get(link, stream = True) as r:
+            if r.status_code == 200: # If API call returns a response
+                s3_obj.put(Body=r.content)
+                print("Saving file {}".format(link))
+    return
+
+# Function: query ftp server for ASOS-AWOS data and download zipped files.
+# Run this one time to get all historical data or to update changed files for all years.
+# Inputs: 
+# Station_list: Returned from get_wecc_stations() function.
+# bucket_name: name of AWS bucket
+# directory: folder path within bucket
+# years: format 'YYYY" (optional)
+# get_all: True or False. If False, only download files whose last edit date is newer than
+#  the most recent files downloaded in the save folder. Only use to update a complete set of files.
+def get_hads_dat(station_list, bucket_name, directory, start_date = None, get_all = True):
+    # Set up error handling
+    errors = {'Date':[], 'Time':[], 'Error':[]}
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
+    # Set up AWS to write to bucket.
+    s3 = boto3.client('s3')
+
+    try:
+        objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
+        all = objects['Contents']     
+        # Get date of last edited file   
+        latest = max(all, key=lambda x: x['LastModified'])
+        last_edit_time = latest['LastModified']
+        # Get list of all file names
+        alreadysaved = []
+        for item in all:
+            files = item['Key']
+            alreadysaved.append(files) 
+        alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
+    except:
+        get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
+
+    # Set up filtering by time.
+    if start_date is None:
+        years = range(1997, 2023)
+    else:
+        start_date = int(start_date)
+        years = range(start_date, 2023)
+    
+    homeurl = 'https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/'
+
+    for i in years:
+        yearurl = 'https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/{}/'.format(str(i))
+        links = get_file_links(yearurl)
+        files = [i.split("/")[-1] for i in links]
+        #print(files)
+        #link_to_aws(links, bucket_name, directory)
+
+    return
+
+
+    
+    for i in years: # For each year / folder.
+    #for i in ['1989', '2004', '2015', '2021']: # For testing
+        if len(i)<5: # If folder is the name of a year (and not metadata file)
+            if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
+                # If no start date specified or year of folder is within start date range, download folder.
+                try:
+                    ftp.cwd(pwd) # Return to original working directory
+                    ftp.cwd(i) # Change working directory to year.
+                    filenames = ftp.nlst() # Get list of all file names in folder. 
+                    filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
+                    filefiltlist = filefiltlist.tolist() # Convert to list.
+                    fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
+                    fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
+                    for filename in fileswecc:
+                        modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+                        modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+                        
+                        ### If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder.
+                        if get_all is False:
+                            if filename in alreadysaved: # If filename already in saved bucket
+                                if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+                                    ftp_to_aws(ftp, filename, directory)    
+                                else:
+                                    print("{} already saved".format(filename))
+                            else:
+                                ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+                                
+                        elif get_all is True: # If get_all is true, download all files in folder.
+                            ftp_to_aws(ftp, filename, directory) 
+                except Exception as e:
+                    print("Error in downloading date {}: {}". format(i, e))
+                    errors['Date'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
+
+                    next  # Adds error handling in case of missing folder. Skip to next folder.
+            else: # If year of folder not in start date range, skip folder.
+                next
+            
+        else:
+            next # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired.
+
+    ftp.quit() # This is the “polite” way to close a connection
+
+    #Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_asosawos_{}.csv".format(end_api))
+
+
+get_hads_dat(test, bucket_name, directory, start_date = '2000', get_all = True)
+
+## USING SYNOPTIC/MADIS - only 2003 and on.
 
 # Function: return metadata for stations from synoptic API, filtering stations based on bounding box generated by get_wecc_poly.
 # Inputs: Synoptic API public token (imported from config.py), path to terrestrial and marine WECC shapefiles relative to home directory.
