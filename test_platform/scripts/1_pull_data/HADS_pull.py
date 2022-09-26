@@ -8,10 +8,7 @@ parameter to only download changed files (optional)
 Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 station per day per year.
 
 Notes:
-1. The file for each station-year is updated daily for the current year. 
-To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
-This is a separate function/branch.
-2. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
+1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
 
