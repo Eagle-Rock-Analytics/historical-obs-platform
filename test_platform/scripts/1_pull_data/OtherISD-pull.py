@@ -1,7 +1,7 @@
 """
-This script downloads ASOS and AWOS data from ISD using ftp.
+This script downloads all non-ASOS/AWOS data from ISD using ftp.
 Approach:
-(1) Get station list (does not need to be re-run constantly)
+(1) Download ISD station list and get ASOSAWOS station list from AWS.
 (2) Download data using station list.
 Inputs: bucket name in AWS, directory to save file to (folder path), station list, start date of file pull (optional),
 parameter to only download changed files (optional)
@@ -27,26 +27,18 @@ from geopandas.tools import sjoin
 import boto3 # For AWS integration.
 from io import BytesIO, StringIO
 import calc_pull
-import requests
-import numpy as np
 
 # Set envr variables
 
 # Set AWS credentials
 s3 = boto3.client('s3')
 bucket_name = 'wecc-historical-wx'
-directory = '1_raw_wx/ASOSAWOS/'
+directory = '1_raw_wx/OtherISD/'
 
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
-
-# Set state shortcodes
-states = [ 'AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA',
-           'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME',
-           'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM',
-           'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX',
-           'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY']
+asos_awos = "s3://wecc-historical-wx/1_raw_wx/ASOSAWOS/asosawos_stations.csv"
 
 # Function to write FTP data directly to AWS S3 folder.
 # ftp here is the current ftp connection
@@ -60,93 +52,8 @@ def ftp_to_aws(ftp, file, directory):
     print('{} saved'.format(file)) # Helpful for testing, can be removed.
     r.close() # Close file
 
-# Function to download ASOS and AWOS station lists (.txt), parse, 
-# combine and write to AWS bucket.
-# Source: https://www.ncei.noaa.gov/access/homr/reports/platforms
-# Inputs: none.
-# Outputs: one asosawos-stations.csv file and a stations object to be used in 
-def get_asosawos_stations():
-    
-    # Get AWOS stations.
-    awosurl = "https://www.ncei.noaa.gov/access/homr/file/awos-stations.txt"
-    awosr = requests.get(awosurl)
-    lines = awosr.content.split(b'\n') # Split by line
-    # Skip the first 4 lines
-    lines = lines[4:]
-    df = []
-    for line in lines:
-        ncdcid = line[0:8]
-        wban = line[9:14]
-        coopid = line[15:21]
-        call = line[22:26]
-        name = line[27:57]
-        country = line[58:78]
-        st = line[79:81]
-        county = line[82:112]
-        lat = line[113:122]
-        lon = line[123:133]
-        elev = line[134:140]
-        utc = line[141:146]
-        stntype = line[147:197]
-
-        row = [ncdcid, wban, coopid, call, name, country, st, county, lat, lon, elev, utc, stntype]
-        row = [x.decode('utf-8') for x in row] # Convert to string
-        row = [x.strip() for x in row] # Strip whitespace
-        df.append(row)
-        
-    # # Convert to pandas
-    stations = pd.DataFrame(df, columns = ['NCDCID', 'WBAN', 'COOPID', 'CALL', 'NAME', 'COUNTRY', 'ST', 'COUNTY', 'LAT', 'LON', 'ELEV', 'UTC', 'STNTYPE'])
-    
-    # Get ASOS stations.
-    asosurl = "https://www.ncei.noaa.gov/access/homr/file/asos-stations.txt"
-    asosr = requests.get(asosurl)
-    lines = asosr.content.split(b'\n') # Split by line
-    # Skip the first 4 lines
-    lines = lines[4:]
-    df = []
-    for line in lines:
-        ncdcid = line[0:8]
-        wban = line[9:14]
-        coopid = line[15:21]
-        call = line[22:26]
-        name = line[27:57]
-        alt_name = line[58:88]
-        country = line[89:109]
-        st = line[110:112]
-        county = line[113:143]
-        lat = line[144:153]
-        lon = line[154:164]
-        elev = line[165:171]
-        utc = line[172:177]
-        stntype = line[178:228]
-        begdt = line[229:237]
-        ghcnd = line[238:249]
-        elev_p = line[250:256]
-        elev_a = line[257:263]
-
-        row = [ncdcid, wban, coopid, call, name, alt_name, country, st, 
-                county, lat, lon, elev, utc, stntype, begdt, ghcnd, elev_p, elev_a]
-        row = [x.decode('utf-8') for x in row] # Convert to string
-        row = [x.strip() for x in row] # Strip whitespace
-        df.append(row)
-        
-    # # Convert to pandas
-    stationsasos = pd.DataFrame(df, columns = ['NCDCID', 'WBAN', 'COOPID', 'CALL', 'NAME', 'ALTNAME', 'COUNTRY', 'ST', 'COUNTY', 'LAT', 'LON', 'ELEV', 'UTC', 'STNTYPE', 'STARTDATE', 'GHCN-DailyID', 'Barometer_elev', 'Anemometer_elev'])
-    
-    # Now, merge the two dataframes
-    asosawosstations = pd.concat([stationsasos, stations], axis = 0, ignore_index=True)
-
-    # Fill any blank spaces with NaN
-    asosawosstations = asosawosstations.replace(r'^\s*$', np.nan, regex=True)
-
-    # Drop 6 records without a WBAN (none in WECC)
-    asosawosstations = asosawosstations.dropna(subset=['WBAN'])
-    # Note: Only 1 record appears in both ASOS and AWOS - Rock Springs AP in WY.
-    
-    return asosawosstations
-
-# Function to get up to date station list of ASOS AWOS stations in WECC.
-# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
+# Function to get up to date station list of ISD stations in WECC, and remove all asos-awos stations.
+# Pulls in ISD station list and ASOSAWOS station list (two separate csvs).
 # Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
 # Both paths given relative to home directory for git project.
 def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
@@ -156,14 +63,9 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     ftp = FTP('ftp.ncdc.noaa.gov')
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub/data/noaa/')  # Change WD.
-
-    # Read in ISD stations.
-    r=BytesIO()
-    ftp.retrbinary('RETR '+filename, r.write)
-    r.seek(0)
     
     ## Read in csv and only filter to include US stations.
-    stations = pd.read_csv(r)
+    stations = pd.read_csv("isd-history.csv")
     weccstations = stations[(stations['CTRY']=="US")]
 
     # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
@@ -194,47 +96,24 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
 
-    # Now, read in ASOS and AWOS station files and use to filter to only keep ASOS/AWOS stations.
-    asosawos = get_asosawos_stations()
+    # Now, read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations.
+    # Note, this relies on having run the ASOSAWOS pull script prior.
+    asosawos = pd.read_csv(asos_awos)
     
-    # Make columns have the same format
-    asosawos['WBAN'] = asosawos['WBAN'].astype(str).str.pad(5,fillchar='0')
-    weccstations['WBAN'] = weccstations['WBAN'].astype(str).str.pad(5,fillchar='0')
-
-    # Convert ASOSAWOS elevation to feet
-    asosawos['ELEV'] =  asosawos['ELEV'].astype(float) * 0.3048
-
-    # Sort both dataframes by start date
-    asosawos = asosawos.sort_values("STARTDATE")
-    weccstations = weccstations.sort_values("BEGIN")
-
-    # Only keep asos awos stations in WECC.
-    # Merging creates duplicates but gives the number of stations expected.
-    # For this stage, keep station metadatas separate and just filter using WBAN.
-    m1 = weccstations.WBAN.isin(asosawos.WBAN)
-    m2 = asosawos.WBAN.isin(weccstations.WBAN)
+    m1 = weccstations.WBAN.isin(asosawos.WBAN) # Create mask
+    weccstations = weccstations[~m1] # Filter
     
-    weccstations = weccstations[m1]
-    asosawos = asosawos[m2]
-
     weccstations.reset_index()
-    asosawos.reset_index()
-
+    
     # Write ASOS AWOS station list to CSV.
-    csv_buffer = StringIO()
-    asosawos.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"asosawos_stations.csv")
-
-    # Write filtered ISD station list to CSV.
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"isd_asosawos_stations.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"otherisd_stations.csv")
 
     return weccstations
 
-# Function: query ftp server for ASOS-AWOS data and download zipped files.
+# Function: query ftp server for non-ASOS/AWOS ISD data and download zipped files.
 # Run this one time to get all historical data or to update changed files for all years.
 # Inputs: 
 # Station_list: Returned from get_wecc_stations() function.
@@ -243,7 +122,7 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 # Start date: format 'YYYY-MM-DD" (optional)
 # get_all: True or False. If False, only download files whose last edit date is newer than
 #  the most recent files downloaded in the save folder. Only use to update a complete set of files.
-def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = None, get_all = True): 
+def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = None, get_all = True): 
     
     # Set up error handling
     errors = {'Date':[], 'Time':[], 'Error':[]}
@@ -333,8 +212,9 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
     errors = pd.DataFrame(errors)
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_asosawos_{}.csv".format(end_api))
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_otherisd_{}.csv".format(end_api))
     
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_asosawos_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
+print(stations)
+get_otherisd_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
