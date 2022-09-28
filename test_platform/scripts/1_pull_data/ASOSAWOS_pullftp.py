@@ -27,6 +27,12 @@ from geopandas.tools import sjoin
 import boto3 # For AWS integration.
 from io import BytesIO, StringIO
 import calc_pull
+import requests
+import re
+import csv
+from contextlib import closing
+import codecs
+import numpy as np
 
 # Set envr variables
 
@@ -39,6 +45,13 @@ directory = '1_raw_wx/ASOSAWOS/'
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
+# Set state shortcodes
+states = [ 'AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA',
+           'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME',
+           'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM',
+           'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX',
+           'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY']
+
 # Function to write FTP data directly to AWS S3 folder.
 # ftp here is the current ftp connection
 # file is the filename
@@ -50,6 +63,91 @@ def ftp_to_aws(ftp, file, directory):
     s3.upload_fileobj(r, bucket_name, directory+file)
     print('{} saved'.format(file)) # Helpful for testing, can be removed.
     r.close() # Close file
+
+# Function to download ASOS and AWOS station lists (.txt), parse, 
+# combine and write to AWS bucket.
+# Source: https://www.ncei.noaa.gov/access/homr/reports/platforms
+# Inputs: none.
+# Outputs: one asosawos-stations.csv file and a stations object to be used in 
+def get_asosawos_stations():
+    
+    # Get AWOS stations.
+    awosurl = "https://www.ncei.noaa.gov/access/homr/file/awos-stations.txt"
+    awosr = requests.get(awosurl)
+    lines = awosr.content.split(b'\n') # Split by line
+    # Skip the first 4 lines
+    lines = lines[4:]
+    df = []
+    for line in lines:
+        ncdcid = line[0:8]
+        wban = line[9:14]
+        coopid = line[15:21]
+        call = line[22:26]
+        name = line[27:57]
+        country = line[58:78]
+        st = line[79:81]
+        county = line[82:112]
+        lat = line[113:122]
+        lon = line[123:133]
+        elev = line[134:140]
+        utc = line[141:146]
+        stntype = line[147:197]
+
+        row = [ncdcid, wban, coopid, call, name, country, st, county, lat, lon, elev, utc, stntype]
+        row = [x.decode('utf-8') for x in row] # Convert to string
+        row = [x.strip() for x in row] # Strip whitespace
+        df.append(row)
+        
+    # # Convert to pandas
+    stations = pd.DataFrame(df, columns = ['NCDCID', 'WBAN', 'COOPID', 'CALL', 'NAME', 'COUNTRY', 'ST', 'COUNTY', 'LAT', 'LON', 'ELEV', 'UTC', 'STNTYPE'])
+    
+    # Get ASOS stations.
+    asosurl = "https://www.ncei.noaa.gov/access/homr/file/asos-stations.txt"
+    asosr = requests.get(asosurl)
+    lines = asosr.content.split(b'\n') # Split by line
+    # Skip the first 4 lines
+    lines = lines[4:]
+    df = []
+    for line in lines:
+        ncdcid = line[0:8]
+        wban = line[9:14]
+        coopid = line[15:21]
+        call = line[22:26]
+        name = line[27:57]
+        alt_name = line[58:88]
+        country = line[89:109]
+        st = line[110:112]
+        county = line[113:143]
+        lat = line[144:153]
+        lon = line[154:164]
+        elev = line[165:171]
+        utc = line[172:177]
+        stntype = line[178:228]
+        begdt = line[229:237]
+        ghcnd = line[238:249]
+        elev_p = line[250:256]
+        elev_a = line[257:263]
+
+        row = [ncdcid, wban, coopid, call, name, alt_name, country, st, 
+                county, lat, lon, elev, utc, stntype, begdt, ghcnd, elev_p, elev_a]
+        row = [x.decode('utf-8') for x in row] # Convert to string
+        row = [x.strip() for x in row] # Strip whitespace
+        df.append(row)
+        
+    # # Convert to pandas
+    stationsasos = pd.DataFrame(df, columns = ['NCDCID', 'WBAN', 'COOPID', 'CALL', 'NAME', 'ALTNAME', 'COUNTRY', 'ST', 'COUNTY', 'LAT', 'LON', 'ELEV', 'UTC', 'STNTYPE', 'STARTDATE', 'GHCN-DailyID', 'Barometer_elev', 'Anemometer_elev'])
+    
+    # Now, merge the two dataframes
+    asosawosstations = pd.concat([stationsasos, stations], axis = 0, ignore_index=True)
+
+    # Fill any blank spaces with NaN
+    asosawosstations = asosawosstations.replace(r'^\s*$', np.nan, regex=True)
+
+    # Drop 6 records without a WBAN (none in WECC)
+    asosawosstations = asosawosstations.dropna(subset=['WBAN'])
+    # Note: Only 1 record appears in both ASOS and AWOS - Rock Springs AP in WY.
+    
+    return asosawosstations
 
 # Function to get up to date station list of ASOS AWOS stations in WECC.
 # Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
@@ -96,19 +194,39 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
 
-    # Now, read in ASOSAWOS csv and use to filter to only keep ASOS/AWOS stations.
-    # Source: https://www.aviationweather.gov/docs/metar/stations.txt
-    # Last downloaded: 08.25.22
-    obj = s3.get_object(Bucket= bucket_name, Key= '1_raw_wx/ASOSAWOS/asosawos_stations.csv') 
-    # get object and file (key) from bucket
-    asosawos = pd.read_csv(obj['Body'])
-    asosawos = asosawos.loc[(asosawos['A']=="A") | (asosawos['A']=="W")] # A = ASOS, W = AWOS
-    asosawos['ICAO'] = asosawos['ICAO'].astype(str) # Fix data types
-    weccstations['ICAO'] = weccstations['ICAO'].astype(str) # Fix data types
-    asosawos = pd.merge(asosawos, weccstations, on = 'ICAO', how = 'inner') # Join by matching ICAO IDs.
+    # Now, read in ASOS and AWOS station files and use to filter to only keep ASOS/AWOS stations.
+    asosawos = get_asosawos_stations()
     
+    # Make columns have the same format
+    asosawos['WBAN'] = asosawos['WBAN'].astype(str).str.pad(5,fillchar='0')
+    weccstations['WBAN'] = weccstations['WBAN'].astype(str).str.pad(5,fillchar='0')
+
+    # Convert ASOSAWOS elevation to feet
+    asosawos['ELEV'] =  asosawos['ELEV'].astype(float) * 0.3048
+
+    # Sort both dataframes by start date
+    asosawos = asosawos.sort_values("STARTDATE")
+    weccstations = weccstations.sort_values("BEGIN")
+
+    # Only keep asos awos stations in WECC.
+    # Merging creates duplicates but gives the number of stations expected.
+    # For this stage, keep station metadatas separate and just filter using WBAN.
+    m1 = weccstations.WBAN.isin(asosawos.WBAN)
+    m2 = asosawos.WBAN.isin(weccstations.WBAN)
+    
+    weccstations = weccstations[m1]
+    asosawos = asosawos[m2]
+
+    weccstations.reset_index()
     asosawos.reset_index()
-    return asosawos
+
+    # Write ASOS AWOS station list to CSV.
+    csv_buffer = StringIO()
+    asosawos.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"asosawos_stations.csv")
+
+    return weccstations
 
 # Function: query ftp server for ASOS-AWOS data and download zipped files.
 # Run this one time to get all historical data or to update changed files for all years.
@@ -213,5 +331,4 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
     
 # Run functions
 stations = get_wecc_stations(wecc_terr, wecc_mar)
-#print(stations) # For testing.
 get_asosawos_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
