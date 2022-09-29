@@ -263,7 +263,7 @@ def madis_pull(token, networks, pause = None):
         ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'])
         
         # Get station CSVs.
-        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing, remove for full run.
+        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing(!), remove for full run.
         # Get timeout CSVs.
         get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
@@ -271,20 +271,3 @@ def madis_pull(token, networks, pause = None):
     
 madis_pull(config.token, networks = ["HPWREN"])
 
-# Run script.
-#networks = get_network_metadata(token = config.token)
-#ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
-#get_cwop_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing, remove for full run.
-#get_cwop_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
-
-
-# Test: run on subset!
-# # Get 3 real rows (or more as desired.)
-#ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
-# ids = ids.sample(3)
-# # And make 3 fake rows that might break our code - wrong station id, wrong time, and NaN in time format.
-# test = pd.DataFrame({'STID': ["0ier", "E2082", "F2382"],
-#                      'start': ["200001010000", "2", "NaN"]})
-# ids = ids.append(test, ignore_index = True)
-# print(ids)
-#get_cwop_station_csv(token = config.token, ids = ids, savedir = savedir) # Run this with our test data.
