@@ -1,12 +1,13 @@
 """
-This script scrapes CWOP network data for ingestion into the Historical Observations Platform via API.
+This script scrapes MADIS network data for ingestion into the Historical Observations Platform via API.
 Approach:
+Provided a list of network names, madis_pull() calls the following functions.
 (1) get_wecc_poly generates a bounding box from WECC shapefiles.
-(2) get_meso_metadata produces a list of station IDs filtered by bounding box and network (CWOP in this case)
-(3) get cwop_station_csv saves a csv for each station ID provided, with the option to select a start date for downloads (defaults to station start date).
+(2) get_madis_metadata produces a list of station IDs filtered by bounding box and network
+(3) get madis_station_csv saves a csv for each station ID provided, with the option to select a start date for downloads (defaults to station start date).
 Inputs: API key, paths to WECC shapefiles, path to save directory, start date (optional).
 Outputs:
-(1) Raw data for the CWOP network, all variables, all times. Organized by station.
+(1) Raw data for the selected network, all variables, all times. Organized by station.
 (2) An error csv noting all station IDs where downloads failed.
 """
 
@@ -66,7 +67,6 @@ def get_madis_metadata(token, terrpath, marpath, networkid):
         bbox_api = ','.join([str(elem) for elem in bbox_api])
         # Access station metadata to get list of IDs in bbox and network
         # Using: https://developers.synopticdata.com/mesonet/v2/stations/timeseries/
-        # CWOP data network ID in synoptic is 65 (see below)
         url = "https://api.synopticdata.com/v2/stations/metadata?token={}&network={}&bbox={}&recent=20&output=json".format(token, networkid, bbox_api)
         request = requests.get(url).json()
         # print(request)
@@ -83,7 +83,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid):
     except Exception as e:
         print("Error: {}".format(e))
 
-# Function: download CWOP station data from Synoptic API.
+# Function: download network station data from Synoptic API.
 # Inputs:
 # (1) token: Synoptic API token, stored in config.py file
 # (2) ids: Takes dataframe with two columns, station ID and startdate. These are the stations to be downloaded, generated from get_meso_metadata.
