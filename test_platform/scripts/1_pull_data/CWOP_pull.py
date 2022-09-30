@@ -50,13 +50,11 @@ def get_meso_metadata(token, terrpath, marpath):
         # CWOP data network ID in synoptic is 65 (see below)
         url = "https://api.synopticdata.com/v2/stations/metadata?token={}&network=65&bbox={}&recent=20&output=json".format(token, bbox_api)
         request = requests.get(url).json()
-        # print(request)
         ids = []
         for each in request['STATION']:
             ids.append([each['STID'], each['PERIOD_OF_RECORD']['start']]) # Keep station ID and start date
 
         ids = pd.DataFrame(ids, columns = ['STID', 'start']).sort_values('start') # Sort by start date (note some stations return 'None' here)
-        # print(ids)
         # Reformat date to match API format
         ids['start'] = pd.to_datetime(ids['start'], format='%Y-%m-%dT%H:%M:%SZ')
         ids['start'] = ids['start'].dt.strftime('%Y%m%d%H%M')
@@ -104,7 +102,6 @@ def get_cwop_station_csv(token, ids, bucket_name, directory, start_date = None, 
         # Note: decision here to use full flag suite of MesoWest and Synoptic data.
         # See Data Checks section here for more information: https://developers.synopticdata.com/mesonet/v2/stations/timeseries/
         url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on&qc_checks=synopticlabs,mesowest".format(token, id['STID'], start_api, end_api)
-        # print(url) # For testing.
 
         # Try to get station csv.
         try:
@@ -196,9 +193,11 @@ def get_cwop_station_timeout_csv(token, bucket_name, directory):
 
 # Run script.
 ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar)
-get_cwop_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing, remove for full run.
+get_cwop_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
 get_cwop_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
 
+
+# Note: set ids = ids.sample(2) in get_cwop_station_csv for small subset for testing, remove for full run.
 
 # Test: run on subset!
 # # Get 3 real rows (or more as desired.)
