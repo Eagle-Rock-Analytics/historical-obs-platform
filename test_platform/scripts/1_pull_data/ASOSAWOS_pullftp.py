@@ -217,8 +217,8 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     weccstations = weccstations[m1]
     asosawos = asosawos[m2]
 
-    weccstations.reset_index()
-    asosawos.reset_index()
+    weccstations.reset_index(inplace = True, drop = True)
+    asosawos.reset_index(inplace = True, drop = True)
 
     # Write ASOS AWOS station list to CSV.
     csv_buffer = StringIO()

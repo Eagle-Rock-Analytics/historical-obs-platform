@@ -38,7 +38,6 @@ directory = '1_raw_wx/OtherISD/'
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
-asos_awos = "s3://wecc-historical-wx/1_raw_wx/ASOSAWOS/asosawos_stations.csv"
 
 # Function to write FTP data directly to AWS S3 folder.
 # ftp here is the current ftp connection
@@ -54,9 +53,9 @@ def ftp_to_aws(ftp, file, directory):
 
 # Function to get up to date station list of ISD stations in WECC, and remove all asos-awos stations.
 # Pulls in ISD station list and ASOSAWOS station list (two separate csvs).
-# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
+# Inputs: path to terrestrial WECC shapefile, path to marine WECC file, aws bucket name and directory. 
 # Both paths given relative to home directory for git project.
-def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
+def get_wecc_stations(terrpath, marpath, bucket_name, directory): #Could alter script to have shapefile as input also, if there's a use for this.
     ## Login.
     ## using ftplib, get list of stations as csv
     filename = 'isd-history.csv'
@@ -65,7 +64,14 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     ftp.cwd('pub/data/noaa/')  # Change WD.
     
     ## Read in csv and only filter to include US stations.
-    stations = pd.read_csv("isd-history.csv")
+
+    # Read in ISD stations.
+    r=BytesIO()
+    ftp.retrbinary('RETR '+filename, r.write)
+    r.seek(0)
+
+    ## Read in csv and only filter to include US stations.
+    stations = pd.read_csv(r)
     weccstations = stations[(stations['CTRY']=="US")]
 
     # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
@@ -98,14 +104,15 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
     # Now, read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations.
     # Note, this relies on having run the ASOSAWOS pull script prior.
-    asosawos = pd.read_csv(asos_awos)
+    response = s3.get_object(Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/asosawos_stations.csv")
+    asosawos = pd.read_csv(response['Body'])
     
     m1 = weccstations.WBAN.isin(asosawos.WBAN) # Create mask
     weccstations = weccstations[~m1] # Filter
     
-    weccstations.reset_index()
+    weccstations.reset_index(inplace = True, drop = True)
     
-    # Write ASOS AWOS station list to CSV.
+    # Write non-ASOS AWOS station list to CSV.
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
@@ -215,6 +222,5 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
     s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_otherisd_{}.csv".format(end_api))
     
 # Run functions
-stations = get_wecc_stations(wecc_terr, wecc_mar)
-print(stations)
+stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
 get_otherisd_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
