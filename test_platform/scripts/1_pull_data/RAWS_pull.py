@@ -13,10 +13,9 @@ Outputs: Raw data for an individual network, all variables, all times. Organized
 import requests
 import pandas as pd
 from datetime import datetime
-import os
 import re
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 import calc_pull
 
 # Set envr variables
@@ -142,20 +141,29 @@ def get_raws_station_csv(token, ids, bucket_name, directory, start_date = None, 
 # Quality control: if any files return status 408 error, split request into smaller requests and re-run.
 # Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
 def get_raws_station_timeout_csv(token, bucket_name, directory):
-    ids_split = []
-    for item in s3.Bucket(bucket_name).objects.all():
-        files = item.key
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
+        file = str(item.key)
+        files += [file]
     files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+    
+    files = [file for file in files if "errors" not in file]
+    files = [file for file in files if "station" not in file] # Remove error and station list files
 
+    ids_split = []
     for file in files:
-        with open(bucket_name + directory + file,'r') as file:
-            data = file.readlines()
-            lastRow = data[-1]
-            if 'Timeout' in lastRow: # If timeout recorded
-                lastrealrow = data[-2] # Get last row of recorded data
-                station = lastrealrow.split(",")[0] # Get station ID
-                time = lastrealrow.split(",")[1] # Get last completed timestamp
-                ids_split.append([station, time]) # Add to dataframe
+            file = s3_cl.get_object(Bucket= bucket_name, Key= file) # Open file
+            data = file['Body'].read().split(b"\n") # Read in file
+            data = data[-10:] # Keep last ten rows.
+            # Convert to strings.
+            for i, val in enumerate(data):
+                val = val.decode()
+                if "Timeout" in val:
+                    print("Timeout found in file {}. Queuing for redownload.".format(file))
+                    lastrealrow = data[i-1] # Get last row of recorded data
+                    station = lastrealrow.split(",")[0] # Get station ID
+                    time = lastrealrow.split(",")[1] # Get last completed timestamp
+                    ids_split.append([station, time]) # Add to dataframe
 
     ids_split = pd.DataFrame(ids_split, columns = ['STID', 'start'])
     ids_split['start'] = pd.to_datetime(ids_split['start'], format='%Y-%m-%dT%H:%M:%SZ')
