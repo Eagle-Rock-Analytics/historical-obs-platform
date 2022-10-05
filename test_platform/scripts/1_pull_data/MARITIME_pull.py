@@ -11,20 +11,30 @@ Notes:
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
 ## Load packages
+import requests
 from ftplib import FTP
 from datetime import datetime, timezone
 import pandas as pd
 import csv
 import boto3
 from io import BytesIO, StringIO
+import calc_pull
+from shapely.geometry import Point
+import geopandas as gp
+from geopandas.tools import sjoin
+
 
 # Set AWS credentials
 s3 = boto3.client('s3')
+s3_cl = boto3.client('s3') # for lower-level processes
 bucket_name = 'wecc-historical-wx'
 directory = '1_raw_wx/MARITIME/'
 
+# Set paths to WECC shapefiles in AWS bucket.
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
 # Set envr variables
-#workdir = "test_platform/data/1_raw_wx/MARITIME/"
 years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
 
 # Function to write FTP data directly to AWS S3 folder.
@@ -41,6 +51,74 @@ def ftp_to_aws(ftp, file, directory):
 
 # Step 0: Get list of IDs to download.
 ### Get all stations that start with "46" (Pacific Ocean) and all lettered (all CMAN) stations.
+def get_maritime_station_ids(terrpath, marpath):
+    """Returns list of station ids as CSV"""
+    url = 'https://www.ndbc.noaa.gov/data/stations/station_table.txt'
+    r = requests.get(url)
+    lines = r.content.split(b'\n') # split by line
+    df = []
+    for line in lines:
+        row = line.split(b'|') # Split on |
+        row = [x.decode('utf-8') for x in row] # converts to string
+        row = list(map(str.strip, row))
+        df.append(row)
+
+    stations = pd.DataFrame(columns=['STATION_ID', 'OWNER', 'TTYPE', 'HULL', 'NAME', 'PAYLOAD', 'LOCATION', 'TIMEZONE', 'FORECAST', 'NOTE'], data=df[1:])
+    stations = stations.dropna()
+    stations = stations.drop(columns=['TTYPE', 'HULL', 'PAYLOAD', 'FORECAST', 'TIMEZONE'])
+
+    ## Use spatial geometry to only keep points within WECC marine/terrestrial region (should only be marine)
+    ## Locations listed as one value: "30.000 N 90.000 W" as an example, split on spaces
+    mar_lon = []
+    mar_lat = []
+    location = stations['LOCATION']
+    for line in location:
+        line = line.split(' ')
+        if "S" in line:
+            mar_lat.append(-1 * float(line[0]))
+        else:
+            mar_lat.append(float(line[0]))
+
+        if "E" in line:
+            mar_lon.append(float(line[2]))
+        else:
+            mar_lon.append(-1 * float(line[2]))
+
+    stations['LATITUDE'] = mar_lat
+    stations['LONGITUDE'] = mar_lon
+
+    geometry = [Point(xy) for xy in zip(stations['LONGITUDE'], stations['LATITUDE'])] # Zip lat lon coords
+    weccgeo = gp.GeoDataFrame(stations, crs="EPSG:4326", geometry=geometry) # converts to geodataframe
+
+    ## get bbox of WECC to use to filter stations against
+    t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
+
+    # Get terrestrial stations.
+    weccgeo = weccgeo.to_crs(t.crs) # Convert to CRS of terrestrial stations.
+    terwecc = sjoin(weccgeo.dropna(), t, how='left') # Only keep stations in terrestrial WECC region.
+    terwecc = terwecc.dropna() # Drop empty rows.
+
+    # Get marine stations.
+    marwecc = sjoin(weccgeo.dropna(), m, how='left') # Only keep stations in marine WECC region.
+    marwecc = marwecc.dropna() # Drop empty rows.
+
+    weccstations = (pd.concat([terwecc, marwecc], ignore_index = True, sort=False)
+        .drop_duplicates(['STATION_ID'], keep='first'))
+
+    # drop columns and rename in_wecc to in_terr
+    weccstations.drop(['OBJECTID_1', 'OBJECTID', 'Shape_Leng','geometry', 'FID_WECC_B', 'BUFF_DIST', 'index_right'], axis = 1, inplace = True)
+    weccstations.rename(columns = {'in_WECC':'in_terr_wecc', 'in_marine':'in_mar_wecc'}, inplace = True)
+
+    ## Write stations to AWS bucket
+    wecc_buffer = StringIO()
+    stations.to_csv(wecc_buffer)
+    content = wecc_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"MARITIME_stations.csv")
+    return stations
+
+get_maritime_station_ids(wecc_terr, wecc_mar)
+
+##### EVERYTHING BELOW THIS LINE IS STABLE, AND DOESN'T NEED TO BE RUN TO FINALIZE THE STATIONLIST
 
 ## Read in MARITIME data using FTP.
 def get_maritime(bucket_name, directory, years, get_all = True):
@@ -128,7 +206,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     ftp.quit() # This is the “polite” way to close a connection
 
 # To download all data, run:
-get_maritime(bucket_name, directory, years = years, get_all = True)
+# get_maritime(bucket_name, directory, years = years, get_all = False)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
