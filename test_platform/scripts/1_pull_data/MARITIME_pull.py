@@ -111,14 +111,12 @@ def get_maritime_station_ids(terrpath, marpath):
 
     ## Write stations to AWS bucket
     wecc_buffer = StringIO()
-    stations.to_csv(wecc_buffer)
+    weccstations.to_csv(wecc_buffer)
     content = wecc_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"MARITIME_stations.csv")
     return stations
 
 get_maritime_station_ids(wecc_terr, wecc_mar)
-
-##### EVERYTHING BELOW THIS LINE IS STABLE, AND DOESN'T NEED TO BE RUN TO FINALIZE THE STATIONLIST
 
 ## Read in MARITIME data using FTP.
 def get_maritime(bucket_name, directory, years, get_all = True):
@@ -206,7 +204,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     ftp.quit() # This is the “polite” way to close a connection
 
 # To download all data, run:
-# get_maritime(bucket_name, directory, years = years, get_all = False)
+get_maritime(bucket_name, directory, years = years, get_all = True)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
