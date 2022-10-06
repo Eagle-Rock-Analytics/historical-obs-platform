@@ -51,6 +51,7 @@ def ftp_to_aws(ftp, file, directory):
 
 # Step 0: Get list of IDs to download.
 ### Get all stations that start with "46" (Pacific Ocean) and all lettered (all CMAN) stations.
+### Note: Gliders (non-stationary) location reported here as 30 N -90 W
 def get_maritime_station_ids(terrpath, marpath):
     """Returns list of station ids as CSV"""
     url = 'https://www.ndbc.noaa.gov/data/stations/station_table.txt'
