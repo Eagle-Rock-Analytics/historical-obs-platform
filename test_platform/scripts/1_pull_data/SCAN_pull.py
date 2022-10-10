@@ -1,13 +1,15 @@
 """
-This script scrapes SCAN network data for ingestion into the Historical Observations Platform via SOAP API.
+This script scrapes SNOTEL and SCAN network data for ingestion into the Historical Observations Platform via SOAP API.
+It may in the future be extended to pull other hourly data from networks available through the platform (e.g. BOR, USGS)
 Approach:
 (1) get_wecc_poly generates a bounding box from WECC shapefiles.
 (3) get_SCAN_stations identifies station ids and provides metadata for SCAN stations in WECC.
-(3) get SCAN_station_data saves an [xml??] for each station ID provided, with the option to select a start date for downloads (defaults to station start date).
-Inputs: API key, paths to WECC shapefiles, path to save directory, start date (optional).
+(3) get SCAN_station_data saves a csv for each station ID, with the option to select a start date for downloads
+    (defaults to station start date) and networks of interest, and primary or secondary sensors.
+Inputs: API key, paths to WECC shapefiles, networks, start date (optional).
 Outputs:
-(1) Raw data for the SCAN network, all variables, all times. Organized by station.
-(2) An error csv noting all station IDs where downloads failed.
+(1) Raw data for the SCAN and/or SNOTEL networks, all variables, all times. Organized by station.
+(2) An error csv noting all station IDs where downloads failed, for each network.
 """
 
 # Step 0: Environment set-up
@@ -57,9 +59,6 @@ bucket_name = "wecc-historical-wx"
 url = "https://wcc.sc.egov.usda.gov/awdbWebService/services?WSDL"
 client = Client(url)
 
-# Test connection
-#test = client.service.areYouThere()
-#print(test)
 
 # Set envr variables
 # Set paths to WECC shapefiles in AWS bucket.
@@ -133,9 +132,6 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks = None):
 # Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
 def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, stations = None, primary = True, networks = None):
 
-    # Set up error handling df.
-    errors = {'Station ID':[], 'Time':[], 'Error':[]}
-
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime('%Y%m%d%H%M')
 
@@ -183,6 +179,9 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
 
     
     for i in networks:
+        # Set up error handling df.
+        errors = {'Station ID':[], 'Time':[], 'Error':[]}
+
         networkTriplets = [k for k in stationTriplets if i in k]
         if i == "SNTL":
             directory = "1_raw_wx/SNOTEL/" # Maintain consistency across methods
@@ -191,70 +190,84 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
         print(directory)
 
         for j in networkTriplets[0:10]: # Subset for testing, delete for full run!
-            df = pd.DataFrame() # Set up empty pd dataframe.
-            # # For each sensor:
-            for sensor in sensorcodes:
-                # Instantaneous:
-                # Required parameters:
-                if i in ['SNTL', 'SCAN']:
-                    request_data = {
-                            'stationTriplets': j, # Station ID(s) # Subset for testing.
-                            'elementCd': sensor, # Sensor ID
-                            'ordinal': ordinal, # Primary or secondary sensors
-                            'beginDate': start_date, # Set earliest date
-                            'endDate': end_date, # Set end date as today
-                            'filter': 'ALL', # Select time of day to be all
-                            'unitSystem': 'ENGLISH' # Convert to consistent unit system
-                        }  
-                    inst_data = client.service.getInstantaneousData(**request_data)
-                else:
-                    request_data = {
-                            'stationTriplets': j, # Station ID(s) # Subset for testing.
-                            'elementCd': sensor, # Sensor ID
-                            'ordinal': ordinal, # Primary or secondary sensors
-                            'beginDate': start_date, # Set earliest date
-                            'endDate': end_date # Set end date as today
-                        }  
-                    inst_data = client.service.getHourlyData(**request_data)
-                    # Note: hourly data response not yet tested (only empty dfs returned),
-                    # but should be used for non snotel/scan networks.
-
-                data = serialize_object(inst_data[0]) # Reformat object
-
-                station_data = pd.DataFrame(data['values']) # Convert to pandas df
-                if station_data.empty: # If no data returned for sensor, skip to next sensor
-                    #print("no variable data found {}".format(sensor)) # For testing only.
-                    continue 
-                else:
-                    station_data = station_data.add_prefix(sensor+"_") # Add sensor code to column titles. 
-                    if df.empty:
-                        df = pd.concat([df, station_data])
-                        timecol = sensor+'_time'
-                        df['time'] = df[timecol]
+            try:
+                df = pd.DataFrame() # Set up empty pd dataframe.
+                # # For each sensor:
+                for sensor in sensorcodes:
+                    # Instantaneous:
+                    # Required parameters:
+                    if i in ['SNTL', 'SCAN']:
+                        request_data = {
+                                'stationTriplets': j, # Station ID(s) # Subset for testing.
+                                'elementCd': sensor, # Sensor ID
+                                'ordinal': ordinal, # Primary or secondary sensors
+                                'beginDate': start_date, # Set earliest date
+                                'endDate': end_date, # Set end date as today
+                                'filter': 'ALL', # Select time of day to be all
+                                'unitSystem': 'ENGLISH' # Convert to consistent unit system
+                            }  
+                        inst_data = client.service.getInstantaneousData(**request_data)
                     else:
-                        df = df.merge(station_data, left_on = 'time', right_on = sensor+"_time", how = 'outer')
-                        timecol = sensor+'_time'
-                        df['time'] = np.where(df['time'].isnull(), df[timecol], df['time']) # If any times in timecol are na, update with times from newest data.
+                        request_data = {
+                                'stationTriplets': j, # Station ID(s) # Subset for testing.
+                                'elementCd': sensor, # Sensor ID
+                                'ordinal': ordinal, # Primary or secondary sensors
+                                'beginDate': start_date, # Set earliest date
+                                'endDate': end_date # Set end date as today
+                            }  
+                        inst_data = client.service.getHourlyData(**request_data)
+                        # Note: hourly data response not yet tested (only empty dfs returned),
+                        # but should be used for non snotel/scan networks.
 
-            #If df empty, skip to next station
-            if df.empty:
-                print("No data found for station {}. Skipping to next station.".format(j))
-                continue
+                    data = serialize_object(inst_data[0]) # Reformat object
 
-            # Make time column first in order
-            time = df.pop('time')
-            df.insert(0, 'time', time)
+                    station_data = pd.DataFrame(data['values']) # Convert to pandas df
+                    if station_data.empty: # If no data returned for sensor, skip to next sensor
+                        #print("no variable data found {}".format(sensor)) # For testing only.
+                        continue 
+                    else:
+                        station_data = station_data.add_prefix(sensor+"_") # Add sensor code to column titles. 
+                        if df.empty:
+                            df = pd.concat([df, station_data])
+                            timecol = sensor+'_time'
+                            df['time'] = df[timecol]
+                        else:
+                            df = df.merge(station_data, left_on = 'time', right_on = sensor+"_time", how = 'outer')
+                            timecol = sensor+'_time'
+                            df['time'] = np.where(df['time'].isnull(), df[timecol], df['time']) # If any times in timecol are na, update with times from newest data.
 
-            # Sort by time
-            df = df.sort_values(by = 'time')
-            
-            # Write df to csv
-            #print(df)
-            csv_buffer = StringIO()
-            df.to_csv(csv_buffer, index = False)
-            content = csv_buffer.getvalue()
-            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}.csv".format(j))
-            print("Saved data for station {} in network {}".format(j, i))
+                #If df empty, skip to next station
+                if df.empty:
+                    print("No data found for station {}. Skipping to next station.".format(j))
+                    continue
+
+                # Make time column first in order
+                time = df.pop('time')
+                df.insert(0, 'time', time)
+
+                # Sort by time
+                df = df.sort_values(by = 'time')
+                
+                # Write df to csv
+                #print(df)
+                csv_buffer = StringIO()
+                df.to_csv(csv_buffer, index = False)
+                content = csv_buffer.getvalue()
+                s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}.csv".format(j))
+                print("Saved data for station {} in network {}".format(j, i))
+            except Exception as e:
+                errors['File'].append(j)
+                errors['Time'].append(end_api)
+                errors['Error'].append(e)
+
+        # Save errors to network folder
+        csv_buffer = StringIO()
+        errors = pd.DataFrame(errors)
+        errors.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(i, end_api))
+        
+
     
 get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
 # Note: neither BOR nor USGS have hourly data for any of our variables of interest.
