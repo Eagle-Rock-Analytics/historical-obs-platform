@@ -46,6 +46,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 # Downloading SHEF files directly from NOAA (1997-2022)
 
 # Function to identify HADS stations in WECC and save stations as csv to AWS folder.
+
 # Pulls in WECC shapefile, returns list of all stations and IDs. 
 # Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
 # Both paths given relative to home directory for git project.
@@ -66,14 +67,14 @@ def get_hads_stations(terrpath, marpath):
     # Create pandas dataframe
     stations = pd.DataFrame(columns=['GOES NESDIS ID','NWSLI','DCP Owner','State Location','Hydrologic Service Area','Latitude','Longitude','Initial Daily Transmission Time (UTC)','DCP Transmission Interval (Minutes)','DCP Location Name'], data=df)
     stations = stations.dropna()
-    
+
     # # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
     stations['Longitude'] = [calc_pull._lon_dms_to_dd(i) for i in stations['Longitude']]
     stations['Latitude'] = [calc_pull._lat_dms_to_dd(i) for i in stations['Latitude']]
 
     geometry = [Point(xy) for xy in zip(stations['Longitude'], stations['Latitude'])] # Zip lat lon coords.
     weccgeo = gp.GeoDataFrame(stations, crs='EPSG:4326', geometry=geometry) # Convert to geodataframe.
-    
+
     ## get bbox of WECC to use to filter stations against
     t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
 
@@ -85,15 +86,14 @@ def get_hads_stations(terrpath, marpath):
     # Get marine stations.
     marwecc = sjoin(weccgeo.dropna(), m, how='left') # Only keep stations in marine WECC region.
     marwecc = marwecc.dropna() # Drop empty rows.
-    
-    
+
     #Join and remove duplicates using GOES NESDIS ID as combined unique identifier.
     weccstations = (pd.concat([terwecc, marwecc], ignore_index=True, sort =False)
            .drop_duplicates(['GOES NESDIS ID'], keep='first'))
 
     # Drop columns
     weccstations.drop(['OBJECTID_1', 'OBJECTID', 'Shape_Leng','geometry', 'FID_WECC_B', 'BUFF_DIST', 'index_right'], axis = 1, inplace = True)
-        
+
     # Rename in_wecc to in_terr
     weccstations.rename(columns = {'in_WECC':'in_terr_wecc', 'in_marine':'in_mar_wecc'}, inplace = True)
 
@@ -105,11 +105,11 @@ def get_hads_stations(terrpath, marpath):
     return weccstations
 
 test = get_hads_stations(wecc_terr, wecc_mar)
-print(test) # For testing.
 
 # Function: Takes URL of given website and returns all file download links contained on it.
 # Input: one url
 # Output: zipped list of download urls and date last modified.
+
 def get_file_links(url): 
       
     # create response object 
@@ -153,7 +153,7 @@ def link_to_aws(links, bucket_name, directory):
 
 # Function: query NCEI server for HADS data and download zipped files.
 # Run this one time to get all historical data or to update changed files for all years.
-# Inputs: 
+# Inputs:
 # bucket_name: name of AWS bucket
 # directory: folder path within bucket
 # years: format 'YYYY" (optional)
@@ -188,7 +188,7 @@ def get_hads_dat(bucket_name, directory, start_date = None, get_all = True):
     else:
         start_date = int(start_date)
         years = range(start_date, 2023)
-    
+
     for i in years:
         try:
             yearurl = 'https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/{}/'.format(str(i))
@@ -235,7 +235,7 @@ def get_hads_dat(bucket_name, directory, start_date = None, get_all = True):
             errors['Date'].append(i)
             errors['Time'].append(end_api)
             errors['Error'].append(e)
-    
+
     #Write errors to csv
     csv_buffer = StringIO()
     errors = pd.DataFrame(errors)
@@ -246,16 +246,14 @@ def get_hads_dat(bucket_name, directory, start_date = None, get_all = True):
     return
 
 
+get_hads_dat(bucket_name, directory, start_date = None, get_all = True)
 
-get_hads_dat(bucket_name, directory, start_date = '2022', get_all = False)
-# Tested get_all function: works
-# Tested start_date function: works
-# Saves to correct directory.
-# Error saves correctly.
+# Note, for first full data pull, set get_all = True
+# For all subsequent data pulls/update with newer data, set get_all = False
 
 
 """
-Alternative method: depracated. Uses Synoptic API and MADIS data, begins in 2003. 
+Alternative method: depracated. Uses Synoptic API and MADIS data, begins in 2003.
 Recommendation: Don't use unless serious problems found when cleaning above data.
 """
 
@@ -413,4 +411,4 @@ Recommendation: Don't use unless serious problems found when cleaning above data
 #print(ids)
 #get_hads_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(40)) # .Sample() subset is for testing, remove for full run.
 #get_hads_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
-   
+
