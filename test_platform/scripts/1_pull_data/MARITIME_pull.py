@@ -27,7 +27,8 @@ from geopandas.tools import sjoin
 s3 = boto3.client('s3')
 s3_cl = boto3.client('s3') # for lower-level processes
 bucket_name = 'wecc-historical-wx'
-directory = '1_raw_wx/MARITIME/'
+directory_mar = '1_raw_wx/MARITIME/'
+directory_ndbc = '1_raw_wx/NDBC/'
 
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
@@ -111,7 +112,7 @@ def get_maritime_station_ids(terrpath, marpath):
     # Identify which buoys are NDBC and which are CMAN/MARITIME
     network = []
     for item in weccstations['STATION_ID']:
-        if item[:2] == "46" or item[:4] == "NDBC":
+        if item[:2] == "46" or item[:4] == "NDBC_46":
             network.append('NDBC')
         else:
             network.append('MARITIME')
@@ -126,12 +127,12 @@ def get_maritime_station_ids(terrpath, marpath):
     mar_buffer = StringIO()
     maritime_network.to_csv(mar_buffer)
     content = mar_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"MARITIME_stations.csv")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_mar+"MARITIME_stations.csv")
 
     ndbc_buffer = StringIO()
     ndbc_network.to_csv(ndbc_buffer)
     content = ndbc_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key="1_raw_wx/NDBC/"+"NDBC_stations.csv")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_ndbc+"NDBC_stations.csv")
     return stations
 
 get_maritime_station_ids(wecc_terr, wecc_mar)
@@ -195,24 +196,24 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                                 if get_all is False:
                                     if filename in alreadysaved: # If filename already in saved bucket
                                         if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                            ftp_to_aws(ftp, filename, directory="1_raw_wx/NDBC/")
+                                            ftp_to_aws(ftp, filename, directory=directory_ndbc)
                                         else:
                                             print("{} already saved".format(filename))
                                     else:
-                                        ftp_to_aws(ftp, filename, directory="1_raw_wx/NDBC/") # Else, if filename not saved already, save.
+                                        ftp_to_aws(ftp, filename, directory=directory_ndbc) # Else, if filename not saved already, save.
                                 elif get_all is True: # If get_all is true, download all files in folder.
-                                    ftp_to_aws(ftp, filename, directory="1_raw_wx/NDBC/")
+                                    ftp_to_aws(ftp, filename, directory=directory_ndbc)
                             else:
                                 if get_all is False:
                                     if filename in alreadysaved: # If filename already in saved bucket
                                         if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                            ftp_to_aws(ftp, filename, directory)
+                                            ftp_to_aws(ftp, filename, directory=directory_mar)
                                         else:
                                             print("{} already saved".format(filename))
                                     else:
-                                        ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+                                        ftp_to_aws(ftp, filename, directory=directory_mar) # Else, if filename not saved already, save.
                                 elif get_all is True: # If get_all is true, download all files in folder.
-                                    ftp_to_aws(ftp, filename, directory)
+                                    ftp_to_aws(ftp, filename, directory=directory_mar)
                             ### If get_all is False, only download files whose date has changed since the last download.
                             #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
                             #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
@@ -233,7 +234,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     errors = pd.DataFrame(errors)
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_maritime_{}.csv".format(end_api))
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory_mar+"errors_maritime_{}.csv".format(end_api))
 
     ftp.quit() # This is the “polite” way to close a connection
 
