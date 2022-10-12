@@ -34,6 +34,10 @@ directory_ndbc = '1_raw_wx/NDBC/'
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+# Set paths to WECC shapefiles in AWS bucket.
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
 # Set envr variables
 years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
 
@@ -51,6 +55,8 @@ def ftp_to_aws(ftp, file, directory):
 
 # Step 0: Get list of IDs to download.
 ### Get all stations that start with "46" (Pacific Ocean) and all lettered (all CMAN) stations.
+### Note: Gliders (non-stationary) location reported here as 30 N -90 W
+
 def get_maritime_station_ids(terrpath, marpath):
     """Returns list of station ids as CSV"""
     url = 'https://www.ndbc.noaa.gov/data/stations/station_table.txt'
@@ -137,7 +143,6 @@ def get_maritime_station_ids(terrpath, marpath):
 
 get_maritime_station_ids(wecc_terr, wecc_mar)
 
-
 ## Read in MARITIME data using FTP.
 def get_maritime(bucket_name, directory, years, get_all = True):
 
@@ -173,7 +178,6 @@ def get_maritime(bucket_name, directory, years, get_all = True):
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
 
     for i in years: # For each year/folder
-    #for i in ['2021']: # Subset for testing (don't download files older than 1980)
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             for j in range(1, 13): # For each month (1-12)
                 try:
@@ -214,6 +218,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                                         ftp_to_aws(ftp, filename, directory=directory_mar) # Else, if filename not saved already, save.
                                 elif get_all is True: # If get_all is true, download all files in folder.
                                     ftp_to_aws(ftp, filename, directory=directory_mar)
+
                             ### If get_all is False, only download files whose date has changed since the last download.
                             #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
                             #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
@@ -238,5 +243,8 @@ def get_maritime(bucket_name, directory, years, get_all = True):
 
     ftp.quit() # This is the “polite” way to close a connection
 
-# To download data, run:
+# To download all data, run:
 get_maritime(bucket_name, directory, years = years, get_all = True)
+# Note, for first full data pull, set get_all = True
+# For all subsequent data pulls/update with newer data, set get_all = False
+
