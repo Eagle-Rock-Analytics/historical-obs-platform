@@ -1,0 +1,114 @@
+"""
+This script runs a full pull C3WE data from UCSD using ftp.
+Approach:
+(1) For each station, download STID_HourlyData_Full.txt file
+(with exception of 3 stations, which have alternate formats).
+Note: Subsequent updates may want to just pull the most recent files
+in the 2022 subfolder by station, which are numbered by day and saved as .20m, .21m, .22m, .23m (in bytes)
+Inputs: bucket name in AWS, directory to save file to (folder path)
+Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 .txt file per station or
+multiple files per station per day per year (format: stidyyddd.##m)
+
+Notes:
+1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
+See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
+"""
+## Load packages
+from ftplib import FTP
+from datetime import datetime
+import pandas as pd
+import boto3
+from io import BytesIO, StringIO
+
+# Set AWS credentials
+s3 = boto3.client('s3')
+s3_cl = boto3.client('s3') # for lower-level processes
+bucket_name = 'wecc-historical-wx'
+directory = '1_raw_wx/CW3E/'
+
+# Set paths to WECC shapefiles in AWS bucket.
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
+# Function to write FTP data directly to AWS S3 folder.
+# ftp here is the current ftp connection
+# file is the filename
+# directory is the desired path (set of folders) in AWS
+def ftp_to_aws(ftp, file, directory):
+    r=BytesIO()
+    ftp.retrbinary('RETR '+file, r.write)
+    r.seek(0)
+    s3.upload_fileobj(r, bucket_name, directory+file)
+    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    r.close() # Close file
+
+## Pull CW3E data using FTP.
+def get_cw3e(bucket_name, directory):
+
+    # ## Login.
+    # ## using ftplib
+    ftp = FTP('sioftp.ucsd.edu')
+    ftp.login() # user anonymous, password anonymous
+    ftp.cwd('CW3E_DataShare/CW3E_SurfaceMetObs/')  # Change WD.
+    ftp_to_aws(ftp, 'HourlyData_README.txt', directory) # Get hourly read me file.
+    pwd = ftp.pwd() # Get base file path.
+
+    # Set up error handling df.
+    errors = {'File':[], 'Time':[], 'Error':[]}
+
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime('%Y%m%d%H%M')
+
+    # Get station list
+    stations = ftp.nlst() # Get list of all file names in folder.
+    stations = [k for k in stations if ".txt" not in k]
+
+    for i in stations: # For each station/folder
+        try:
+            ftp.cwd(pwd) # Return to original working directory
+            dir = i+"/"
+            if i not in ['FRC', 'LBH', 'SKI']: # List exceptions
+                filename = i+"_HourlyData_Full.txt"
+                #print(dir, filename)
+                ftp.cwd(dir) # Change working directory to year/month.
+                ftp_to_aws(ftp, filename, directory)
+            elif i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
+                ftp.cwd(dir)
+                ftp_to_aws(ftp, 'LowerBathHouse_TwoMin.dat', directory)
+            elif i in ["SKI", "FRC"]: # For these two files, each year has a folder containing a subfolder for each day.
+                #print(i)
+                ftp.cwd(dir)
+                years = ftp.nlst()
+                years = [x for x in years if len(x) == 4] # Filter out other files in folder
+                print(years)
+                for k in years:
+                    ftp.cwd(k+"/")
+                    days = ftp.nlst()
+                    print(days)
+                    days = [x for x in days if len(x) <= 3] # Filter out other files in folder
+                    for l in days:
+                        ftp.cwd(l)
+                        files = ftp.nlst()
+                        for file in files:
+                            ftp_to_aws(ftp, file, directory)
+                        ftp.cwd("../") # go back up one level
+                    # Return to working directory
+                    ftp.cwd("../") # Go back up one level
+                        
+
+        except Exception as e:
+            errors['File'].append(i)
+            errors['Time'].append(end_api)
+            errors['Error'].append(e)
+
+    # Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cw3e_{}.csv".format(end_api))
+
+    ftp.quit() # This is the “polite” way to close a connection
+
+# To download all data, run:
+get_cw3e(bucket_name, directory)
