@@ -87,6 +87,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
         content = csv_buffer_err.getvalue()
         networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
         networkname = networkname.replace("/", "")
+
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stationlist.csv".format(networkname))
         
         return ids
@@ -271,15 +272,21 @@ def madis_pull(token, networks, pause = None):
         dirname = row['SHORTNAME'].replace("/", "-") # Get rid of slashes for AWS
         directory = raw_path+dirname+"/" # Use name from syntopic to name folder
         
+        # Except if the network is CWOP, then manually set to be CWOP.
+        if row['SHORTNAME'] == "APRSWXNET/CWOP":
+            dirname = "CWOP"
+            directory = raw_path+"CWOP/"
+            print(dirname, directory)
+        
         # Get list of station IDs and start date.
         ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory )
         
         # Get station CSVs.
-        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing(!), remove for full run.
+        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
         # Get timeout CSVs.
-        get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
+        #get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
         
     
-madis_pull(config.token, networks = ["HPWREN"])
+madis_pull(config.token, networks = ["CWOP"])
 
