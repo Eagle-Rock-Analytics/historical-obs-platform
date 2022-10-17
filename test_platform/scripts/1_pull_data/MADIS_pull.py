@@ -353,10 +353,10 @@ def madis_pull(token, networks, pause = None):
             print(dirname, directory)
         
         # Get list of station IDs and start date.
-        ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
+        #ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
         
         # Get station CSVs.
-        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
+        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
         # Get timeout CSVs.
         get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
