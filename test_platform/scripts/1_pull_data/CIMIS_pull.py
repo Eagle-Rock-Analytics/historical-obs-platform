@@ -18,7 +18,7 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 ## Step 0: Environment set-up
 # Import libraries
 from ftplib import FTP
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import pandas as pd
 import boto3 # For AWS integration.
 from io import BytesIO, StringIO
@@ -74,7 +74,8 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
     ## using ftplib
     ftp = FTP('ftpcimis.water.ca.gov')
     ftp.login() # user anonymous, password anonymous
-    ftp.cwd('pub2/annual')  # Change WD.
+    ftp.cwd('pub2/')  # Change WD.
+    pwd = ftp.pwd() # Get present working directory
 
     # Set up AWS to write to bucket.
     s3 = boto3.client('s3')
@@ -95,7 +96,12 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
     except:
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
 
+    
+
     try:
+        # First all data not from current year through annual folder
+        ftp.cwd('annual/')
+
         filenames = ftp.nlst() # Get list of all file names in folder.
         filenames = [i for i in filenames if i.endswith('.zip')]
         filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop daily files.
@@ -117,6 +123,38 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
 
             elif get_all is True: # If get_all is true, download all files in folder.
                 ftp_to_aws(ftp, filename, directory)
+
+
+        # Now, repeat to download present year's data (housed in the 'hourly' folder)
+        pres_year = date.today().strftime("%Y")
+        if pres_year in years: # If years includes present year
+            ftp.cwd(pwd)
+            ftp.cwd('hourly/')
+            
+            filenames = ftp.nlst() # Get list of all file names in folder.
+            filenames = [i for i in filenames if i.endswith('.csv')]
+            filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop misc files.
+            
+            for filename in filenames:
+                if get_all is True:
+                    # We don't save hourlyallstns.zip because it'll be less compatible with the get_all = False option or future updating runs. Instead, download all files.
+                    ftp_to_aws(ftp, filename, directory)
+                else:
+                    
+                    modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+                    modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+
+                    ### If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder.
+                    if get_all is False:
+                        if filename in alreadysaved: # If filename already in saved bucket
+                            if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+                                ftp_to_aws(ftp, filename, directory)
+                            else:
+                                print("{} already saved".format(filename))
+                        else:
+                            ftp_to_aws(ftp, filename, directory) # Else, if filename not saved already, save.
+
+
     except Exception as e:
         print("Error in downloading file {}: {}". format(filename, e))
         errors['File'].append(filename)
