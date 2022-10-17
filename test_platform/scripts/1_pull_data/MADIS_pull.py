@@ -362,5 +362,5 @@ def madis_pull(token, networks, pause = None):
         
         
     
-madis_pull(config.token, networks = ["HOLFUY"])
+madis_pull(config.token, networks = ["CWOP"])
 
