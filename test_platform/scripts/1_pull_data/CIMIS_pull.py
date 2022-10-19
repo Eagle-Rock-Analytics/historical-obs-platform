@@ -33,11 +33,15 @@ directory = '1_raw_wx/CIMIS/'
 # ftp here is the current ftp connection
 # file is the filename
 # directory is the desired path (set of folders) in AWS
-def ftp_to_aws(ftp, file, directory):
+# rename used to provide manual path name
+def ftp_to_aws(ftp, file, directory, rename = None):
     r=BytesIO()
     ftp.retrbinary('RETR '+file, r.write)
     r.seek(0)
-    write_name = file.replace(" ", "") # Remove any spaces from file name
+    if rename is not None:
+        write_name = rename
+    else:
+        write_name = file.replace(" ", "") # Remove any spaces from file name
     s3.upload_fileobj(r, bucket_name, directory+write_name)
     print('{} saved'.format(write_name)) # Helpful for testing, can be removed.
     r.close() # Close file
@@ -53,7 +57,7 @@ def get_cimis_stations(directory): #Could alter script to have shapefile as inpu
     ftp = FTP('ftpcimis.water.ca.gov')
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub2')  # Change WD.
-    ftp_to_aws(ftp, filename, directory)
+    ftp_to_aws(ftp, filename, directory, rename = "CIMIS_stationlist.xlsx")
     return
 
 # Function: query ftp server for CIMIS data and download csv files.
