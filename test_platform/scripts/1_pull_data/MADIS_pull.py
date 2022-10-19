@@ -22,7 +22,7 @@ from io import BytesIO, StringIO
 import calc_pull
 
 ## Set AWS credentials
-s3 = boto3.resource("s3")
+s3 = boto3.resource("s3")   
 s3_cl = boto3.client('s3') # for lower-level processes
 bucket_name = "wecc-historical-wx"
 
@@ -172,6 +172,8 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
     networkname = networkname.replace("/", "")
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_{}_{}.csv".format(networkname, end_api))
 
+    return errors
+
 # Quality control: if any files return status 408 error, split request into smaller requests and re-run.
 # Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
 def get_madis_station_timeout_csv(token, bucket_name, directory):
@@ -280,6 +282,6 @@ def madis_pull(token, networks, pause = None):
         get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
         
-    
-madis_pull(config.token, networks = ["HPWREN"])
+if __name__ == "__main__":
+    madis_pull(config.token, networks = ["HPWREN"])
 
