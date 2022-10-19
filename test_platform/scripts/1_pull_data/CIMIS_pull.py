@@ -37,8 +37,9 @@ def ftp_to_aws(ftp, file, directory):
     r=BytesIO()
     ftp.retrbinary('RETR '+file, r.write)
     r.seek(0)
-    s3.upload_fileobj(r, bucket_name, directory+file)
-    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    write_name = file.replace(" ", "") # Remove any spaces from file name
+    s3.upload_fileobj(r, bucket_name, directory+write_name)
+    print('{} saved'.format(write_name)) # Helpful for testing, can be removed.
     r.close() # Close file
 
 # Function to get up to date station list of CIMIS stations.
@@ -51,7 +52,6 @@ def get_cimis_stations(directory): #Could alter script to have shapefile as inpu
     filename = 'CIMIS Stations List (January20).xlsx'
     ftp = FTP('ftpcimis.water.ca.gov')
     ftp.login() # user anonymous, password anonymous
-
     ftp.cwd('pub2')  # Change WD.
     ftp_to_aws(ftp, filename, directory)
     return
@@ -127,7 +127,8 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
 
         # Now, repeat to download present year's data (housed in the 'hourly' folder)
         pres_year = date.today().strftime("%Y")
-        if pres_year in years: # If years includes present year
+        
+        if (years is None) or (pres_year in years): # If years includes present year or years not specified.
             ftp.cwd(pwd)
             ftp.cwd('hourly/')
             
@@ -172,7 +173,7 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
 
 # Run functions
 get_cimis_stations(directory)
-get_cimis_data_ftp(bucket_name, directory, get_all = True)
+get_cimis_data_ftp(bucket_name, directory, get_all = False)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
