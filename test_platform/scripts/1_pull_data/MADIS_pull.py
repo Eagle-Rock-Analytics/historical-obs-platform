@@ -366,6 +366,6 @@ def madis_pull(token, networks, pause = None):
         get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
         
-    
-madis_pull(config.token, networks = ["CWOP"])
+if __name__ == "__main__":    
+    madis_pull(config.token, networks = ["CWOP"])
 
