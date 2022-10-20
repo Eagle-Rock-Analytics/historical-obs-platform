@@ -137,9 +137,9 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
             #request = requests.get(url)
             s3_obj = s3.Object(bucket_name, directory+"{}.csv".format(id["STID"]))
 
-            # If **options timeout = True, save file as STID_2.csv
+            # If **options timeout = True, save file as 2_STID.csv
             if options.get("timeout") == True:
-                s3_obj = s3.Object(bucket_name, directory+"{}_2.csv".format(id["STID"]))
+                s3_obj = s3.Object(bucket_name, directory+"2_{}.csv".format(id["STID"]))
 
             with requests.get(url, stream=True) as r:
                 if r.status_code == 200: # If API call returns a response
@@ -222,12 +222,13 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
     
     files = [file for file in files if "errors" not in file]
     files = [file for file in files if "station" not in file] # Remove error and station list files
+    files = [file for file in files if "2_" not in file] # Only run on primary files first.
     files = [file for file in files if "AP15" in file] # SUBSET FOR TESTING ONLY.
     ids_split = []
 
     for file in files:
         url = "s3://{}/{}".format(bucket_name, file)
-        print(url) # For testing
+        
         with open(url, 'rb') as f: # Use the open method from smart_open
             try:  # catch OSError in case of a one line file 
                 f.seek(-2, os.SEEK_END) # Use seek here, much faster than reading entire file into memory, taken from: https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
@@ -236,7 +237,7 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
             except OSError:
                 f.seek(0)
             last_line = f.readline().decode()
-            print(last_line) # For testing
+            
             if 'Timeout' in last_line: # If last line is a timeout error, use f.seek to avoid reading entire file into memory.
                 print("Timeout error in {}: processing for secondary download.".format(file)) # Useful for testing / progres, can delete.
                 # Go backwards one line.
@@ -257,16 +258,20 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
     ids_split['start'] = ids_split['start'].dt.strftime('%Y%m%d%H%M')
     
     if ids_split.empty is False:
-        print(ids_split) # For testing.
+        
         get_madis_station_csv(token, ids_split, bucket_name, directory,  timeout = True) # Rerun pull script on timeout files from date of timeout.
 
         # Check to see if any of the split files needs to be split again.
-        # Generate file names from same list of ids (rather than rereading in all files from folder.)
-        timeout_files = [file for file in files if any(sub in file for sub in ids_split['STID'])]
-        timeout_files = list(filter(lambda f: f.endswith("_2.csv"), timeout_files)) # Only keep _2.csv files
-        
+        # This time, filter by "2_" files.
+        files = []
+        for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory+"2_"): 
+            file = str(item.key)
+            files += [file]
+        timeout_files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+
+        #print(timeout_files)
         ids_second_split = [] # Initialize empty list
-        for file in timeout_files: # For each _2.csv file
+        for file in timeout_files: # For each 2_.csv file
             url = "s3://{}/{}".format(bucket_name, file)
             #print(url) # For testing
             with open(url, 'rb') as f: # Use the open method from smart_open
@@ -277,7 +282,7 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
                 except OSError:
                     f.seek(0)
                 last_line = f.readline().decode()
-                #print(last_line) # For testing
+                
                 if 'Timeout' in last_line: # If last line is a timeout error, use f.seek to avoid reading entire file into memory.
                     print("Timeout error in {}: processing for secondary download.".format(file)) # Useful for testing / progres, can delete.
                     # Go backwards one line.
@@ -293,9 +298,9 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
                     print(last_line) # Print line
                     break # and break code to decide what to do.
                 
-        # If _2.csv files also have timeout errors, break code and adapt script.
+        # If 2_.csv files also have timeout errors, break code and adapt script.
         if ids_second_split: # If items found in list.
-            print("Attention!: Adapt code and re-run this script on _2.csv files.")
+            print("Attention!: Adapt code and re-run this script on 2_.csv files.")
             return # Breaking for now. In all testing I haven't seen this happen and 
                     # am presuming this won't be an issue,
                     # but we should adapt the code if it becomes one.
