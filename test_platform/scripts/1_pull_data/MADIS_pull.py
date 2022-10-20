@@ -223,7 +223,7 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
     files = [file for file in files if "errors" not in file]
     files = [file for file in files if "station" not in file] # Remove error and station list files
     files = [file for file in files if "2_" not in file] # Only run on primary files first.
-    files = [file for file in files if "AP15" in file] # SUBSET FOR TESTING ONLY.
+    
     ids_split = []
 
     for file in files:
@@ -366,6 +366,6 @@ def madis_pull(token, networks, pause = None):
         get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
         
         
-    
-madis_pull(config.token, networks = ["CWOP"])
+if __name__ == "__main__":    
+    madis_pull(config.token, networks = ["CWOP"])
 
