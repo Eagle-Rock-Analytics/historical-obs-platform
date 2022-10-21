@@ -99,23 +99,23 @@ def get_maritime_station_ids(terrpath, marpath):
     ## get bbox of WECC to use to filter stations against
     t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath) # Call get_wecc_poly.
 
-    # Get terrestrial stations.
+    ## Get terrestrial stations.
     weccgeo = weccgeo.to_crs(t.crs) # Convert to CRS of terrestrial stations.
     terwecc = sjoin(weccgeo.dropna(), t, how='left') # Only keep stations in terrestrial WECC region.
     terwecc = terwecc.dropna() # Drop empty rows.
 
-    # Get marine stations.
+    ## Get marine stations.
     marwecc = sjoin(weccgeo.dropna(), m, how='left') # Only keep stations in marine WECC region.
     marwecc = marwecc.dropna() # Drop empty rows.
 
     weccstations = (pd.concat([terwecc, marwecc], ignore_index = True, sort=False)
         .drop_duplicates(['STATION_ID'], keep='first'))
 
-    # drop columns and rename in_wecc to in_terr
+    ## drop columns and rename in_wecc to in_terr
     weccstations.drop(['OBJECTID_1', 'OBJECTID', 'Shape_Leng','geometry', 'FID_WECC_B', 'BUFF_DIST', 'index_right'], axis = 1, inplace = True)
     weccstations.rename(columns = {'in_WECC':'in_terr_wecc', 'in_marine':'in_mar_wecc'}, inplace = True)
 
-    # Identify which buoys are NDBC and which are CMAN/MARITIME
+    ## Identify which buoys are NDBC and which are CMAN/MARITIME
     network = []
     for item in weccstations['STATION_ID']:
         if item[:2] == "46" or item[:4] == "NDBC_46":
@@ -125,9 +125,21 @@ def get_maritime_station_ids(terrpath, marpath):
 
     weccstations['NETWORK'] = network
 
-    # Splits dataframe into respective networks
+    ## Splits dataframe into respective networks
     maritime_network = weccstations[weccstations['NETWORK'] == 'MARITIME']
     ndbc_network = weccstations[weccstations['NETWORK'] == 'NDBC']
+
+    ## Reorders the indices in both stationlists
+    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
+    mar_idx = []
+    for i in range(len(maritime_network.index)):
+        mar_idx.append(i)
+    maritime_network.index = mar_idx
+
+    ndbc_idx = []
+    for j in range(len(ndbc_network.index)):
+        ndbc_idx.append(j)
+    ndbc_network.index = ndbc_idx
 
     ## Write stations to respective AWS bucket - requires separate buffers
     mar_buffer = StringIO()
@@ -143,6 +155,7 @@ def get_maritime_station_ids(terrpath, marpath):
 
 get_maritime_station_ids(wecc_terr, wecc_mar)
 
+
 ## Read in MARITIME data using FTP.
 def get_maritime(bucket_name, directory, years, get_all = True):
 
@@ -153,8 +166,9 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
     pwd = ftp.pwd() # Get base file path.
 
-    # Set up error handling df.
-    errors = {'File':[], 'Time':[], 'Error':[]}
+    # Set up error handling df for both MARITIME & NDBC
+    mar_errors = {'File':[], 'Time':[], 'Error':[]}
+    ndbc_errors = {'File':[], 'Time':[], 'Error':[]}
 
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime('%Y%m%d%H%M')
@@ -191,12 +205,15 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                     filenames = list(filter(lambda f: (f.startswith('46') or f.startswith('NDBC_46') or (f[0].isalpha() and not f.startswith("NDBC"))), filenames)) # Only keep files with start with "46" (Pacific Ocean) or a letter (CMAN buoys.)
                     #filenames.append("fake") #To test error writing csv.
                     for filename in filenames:
-                        try:
-                            modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
-                            modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+                        modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+                        modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
 
-                            ## Sorts stations based on whether it is a NDBC buoy or in MARITIME/CMAN
-                            if filename[:2] == "46" or filename[:7] == "NDBC_46":
+                        ### If get_all is False, only download files whose date has changed since the last download.
+                        #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
+                        #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
+                        #### This code could be altered to compare write time and file name if desired.
+                        if filename[:2] == "46" or filename[:7] == "NDBC_46":
+                            try:
                                 if get_all is False:
                                     if filename in alreadysaved: # If filename already in saved bucket
                                         if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
@@ -207,7 +224,12 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                                         ftp_to_aws(ftp, filename, directory=directory_ndbc) # Else, if filename not saved already, save.
                                 elif get_all is True: # If get_all is true, download all files in folder.
                                     ftp_to_aws(ftp, filename, directory=directory_ndbc)
-                            else:
+                            except Exception as e:
+                                ndbc_errors['File'].append(filename)
+                                ndbc_errors['Time'].append(end_api)
+                                ndbc_errors['Erorr'].append(e)
+                        else:
+                            try:
                                 if get_all is False:
                                     if filename in alreadysaved: # If filename already in saved bucket
                                         if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
@@ -218,33 +240,33 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                                         ftp_to_aws(ftp, filename, directory=directory_mar) # Else, if filename not saved already, save.
                                 elif get_all is True: # If get_all is true, download all files in folder.
                                     ftp_to_aws(ftp, filename, directory=directory_mar)
+                            except Exception as e:
+                                mar_errors['File'].append(filename)
+                                mar_errors['Time'].append(end_api)
+                                mar_errors['Error'].append(e)
 
-                            ### If get_all is False, only download files whose date has changed since the last download.
-                            #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
-                            #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
-                            #### This code could be altered to compare write time and file name if desired.
-
-                        except Exception as e:
-                            errors['File'].append(filename)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append(e)
                 except Exception as e:
                     print("error in downloading date {}/{}: {}". format(j, i, e))
                     next  # Adds error handling in case of missing folder. Skip to next folder.
         else:
             print(i)
 
-    # Write errors to csv
-    csv_buffer = StringIO()
-    errors = pd.DataFrame(errors)
-    errors.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory_mar+"errors_maritime_{}.csv".format(end_api))
+    # Write errors to csv to respective AWS buckets - requires separate buffers
+    mar_buffer = StringIO()
+    mar_errors = pd.DataFrame(mar_errors)
+    mar_errors.to_csv(mar_buffer)
+    content = mar_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content, Key=directory_mar + "errors_maritime_{}.csv".format(end_api))
+
+    ndbc_buffer = StringIO()
+    ndbc_errors = pd.DataFrame(ndbc_errors)
+    ndbc_errors.to_csv(ndbc_buffer)
+    content = ndbc_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content, Key=director_ndbc + "errors_ndbc_{}.csv".format(end_api))
 
     ftp.quit() # This is the “polite” way to close a connection
 
 # To download all data, run:
-get_maritime(bucket_name, directory, years = years, get_all = True)
+# get_maritime(bucket_name, directory_mar, years = years, get_all = False)
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
-
