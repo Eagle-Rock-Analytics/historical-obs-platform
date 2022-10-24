@@ -19,6 +19,7 @@ import re
 import boto3
 from io import BytesIO, StringIO
 import calc_pull
+from smart_open import open
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -141,7 +142,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
 
             # If **options timeout = True, save file as 2_STID.csv
             if options.get("timeout") == True:
-                prefix = options.get("round")
+<               prefix = options.get("round")
                 s3_obj = s3.Object(bucket_name, directory+"{}_{}.csv".format(prefix, id["STID"]))
 
             with requests.get(url, stream=True) as r:
@@ -232,8 +233,7 @@ def madis_pull(token, networks, pause = None):
         
         # Get station CSVs.
         #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
-        
-        
+
 if __name__ == "__main__":    
     madis_pull(config.token, networks = ["CRN"])
 

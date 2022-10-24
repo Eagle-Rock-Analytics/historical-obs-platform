@@ -189,7 +189,7 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
             directory = "1_raw_wx/"+i+"/" # Define directory path for AWS
         print(directory)
 
-        for j in networkTriplets[0:10]: # Subset for testing, delete for full run!
+        for j in networkTriplets: 
             try:
                 df = pd.DataFrame() # Set up empty pd dataframe.
                 # # For each sensor:
@@ -256,7 +256,8 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
                 s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}.csv".format(j))
                 print("Saved data for station {} in network {}".format(j, i))
             except Exception as e:
-                errors['File'].append(j)
+                print(e)
+                errors['Station ID'].append(j)
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
 
@@ -272,6 +273,7 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
 
 if __name__ == "__main__":
     get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
+
 # Note: neither BOR nor USGS have hourly data for any of our variables of interest.
 # I've removed them from our default networks of interest but left the code in, in case we
 #  want to explore other networks/frequencies of data in the future.
