@@ -142,8 +142,8 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
 
             # If **options timeout = True, save file as 2_STID.csv
             if options.get("timeout") == True:
-<               prefix = options.get("round")
-                s3_obj = s3.Object(bucket_name, directory+"{}_{}.csv".format(prefix, id["STID"]))
+               prefix = options.get("round")
+               s3_obj = s3.Object(bucket_name, directory+"{}_{}.csv".format(prefix, id["STID"]))
 
             with requests.get(url, stream=True) as r:
                 if r.status_code == 200: # If API call returns a response
