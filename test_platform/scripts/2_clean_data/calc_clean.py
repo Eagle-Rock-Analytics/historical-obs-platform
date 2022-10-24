@@ -125,7 +125,7 @@ def _lat_dms_to_dd(data):
     data = float(data[:2]) + float(data[3:5])/60 + float(data[6:])/3600
     return data
 
-def _lon_dms_to_dd(data): 
+def _lon_dms_to_dd(data):
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
@@ -151,11 +151,12 @@ def _lon_DMm_to_Dd(data):
     This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d) for the WESTERN HEMISPHERE.
     Input: longitude (DDDMM.mm) example: 12234.72
     Returns: longitude (D.d) example: 122.578
+    """
      _min = float(data[:3])
      _sec = float(data[3:])
      data = -1 * (_deg + _mm/60)
      return data
-     
+
 def _lat_DMm_to_Dd(data):
     """
     This is specific to CWOP latitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d).
