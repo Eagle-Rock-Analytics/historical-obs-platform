@@ -15,14 +15,13 @@ Outputs:
 import requests
 import pandas as pd
 from datetime import datetime
-import os
 import re
 import boto3
 from io import BytesIO, StringIO
 import calc_pull
 
 ## Set AWS credentials
-s3 = boto3.resource("s3")   
+s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
 bucket_name = "wecc-historical-wx"
 
@@ -87,6 +86,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
         content = csv_buffer_err.getvalue()
         networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
         networkname = networkname.replace("/", "")
+
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stationlist.csv".format(networkname))
         
         return ids
@@ -117,9 +117,16 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
                 start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 OH:OM and on.
                 # To check: all stations seen so far with NaN return empty data. If true universally, can skip these instead of saving.
             else:
-                start_api = id["start"]
+                start_api = id["start"] # Otherwise, set start date to start date of station.
+                # If start_api starts prior to 1980, set manually to be 1980-01-01.
+                if start_api[0:4] < "1980": # If start year prior to 1980
+                    start_api = "198001010000"
         else:
             start_api = start_date
+
+        # If station file is 2_/3_ etc., get station name
+        if options.get("timeout") == True:
+            id['STID'] = id['STID'].split("_")[-1]
 
         # Generate URL
         # Note: decision here to use full flag suite of MesoWest and Synoptic data.
@@ -132,9 +139,10 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
             #request = requests.get(url)
             s3_obj = s3.Object(bucket_name, directory+"{}.csv".format(id["STID"]))
 
-            # If **options timeout = True, save file as STID_2.csv
+            # If **options timeout = True, save file as 2_STID.csv
             if options.get("timeout") == True:
-                s3_obj = s3.Object(bucket_name, directory+"{}_2.csv".format(id["STID"]))
+                prefix = options.get("round")
+                s3_obj = s3.Object(bucket_name, directory+"{}_{}.csv".format(prefix, id["STID"]))
 
             with requests.get(url, stream=True) as r:
                 if r.status_code == 200: # If API call returns a response
@@ -172,66 +180,6 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
     networkname = networkname.replace("/", "")
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_{}_{}.csv".format(networkname, end_api))
 
-    return errors
-
-# Quality control: if any files return status 408 error, split request into smaller requests and re-run.
-# Note: this approach assumes no file will need more than 2 splits. Test this when fuller data downloaded.
-def get_madis_station_timeout_csv(token, bucket_name, directory):
-    files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
-        file = str(item.key)
-        files += [file]
-    files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
-    
-    files = [file for file in files if "errors" not in file]
-    files = [file for file in files if "station" not in file] # Remove error and station list files
-
-    ids_split = []
-    for file in files:
-            file = s3_cl.get_object(Bucket= bucket_name, Key= file) # Open file
-            data = file['Body'].read().split(b"\n") # Read in file
-            data = data[-10:] # Keep last ten rows.
-            # Convert to strings.
-            for i, val in enumerate(data):
-                val = val.decode()
-                if "Timeout" in val:
-                    print("Timeout found in file {}. Queuing for redownload.".format(file))
-                    lastrealrow = data[i-1] # Get last row of recorded data
-                    station = lastrealrow.split(",")[0] # Get station ID
-                    time = lastrealrow.split(",")[1] # Get last completed timestamp
-                    ids_split.append([station, time]) # Add to dataframe
-
-    ids_split = pd.DataFrame(ids_split, columns = ['STID', 'start'])
-    ids_split['start'] = pd.to_datetime(ids_split['start'], format='%Y-%m-%dT%H:%M:%SZ')
-    ids_split['start'] = ids_split['start'].dt.strftime('%Y%m%d%H%M')
-    if ids_split.empty is False:
-        print(ids_split)
-        get_madis_station_csv(token, bucket_name, directory, ids = ids_split, timeout = True)
-
-        # Check to see if any of the split files needs to be split again.
-        for item in s3.Bucket(bucket_name).objects.all():
-            files = item.key
-        
-        files = [file for file in files if file.contains(directory)] # Filter by directory
-        files = list(filter(lambda f: f.endswith("_2.csv"), files)) # Get list of file names
-    
-
-        for file in files:
-            with open(bucket_name + directory + file,'r') as file:
-                data = file.readlines()
-                lastRow = data[-1]
-                if 'Timeout' in lastRow: # If timeout recorded
-                    lastrealrow = data[-2] # Get last row of recorded data
-                    station = lastrealrow.split(",")[0] # Get station ID
-                    time = lastrealrow.split(",")[1] # Get last completed timestamp
-                    ids_split.append([station, time]) # Add to dataframe
-                    if ids_split.empty is False:
-                        print("Attention!: Run this script again on _2.csv files.")
-
-    elif ids_split.empty is True:
-        return
-
-# Inputs:
 # Token: Syntopic API token (stored in config.py)
 # Networks: expects a list of network names (e.g. ["CWOP", "RAWS"]). If not set, downloads all non-restricted network data.
 # Note here this will look for an exact word match in the shortnames (e.g. RAWS will not return NSRAWS but ASOS returns ASOS/AWOS and HF-ASOS)
@@ -273,15 +221,19 @@ def madis_pull(token, networks, pause = None):
         dirname = row['SHORTNAME'].replace("/", "-") # Get rid of slashes for AWS
         directory = raw_path+dirname+"/" # Use name from syntopic to name folder
         
+        # Except if the network is CWOP, then manually set to be CWOP.
+        if row['SHORTNAME'] == "APRSWXNET/CWOP":
+            dirname = "CWOP"
+            directory = raw_path+"CWOP/"
+            print(dirname, directory)
+        
         # Get list of station IDs and start date.
-        ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory )
+        #ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
         
         # Get station CSVs.
-        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2)) # .Sample() subset is for testing(!), remove for full run.
-        # Get timeout CSVs.
-        get_madis_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
+        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
         
         
-if __name__ == "__main__":
-    madis_pull(config.token, networks = ["HPWREN"])
+if __name__ == "__main__":    
+    madis_pull(config.token, networks = ["CRN"])
 
