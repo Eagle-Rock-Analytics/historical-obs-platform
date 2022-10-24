@@ -235,7 +235,7 @@ def scan_retry_downloads(bucket_name, network, terrpath, marpath):
     
     # # Note here we ignore the end date of files, since we will be trimming the last 2 months of data anyways.
     # # This could be changed down the road as these dates diverge.
-    errors = get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, stations = missed_stations, primary = True, networks = network)
+    errors = get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, stations = missed_stations, primary = True)
 
     # # Manually print out errors for immediate verification of success. Will also save to AWS.
     print(errors)
@@ -275,11 +275,11 @@ def retry_downloads(token, bucket_name, networks = None):
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name)
+retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["SNOTEL"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
 
 # Helpful networks for testing: 
 # HPWREN has many timeout errors
 # MTRWFO has a missing file that won't download and throws a "internal error".
-# Delete a file from SCAN or SNOTEL and run on that network.
+# Delete a file from SNOTEL and run on that network.
 # Throw a junk name into networks, or run with no network specified.
