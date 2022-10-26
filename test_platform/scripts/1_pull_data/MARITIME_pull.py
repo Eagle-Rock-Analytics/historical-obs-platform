@@ -151,13 +151,13 @@ def get_maritime_station_ids(terrpath, marpath):
     ndbc_network.to_csv(ndbc_buffer)
     content = ndbc_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_ndbc+"NDBC_stations.csv")
-    return stations
-
-get_maritime_station_ids(wecc_terr, wecc_mar)
+    return maritime_network, ndbc_network
 
 
-## Read in MARITIME data using FTP.
-def get_maritime(bucket_name, directory, years, get_all = True):
+## Splitting each netweork into an individual function call, in order to aid re-downloading if necessary
+
+## Read in NDBC data using FTP.
+def get_ndbc(station_list, bucket_name, directory, years, get_all = True):
 
     # ## Login.
     # ## using ftplib
@@ -166,8 +166,7 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
     pwd = ftp.pwd() # Get base file path.
 
-    # Set up error handling df for both MARITIME & NDBC
-    mar_errors = {'File':[], 'Time':[], 'Error':[]}
+    # Set up error handling df for NDBC
     ndbc_errors = {'File':[], 'Time':[], 'Error':[]}
 
     # Set end time to be current time at beginning of download
@@ -198,11 +197,127 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                     ftp.cwd(pwd) # Return to original working directory
                     j = str(j).zfill(2) # Pad to correct format
                     dir = ('{}/{}'.format(i,j)) # Specify working directory by year and month
-                    #print(dir)
                     ftp.cwd(dir) # Change working directory to year/month.
+
+                    # Firsrt list out all stations to pull from NDBC/MARITIME
                     filenames = ftp.nlst() # Get list of all file names in folder.
                     filenames = list(filter(lambda f: f.endswith('.nc'), filenames)) # Only keep .nc files.
-                    filenames = list(filter(lambda f: (f.startswith('46') or f.startswith('NDBC_46') or (f[0].isalpha() and not f.startswith("NDBC"))), filenames)) # Only keep files with start with "46" (Pacific Ocean) or a letter (CMAN buoys.)
+                    filenames = list(filter(lambda f: (f.startswith('46') or f.startswith('NDBC_46')), filenames)) # Only keep files with start with "46" (Pacific Ocean)
+                    print(filenames) ## testing
+
+                    # Next compare to list of stations in station_list
+                    filename_stnlist = station_list["STATION_ID"]
+                    filename_stnlist = filename_stnlist.tolist() # Convert to list.
+                    print(filename_stnlist)
+                    # filename_stnlist = list(filter(lambda f: f.startswith(filename_stnlist)))
+                    # filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
+                    # fileswecc = [x for x in filenames if x in filename_list] # Only pull all file names that are contained in station_list ID column.
+                    # print(fileswecc)
+                    # fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
+                    # print(fileswecc)
+
+                    #filenames.append("fake") #To test error writing csv.
+    #                 for filename in filenames:
+    #                     modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+    #                     modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+    #
+    #                     ### If get_all is False, only download files whose date has changed since the last download.
+    #                     #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
+    #                     #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
+    #                     #### This code could be altered to compare write time and file name if desired.
+    #                     if filename[:2] == "46" or filename[:7] == "NDBC_46":
+    #                         try:
+    #                             if get_all is False:
+    #                                 if filename in alreadysaved: # If filename already in saved bucket
+    #                                     if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+    #                                         ftp_to_aws(ftp, filename, directory=directory_ndbc)
+    #                                     else:
+    #                                         print("{} already saved".format(filename))
+    #                                 else:
+    #                                     ftp_to_aws(ftp, filename, directory=directory_ndbc) # Else, if filename not saved already, save.
+    #                             elif get_all is True: # If get_all is true, download all files in folder.
+    #                                 ftp_to_aws(ftp, filename, directory=directory_ndbc)
+    #                         except Exception as e:
+    #                             ndbc_errors['File'].append(filename)
+    #                             ndbc_errors['Time'].append(end_api)
+    #                             ndbc_errors['Erorr'].append(e)
+
+    #
+                except Exception as e:
+                    print("error in downloading date {}/{}: {}". format(j, i, e))
+                    next  # Adds error handling in case of missing folder. Skip to next folder.
+        else:
+            print(i)
+
+
+    ndbc_buffer = StringIO()
+    ndbc_errors = pd.DataFrame(ndbc_errors)
+    ndbc_errors.to_csv(ndbc_buffer)
+    content = ndbc_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content, Key=director_ndbc+"errors_ndbc_{}.csv".format(end_api))
+
+    ftp.quit() # This is the “polite” way to close a connection
+
+## Read in MARITIME data using FTP.
+def get_maritime(station_list, bucket_name, directory, years, get_all = True):
+
+    # ## Login.
+    # ## using ftplib
+    ftp = FTP('ftp-oceans.ncei.noaa.gov')
+    ftp.login() # user anonymous, password anonymous
+    ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
+    pwd = ftp.pwd() # Get base file path.
+
+    # Set up error handling df for both MARITIME & NDBC
+    mar_errors = {'File':[], 'Time':[], 'Error':[]}
+
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime('%Y%m%d%H%M')
+
+    # Get date of most recently edited file and list of file names already saved.
+    try:
+        s3 = boto3.client('s3')
+        objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
+        all = objects['Contents']
+        # Get date of last edited file
+        latest = max(all, key=lambda x: x['LastModified'])
+        last_edit_time = latest['LastModified']
+        # Get list of all file names
+        alreadysaved = []
+        for item in all:
+            files = item['Key']
+            alreadysaved.append(files)
+        alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
+
+    except:
+        get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
+
+    for i in years: # For each year/folder
+        if len(i)<5: # If folder is the name of a year (and not metadata file)
+            for j in range(1, 13): # For each month (1-12)
+                try:
+                    ftp.cwd(pwd) # Return to original working directory
+                    j = str(j).zfill(2) # Pad to correct format
+                    dir = ('{}/{}'.format(i,j)) # Specify working directory by year and month
+                    ftp.cwd(dir) # Change working directory to year/month.
+
+                    # Firsrt list out all stations to pull from NDBC/MARITIME
+                    filenames = ftp.nlst() # Get list of all file names in folder.
+                    filenames = list(filter(lambda f: f.endswith('.nc'), filenames)) # Only keep .nc files.
+                    filenames = list(filter(lambda f: (f[0].isalpha() and not f.startswith("NDBC")), filenames)) # Only keep files with start with a letter (CMAN buoys.)
+                    print(filenames) ## testing
+
+                    # Next compare to list of stations in station_list
+                    filename_stnlist = station_list["STATION_ID"]
+                    filename_stnlist = filename_stnlist.tolist() # Convert to list.
+                    print(filename_stnlist)
+                    # filename_stnlist = list(filter(lambda f: f.startswith(filename_stnlist)))
+                    # filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
+                    # fileswecc = [x for x in filenames if x in filename_list] # Only pull all file names that are contained in station_list ID column.
+                    # print(fileswecc)
+                    # fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
+                    # print(fileswecc)
+
                     #filenames.append("fake") #To test error writing csv.
                     for filename in filenames:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
@@ -213,22 +328,6 @@ def get_maritime(bucket_name, directory, years, get_all = True):
                         #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
                         #### This code could be altered to compare write time and file name if desired.
                         if filename[:2] == "46" or filename[:7] == "NDBC_46":
-                            try:
-                                if get_all is False:
-                                    if filename in alreadysaved: # If filename already in saved bucket
-                                        if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                            ftp_to_aws(ftp, filename, directory=directory_ndbc)
-                                        else:
-                                            print("{} already saved".format(filename))
-                                    else:
-                                        ftp_to_aws(ftp, filename, directory=directory_ndbc) # Else, if filename not saved already, save.
-                                elif get_all is True: # If get_all is true, download all files in folder.
-                                    ftp_to_aws(ftp, filename, directory=directory_ndbc)
-                            except Exception as e:
-                                ndbc_errors['File'].append(filename)
-                                ndbc_errors['Time'].append(end_api)
-                                ndbc_errors['Erorr'].append(e)
-                        else:
                             try:
                                 if get_all is False:
                                     if filename in alreadysaved: # If filename already in saved bucket
@@ -256,17 +355,17 @@ def get_maritime(bucket_name, directory, years, get_all = True):
     mar_errors = pd.DataFrame(mar_errors)
     mar_errors.to_csv(mar_buffer)
     content = mar_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content, Key=directory_mar + "errors_maritime_{}.csv".format(end_api))
-
-    ndbc_buffer = StringIO()
-    ndbc_errors = pd.DataFrame(ndbc_errors)
-    ndbc_errors.to_csv(ndbc_buffer)
-    content = ndbc_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content, Key=director_ndbc + "errors_ndbc_{}.csv".format(end_api))
+    s3.put_object(Bucket=bucket_name, Body=content, Key=directory_mar+"errors_maritime_{}.csv".format(end_api))
 
     ftp.quit() # This is the “polite” way to close a connection
 
+## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
-# get_maritime(bucket_name, directory_mar, years = years, get_all = False)
-# Note, for first full data pull, set get_all = True
-# For all subsequent data pulls/update with newer data, set get_all = False
+stations = get_maritime_station_ids(wecc_terr, wecc_mar)
+get_ndbc(stations, bucket_name, directory_ndbc, years = years, get_all = False)
+get_maritime(stations, bucket_name, directory_mar, years = years, get_all = False)
+
+
+## Full Pull Notes
+## 1. For first full data pull, set get_all = True
+## 2. For all subsequent data pulls/update with newer data, set get_all = False
