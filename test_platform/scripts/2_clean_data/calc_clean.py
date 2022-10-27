@@ -150,7 +150,7 @@ def _lon_DMm_to_Dd(data):
     """
     This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d) for the WESTERN HEMISPHERE.
     Input: longitude (DDDMM.mm) example: 12234.72
-    Returns: longitude (D.d) example: 122.578
+    Returns: longitude (D.d) example: -122.578
     """
      _min = float(data[:3])
      _sec = float(data[3:])
