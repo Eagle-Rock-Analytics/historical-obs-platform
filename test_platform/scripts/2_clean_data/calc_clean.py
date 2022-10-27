@@ -9,7 +9,6 @@ for the Historical Observations Platform.
 ## Import Libraries
 import geopandas as gp
 import numpy as np
-import string
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
