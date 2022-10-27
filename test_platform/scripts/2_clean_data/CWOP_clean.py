@@ -33,6 +33,7 @@ from collections import Counter
 import boto3
 from io import BytesIO, StringIO
 import smart_open
+import traceback
 
 
 # Import calc_clean.py.
@@ -60,6 +61,12 @@ cleandir = "2_clean_wx/CWOP/"
 qaqcdir = "3_qaqc_wx/CWOP/"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
+# Set up directory to save files temporarily, if it doesn't already exist.
+try:
+    os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
+except:
+    pass
 
 # Get units
 unitstocheck = ['Pascals', '%', 'm/s', 'Celsius', 'QC_Type', 'Degrees']
@@ -98,79 +105,92 @@ def get_qaqc_flags(token, bucket_name, cleandir):
 # Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
 
 
-# TO DO: make this output station name, lat, lon, elevation, state in one list, and index in another.
-def parse_madis_file(file, i, removedvars, errors):
+# Function: parse the headers of the MADIS CSV file.
+def parse_madis_headers(file, errors):
+    url = "s3://{}/{}".format(bucket_name, file)
+    index = 0
+    for line in smart_open.open(url, mode = 'rb'):
+        if index>10:
+            return
+        index += 1
+        row = (line.decode('utf-8')) 
+        
+        if "STATION:" in row: # Skip first row.
+            station_id = row.partition(": ")[2].replace(" ", "").replace("\n", "")
+            print(station_id)
+            continue
+        if "STATION NAME" in row:
+            station_name = row.partition(": ")[2].replace("']", "").replace("\n", "")
+            station_name = station_name.replace(")", "")
+            continue
+        elif "LATITUDE" in row:
+            latitude = float(row.partition(": ")[2].replace("']", ""))
+            continue
+        elif "LONGITUDE" in row:
+            longitude = float(row.partition(": ")[2].replace("']", ""))
+            continue
+        elif "ELEVATION" in row:
+            elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
+            continue
+        elif "STATE" in row:
+            state = row.partition(": ")[2].replace("']", "").replace("\n", "")
+            continue
+        
+        elif "Station_ID" in row:
+            columns = row
+            columns = columns.split(",")
+            columns = [k.replace("\n", "") for k in columns] # Clean: Remove line break from list
+            continue
+
+        elif any(unit in row for unit in unitstocheck):
+            units = row
+            units = units.replace("\n", "")
+            continue
+
+        
+        else:    
+            # Get row where data begins (station ID first appears)
+            if station_id in row:
+                first_row = index
+                break
+            else:
+                continue
+                
+    # Read in entire csv starting aBut maybe it's a helpful t first_row, using pandas.
+    # First, some error handling.
+    
+    #Check for duplicated columns. If duplicated names, manually rename as 1 and 2, and then check for duplicates after reading in.    
+    if set([x for x in columns if columns.count(x) > 1]):
+        dup = True # Add dup flag.
+        dup_col = set([x for x in columns if columns.count(x) > 1])
+        # Manually rename second iteration of column.
+        d = {a:list(range(1, b+1)) if b>1 else '' for a,b in Counter(columns).items()}
+        columns = [i+str(d[i].pop(0)) if len(d[i]) else i for i in columns]
+    else:
+        dup = False
+        dup_col = []
+    
+    headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns, 
+                'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
+    
+    return headers
+
+# Function: take heads, read csv into pandas db and clean.
+def parse_madis_to_pandas(file, headers, errors, removedvars):
     try:
-        url = "s3://{}/{}".format(bucket_name, file)
-        index = 0
-        for line in smart_open.open(url, mode = 'rb'):
-            index += 1
-            row = (line.decode('utf-8')) 
-            
-            if "STATION:" in row: # Skip first row.
-                continue
-            if "STATION NAME" in row:
-                station_name = row.partition(": ")[2].replace("']", "")
-                station_name = station_name.replace(")", "")
-                continue
-            elif "LATITUDE" in row:
-                latitude = float(row.partition(": ")[2].replace("']", ""))
-                continue
-            elif "LONGITUDE" in row:
-                longitude = float(row.partition(": ")[2].replace("']", ""))
-                continue
-            elif "ELEVATION" in row:
-                elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
-                continue
-            elif "STATE" in row:
-                state = row.partition(": ")[2].replace("']", "")
-                continue
-            
-            elif "Station_ID" in row:
-                columns = row
-                columns = columns.split(",")
-                columns = [k.replace("\n", "") for k in columns] # Clean: Remove line break from list
-                continue
-
-            elif any(unit in row for unit in unitstocheck):
-                units_index = index
-                continue
-
-            else:    
-                # Get row where data begins (station ID first appears)
-                if i in row:
-                    first_row = index
-                    break
-                else:
-                    continue
-                    
-        # Read in entire csv starting aBut maybe it's a helpful t first_row, using pandas.
-        # First, some error handling.
-        
-        #Check for duplicated columns. If duplicated names, manually rename as 1 and 2, and then check for duplicates after reading in.    
-        if set([x for x in columns if columns.count(x) > 1]):
-            dup = True # Add dup flag.
-            dup_col = set([x for x in columns if columns.count(x) > 1])
-            # Manually rename second iteration of column.
-            d = {a:list(range(1, b+1)) if b>1 else '' for a,b in Counter(columns).items()}
-            columns = [i+str(d[i].pop(0)) if len(d[i]) else i for i in columns]
-        else:
-            dup = False
-        
         # Read in CSV, removing header.
         obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-        df = pd.read_csv(BytesIO(obj['Body'].read()), names = columns, header = first_row-1, low_memory = False)
+        df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory = False)
         
         # FOR TESTING ONLY
-        df = df.head(100)
+        df = df.head(500)
 
         # Drop any columns that only contain NAs.
         df = df.dropna(axis = 1, how = 'all')
 
-
         # If columns duplicated, check to see if they are identical and drop second if so.
-        if dup is True:
-            for i in dup_col: # For each duplicated column
+        if headers['dup'] is True:
+            for i in headers['dup_col']: # For each duplicated column
                 cols = df.filter(like=i).columns
                 if df[cols[0]].equals(df[cols[1]]):
                     #print("Dropping duplicate column {}".format(cols[1]))
@@ -187,6 +207,8 @@ def parse_madis_file(file, i, removedvars, errors):
         df['Date_Time'] = pd.to_datetime(df['Date_Time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
         df = df[pd.notnull(df['Date_Time'])] # Remove any rows where time is missing.
         
+        df = df.loc[(df['Date_Time']<'09-01-2022') & (df['Date_Time']>'12-31-1979')]# TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+        
         # Remove any non-essential columns.
         coltokeep = ['Station_ID', 'Date_Time', 'altimeter_set_1', 'altimeter_set_1_qc',
                     'air_temp_set_1', 'air_temp_set_1_qc', 'relative_humidity_set_1',
@@ -200,6 +222,9 @@ def parse_madis_file(file, i, removedvars, errors):
                     'precip_accum_set_1', 'precip_accum_set_1_qc', 'precip_accum_five_minute_set_1', 'precip_accum_five_minute_set_1_qc']
         
         othercols = [col for col in df.columns if col not in coltokeep and col not in removedvars] 
+        print(removedvars)
+        print(othercols)
+
         removedvars += othercols # Add any new columns from drop list to removedvars, to save later.
         df = df.drop(columns=[col for col in df if col not in coltokeep]) # Drop all columns not in coltokeep list.
         
@@ -208,32 +233,50 @@ def parse_madis_file(file, i, removedvars, errors):
 
         # Fix multi-type columns
         # If column has QC in it, force to string.
-        for i in df.columns:
-            multitype = set(type(x).__name__ for x in df[i])
+        for b in df.columns:
+            multitype = set(type(x).__name__ for x in df[b])
             if len(multitype)>1:
-                if 'qc' in i:
-                    df[i] = df[i].astype(str) # Coerce to string (to handle multiple QA/QC flags)
-                elif 'wind_cardinal_direction' in i:
-                    df[i] = df[i].astype(str) # Coerce to string
-                elif 'sea_level_pressure_set' in i:
-                    df[i] = df[i].astype(float) # Coerce to float.
+                if 'qc' in b:
+                    df[b] = df[b].astype(str) # Coerce to string (to handle multiple QA/QC flags)
+                elif 'wind_cardinal_direction' in b:
+                    df[b] = df[b].astype(str) # Coerce to string
+                elif 'sea_level_pressure_set' in b:
+                    df[b] = df[b].astype(float) # Coerce to float.
                 else:
-                    print("Multitype error for column {} with data types {}. Please resolve".format(i, multitype)) # Manually 
+                    print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Manually 
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("Multitype error for column {} with data types {}. Please resolve".format(i, multitype))
+                    errors['Error'].append("Multitype error for column {} with data types {}. Please resolve".format(b, multitype))
                     continue
 
         # Remove "status" error rows
         df = df.loc[df["Station_ID"].str.contains("status")==False]   
-        return df, station_name
+        return df
 
-    except Exception as e: # TO DO: add error handling
-        print(e)
+    except:
+    #except Exception as e: # TO DO: add error handling
+        #print(e)
+        print(traceback.format_exc())
         #errors['File'].append(station_id)
         #errors['Time'].append(end_api)
         #errors['Error'].append(e)
 
+
+# errors = []
+# files = []
+# rawdir = "1_raw_wx/CWOP/"
+# for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir): 
+#     file = str(item.key)
+#     files += [file]
+# files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+# files = [file for file in files if "error" not in file] # Remove error handling files.
+# files = [file for file in files if "station" not in file] # Remove error handling files.
+# for file in files:
+#     headers = parse_madis_headers(file, errors = [])
+#     df = parse_madis_to_pandas(file, headers, errors, removedvars = [])
+#     print(headers)
+#     print(df)
+#     break
 
 
 def clean_cwop(bucket_name, rawdir, cleandir):
@@ -274,11 +317,33 @@ def clean_cwop(bucket_name, rawdir, cleandir):
         
         # Iterate through files to clean. Each file represents a station's data.
         
-        dfs, station_names = map(list, zip(*[parse_madis_file(file, i, removedvars, errors) for file in stat_files]))
         
-        station_name = station_names[0] # Get one station name (should be identical)
+        headers = [parse_madis_headers(file, errors) for file in stat_files] # Get list of dictionaries of station headers
+
+        # If more than one station, metadata should be identical. Test this.
+        if(all(a == headers[0] for a in headers[1:])):
+            headers = headers[0]
+        else: # If not, provide user input option to proceed.
+            print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.")
+            for i in headers:
+                print("File {}:".format(i), headers[i])
+                resp = input("Which file's metadata would you like to use (0-n)?")
+                try:
+                    int(resp)
+                    headers = headers[resp]
+                except ValueError:
+                    print("Invalid response. Skipping file {}.")
+                    # TO DO: append TO ERRORS HERE!!
+                    continue
+        
+        dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
+        
+        station_name = headers['station_name'] # Get station name
         file_count = len(dfs)
         df_stat = pd.concat(dfs)
+
+        # Fix issue with "nan" and nan causing comparison errors
+        df_stat = df_stat.replace("nan", np.nan)
 
         # Sort by time and remove any overlapping timestamps.
         df_stat = df_stat.sort_values(by = "Date_Time")
@@ -312,10 +377,10 @@ def clean_cwop(bucket_name, rawdir, cleandir):
         
             
         # Add coordinates: latitude and longitude.
-        lat = np.asarray([latitude]*len(ds['time']))
+        lat = np.asarray([headers['latitude']]*len(ds['time']))
         lat.shape = (1, len(ds['time']))
         
-        lon = np.asarray([longitude]*len(ds['time']))
+        lon = np.asarray([headers['longitude']]*len(ds['time']))
         lon.shape = (1, len(ds['time']))
 
         # reassign lat and lon as coordinates
@@ -331,15 +396,12 @@ def clean_cwop(bucket_name, rawdir, cleandir):
             ds = ds.where(~np.isnan(ds['lon']))
         
         # Add variable: elevation
-        elev = np.asarray([elevation]*len(ds['time']))
+        elev = np.asarray([headers['elevation']]*len(ds['time']))
         elev.shape = (1, len(ds['time']))
         ds['elevation'] = (['station', 'time'], elev)
         
         # Update dimension and coordinate attributes.
     
-        # Time - TO DO:
-        # # Remove any rows prior to Jan 1 1980 and after August 30 2022.
-        
         # Convert column to datetime (and remove any rows that cannot be coerced).
         ds['time'] = pd.to_datetime(ds['time'], utc = True) # Convert from string to incorrect time format.
         ds['time'] = pd.to_datetime(ds['time'], unit = 'ns') # Fix time format.
@@ -384,10 +446,11 @@ def clean_cwop(bucket_name, rawdir, cleandir):
             
             if "air_temp_set_1_qc" in ds.keys():
                 # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
-                
-                flagvals = list(np.unique(ds['air_temp_set_1_qc'].values))
+                flagvals = [x for x in ds['air_temp_set_1_qc'].values if np.isnan(x) == False] # LEFT OFF HERE - remove nan from flagvals before running next step, or convert everything to string!
+                flagvals = list(np.unique(flagvals))
                 flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
+                print(flagvals)
+                break
                 if flagvals == ['nan']:
                     #print("Flag value is {}".format(flagvals)) # For testing.
                     ds = ds.drop("air_temp_set_1_qc")
@@ -787,9 +850,11 @@ def clean_cwop(bucket_name, rawdir, cleandir):
         else:
             try:
                 # Write locally
-                ds.to_netcdf(path = 'temp.nc') # Save station file.
+                ds.to_netcdf(path = 'temp/temp.nc') # Save station file.
+
                 exit()
-                # Push
+                # Push file to AWS with correct file name.
+
                 filename = station_id+".nc" # Make file name
                 filepath = homedir+"/"+savedir+filename # Write file path
                 
@@ -802,103 +867,104 @@ def clean_cwop(bucket_name, rawdir, cleandir):
                 errors['Error'].append(e)
                 continue  
 
-    # # Write the list of removed variables to csv for future reference. Keep these in one centralized "removedvars.csv" file that gets appended to
-    # vars = []
-    # try:
-    #     os.chdir(homedir+'/'+savedir)
-    #     # Do the reading
-    #     if os.path.isfile('removedvars.csv'): # If removedvars.csv already exists, read in data to vars. Otherwise, vars is empty.
-    #         with open('removedvars.csv','r') as f: 
-    #             rows = list(csv.DictReader(f, delimiter=','))
-    #             for row in rows:
-    #                 vars.append(row['Variable'])
+#     # # Write the list of removed variables to csv for future reference. Keep these in one centralized "removedvars.csv" file that gets appended to
+#     # vars = []
+#     # try:
+#     #     os.chdir(homedir+'/'+savedir)
+#     #     # Do the reading
+#     #     if os.path.isfile('removedvars.csv'): # If removedvars.csv already exists, read in data to vars. Otherwise, vars is empty.
+#     #         with open('removedvars.csv','r') as f: 
+#     #             rows = list(csv.DictReader(f, delimiter=','))
+#     #             for row in rows:
+#     #                 vars.append(row['Variable'])
         
-    #     for i in removedvars:
-    #         if i not in vars:
-    #             vars.append(i)
-    #     vars = sorted(vars, key = str.casefold) # Sort and ignore case
+#     #     for i in removedvars:
+#     #         if i not in vars:
+#     #             vars.append(i)
+#     #     vars = sorted(vars, key = str.casefold) # Sort and ignore case
 
-    #     dict = {'Variable': vars}
+#     #     dict = {'Variable': vars}
         
-    #     with open('removedvars.csv', 'w') as f: 
-    #         # pass the csv file to csv.writer function.
-    #         writer = csv.writer(f)
+#     #     with open('removedvars.csv', 'w') as f: 
+#     #         # pass the csv file to csv.writer function.
+#     #         writer = csv.writer(f)
 
-    #         # pass the dictionary keys to writerow
-    #         # function to frame the columns of the csv file
-    #         writer.writerow(dict.keys())
+#     #         # pass the dictionary keys to writerow
+#     #         # function to frame the columns of the csv file
+#     #         writer.writerow(dict.keys())
 
-    #         # make use of writerows function to append
-    #         # the remaining values to the corresponding
-    #         # columns using zip function.
-    #         writer.writerows(zip(*dict.values()))
+#     #         # make use of writerows function to append
+#     #         # the remaining values to the corresponding
+#     #         # columns using zip function.
+#     #         writer.writerows(zip(*dict.values()))
 
-    # except Exception as e:
-    #     errors['File'].append("N/A")
-    #     errors['Time'].append(end_api)
-    #     errors['Error'].append(e)
+#     # except Exception as e:
+#     #     errors['File'].append("N/A")
+#     #     errors['Time'].append(end_api)
+#     #     errors['Error'].append(e)
 
-    # #Write errors to csv
-    # filepath = homedir+"/"+savedir+"errors_cwop_{}.csv".format(end_api) # Set path to save error file.
-    # #print(errors)
-    # with open(filepath, "w") as outfile:
-    #     # pass the csv file to csv.writer function.
-    #     writer = csv.writer(outfile)
+#     # #Write errors to csv
+#     # filepath = homedir+"/"+savedir+"errors_cwop_{}.csv".format(end_api) # Set path to save error file.
+#     # #print(errors)
+#     # with open(filepath, "w") as outfile:
+#     #     # pass the csv file to csv.writer function.
+#     #     writer = csv.writer(outfile)
 
-    #     # pass the dictionary keys to writerow
-    #     # function to frame the columns of the csv file
-    #     writer.writerow(errors.keys())
+#     #     # pass the dictionary keys to writerow
+#     #     # function to frame the columns of the csv file
+#     #     writer.writerow(errors.keys())
 
-    #     # make use of writerows function to append
-    #     # the remaining values to the corresponding
-    #     # columns using zip function.
-    #     writer.writerows(zip(*errors.values()))
+#     #     # make use of writerows function to append
+#     #     # the remaining values to the corresponding
+#     #     # columns using zip function.
+#     #     writer.writerows(zip(*errors.values()))
     
-# Run functions
+# # Run functions
 
 if __name__ == "__main__":
     #get_qaqc_flags(token = config.token, bucket_name = bucket_name, cleandir = cleandir)
     clean_cwop(bucket_name, rawdir, cleandir)
+    pass
 
-# # Testing:
-# ## Import file.
-# os.chdir(savedir)
-# test = xr.open_dataset("CWOP_AP741.nc")
-# print(test.head())
+# # # Testing:
+# # ## Import file.
+# # os.chdir(savedir)
+# # test = xr.open_dataset("CWOP_AP741.nc")
+# # print(test.head())
 
-# for var in test.keys():
-#     print(var)
-#     print(test[var])
+# # for var in test.keys():
+# #     print(var)
+# #     print(test[var])
 
-# # # # # Test 1: multi-year merges work as expected.
-# print(str(test['time'].min())) # Get start time
-# print(str(test['time'].max())) # Get end time
+# # # # # # Test 1: multi-year merges work as expected.
+# # print(str(test['time'].min())) # Get start time
+# # print(str(test['time'].max())) # Get end time
 
 
-# # # ## Test 2: Inspect vars and attributes
-# # # ## 
-# for var in test.variables: 
-#     try:
-#         print([var, float(test[var].min()), float(test[var].max())]) 
-#     except:
-#         continue
+# # # # ## Test 2: Inspect vars and attributes
+# # # # ## 
+# # for var in test.variables: 
+# #     try:
+# #         print([var, float(test[var].min()), float(test[var].max())]) 
+# #     except:
+# #         continue
 
-# # # # Test 3: Get one month's data and test subsetting.
-# print(test.sel(time = "2015-05"))
+# # # # # Test 3: Get one month's data and test subsetting.
+# # print(test.sel(time = "2015-05"))
 
-# # # # Next file.
-# test = xr.open_dataset("CWOP_D3845.nc") 
-# print(test)
-# print(str(test['time'].min())) # Get start time
-# print(str(test['time'].max())) # Get end time
+# # # # # Next file.
+# # test = xr.open_dataset("CWOP_D3845.nc") 
+# # print(test)
+# # print(str(test['time'].min())) # Get start time
+# # print(str(test['time'].max())) # Get end time
 
-# ## Inspect vars and attributes
-# ## 
-# for var in test.variables: 
-#     try:
-#         print([var, float(test[var].min()), float(test[var].max())]) 
-#     except:
-#         continue
+# # ## Inspect vars and attributes
+# # ## 
+# # for var in test.variables: 
+# #     try:
+# #         print([var, float(test[var].min()), float(test[var].max())]) 
+# #     except:
+# #         continue
 
-# # # Get a few rows
-# print(test.sel(time = "2010-06")) 
+# # # # Get a few rows
+# # print(test.sel(time = "2010-06")) 
