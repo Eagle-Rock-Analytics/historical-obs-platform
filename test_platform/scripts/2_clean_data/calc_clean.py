@@ -151,10 +151,10 @@ def _lon_DMm_to_Dd(data):
     Input: longitude (DDDMM.mm) example: 12234.72
     Returns: longitude (D.d) example: -122.578
     """
-     _min = float(data[:3])
-     _sec = float(data[3:])
-     data = -1 * (_deg + _mm/60)
-     return data
+    _min = float(data[:3])
+    _sec = float(data[3:])
+    data = -1 * (_deg + _mm/60)
+    return data
 
 def _lat_DMm_to_Dd(data):
     """
