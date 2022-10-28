@@ -43,6 +43,7 @@ directory_ndbc = '1_raw_wx/NDBC/'
 
 # Set envr variables
 years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
+# years = list(map(str,range(2011,datetime.now().year+1))) ## TESTING
 
 # Function to write FTP data directly to AWS S3 folder.
 # ftp here is the current ftp connection
@@ -56,10 +57,10 @@ def ftp_to_aws(ftp, file, directory):
     print('{}: {} saved'.format(directory, file)) # Helpful for testing which directory data is being saved to, can be removed
     r.close() # Close file
 
+
 # Step 0: Get list of IDs to download.
 ### Get all stations that start with "46" (Pacific Ocean) and all lettered (all CMAN) stations.
 ### Note: Gliders (non-stationary) location reported here as 30 N -90 W
-
 def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     """Returns list of station ids as CSV"""
     url = 'https://www.ndbc.noaa.gov/data/stations/station_table.txt'
@@ -121,7 +122,7 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     ## Identify which buoys are NDBC and which are CMAN/MARITIME
     network = []
     for item in weccstations['STATION_ID']:
-        if item[:2] == "46" or item[:4] == "NDBC_46":
+        if item[:2] == "46" or item[:7] == "NDBC_46":
             network.append('NDBC')
         else:
             network.append('MARITIME')
@@ -163,103 +164,151 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
 # network = "NDBC" or "MARITIME"
 def get_maritime(stations, bucket_name, network, years, get_all = True):
 
-    # ## Login.
-    # ## using ftplib
-    ftp = FTP('ftp-oceans.ncei.noaa.gov')
-    ftp.login() # user anonymous, password anonymous
-    ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
-    pwd = ftp.pwd() # Get base file path.
-
-    # Set up error handling df.
-    errors = {'File':[], 'Network': [], 'Time':[], 'Error':[]}
-
-    # Set end time to be current time at beginning of download
-    end_api = datetime.now().strftime('%Y%m%d%H%M')
-
-    # Get date of most recently edited file and list of file names already saved.
-    try:
-        s3 = boto3.client('s3')
-        objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
-        all = objects['Contents']
-        # Get date of last edited file
-        latest = max(all, key=lambda x: x['LastModified'])
-        last_edit_time = latest['LastModified']
-        # Get list of all file names
-        alreadysaved = []
-        for item in all:
-            files = item['Key']
-            alreadysaved.append(files)
-        alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
-
-    except:
-        get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
+    ## HTTP access instead of FTP: https://www.ndbc.noaa.gov/data/historical/stdmet/
 
     # Filter to only keep MARITIME stations in list
     directory = "1_raw_wx/"+network+"/"
     dir_stations = stations.loc[stations['NETWORK']==network]
-    
-    for i in years: # For each year/folder
-        if len(i)<5: # If folder is the name of a year (and not metadata file)
-            for j in range(1, 13): # For each month (1-12)
-                try:
-                    ftp.cwd(pwd) # Return to original working directory
-                    j = str(j).zfill(2) # Pad to correct format
-                    dir = ('{}/{}'.format(i,j)) # Specify working directory by year and month
-                    #print(dir)
-                    ftp.cwd(dir) # Change working directory to year/month.
-                    filenames = ftp.nlst() # Get list of all file names in folder.
 
-                    filenames = [file for file in filenames if file.endswith(".nc")] # Remove all the error log files
-                    dir_files = [file for file in filenames if any(k in file for k in dir_stations['STATION_ID'])]
-                    
-                    for filename in dir_files:
-                        try:
-                            modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
-                            modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+    url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(station_id, years)
 
-                            if get_all is False:
-                                if filename in alreadysaved: # If filename already in saved bucket
-                                    if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
-                                        ftp_to_aws(ftp, filename, directory=directory)
-                                    else:
-                                        print("{} already saved".format(filename))
-                                else:
-                                    ftp_to_aws(ftp, filename, directory=directory) # Else, if filename not saved already, save.
-                            elif get_all is True: # If get_all is true, download all files in folder.
-                                ftp_to_aws(ftp, filename, directory=directory)
-                        
-                            ### If get_all is False, only download files whose date has changed since the last download.
-                            #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
-                            #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
-                            #### This code could be altered to compare write time and file name if desired.
+    # Try to get station txt.gz.
+    try:
+        #request = requests.get(url)
+        s3_obj = s3.Object(bucket_name, directory+"{}.txt.gz".format(id["STID"]))
 
-                        except Exception as e:
-                            errors['File'].append(filename)
-                            errors['Network'].append(network)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append(e)
-                except Exception as e:
-                    print("error in downloading date {}/{}: {}". format(j, i, e))
-                    next  # Adds error handling in case of missing folder. Skip to next folder.
-        else:
-            print(i)
 
-    ## Write errors to csv with respective networks
-    
-    error_buffer = StringIO()
-    errors = pd.DataFrame(errors)
-    errors.to_csv(error_buffer)
-    content = error_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network, end_api))
+        with requests.get(url, stream=True) as r:
+            if r.status_code == 200: # If API call returns a response
+                if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
+                    # Get error message and clean.
+                    error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
+                    error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
+                    error_text = re.sub(",.*", "", error_text)
+                    error_text = re.sub('"', '', error_text)
 
-    ftp.quit() # This is the “polite” way to close a connection
+                    # Append rows to dictionary
+                    errors['Station ID'].append(id['STID'])
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(error_text)
+                    next
+                else:
+                    s3_obj.put(Body=r.content)
+                    print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+
+            else:
+                errors['Station ID'].append(id['STID'])
+                errors['Time'].append(end_api)
+                errors['Error'].append(r.status_code)
+                print("Error: {}".format(r.status_code))
+
+    except Exception as e:
+        print("Error: {}".format(e))
+
+
+
+        ## Write errors to csv with respective networks
+        error_buffer = StringIO()
+        errors = pd.DataFrame(errors)
+        errors.to_csv(error_buffer)
+        content = error_buffer.getvalue()
+        s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network, end_api))
+
+        ftp.quit() # This is the “polite” way to close a connection
 
 
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-get_maritime(stations, bucket_name, "MARITIME", years = years, get_all = False)
+# get_maritime(stations, bucket_name, "MARITIME", years = years, get_all = True)
+get_maritime(stations, bucket_name, "NDBC", years = years, get_all = True)
 
 ## Full Pull Notes
+## 0. Select either "MARITIME" or "NDBC" as network of choice to download
 ## 1. For first full data pull, set get_all = True
 ## 2. For all subsequent data pulls/update with newer data, set get_all = False
+
+
+#### OLD FTP VERSION TO GRAB DATA
+# ----------------------------------------------------------------------------------------------------------------------------
+#
+# # ## Login.
+# # ## using ftplib
+# ftp = FTP('ftp-oceans.ncei.noaa.gov')
+# ftp.login() # user anonymous, password anonymous
+# ftp.cwd('pub/data.nodc/ndbc/cmanwx/')  # Change WD.
+# pwd = ftp.pwd() # Get base file path.
+#
+# # Set up error handling df.
+# errors = {'File':[], 'Network': [], 'Time':[], 'Error':[]}
+#
+# # Set end time to be current time at beginning of download
+# end_api = datetime.now().strftime('%Y%m%d%H%M')
+#
+# # Get date of most recently edited file and list of file names already saved.
+# try:
+#     s3 = boto3.client('s3')
+#     objects = s3.list_objects(Bucket=bucket_name, Prefix=directory)
+#     all = objects['Contents']
+#     # Get date of last edited file
+#     latest = max(all, key=lambda x: x['LastModified'])
+#     last_edit_time = latest['LastModified']
+#     # Get list of all file names
+#     alreadysaved = []
+#     for item in all:
+#         files = item['Key']
+#         alreadysaved.append(files)
+#     alreadysaved = [ele.replace(directory, '') for ele in alreadysaved]
+#
+# except:
+#     get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
+#
+# # Filter to only keep MARITIME stations in list
+# directory = "1_raw_wx/"+network+"/"
+# dir_stations = stations.loc[stations['NETWORK']==network]
+#
+# for i in years: # For each year/folder
+#     if len(i)<5: # If folder is the name of a year (and not metadata file)
+#         for j in range(1, 13): # For each month (1-12)
+#             try:
+#                 ftp.cwd(pwd) # Return to original working directory
+#                 j = str(j).zfill(2) # Pad to correct format
+#                 dir = ('{}/{}'.format(i,j)) # Specify working directory by year and month
+#                 #print(dir)
+#                 ftp.cwd(dir) # Change working directory to year/month.
+#                 filenames = ftp.nlst() # Get list of all file names in folder.
+#
+#                 filenames = [file for file in filenames if file.endswith(".nc")] # Remove all the error log files
+#                 dir_files = [file for file in filenames if any(k in file for k in dir_stations['STATION_ID'])]
+#
+#                 for filename in dir_files:
+#                     try:
+#                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
+#                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
+#
+#                         if get_all is False:
+#                             if filename in alreadysaved: # If filename already in saved bucket
+#                                 if (modifiedTime>last_edit_time): # If file new since last run-through, write to folder.
+#                                     ftp_to_aws(ftp, filename, directory=directory)
+#                                 else:
+#                                     print("{} already saved".format(filename))
+#                             else:
+#                                 ftp_to_aws(ftp, filename, directory=directory) # Else, if filename not saved already, save.
+#                         elif get_all is True: # If get_all is true, download all files in folder.
+#                             ftp_to_aws(ftp, filename, directory=directory)
+#
+#                         ### If get_all is False, only download files whose date has changed since the last download.
+#                         #### Note that the way this is written will NOT fix partial downloads (i.e. it does not check if the specific file is in the folder)
+#                         #### It will only add new/changed files to a complete set (i.e. add files newer than the last download.)
+#                         #### This code could be altered to compare write time and file name if desired.
+#
+#                     except Exception as e:
+#                         errors['File'].append(filename)
+#                         errors['Network'].append(network)
+#                         errors['Time'].append(end_api)
+#                         errors['Error'].append(e)
+#             except Exception as e:
+#                 print("error in downloading date {}/{}: {}". format(j, i, e))
+#                 next  # Adds error handling in case of missing folder. Skip to next folder.
+#     else:
+#         print(i)
