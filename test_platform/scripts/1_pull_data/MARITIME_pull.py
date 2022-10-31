@@ -164,8 +164,10 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
 
     for year in years:
         for filename in dir_stations['STATION_ID']:
-            # print(filename)
-            url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
+            if dir_stations['OWNER'] == "CM": # Environment and Climate Change Canadian Moored buoy
+                url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year))
+            else: # NOAA NDBC Buoy archive
+                url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
 
             # Try to get station txt.gz.
             try:
