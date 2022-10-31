@@ -1,10 +1,10 @@
 """
-This script downloads MARITIME data from NCEI using ftp.
+This script downloads MARITIME & NDBC data from NDBC using http.
 Approach:
 (1) Download data using station list.
 Inputs: bucket name in AWS, directory to save file to (folder path), range of years of data to download,
 parameter to only download changed files (optional)
-Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per month.
+Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
 Notes:
 1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
