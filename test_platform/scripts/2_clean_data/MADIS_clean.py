@@ -20,6 +20,8 @@ import xarray as xr
 from datetime import datetime, date
 import re
 import numpy as np
+import warnings
+warnings.filterwarnings(action = 'ignore', category = FutureWarning) # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
 import requests
 from collections import Counter
@@ -61,7 +63,7 @@ except:
     pass
 
 # Get units
-unitstocheck = ['Pascals', '%', 'm/s', 'Celsius', 'QC_Type', 'Degrees']
+unitstocheck = ['Pascals', '%', 'm/s', 'Celsius', 'QC_type', 'Degrees', 'Millimeters']
 
 # Given a network name, return all relevant AWS filepaths for other functions.
 def get_file_paths(network):
@@ -171,6 +173,8 @@ def parse_madis_headers(file):
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns, 
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
     
+    #print(headers) # For testing.
+    
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -272,11 +276,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
     else: # If files read successfully, continue.
 
         ids.append("junk") # For testing errors
-        ids.append("AP156") # Test that script will successfully continue after error.
 
         #for i in ids: # For each station (full run)
         #for i in ids[0:5]: # Subsample for testing merge
-        for i in ids[-5:]: # Subsample for testing errors    
+        for i in ids[-4:]: # Subsample for testing errors    
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -899,6 +902,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     filepath = cleandir+filename # Write file path
                     print(filepath)
 
+                    print(ds) # For testing
+
                     # Write locally
                     ds.to_netcdf(path = 'temp/temp.nc') # Save station file.
 
@@ -960,7 +965,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
    
 # # Run functions
 if __name__ == "__main__":
-    network = "MAP"
+    network = "LOXWFO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
     clean_madis(bucket_name, rawdir, cleandir, network)
