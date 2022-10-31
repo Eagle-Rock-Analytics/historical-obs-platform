@@ -73,7 +73,7 @@ unitstocheck = ['Pascals', '%', 'm/s', 'Celsius', 'QC_Type', 'Degrees']
 # Note: this function does not need to be run daily, just occasionally.
 def get_qaqc_flags(token, bucket_name, qaqcdir):
     url = "https://api.synopticdata.com/v2/qctypes?token={}".format(token)
-    print(url)
+    #print(url)
     request = requests.get(url).json()
     ids = []
     for each in request['QCTYPES']:
@@ -81,7 +81,7 @@ def get_qaqc_flags(token, bucket_name, qaqcdir):
     ids = pd.DataFrame(ids, columns = ['ID', 'SHORTNAME', 'NAME']) # Sort by start date (note some stations return 'None' here)
     
     # Save to AWS bucket.
-    print(ids)
+    #print(ids)
     print("Saving QAQC flags to csv file.")
     
     csv_buffer = StringIO()
@@ -228,7 +228,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
 
     # Remove "status" error rows
     df = df.loc[df["Station_ID"].str.contains("status")==False]  
-    print(removedvars) 
+    
     return df
 
 def clean_cwop(bucket_name, rawdir, cleandir):
@@ -836,9 +836,10 @@ def clean_cwop(bucket_name, rawdir, cleandir):
                     ds['ps_altimeter'].attrs['ancillary_variables'] = "ps"
 
                 if 'tdps_derived' in ds.keys():
+                    ds['tdps_derived'] = calc_clean._unit_degC_to_K(ds['tdps_derived'])
                     ds['tdps_derived'].attrs['long_name'] = "derived_dew_point_temperature"
-                    ds['tdps_derived'].attrs['units'] = "Celsius"
-                    ds['tdps_derived'].attrs['comment'] = "Derived by Synoptic."
+                    ds['tdps_derived'].attrs['units'] = "degree_Kelvin"
+                    ds['tdps_derived'].attrs['comment'] = "Derived by Synoptic. Converted from Celsius to Kelvin."
 
                 if 'ps_derived' in ds.keys():
                     ds['ps_derived'].attrs['long_name'] = "derived_station_pressure"
@@ -920,7 +921,7 @@ def clean_cwop(bucket_name, rawdir, cleandir):
             removedvarscsv = pd.read_csv(test['Body'])
             removedvars = pd.concat([removedvarscsv, removedvars], axis = 0, ignore_index = True)
             removedvars = removedvars[['Variable']].drop_duplicates(ignore_index = True)
-            print(removedvars)
+            #print(removedvars) # For testing
 
             csv_buffer = StringIO()
             removedvars.to_csv(csv_buffer)
@@ -955,14 +956,12 @@ def clean_cwop(bucket_name, rawdir, cleandir):
    
 # # Run functions
 if __name__ == "__main__":
-    #get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir)
+    get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir)
     clean_cwop(bucket_name, rawdir, cleandir)
 
 
-# CODE BELOW NOT YET UPDATED FOR AWS.
 # # # Testing:
 # # ## Import file.
-
 
 # # for var in test.keys():
 # #     print(var)
