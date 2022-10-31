@@ -30,7 +30,7 @@ from io import BytesIO, StringIO
 import smart_open
 import traceback
 import botocore
-# NETCDF4 must also be installed, but doesn't need to be imported.
+# To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
 # Import calc_clean.py.
@@ -905,7 +905,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     print(ds) # For testing
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc') # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
 
                     # Push file to AWS with correct file name.
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
@@ -967,46 +967,55 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 if __name__ == "__main__":
     network = "LOXWFO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-    get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
-    clean_madis(bucket_name, rawdir, cleandir, network)
+    
+    #get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
+    #clean_madis(bucket_name, rawdir, cleandir, network)
 
+    # # # Testing:
+    # import random # To get random subsample
+    # import s3fs # To read in .nc files
+    
+    # # # ## Import file.
+    # files = []
+    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+    #     file = str(item.key)
+    #     files += [file]
 
-# # # Testing:
-# # ## Import file.
+    # files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+    # files = [file for file in files if "error" not in file] # Remove error handling files.
+    # files = [file for file in files if "station" not in file] # Remove error handling files.
+    # files = random.sample(files, 4)
 
-# # for var in test.keys():
-# #     print(var)
-# #     print(test[var])
+    # # File 1:
+    # fs = s3fs.S3FileSystem()
+    # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+    
+    # with fs.open(aws_urls[0]) as fileObj:
+    #     test = xr.open_dataset(fileObj)
+    #     print(test)
+    #     for var in test.keys():
+    #         print(var)
+    #         print(test[var])
+    #     test.close()
+        
+    # # File 2:
+    # # Test: multi-year merges work as expected.
+    # with fs.open(aws_urls[1]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     print(str(test['time'].min())) # Get start time
+    #     print(str(test['time'].max())) # Get end time
+    #     test.close()
 
-# # # # # # Test 1: multi-year merges work as expected.
-# # print(str(test['time'].min())) # Get start time
-# # print(str(test['time'].max())) # Get end time
-
-
-# # # # ## Test 2: Inspect vars and attributes
-# # # # ## 
-# # for var in test.variables: 
-# #     try:
-# #         print([var, float(test[var].min()), float(test[var].max())]) 
-# #     except:
-# #         continue
-
-# # # # # Test 3: Get one month's data and test subsetting.
-# # print(test.sel(time = "2015-05"))
-
-# # # # # Next file.
-# # test = xr.open_dataset("CWOP_D3845.nc") 
-# # print(test)
-# # print(str(test['time'].min())) # Get start time
-# # print(str(test['time'].max())) # Get end time
-
-# # ## Inspect vars and attributes
-# # ## 
-# # for var in test.variables: 
-# #     try:
-# #         print([var, float(test[var].min()), float(test[var].max())]) 
-# #     except:
-# #         continue
-
-# # # # Get a few rows
-# # print(test.sel(time = "2010-06")) 
+    
+    # # File 3:
+    # # Test: Inspect vars and attributes
+    # with fs.open(aws_urls[2]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     for var in test.variables: 
+    #         try:
+    #             print([var, float(test[var].min()), float(test[var].max())]) 
+    #         except:
+    #             continue
+    #     test.close()
+    
+    
