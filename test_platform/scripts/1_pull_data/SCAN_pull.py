@@ -266,11 +266,16 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
         errors = pd.DataFrame(errors)
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
+        if i == "SNTL":
+            i == "SNOTEL" # Fix name for errors file
         s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(i, end_api))
+
+    return errors
         
 
-    
-get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SCAN'])
+if __name__ == "__main__":
+    get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
+
 # Note: neither BOR nor USGS have hourly data for any of our variables of interest.
 # I've removed them from our default networks of interest but left the code in, in case we
 #  want to explore other networks/frequencies of data in the future.
