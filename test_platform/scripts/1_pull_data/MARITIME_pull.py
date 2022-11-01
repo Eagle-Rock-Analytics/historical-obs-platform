@@ -219,6 +219,9 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
 ## NDBC: approx 122 of 151 can be downloaded
 def download_comparison(stations, bucket_name, network):
 
+    ## There is a warning that is not relevant to our purposes, this turns it off
+    pd.options.mode.chained_assignment = None  # default='warn'
+
     dir_bucket = s3.Bucket(bucket_name)
 
     ## Read in station list to compare against
@@ -235,7 +238,6 @@ def download_comparison(stations, bucket_name, network):
         dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
-    print(downloaded_stns)
 
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
@@ -243,23 +245,15 @@ def download_comparison(stations, bucket_name, network):
 
     ## Identifies whether a station in the station_list is a part of the downloaded_stns list
     dir_station_list = dir_stations['STATION_ID'].tolist() # All stations from station_list
-    print(dir_stations)
-    
+
     # Add flag
     dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
-    print(dir_stations)
-    
-    # dn_flag = []
-    # for all_stn in dir_station_list:
-    #     if np.isin(all_stn, downloaded_stns, assume_unique=True) == True:
-    #         dn_flag.append('Y')
-    #         print("{} was downloaded".format(all_stn)) ## Useful for testing, can be deleted
 
-    #     else:
-    #         dn_flag.append('N')
-    #         print("{} was not downloaded".format(all_stn)) ## Useful for testing, can be deleted
-
-    # dir_stations.insert(-1, 'STN_DOWNLOAD', dn_flag)
+    # ## Write stations to respective AWS bucket
+    new_buffer = StringIO()
+    dir_stations.to_csv(new_buffer)
+    content = new_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stations.csv".format(network))
 
     # SAVE TO AWS - to do.
     print("{} station_list updated to reflect which stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
@@ -268,9 +262,10 @@ def download_comparison(stations, bucket_name, network):
 
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
+network_to_run = "NDBC" # "MARITIME" or "NDBC"
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-# get_maritime(stations, bucket_name, "MARITIME", years = years, get_all = True)
-download_comparison(stations, bucket_name, "MARITIME")
+# get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
+download_comparison(stations, bucket_name, network_to_run)
 
 ## Full Pull Notes
 ## 0. Select either "MARITIME" or "NDBC" as network of choice to download
