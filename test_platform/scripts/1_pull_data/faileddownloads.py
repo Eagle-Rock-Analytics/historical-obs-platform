@@ -1,7 +1,17 @@
-# This function iterates through all networks, but works only on station-based file systems (SCAN, SNOTEL, MADIS networks).
-# It does the following:
+'''
+# This function iterates through all networks, 
+# 
+# For station-based file systems (SCAN, SNOTEL, MADIS networks),
+# it does the following:
 # 1) compare station lists to all files and identify any missing station files, attempting to redownload them.
 # 2) MADIS only: opens the last line of each file to locate timeout errors, and redownloads from the last timestamp if error found.
+
+# For time-based station files (e.g. ASOSAWOS, OtherISD, MARITIME/NDBC),
+# it does the following:
+# 1) Read in station lists and file names from AWS
+# 2) Compare station lists to 
+# 3) ISD-only: using start and end dates, identifies any months of missing data for redownload.
+'''
 
 # Import packages
 from MADIS_pull import get_madis_station_csv

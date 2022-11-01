@@ -250,8 +250,9 @@ def asosawos_retry_downloads(token, bucket_name, network):
     missed_stations = [id for id in station_list['ISD-ID'] if id not in stations]
     missed_ids = station_list[['ISD-ID', 'start_time']] # Format list in way that MADIS_pull script wants it.
     missed_ids = missed_ids[missed_ids['ISD-ID'].isin(missed_stations)]
-
+    downloaded_ids = station_list[~station_list['ISD-ID'].isin(missed_stations)]
     print(missed_ids)
+    print(downloaded_ids['ISD-ID'].tail(20))
 
 
 #stations = get_wecc_stations(wecc_terr, wecc_mar)

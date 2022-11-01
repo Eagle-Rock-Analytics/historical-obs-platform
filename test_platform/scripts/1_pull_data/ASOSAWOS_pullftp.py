@@ -193,6 +193,10 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
 
     # Reformat time strings for FTP/API call.
     weccstations['start_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['BEGIN']]
+    weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d') for i in weccstations['END']]
+
+    # Only keep stations whose end date is after Jan 01, 1980.
+    weccstations = weccstations[weccstations['end_time'] >= datetime.strptime("1980-01-01", "%Y-%m-%d")]
     weccstations['end_time'] = [datetime.strptime(str(i), '%Y%m%d').strftime('%Y-%m-%d') for i in weccstations['END']]
 
     # Now, read in ASOS and AWOS station files and use to filter to only keep ASOS/AWOS stations.
@@ -342,4 +346,4 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
 if __name__ == "__main__":
     # Run functions
     stations = get_wecc_stations(wecc_terr, wecc_mar)
-    get_asosawos_data_ftp(stations, bucket_name, directory, get_all = False)
+    get_asosawos_data_ftp(stations, bucket_name, directory, get_all = True)
