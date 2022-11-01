@@ -1,6 +1,6 @@
 '''
 # This function iterates through all networks, 
-# 
+
 # For station-based file systems (SCAN, SNOTEL, MADIS networks),
 # it does the following:
 # 1) compare station lists to all files and identify any missing station files, attempting to redownload them.
@@ -9,13 +9,14 @@
 # For time-based station files (e.g. ASOSAWOS, OtherISD, MARITIME/NDBC),
 # it does the following:
 # 1) Read in station lists and file names from AWS
-# 2) Compare station lists to 
-# 3) ISD-only: using start and end dates, identifies any months of missing data for redownload.
+# 2) Compare station lists to all files, and identify any stations that are completely missing from downloaded data.
+# 3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations.
 '''
 
 # Import packages
 from MADIS_pull import get_madis_station_csv
 from SCAN_pull import get_scan_station_data
+from ASOSAWOS_pullftp import get_asosawos_data_ftp
 import boto3
 import pandas as pd
 import config
@@ -250,6 +251,53 @@ def scan_retry_downloads(bucket_name, network, terrpath, marpath):
     # # Manually print out errors for immediate verification of success. Will also save to AWS.
     print(errors)
 
+# For ASOSAWOS / OtherISD
+def isd_retry_downloads(token, bucket_name, network):
+    # Get list of files in folder
+    prefix = "1_raw_wx/"+network
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = prefix): 
+        file = str(item.key)
+        files += [file]
+    
+    station_file = [file for file in files if "isd" in file] # ID station file
+    station_file = [file for file in station_file if 'station' in file] 
+    
+    files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
+    #files = [file for file in files if "errors" not in file]
+    #files = [file for file in files if "station" not in file] # Remove error and station list files
+
+    # Get only station IDs from file names
+    stations = [file.split("/")[-1] for file in files]
+    stations = [file.replace(".gz", '') for file in stations]
+    stations = [file[0:-5] for file in stations]
+    
+    # Read in station list
+    station_list = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
+    station_list = pd.read_csv(station_list['Body'])
+
+    # Get list of IDs not in download folder
+    missing_ids = [id for id in station_list['ISD-ID'] if id not in stations]
+    missed_stations = station_list[station_list['ISD-ID'].isin(missing_ids)]
+    
+    # Get list of filenames where IDs have partially downloaded (years missing).
+    downloaded_ids = station_list[~station_list['ISD-ID'].isin(missing_ids)]
+    missing_files = pd.DataFrame()
+    for index, id in downloaded_ids.iterrows():
+        if int(id['start_time'][0:4])<1980:
+            years = range(1980, int(id['end_time'][0:4])+1) # +1 to make inclusive of current year
+        else:
+            years = range(int(id['start_time'][0:4]), int(id['end_time'][0:4])+1)
+        id_files = [file for file in files if id['ISD-ID'] in file]
+        id_success = [file for file in id_files if any(str(year) in file for year in years)]
+        missing_years = [year for year in years if not any(str(year) in id for id in id_success)]
+        if missing_years:
+            filenames = [id['ISD-ID']+"-"+str(missing_year)+".gz" for missing_year in missing_years]
+            missing_files = pd.concat([missing_files, pd.DataFrame(zip(missing_years,filenames))])
+        
+    
+    return missed_stations, missing_files
+
 
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
@@ -264,6 +312,12 @@ def retry_downloads(token, bucket_name, networks = None):
 
     # Define list of SCAN/SNOTEL networks.
     SNTL = ['SNOTEL', 'SCAN']
+
+    # Define list of ISD networks
+    ISD = ['ASOSAWOS', 'OtherISD']
+
+    # Define list of MARITIME/NDBC networks
+    MARITIME = ['NDBC', 'MARITIME']
 
     # If network not provided, get list of all networks from AWS bucket and iterate.
     if networks is None:
@@ -281,15 +335,17 @@ def retry_downloads(token, bucket_name, networks = None):
             get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
         elif network in SNTL:
             scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar)
+        elif network in ISD:
+            missed_stations, file_list = isd_retry_downloads(token = token, bucket_name = bucket_name, network = network)
+            #get_asosawos_data_ftp(missed_stations, bucket_name, directory, get_all = True) # Download all missing stations
+            # TO DO: write script just to download missing files.
+            pass
+        elif network in MARITIME:
+            print("MARITIME")
+            pass
         else:
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["RAWS"])
+retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["ASOSAWOS"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
-
-# Helpful networks for testing: 
-# HPWREN has many timeout errors
-# MTRWFO has a missing file that won't download and throws a "internal error".
-# Delete a file from SNOTEL and run on that network.
-# Throw a junk name into networks, or run with no network specified.
