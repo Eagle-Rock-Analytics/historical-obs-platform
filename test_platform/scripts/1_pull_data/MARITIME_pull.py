@@ -209,7 +209,7 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
 ## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
 ## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
 ## MARITIME: 99 of 123 downloaded (24 are not meteorological)
-## NDBC: approx 122 of 151 can be downloaded
+## NDBC: 136 of 151 downloaded (16 are not meteorological)
 def download_comparison(stations, bucket_name, network):
 
     ## There is a warning that is not relevant to our purposes, this turns it off
