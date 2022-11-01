@@ -250,7 +250,7 @@ def retry_downloads(token, bucket_name, networks = None):
 
     # Define list of all MADIS networks.
     MADIS = ['CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HADS', 'HNXWFO', 'HOLFUY', 'HPWREN', 'LOXWFO', 'MAP', 'MTRWFO', 'NOS-NWLON', 'NOS-PORTS', 'RAWS', 
-    'SGXWFO', 'SHASAVAL', 'VCAPD']
+    'SGXWFO', 'SHASAVAL', 'VCAPCD']
 
     # Define list of SCAN/SNOTEL networks.
     SNTL = ['SNOTEL', 'SCAN']
@@ -275,7 +275,7 @@ def retry_downloads(token, bucket_name, networks = None):
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["SNOTEL"])
+retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["RAWS"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
 
 # Helpful networks for testing: 

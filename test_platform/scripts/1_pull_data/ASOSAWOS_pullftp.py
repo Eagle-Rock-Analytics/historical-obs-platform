@@ -57,24 +57,24 @@ def ftp_to_aws(ftp, file, directory):
     ftp.retrbinary('RETR '+file, r.write)
     r.seek(0)
     s3.upload_fileobj(r, bucket_name, directory+file)
-    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    print('{} saved'.format(file)) # Optional.
     r.close() # Close file
 
-# Function to download ASOS and AWOS station lists (.txt), parse, 
-# combine and write to AWS bucket.
+# Function to download and parse ASOS and AWOS station lists (.txt).
 # Source: https://www.ncei.noaa.gov/access/homr/reports/platforms
 # Inputs: none.
-# Outputs: one asosawos-stations.csv file and a stations object to be used in 
+# Outputs: one asosawos-stations.csv file and a stations object.
+# This function is called internally in get_wecc_stations().
 def get_asosawos_stations():
     
     # Get AWOS stations.
     awosurl = "https://www.ncei.noaa.gov/access/homr/file/awos-stations.txt"
     awosr = requests.get(awosurl)
     lines = awosr.content.split(b'\n') # Split by line
-    # Skip the first 4 lines
-    lines = lines[4:]
+    
+    lines = lines[4:] # Skip the first 4 lines
     df = []
-    for line in lines:
+    for line in lines: # Parse data manually.
         ncdcid = line[0:8]
         wban = line[9:14]
         coopid = line[15:21]
@@ -146,9 +146,10 @@ def get_asosawos_stations():
     return asosawosstations
 
 # Function to get up to date station list of ASOS AWOS stations in WECC.
-# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by ICAO and returns list of station IDs.
+# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by WBAN and returns list of station IDs.
 # Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
 # Both paths given relative to home directory for git project.
+# Outputs: saves 2 sets of metadata to AWS, returns filtered ISD station object for use in get_asosawos_data_ftp().
 def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
     ## Login.
     ## using ftplib, get list of stations as csv
@@ -208,9 +209,9 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     asosawos = asosawos.sort_values("STARTDATE")
     weccstations = weccstations.sort_values("BEGIN")
 
-    # Only keep asos awos stations in WECC.
+    # Only keep ASOS-AWOS stations in WECC.
     # Merging creates duplicates but gives the number of stations expected.
-    # For this stage, keep station metadatas separate and just filter using WBAN.
+    # For this stage, keep the 2 sets of station metadata separate and just filter using WBAN.
     m1 = weccstations.WBAN.isin(asosawos.WBAN)
     m2 = asosawos.WBAN.isin(weccstations.WBAN)
     
@@ -224,13 +225,13 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     csv_buffer = StringIO()
     asosawos.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"asosawos_stations.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_asosawos.csv")
 
     # Write filtered ISD station list to CSV.
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"isd_asosawos_stations.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_isd_asosawos.csv")
 
     return weccstations
 
@@ -249,13 +250,6 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
     errors = {'Date':[], 'Time':[], 'Error':[]}
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
 
-    # Remove depracated stations if filtering by time.
-    if start_date is not None:
-        try:
-            station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
-        except Exception as e:
-            print("Error:", e) # If error occurs here, function will continue without time filtering. Can add "break" to change this to stop code.
-
     ## Login.
     ## using ftplib
     ftp = FTP('ftp.ncdc.noaa.gov')
@@ -268,6 +262,18 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
     
     # Set up AWS to write to bucket.
     s3 = boto3.client('s3')
+
+    # If no start date specified, manually set to be Jan 01 1980.
+    if start_date is None:
+        start_date = "1980-01-01"
+        
+    # Remove depracated stations if filtering by time.
+    if start_date is not None:
+        try:
+            station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
+        except Exception as e:
+            print("Error:", e) # If error occurs here, 
+            years = [i for i in years if i>"1979"] # function will use years to filter station files.
 
     try:
         objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
@@ -285,7 +291,6 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
 
     for i in years: # For each year / folder.
-    #for i in ['1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
                 # If no start date specified or year of folder is within start date range, download folder.
@@ -296,7 +301,6 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
                     filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
                     filefiltlist = filefiltlist.tolist() # Convert to list.
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
-                    fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
                     for filename in fileswecc:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
@@ -335,6 +339,7 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
     content = csv_buffer.getvalue()
     s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_asosawos_{}.csv".format(end_api))
     
-# Run functions
-stations = get_wecc_stations(wecc_terr, wecc_mar)
-get_asosawos_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
+if __name__ == "__main__":
+    # Run functions
+    stations = get_wecc_stations(wecc_terr, wecc_mar)
+    get_asosawos_data_ftp(stations, bucket_name, directory, get_all = False)

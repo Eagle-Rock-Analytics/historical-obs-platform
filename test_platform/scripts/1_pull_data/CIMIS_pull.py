@@ -178,7 +178,7 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
 if __name__ == "__main__":
     # Run functions
     get_cimis_stations(directory)
-    get_cimis_data_ftp(bucket_name, directory, get_all = False)
-
+    get_cimis_data_ftp(bucket_name, directory, get_all = True)
+    
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
