@@ -43,8 +43,9 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set envr variables
-# years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
-years = list(map(str, range(1980,2021)))
+years = list(map(str, range(1980,2022))) # Get list of years from 1980 to 2021
+## Current year data is stored in a different location in monthly files, not annual -- TO DO FOR 2022
+## Alternatively, for final full data pull for v1 product (approx. March/April 2023), update years to "2023" to grab all of 2022 annual files
 
 # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -119,22 +120,9 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
 
     weccstations['NETWORK'] = network
 
-
     ## Splits dataframe into respective networks
     maritime_network = weccstations[weccstations['NETWORK'] == 'MARITIME']
     ndbc_network = weccstations[weccstations['NETWORK'] == 'NDBC']
-
-    ## Reorders the indices in both stationlists
-    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
-    mar_idx = []
-    for i in range(len(maritime_network.index)):
-        mar_idx.append(i)
-    maritime_network.index = mar_idx
-
-    ndbc_idx = []
-    for j in range(len(ndbc_network.index)):
-        ndbc_idx.append(j)
-    ndbc_network.index = ndbc_idx
 
     ## Write stations to respective AWS bucket - requires separate buffers
     mar_buffer = StringIO()
@@ -165,16 +153,20 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     directory = "1_raw_wx/"+network+"/"
     dir_stations = stations.loc[stations['NETWORK']==network]
 
+    ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
+    stations = stations.astype({"OWNER": "string"})
+    canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
+
     for year in years:
         for filename in dir_stations['STATION_ID']:
-            if dir_stations['OWNER'] == "CM": # Environment and Climate Change Canadian Moored buoy
+
+            if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
                 url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year))
             else: # NOAA NDBC Buoy archive
                 url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
 
             # Try to get station txt.gz.
             try:
-                #request = requests.get(url)
                 s3_obj = s3.Object(bucket_name, directory+"{}h{}.txt.gz".format(str(filename), str(year)))
 
                 with requests.get(url, stream=True) as r:
@@ -214,8 +206,9 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network, end_api))
 
 
-## Comparison of which stations downloaded, and adds y/n to stn_download column in station_list
-## MARITIME: approx 93 of 123 can be downloaded (are meteorological observers, remaining are ocean only)
+## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
+## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
+## MARITIME: 99 of 123 downloaded (24 are not meteorological)
 ## NDBC: approx 122 of 151 can be downloaded
 def download_comparison(stations, bucket_name, network):
 
@@ -249,6 +242,13 @@ def download_comparison(stations, bucket_name, network):
     # Add flag
     dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
 
+    ## Reorders the indices in both stationlists
+    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
+    stn_idx = []
+    for i in range(len(dir_stations.index)):
+        stn_idx.append(i)
+    dir_stations.index = stn_idx
+
     # ## Write stations to respective AWS bucket
     new_buffer = StringIO()
     dir_stations.to_csv(new_buffer)
@@ -256,7 +256,7 @@ def download_comparison(stations, bucket_name, network):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stations.csv".format(network))
 
     # SAVE TO AWS - to do.
-    print("{} station_list updated to reflect which stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
+    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
 
     return dir_stations
 
@@ -264,10 +264,10 @@ def download_comparison(stations, bucket_name, network):
 # To download all data, run:
 network_to_run = "NDBC" # "MARITIME" or "NDBC"
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-# get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
+get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
 download_comparison(stations, bucket_name, network_to_run)
 
 ## Full Pull Notes
-## 0. Select either "MARITIME" or "NDBC" as network of choice to download
+## 0. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
 ## 1. For first full data pull, set get_all = True
 ## 2. For all subsequent data pulls/update with newer data, set get_all = False
