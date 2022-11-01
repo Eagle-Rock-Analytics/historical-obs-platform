@@ -22,6 +22,7 @@ from shapely.geometry import Point
 import geopandas as gp
 from geopandas.tools import sjoin
 from re import search
+import numpy as np
 
 
 # Set AWS credentials
@@ -42,7 +43,8 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set envr variables
-years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
+# years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
+years = list(map(str, range(1980,2021)))
 
 # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -110,12 +112,13 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     ## Identify which buoys are NDBC and which are CMAN/MARITIME
     network = []
     for item in weccstations['STATION_ID']:
-        if item[:2] == "46" or item[:7] == "NDBC_46":
+        if item[:2] == "46":
             network.append('NDBC')
         else:
             network.append('MARITIME')
 
     weccstations['NETWORK'] = network
+
 
     ## Splits dataframe into respective networks
     maritime_network = weccstations[weccstations['NETWORK'] == 'MARITIME']
@@ -211,10 +214,58 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network, end_api))
 
 
+## Comparison of which stations downloaded, and adds y/n to stn_download column in station_list
+## MARITIME: approx 93 of 123 can be downloaded (are meteorological observers, remaining are ocean only)
+## NDBC: approx 122 of 151 can be downloaded
+def download_comparison(stations, bucket_name, network):
+
+    dir_bucket = s3.Bucket(bucket_name)
+
+    ## Read in station list to compare against
+    directory = "1_raw_wx/"+network+"/"
+    dir_stations = stations.loc[stations['NETWORK']==network]
+
+    files_downloaded = []
+    for object_summary in dir_bucket.objects.filter(Prefix=directory):
+        if object_summary.key[-7:] == ".txt.gz":
+            files_downloaded.append(object_summary.key)
+
+    downloaded_stns = set()
+    for file in files_downloaded:
+        dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
+        downloaded_stns.add(dn_file)
+    downloaded_stns = list(downloaded_stns)
+
+
+    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
+    stn_yes = []
+
+    ## Identifies whether a station in the station_list is a part of the downloaded_stns list
+    dir_station_list = dir_stations['STATION_ID'].tolist() # All stations from station_list
+    print(dir_station_list)
+
+    dn_flag = []
+    for all_stn in dir_station_list:
+        if np.isin(all_stn, downloaded_stns, assume_unique=True) == True:
+            dn_flag.append('Y')
+            print("{} was downloaded".format(all_stn)) ## Useful for testing, can be deleted
+
+        else:
+            dn_flag.append('N')
+            print("{} was not downloaded".format(all_stn)) ## Useful for testing, can be deleted
+
+    dir_stations.insert(-1, 'STN_DOWNLOAD', dn_flag)
+
+    print("{} station_list updated to reflect which stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
+
+    return dir_stations
+
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-get_maritime(stations, bucket_name, "MARITIME", years = years, get_all = True)
+# get_maritime(stations, bucket_name, "MARITIME", years = years, get_all = True)
+download_comparison(stations, bucket_name, "MARITIME")
 
 ## Full Pull Notes
 ## 0. Select either "MARITIME" or "NDBC" as network of choice to download
