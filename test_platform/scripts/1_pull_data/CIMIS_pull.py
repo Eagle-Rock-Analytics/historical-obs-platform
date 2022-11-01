@@ -43,21 +43,21 @@ def ftp_to_aws(ftp, file, directory, rename = None):
     else:
         write_name = file.replace(" ", "") # Remove any spaces from file name
     s3.upload_fileobj(r, bucket_name, directory+write_name)
-    print('{} saved'.format(write_name)) # Helpful for testing, can be removed.
+    print('{} saved'.format(write_name)) # Optional.
     r.close() # Close file
 
 # Function to get up to date station list of CIMIS stations.
-# Downloads to AWS S3 the Stations List file most recently found in FTP server.
+# Downloads to AWS S3 the Stations List file from the FTP server.
 # Inputs: file path in AWS bucket.
 # Note all stations in CA, so no need to filter out stations here. File just downloaded for reference.
-def get_cimis_stations(directory): #Could alter script to have shapefile as input also, if there's a use for this.
+def get_cimis_stations(directory): 
     ## Login.
     ## using ftplib, get list of stations as csv
     filename = 'CIMIS Stations List (January20).xlsx'
     ftp = FTP('ftpcimis.water.ca.gov')
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub2')  # Change WD.
-    ftp_to_aws(ftp, filename, directory, rename = "CIMIS_stationlist.xlsx")
+    ftp_to_aws(ftp, filename, directory, rename = "stationlist_CIMIS.xlsx")
     return
 
 # Function: query ftp server for CIMIS data and download csv files.
@@ -134,11 +134,11 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
         
         if (years is None) or (pres_year in years): # If years includes present year or years not specified.
             ftp.cwd(pwd)
-            ftp.cwd('hourly/')
+            ftp.cwd('monthly/')
             
             filenames = ftp.nlst() # Get list of all file names in folder.
-            filenames = [i for i in filenames if i.endswith('.csv')]
-            filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop misc files.
+            filenames = [i for i in filenames if i.endswith('.zip')]
+            filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop daily files.
             
             for filename in filenames:
                 if get_all is True:
@@ -173,11 +173,12 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
     errors = pd.DataFrame(errors)
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cimip_{}.csv".format(end_api))
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cimis_{}.csv".format(end_api))
 
-# Run functions
-get_cimis_stations(directory)
-get_cimis_data_ftp(bucket_name, directory, get_all = False)
+if __name__ == "__main__":
+    # Run functions
+    get_cimis_stations(directory)
+    get_cimis_data_ftp(bucket_name, directory, get_all = False)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False
