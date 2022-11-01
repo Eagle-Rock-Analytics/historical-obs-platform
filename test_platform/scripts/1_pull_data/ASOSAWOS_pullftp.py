@@ -273,7 +273,7 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
             station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
         except Exception as e:
             print("Error:", e) # If error occurs here, 
-            years = [i for i in years if i>"1979"] # function will use years to filter station files.
+            years = [i for i in years if (len(i)<5 and int(i)>1979)] # function will use years to filter station files.
 
     try:
         objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
