@@ -235,7 +235,7 @@ def download_comparison(stations, bucket_name, network):
         dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
-
+    print(downloaded_stns)
 
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
@@ -243,20 +243,25 @@ def download_comparison(stations, bucket_name, network):
 
     ## Identifies whether a station in the station_list is a part of the downloaded_stns list
     dir_station_list = dir_stations['STATION_ID'].tolist() # All stations from station_list
-    print(dir_station_list)
+    print(dir_stations)
+    
+    # Add flag
+    dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
+    print(dir_stations)
+    
+    # dn_flag = []
+    # for all_stn in dir_station_list:
+    #     if np.isin(all_stn, downloaded_stns, assume_unique=True) == True:
+    #         dn_flag.append('Y')
+    #         print("{} was downloaded".format(all_stn)) ## Useful for testing, can be deleted
 
-    dn_flag = []
-    for all_stn in dir_station_list:
-        if np.isin(all_stn, downloaded_stns, assume_unique=True) == True:
-            dn_flag.append('Y')
-            print("{} was downloaded".format(all_stn)) ## Useful for testing, can be deleted
+    #     else:
+    #         dn_flag.append('N')
+    #         print("{} was not downloaded".format(all_stn)) ## Useful for testing, can be deleted
 
-        else:
-            dn_flag.append('N')
-            print("{} was not downloaded".format(all_stn)) ## Useful for testing, can be deleted
+    # dir_stations.insert(-1, 'STN_DOWNLOAD', dn_flag)
 
-    dir_stations.insert(-1, 'STN_DOWNLOAD', dn_flag)
-
+    # SAVE TO AWS - to do.
     print("{} station_list updated to reflect which stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
 
     return dir_stations
