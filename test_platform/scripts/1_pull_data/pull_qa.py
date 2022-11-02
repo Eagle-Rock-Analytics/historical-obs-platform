@@ -385,7 +385,7 @@ def maritime_retry_downloads(bucket_name, network):
     
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
-    stations = [file[0:5] for file in stations] # Drop hYYYY
+    stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz
     
     # Read in station list
     station_list = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
@@ -395,16 +395,10 @@ def maritime_retry_downloads(bucket_name, network):
     missing_ids = [id for id in station_list['STATION_ID'] if id not in stations]
     missed_stations = station_list[station_list['STATION_ID'].isin(missing_ids)]
     
-    print(missed_stations)
-    exit()
-    # Fix formatting
-    # Drop first column of dataframe
-    missed_stations = missed_stations.iloc[: , 1:]
-    missed_stations['WBAN'] = missed_stations['WBAN'].astype(str).str.pad(5,fillchar='0')
-    
     # Get list of filenames where IDs have partially downloaded (years missing).
-    downloaded_ids = station_list[~station_list['ISD-ID'].isin(missing_ids)]
+    downloaded_ids = station_list[~station_list['STATION_ID'].isin(missing_ids)]
     missing_files = pd.DataFrame()
+    
     for index, id in downloaded_ids.iterrows():
         if int(id['start_time'][0:4])<1980:
             years = range(1980, int(id['end_time'][0:4])+1) # +1 to make inclusive of current year
@@ -489,5 +483,6 @@ def retry_downloads(token, bucket_name, networks = None):
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["MARITIME"])
+if __name__ == "__main__":
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["CAHYDRO"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
