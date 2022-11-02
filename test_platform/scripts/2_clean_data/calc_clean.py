@@ -153,7 +153,7 @@ def _lon_DMm_to_Dd(data):
     """
     _min = float(data[:3])
     _sec = float(data[3:])
-    data = -1 * (_deg + _mm/60)
+    data = -1 * (_min + _sec/60)
     return data
 
 def _lat_DMm_to_Dd(data):
