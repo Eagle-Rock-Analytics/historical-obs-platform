@@ -162,7 +162,7 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
                         # url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year)) # individual year files
                         url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(str(filename)) # all years in one file, including current year
                         # s3_obj = s3.Object(bucket_name, directory+"c{}_{}.zip") # individual year file format
-                        s3_obj = s3.Object(bucket_name, directory+"c{}_csv.zip") # all years file format
+                        s3_obj = s3.Object(bucket_name, directory+"c{}_csv.zip".format(str(filename))) # all years file format
 
                     else: # NOAA NDBC Buoy archive
                         url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
