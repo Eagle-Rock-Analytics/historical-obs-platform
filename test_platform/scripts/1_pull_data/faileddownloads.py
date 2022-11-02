@@ -307,7 +307,7 @@ def retry_downloads(token, bucket_name, networks = None):
     wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
     # Define list of all MADIS networks.
-    MADIS = ['CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HADS', 'HNXWFO', 'HOLFUY', 'HPWREN', 'LOXWFO', 'MAP', 'MTRWFO', 'NOS-NWLON', 'NOS-PORTS', 'RAWS', 
+    MADIS = ['CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HADS', 'HNXWFO', 'HOLFUY', 'HPWREN', 'LOXWFO', 'MAP', 'MTRWFO', 'NCAWOS', 'NOS-NWLON', 'NOS-PORTS', 'RAWS', 
     'SGXWFO', 'SHASAVAL', 'VCAPCD']
 
     # Define list of SCAN/SNOTEL networks.
@@ -338,6 +338,8 @@ def retry_downloads(token, bucket_name, networks = None):
         elif network in ISD:
             missed_stations, file_list = isd_retry_downloads(token = token, bucket_name = bucket_name, network = network)
             #get_asosawos_data_ftp(missed_stations, bucket_name, directory, get_all = True) # Download all missing stations
+            missed_stations, file_list = isd_retry_downloads(token = token, bucket_name = bucket_name, network = network) # Regenerate file_list after full station download.
+            
             # TO DO: write script just to download missing files.
             pass
         elif network in MARITIME:
@@ -347,5 +349,5 @@ def retry_downloads(token, bucket_name, networks = None):
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["ASOSAWOS"])
+retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["HNXWFO"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
