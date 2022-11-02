@@ -11,7 +11,7 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 """
 ## Load packages
 import requests
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
 import boto3
 from io import StringIO
@@ -37,9 +37,8 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set envr variables
-years = list(map(str, range(1980,2022))) # Get list of years from 1980 to 2021
+years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
 ## Current year data is stored in a different location in monthly files, not annual -- TO DO FOR 2022
-## Alternatively, for final full data pull for v1 product (approx. March/April 2023), update years to "2023" to grab all of 2022 annual files
 
 # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -152,45 +151,88 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
 
     for year in years:
-        for filename in dir_stations['STATION_ID']:
+        if year != datetime.now().year:
+            for filename in dir_stations['STATION_ID']:
+                try:  # Try to get station txt.gz.
+                    if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
+                        url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year))
+                        # url = "https://www.meds-sdmm.dfo.mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(str(filename)) # all years in one file, including current year
+                        s3_obj = s3.Object(bucket_name, directory+"c{}_{}.zip")
+                    else: # NOAA NDBC Buoy archive
+                        url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
+                        s3_obj = s3.Object(bucket_name, directory+"{}h{}.txt.gz".format(str(filename), str(year)))
 
-            if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
-                url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year))
-            else: # NOAA NDBC Buoy archive
-                url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
-
-            # Try to get station txt.gz.
-            try:
-                s3_obj = s3.Object(bucket_name, directory+"{}h{}.txt.gz".format(str(filename), str(year)))
-
-                with requests.get(url, stream=True) as r:
-                    if r.status_code == 404: # Catches any stations that don't have specific years, could be cleaner potentially
-                        next
-                    elif r.status_code == 200: # If API call returns a response
-                        if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
-                            # Get error message and clean.
-                            error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
-                            error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
-                            error_text = re.sub(",.*", "", error_text)
-                            error_text = re.sub('"', '', error_text)
-
-                            # Append rows to dictionary
-                            errors['Station ID'].append(dir_stations['STATION_ID'])
-                            errors['Time'].append(end_api)
-                            errors['Error'].append(error_text)
+                    with requests.get(url, stream=True) as r:
+                        if r.status_code == 404: # Catches any stations that don't have specific years, could be cleaner potentially
                             next
+                        elif r.status_code == 200: # If API call returns a response
+                            if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
+                                # Get error message and clean.
+                                error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
+                                error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
+                                error_text = re.sub(",.*", "", error_text)
+                                error_text = re.sub('"', '', error_text)
+
+                                # Append rows to dictionary
+                                errors['Station ID'].append(dir_stations['STATION_ID'])
+                                errors['Time'].append(end_api)
+                                errors['Error'].append(error_text)
+                                next
+                            else:
+                                s3_obj.put(Body=r.content)
+                                print("Saving data for station {} for {}".format(filename, year)) # Nice for testing, remove for full run.
                         else:
-                            s3_obj.put(Body=r.content)
-                            print("Saving data for station {} for {}".format(filename, year)) # Nice for testing, remove for full run.
+                            errors['Station ID'].append(filename)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append(r.status_code)
+                            print("Error: {}".format(r.status_code))
 
-                    else:
-                        errors['Station ID'].append(filename)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append(r.status_code)
-                        print("Error: {}".format(r.status_code))
+                except Exception as e:
+                    print("Error: {}".format(e))
 
-            except Exception as e:
-                print("Error: {}".format(e))
+        elif year == datetime.now().year: # only applicable for the NDBC stored data (non-Canadian source)
+            for filename in dir_stations['STATION_ID']:
+                try:
+                    start_month = date(year, 1, 1) # Jan
+                    current_month = date.today()
+                    i = current_month.month
+
+                    while i >= start_month.month:
+                        current_date = date(year, i, 1)
+                        x = current_date.strftime("%b")
+                        url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(x, filename, i, year)
+                        print(url) # testing
+                        s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month, year))
+
+                        with requests.get(url, stream=True) as r:
+                            if r.status_code == 404:
+                                next
+                            elif r.status_code == 200:
+                                if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
+                                    # Get error message and clean.
+                                    error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
+                                    error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
+                                    error_text = re.sub(",.*", "", error_text)
+                                    error_text = re.sub('"', '', error_text)
+
+                                    # Append rows to dictionary
+                                    errors['Station ID'].append(dir_stations['STATION_ID'])
+                                    errors['Time'].append(end_api)
+                                    errors['Error'].append(error_text)
+                                    next
+                                else:
+                                    s3_obj.put(Body=r.content)
+                                    print("Saving data for station {} for {}".format(filename, year)) # Nice for testing, remove for full run.
+                            else:
+                                errors['Station ID'].append(filename)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append(r.status_code)
+                                print("Error: {}".format(r.status_code))
+
+                        i -= 1
+
+                except Exception as e:
+                    print("Error: {}".format(e))
 
     ### Write errors to csv with respective networks
     error_buffer = StringIO()
