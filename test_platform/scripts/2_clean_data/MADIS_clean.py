@@ -279,7 +279,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
         #for i in ids: # For each station (full run)
         #for i in ids[0:5]: # Subsample for testing merge
-        for i in ids[-4:]: # Subsample for testing errors    
+        for i in ids[-10:]: # Subsample for testing errors    
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -874,7 +874,11 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     except: # Add to handle errors for unsupported data types
                         next
 
-                
+                # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
+                for key in ds.keys():
+                    if 'qc' in key:
+                        ds[key] = ds[key].astype(str) # Coerce all values in key to string.
+
                 # Reorder variables
                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
                 actual_order = [i for i in desired_order if i in list(ds.keys())]
@@ -882,7 +886,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
         
-                #print(ds) # For testing
+                print(ds) # For testing
 
             except Exception as e:
                 print(e)
@@ -968,8 +972,8 @@ if __name__ == "__main__":
     network = "LOXWFO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     
-    #get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
-    #clean_madis(bucket_name, rawdir, cleandir, network)
+    get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
+    clean_madis(bucket_name, rawdir, cleandir, network)
 
     # # # Testing:
     # import random # To get random subsample
