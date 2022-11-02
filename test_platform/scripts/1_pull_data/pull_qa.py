@@ -16,12 +16,16 @@
 # Import packages
 from MADIS_pull import get_madis_station_csv
 from SCAN_pull import get_scan_station_data
-from ASOSAWOS_pullftp import get_asosawos_data_ftp
+from ASOSAWOS_pullftp import get_asosawos_data_ftp, ftp_to_aws
+from OtherISD_pull import get_otherisd_data_ftp
 import boto3
 import pandas as pd
 import config
 from smart_open import open
 import os
+from datetime import datetime
+from ftplib import FTP
+from io import StringIO
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -252,7 +256,7 @@ def scan_retry_downloads(bucket_name, network, terrpath, marpath):
     print(errors)
 
 # For ASOSAWOS / OtherISD
-def isd_retry_downloads(token, bucket_name, network):
+def isd_retry_downloads(bucket_name, network):
     # Get list of files in folder
     prefix = "1_raw_wx/"+network
     files = []
@@ -264,9 +268,7 @@ def isd_retry_downloads(token, bucket_name, network):
     station_file = [file for file in station_file if 'station' in file] 
     
     files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
-    #files = [file for file in files if "errors" not in file]
-    #files = [file for file in files if "station" not in file] # Remove error and station list files
-
+    
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
     stations = [file.replace(".gz", '') for file in stations]
@@ -275,10 +277,15 @@ def isd_retry_downloads(token, bucket_name, network):
     # Read in station list
     station_list = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
     station_list = pd.read_csv(station_list['Body'])
-
+    
     # Get list of IDs not in download folder
     missing_ids = [id for id in station_list['ISD-ID'] if id not in stations]
     missed_stations = station_list[station_list['ISD-ID'].isin(missing_ids)]
+
+    # Fix formatting
+    # Drop first column of dataframe
+    missed_stations = missed_stations.iloc[: , 1:]
+    missed_stations['WBAN'] = missed_stations['WBAN'].astype(str).str.pad(5,fillchar='0')
     
     # Get list of filenames where IDs have partially downloaded (years missing).
     downloaded_ids = station_list[~station_list['ISD-ID'].isin(missing_ids)]
@@ -295,9 +302,127 @@ def isd_retry_downloads(token, bucket_name, network):
             filenames = [id['ISD-ID']+"-"+str(missing_year)+".gz" for missing_year in missing_years]
             missing_files = pd.concat([missing_files, pd.DataFrame(zip(missing_years,filenames))])
         
+    # Add column name
+    missing_files.columns = ['year', 'file_name']
     
     return missed_stations, missing_files
 
+# Function to take a dataframe of missing ISD files (['year', 'file_name'])
+# and download these files from the ISD server to the AWS bucket.
+def isd_get_missing_files(missing_files, bucket_name, network):
+    if missing_files.empty:
+        print("No missing files to download.")
+        return
+    else:
+        # Set up error handling
+        errors = {'Date':[], 'Time':[], 'Error':[]}
+        end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
+        # Set up directory
+        directory = "1_raw_wx/"+network+"/"
+
+        ## Login.
+        ## using ftplib
+        ftp = FTP('ftp.ncdc.noaa.gov')
+        ftp.login() # user anonymous, password anonymous
+        ftp.cwd('pub/data/noaa')  # Change WD.
+        pwd = ftp.pwd() # Get base file path.
+
+        # Get list of folders (by year) in main FTP folder.
+        years = ftp.nlst()
+
+        # Iterate through years
+        for i in years: # For each year / folder.
+            if len(i)<5: # If folder is the name of a year (and not metadata file)
+                if int(i) in list(missing_files['year']): # If folder is in our missing file list
+                    try:
+                        #print(i)
+                        ftp.cwd(pwd) # Return to original working directory
+                        ftp.cwd(i) # Change working directory to year.
+                        filenames = ftp.nlst() # Get list of all file names in folder. 
+                        #print(filenames)
+                        sub_missing = missing_files[missing_files['year']==int(i)] # Get relevant missing files
+                        #print(sub_missing)
+                        to_download = [file for file in filenames if file in list(sub_missing['file_name'])] # Get list to download.
+                        #print(to_download)
+                        if to_download: # If there are files in the list
+                            for file in to_download: # Iterate through each one and download to AWS directory.
+                                ftp_to_aws(ftp, file, directory)
+                            
+                        else: # Otherwise
+                            print("No missing files available for download in folder {}".format(i))
+                            continue
+
+                    except Exception as e: # If error occurs at directory scale, save folder information.
+                        print("Error in downloading date {}: {}". format(i, e))
+                        errors['Date'].append(i)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append(e)
+                    pass
+                else:
+                    continue # Otherwise skip folder
+            else:
+                continue # Otherwise skip folder.
+
+        # Write errors to AWS.
+        csv_buffer = StringIO()
+        errors = pd.DataFrame(errors)
+        errors.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network.lower(),end_api))
+
+# For MARITIME/NDBC data
+def maritime_retry_downloads(bucket_name, network):
+    # Get list of files in folder
+    prefix = "1_raw_wx/"+network
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = prefix): 
+        file = str(item.key)
+        files += [file]
+    
+    station_file = [file for file in files if 'station' in file] 
+    files = list(filter(lambda f: f.endswith(".txt.gz"), files)) # Get list of file names
+    
+    # Get only station IDs from file names
+    stations = [file.split("/")[-1] for file in files]
+    stations = [file[0:5] for file in stations] # Drop hYYYY
+    
+    # Read in station list
+    station_list = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
+    station_list = pd.read_csv(station_list['Body'])
+    
+    # Get list of IDs not in download folder
+    missing_ids = [id for id in station_list['STATION_ID'] if id not in stations]
+    missed_stations = station_list[station_list['STATION_ID'].isin(missing_ids)]
+    
+    print(missed_stations)
+    exit()
+    # Fix formatting
+    # Drop first column of dataframe
+    missed_stations = missed_stations.iloc[: , 1:]
+    missed_stations['WBAN'] = missed_stations['WBAN'].astype(str).str.pad(5,fillchar='0')
+    
+    # Get list of filenames where IDs have partially downloaded (years missing).
+    downloaded_ids = station_list[~station_list['ISD-ID'].isin(missing_ids)]
+    missing_files = pd.DataFrame()
+    for index, id in downloaded_ids.iterrows():
+        if int(id['start_time'][0:4])<1980:
+            years = range(1980, int(id['end_time'][0:4])+1) # +1 to make inclusive of current year
+        else:
+            years = range(int(id['start_time'][0:4]), int(id['end_time'][0:4])+1)
+        id_files = [file for file in files if id['ISD-ID'] in file]
+        id_success = [file for file in id_files if any(str(year) in file for year in years)]
+        missing_years = [year for year in years if not any(str(year) in id for id in id_success)]
+        if missing_years:
+            filenames = [id['ISD-ID']+"-"+str(missing_year)+".gz" for missing_year in missing_years]
+            missing_files = pd.concat([missing_files, pd.DataFrame(zip(missing_years,filenames))])
+        
+    # Add column name
+    missing_files.columns = ['year', 'file_name']
+    
+    return missed_stations, missing_files
+    
+    
 
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
@@ -336,18 +461,33 @@ def retry_downloads(token, bucket_name, networks = None):
         elif network in SNTL:
             scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar)
         elif network in ISD:
-            missed_stations, file_list = isd_retry_downloads(token = token, bucket_name = bucket_name, network = network)
-            #get_asosawos_data_ftp(missed_stations, bucket_name, directory, get_all = True) # Download all missing stations
-            missed_stations, file_list = isd_retry_downloads(token = token, bucket_name = bucket_name, network = network) # Regenerate file_list after full station download.
+            missed_stations, file_list = isd_retry_downloads(bucket_name = bucket_name, network = network)
+            print("Attempting to download data for {} missing stations.".format(len(missed_stations)))
             
-            # TO DO: write script just to download missing files.
-            pass
+            if network == "ASOSAWOS":
+                # Download all missing stations
+                get_asosawos_data_ftp(missed_stations.iloc[0:10,:], bucket_name, directory, get_all = True) 
+                # ^ SUBSETTED FOR TESTING, remove for full run.
+            elif network == "OtherISD":
+                # Download all missing stations
+                get_otherisd_data_ftp(missed_stations.iloc[0:10,:], bucket_name, directory, get_all = True)
+                # ^ SUBSETTED FOR TESTING, remove for full run.
+            
+            # Regenerate file_list after full station download.
+            missed_stations, file_list = isd_retry_downloads(bucket_name = bucket_name, network = network)
+            
+            # Download missing files
+            print("Attempting to download {} missing files.".format(len(file_list)))
+            isd_get_missing_files(file_list.iloc[0:50, :], bucket_name, network)
+            # ^ SUBSETTED FOR TESTING, remove for full run.
+            
         elif network in MARITIME:
-            print("MARITIME")
-            pass
+            # Get list of missing stations, missing files.
+            maritime_retry_downloads(bucket_name, network)
+
         else:
             print("{} network not currently configured for download retry.".format(network))
             continue
 
-retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["HNXWFO"])
+retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["MARITIME"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)

@@ -104,7 +104,7 @@ def get_wecc_stations(terrpath, marpath, bucket_name, directory): #Could alter s
 
     # Now, read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations.
     # Note, this relies on having run the ASOSAWOS pull script prior.
-    response = s3.get_object(Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/asosawos_stations.csv")
+    response = s3.get_object(Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/stationlist_asosawos.csv")
     asosawos = pd.read_csv(response['Body'])
     
     m1 = weccstations.WBAN.isin(asosawos.WBAN) # Create mask
@@ -116,7 +116,7 @@ def get_wecc_stations(terrpath, marpath, bucket_name, directory): #Could alter s
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"otherisd_stations.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_otherisd.csv")
 
     return weccstations
 
@@ -135,13 +135,6 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
     errors = {'Date':[], 'Time':[], 'Error':[]}
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
 
-    # Remove depracated stations if filtering by time.
-    if start_date is not None:
-        try:
-            station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
-        except Exception as e:
-            print("Error:", e) # If error occurs here, function will continue without time filtering. Can add "break" to change this to stop code.
-
     ## Login.
     ## using ftplib
     ftp = FTP('ftp.ncdc.noaa.gov')
@@ -155,6 +148,18 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
     # Set up AWS to write to bucket.
     s3 = boto3.client('s3')
 
+    # If no start date specified, manually set to be Jan 01 1980.
+    if start_date is None:
+        start_date = "1980-01-01"
+    
+    # Remove depracated stations if filtering by time.
+    if start_date is not None:
+        try:
+            station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
+        except Exception as e:
+            print("Error:", e) # If error occurs here, function will continue without time filtering. Can add "break" to change this to stop code.
+            years = [i for i in years if (len(i)<5 and int(i)>1979)] # function will use years to filter station files.
+    
     try:
         objects = s3.list_objects(Bucket=bucket_name,Prefix = directory)
         all = objects['Contents']     
@@ -171,7 +176,6 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
         get_all = True # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
 
     for i in years: # For each year / folder.
-    #for i in ['1989', '2004', '2015', '2021']: # For testing
         if len(i)<5: # If folder is the name of a year (and not metadata file)
             if (start_date is not None and int(i)>=int(start_date[0:4])) or start_date is None:  
                 # If no start date specified or year of folder is within start date range, download folder.
@@ -221,6 +225,7 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
     content = csv_buffer.getvalue()
     s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_otherisd_{}.csv".format(end_api))
     
-# Run functions
-stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
-get_otherisd_data_ftp(stations, bucket_name, directory, start_date = "2003-01-01", get_all = True)
+if __name__ == "__main__":
+    # Run functions
+    stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
+    get_otherisd_data_ftp(stations, bucket_name, directory, start_date = "2022-01-01", get_all = True)
