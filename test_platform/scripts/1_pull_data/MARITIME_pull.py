@@ -11,17 +11,15 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 """
 ## Load packages
 import requests
-from ftplib import FTP
-from datetime import datetime, timezone
+from datetime import datetime
 import pandas as pd
-import csv
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 import calc_pull
 from shapely.geometry import Point
 import geopandas as gp
 from geopandas.tools import sjoin
-from re import search
+import re
 import numpy as np
 
 
@@ -33,10 +31,6 @@ bucket_name = 'wecc-historical-wx'
 # Set paths to directories for each network
 directory_mar = '1_raw_wx/MARITIME/'
 directory_ndbc = '1_raw_wx/NDBC/'
-
-# Set paths to WECC shapefiles in AWS bucket.
-wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set paths to WECC shapefiles in AWS bucket.
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
