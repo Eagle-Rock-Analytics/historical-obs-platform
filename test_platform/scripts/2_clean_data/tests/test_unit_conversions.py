@@ -160,14 +160,14 @@ def test_latitude_conversion_dms(grab_latitude_dms):
     correct_conversion = _deg + _min/60 + _sec/3600
     assert correct_conversion == calc_clean_converted
 
-# def test_latitude_conversion_dmm(grab_latitude_dmm):
-#     """Test that the _lat_DMm_to_Dd correctly converts from DMm to D.d"""
-#     for i in range(len(grab_latitude_dmm)):
-#         calc_clean_converted = _lat_DMm_to_Dd(grab_latitude_dmm[i])
-#         _lat = grab_latitude_dmm['lat_dmm'][:2].apply(lambda x: float(x))
-#         _min = grab_latitude_dmm['lat_dmm'][2:].apply(lambda y: float(y))
-#     correct_conversion = _lat + _min/60
-#     assert correct_conversion == (calc_clean_converted)
+def test_latitude_conversion_dmm(grab_latitude_dmm):
+    """Test that the _lat_DMm_to_Dd correctly converts from DMm to D.d"""
+    for i in range(len(grab_latitude_dmm)):
+        calc_clean_converted = _lat_DMm_to_Dd(str(grab_latitude_dmm[i]))
+        _deg = str(grab_latitude_dmm[i])[:2]
+        _mm = str(grab_latitude_dmm[i])[2:]
+    correct_conversion = float(_deg) + float(_mm)/60
+    assert correct_conversion == calc_clean_converted
 
 
 ## -----------------------------------------------------------------------------------------
@@ -191,10 +191,9 @@ def test_longitude_conversion_dms(grab_longitude_dms):
     correct_conversion = -1 * (float(grab_longitude_dms[i][:3]) + (float(grab_longitude_dms[i][4:6])/60) + (float(grab_longitude_dms[i][7:])/3600))
     assert correct_conversion == (calc_clean_converted)
 
-# def test_longitude_conversion_dmm(grab_longitude_dmm):
-#     """Test that the _lon_DMm_to_Dd correctly converts from DM.m to D.d"""
-#     for i in range(len(grab_longitude_dmm)):
-#         calc_clean_converted = _lon_DMm_to_Dd(grab_longitude_dmm[i])
-#
-#     correct_conversion = -1 * (float(grab_longitude_dmm[i][:3]) + (float(grab_longitude_dmm[i][3:])/60))
-#     assert correct_conversion == (calc_clean_converted)
+def test_longitude_conversion_dmm(grab_longitude_dmm):
+    """Test that the _lon_DMm_to_Dd correctly converts from DM.m to D.d"""
+    for i in range(len(grab_longitude_dmm)):
+        calc_clean_converted = _lon_DMm_to_Dd(str(grab_longitude_dmm[i]))
+    correct_conversion = -1 * (float(str(grab_longitude_dmm[i])[:3]) + (float(str(grab_longitude_dmm[i])[3:])/60))
+    assert correct_conversion == (calc_clean_converted)
