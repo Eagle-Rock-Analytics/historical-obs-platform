@@ -37,8 +37,10 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set envr variables
-years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year.
-## Current year data is stored in a different location in monthly files, not annual -- TO DO FOR 2022
+years = list(map(str,range(1980,2023))) # Get list of years from 1980 to current year.
+
+## All years except the current year formatted as: stidhYYYY.txt.gz
+## Current year formatted as: stidMYYYY.txt.gz
 
 # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -147,17 +149,21 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     dir_stations = stations.loc[stations['NETWORK']==network]
 
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
-    stations = stations.astype({"OWNER": "string"})
+    # stations = stations.astype({"OWNER": "string"})
     canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
+    print('canada', canadian_owners) # testing
 
     for year in years:
-        if year != datetime.now().year:
+        if year < (datetime.now().year):
             for filename in dir_stations['STATION_ID']:
+                print(filename)
                 try:  # Try to get station txt.gz.
                     if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
-                        url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year))
-                        # url = "https://www.meds-sdmm.dfo.mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(str(filename)) # all years in one file, including current year
-                        s3_obj = s3.Object(bucket_name, directory+"c{}_{}.zip")
+                        # url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(str(filename), str(filename), str(year)) # individual year files
+                        url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(str(filename)) # all years in one file, including current year
+                        # s3_obj = s3.Object(bucket_name, directory+"c{}_{}.zip") # individual year file format
+                        s3_obj = s3.Object(bucket_name, directory+"c{}_csv.zip") # all years file format
+
                     else: # NOAA NDBC Buoy archive
                         url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(str(filename), str(year))
                         s3_obj = s3.Object(bucket_name, directory+"{}h{}.txt.gz".format(str(filename), str(year)))
@@ -190,7 +196,7 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
                 except Exception as e:
                     print("Error: {}".format(e))
 
-        elif year == datetime.now().year: # only applicable for the NDBC stored data (non-Canadian source)
+        else: # only applicable for the NDBC stored data (non-Canadian source)
             for filename in dir_stations['STATION_ID']:
                 try:
                     start_month = date(year, 1, 1) # Jan
@@ -199,10 +205,9 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
 
                     while i >= start_month.month:
                         current_date = date(year, i, 1)
-                        x = current_date.strftime("%b")
+                        x = current_date.strftime("%b") # NDBC folder names is 3-letter month code
                         url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(x, filename, i, year)
-                        print(url) # testing
-                        s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month, year))
+                        s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, i, year))
 
                         with requests.get(url, stream=True) as r:
                             if r.status_code == 404:
@@ -222,7 +227,7 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
                                     next
                                 else:
                                     s3_obj.put(Body=r.content)
-                                    print("Saving data for station {} for {}".format(filename, year)) # Nice for testing, remove for full run.
+                                    print("Saving data for station {} for {} {}".format(filename, x, year)) # Nice for testing, remove for full run.
                             else:
                                 errors['Station ID'].append(filename)
                                 errors['Time'].append(end_api)
@@ -298,9 +303,9 @@ def download_comparison(stations, bucket_name, network):
 
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
-network_to_run = "NDBC" # "MARITIME" or "NDBC"
+network_to_run = "MARITIME" # "MARITIME" or "NDBC"
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
+get_maritime(stations, bucket_name, network_to_run, years = [2021], get_all = True)
 download_comparison(stations, bucket_name, network_to_run)
 
 ## Full Pull Notes
