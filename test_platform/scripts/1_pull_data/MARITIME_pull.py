@@ -263,7 +263,7 @@ def download_comparison(stations, bucket_name, network):
 
     files_downloaded = []
     for object_summary in dir_bucket.objects.filter(Prefix=directory):
-        if object_summary.key[-7:] == ".txt.gz":
+        if (object_summary.key[-7:] == ".txt.gz") or (object_summary.key[-4:] == ".zip"):
             files_downloaded.append(object_summary.key)
 
     downloaded_stns = set()
@@ -302,7 +302,7 @@ def download_comparison(stations, bucket_name, network):
 
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
-network_to_run = "NDBC" # "MARITIME" or "NDBC"
+network_to_run = "MARITIME" # "MARITIME" or "NDBC"
 stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
 get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
 download_comparison(stations, bucket_name, network_to_run)
