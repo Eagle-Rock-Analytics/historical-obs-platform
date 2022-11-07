@@ -115,6 +115,9 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
 
     weccstations['NETWORK'] = network
 
+    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
+    weccstations = weccstations.reindex(columns = [col for col in weccstations.columns if col != 'NOTE'] + ['NOTE'])
+
     ## Splits dataframe into respective networks
     maritime_network = weccstations[weccstations['NETWORK'] == 'MARITIME']
     ndbc_network = weccstations[weccstations['NETWORK'] == 'NDBC']
@@ -123,12 +126,12 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     mar_buffer = StringIO()
     maritime_network.to_csv(mar_buffer)
     content = mar_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_mar+"MARITIME_stations.csv")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_mar+"stationlist_MARITIME.csv")
 
     ndbc_buffer = StringIO()
     ndbc_network.to_csv(ndbc_buffer)
     content = ndbc_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_ndbc+"NDBC_stations.csv")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory_ndbc+"stationlist_NDBC.csv")
 
     ## Purposely returning the full weccstations, instead of two separte dfs for get_maritime function
     return weccstations
@@ -156,9 +159,7 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
             for filename in dir_stations['STATION_ID']:
                 try:  # Try to get station txt.gz.
                     if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
-                        # url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/fbyears/C{}/c{}_{}.zip".format(filename, filename, year) # individual year files
                         url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(filename) # all years in one file, including current year
-                        # s3_obj = s3.Object(bucket_name, directory+"c{}_{}.zip") # individual year file format
                         s3_obj = s3.Object(bucket_name, directory+"{}_csv.zip".format(filename)) # all years file format
 
                     else: # NOAA NDBC Buoy archive
@@ -274,38 +275,35 @@ def download_comparison(stations, bucket_name, network):
 
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
-    stn_yes = []
-
-    ## Identifies whether a station in the station_list is a part of the downloaded_stns list
-    dir_station_list = dir_stations['STATION_ID'].tolist() # All stations from station_list
-
-    # Add flag
     dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
+
+    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
+    dir_stations = dir_stations.reindex(columns = [col for col in dir_stations.columns if col != 'NOTE'] + ['NOTE'])
 
     ## Reorders the indices in both stationlists
     ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
-    stn_idx = []
-    for i in range(len(dir_stations.index)):
-        stn_idx.append(i)
-    dir_stations.index = stn_idx
+    # stn_idx = []
+    # for i in range(len(dir_stations.index)):
+    #     stn_idx.append(i)
+    dir_stations.reset_index()
 
     # ## Write stations to respective AWS bucket
     new_buffer = StringIO()
     dir_stations.to_csv(new_buffer)
     content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stations.csv".format(network))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
 
-    # SAVE TO AWS - to do.
     print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
 
     return dir_stations
 
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
-network_to_run = "MARITIME" # "MARITIME" or "NDBC"
-stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
-download_comparison(stations, bucket_name, network_to_run)
+if __name__ == "__main__":
+    network_to_run = "NDBC" # "MARITIME" or "NDBC"
+    stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
+    get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
+    download_comparison(stations, bucket_name, network_to_run)
 
 ## Full Pull Notes
 ## 0. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
