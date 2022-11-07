@@ -17,7 +17,7 @@ Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.
 # Import libraries
 import os
 import xarray as xr
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import re
 import numpy as np
 import warnings
@@ -75,176 +75,366 @@ def get_file_paths(network):
 
 # # Function: take heads, read csv into pandas db and clean.
 def parse_scansnotel_to_pandas(rawdir, cleandir):
-    # Get files
-    files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir): 
-        file = str(item.key)
-        files += [file]
-
-    # Remove error, station files
-    files = [file for file in files if '.csv' in file]
-    files = [file for file in files if 'station' not in file]
-    files = [file for file in files if 'error' not in file]
     
-    for file in files: # For each station   
-    # Read in CSV, removing header.
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-        df = pd.read_csv(BytesIO(obj['Body'].read()))
-        
-        # FOR TESTING ONLY
-        df = df.tail(5000)
+    # Set up error handling.
+    errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
+    timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
+    
+    try:
+        # Get files
+        files = []
+        for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir): 
+            file = str(item.key)
+            files += [file]
 
-        # Fix any NA mixed types
-        df = df.replace("NaN", np.nan)
+        # Get station file and read in metadata.
+        station_file = [file for file in files if 'station' in file]
+        if len(station_file)>1: # If more than one file returned
+            station_file = [file for file in station_file if 'SCAN_' in file] # CHANGE THIS - SCAN should be saved as stationlist_SCAN in finalpull.
+        obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
+        station_file = pd.read_csv(BytesIO(obj['Body'].read()))    
 
-        # Drop any columns that only contain NAs.
-        df = df.dropna(axis = 1, how = 'all')
+        # Remove error, station files
+        files = [file for file in files if '.csv' in file]
+        files = [file for file in files if 'station' not in file]
+        files = [file for file in files if 'error' not in file]
 
-        # TO DO::::
-        # Resolve time differences between time, TOBS_time and PREC_time
-        # For each column, check if any value different than original time column
-        # Do so by setting to NA if identical, and then deleting all columns with all NAs.
-        timecols = [col for col in df.columns if 'time' in col]
-        timecols = [col for col in timecols if col != 'time'] # Remove 'time' column
-        
-        for col in timecols:
+        # Get list of station IDs from filename and clean.
+        ids = list()
+        for file in files:
+            # Remove errors_[....].csv file names - TO DO.
+            id = file.split("/")[-1] # Remove leading folders
+            id = id.split("_")[-1] # Remove leading prefixes (for mult files)
+            id = re.sub('.csv', "", id) # Remove leading NDBC
+            if id not in ids:
+                ids.append(id)
+    
+    except Exception as e: # If unable to read files from rawdir, break function.
+        print(e)
+        errors['File'].append("Whole network")
+        errors['Time'].append(end_api)
+        errors['Error'].append(e)
+
+    else: # If files read successfully, continue.
+        df_stat = None # Initialize merged df.
+        ids.append("junk") # For testing errors
+
+        #for i in ids: # For each station (full run)
+        #for i in ids[0:5]: # Subsample for testing merge
+        for i in ids[-10:]: # Subsample for testing errors    
+            try:
+                stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
+                print(stat_files)
+                #stat_files.append("junk") # To test merge breaks.
+                
+                station_id = "{}_".format(network)+i.split(":")[0] # Save file ID, keeping STID from triplet.
+                
+                # Get metadata attributes from station list.
+                station_metadata = station_file.loc[station_file['stationTriplet'] == i] # Get metadata for station.
+                station_metadata = station_metadata.iloc[0]
+
+                for file in stat_files: # For each station   
+                # Read in CSV, removing header.
+                    try:
+                        obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
+                        df = pd.read_csv(BytesIO(obj['Body'].read()))
+                        
+                        # FOR TESTING ONLY
+                        #df = df.head(5000)
+                        df = df.sample(5000)
+
+                        # Fix any NA mixed types
+                        df = df.replace("NaN", np.nan)
+
+                        # Drop any columns that only contain NAs.
+                        df = df.dropna(axis = 1, how = 'all')
+
+                        # Drop any unnecessary columns.
+                        if 'TAVG_value' in df.columns:
+                            df = df.drop("TAVG_value", axis = 1)
+                        if 'TAVG_flag' in df.columns:
+                            df = df.drop("TAVG_flag", axis = 1)
+
+                        # Resolve time differences between time and variable time observations.
+                        # For each column, check if any value different than original time column
+                        # Do so by setting to NA if identical, and then deleting all columns with all NAs.
+                        timecols = [col for col in df.columns if 'time' in col]
+                        timecols = [col for col in timecols if col != 'time'] # Remove 'time' column
+                        
+                        for col in timecols:
+                            
+                            df[col] = np.where(df['time']==df[col], np.nan, df[col]) # Assign nan to any value identical to the time column.
+                        
+                        df = df.dropna(axis = 1, how = 'all')
+
+                        if len([col for col in df.columns if 'time' in col]) > 1: # If more than one time column remains,
+                            print("Conflicting time values: {}".format(list([col for col in df.columns if 'time' in col]))) # print warning
+                            exit() # And kill code.
+
+                        # Fix time format issues caused by "Timeout" errors.
+                        df['time'] = pd.to_datetime(df['time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
+                        df = df[pd.notnull(df['time'])] # Remove any rows where time is missing.
+
+                        # Adjust station time by local time offset.
+                        hours_adj = float(station_metadata['stationDataTimeZone']) # Get UTC offset from metadata
+                        df['time'] = df['time'] - pd.Timedelta(hours = hours_adj)
+                        
+                        # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+                        df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+                        
+                        # If more than one file for station, merge files.
+                        # will not be triggered for full clean, but set up to work if slices of data added in future.
+                        # will require additional testing at this point.
+                        # TO DO: concatenate dfs.
+                        if df_stat is None:
+                            df_stat = df
+                            del(df) # For memory.
+                        else:
+                            if len(stat_files)>1: # If there is more than one file per station
+                                df_stat = pd.concat([df_stat, df], axis = 0, ignore_index= True)
+
+                    except Exception as e: # Exceptions thrown during individual file read in.
+                        print(e)
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append(e)
+                        continue
+
+
+                # Format joined station file.
+                file_count = len(stat_files)
+                
+                # Fix multi-type columns
+                # If column has QC in it, force to string.
+                for b in df_stat.columns:
+                    multitype = set(type(x).__name__ for x in df_stat[b])
+                    if len(multitype)>1:
+                        if 'flag' in b: # QC columns
+                            df_stat[b] = df_stat[b].astype(str) # Coerce to string (to handle multiple QA/QC flags)
+                        else:
+                            print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
+                            errors['File'].append(file)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("Multitype error for column {} with data types {}. Please resolve".format(b, multitype))
+                            continue
+                    else:
+                        if 'flag' in b:
+                            df_stat[b] = df_stat[b].astype(str) # Coerce QA/QC flag to string in all instances.
+                            
+                
+                # Fix issue with "nan" and nan causing comparison errors
+                df_stat = df_stat.replace("nan", np.nan)
+
+                # Sort by time and remove any overlapping timestamps.
+                df_stat = df_stat.sort_values(by = "time")
+                df_stat = df_stat.drop_duplicates()
+                
+                # Move df to xarray object.
+                ds = df_stat.to_xarray()
+
+                # Update global attributes
+                ds = ds.assign_attrs(title = "{} cleaned".format(network))
+                ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
+                ds = ds.assign_attrs(source = "")
+                ds = ds.assign_attrs(history = "SCANSNOTEL_clean.py script run on {} UTC".format(timestamp))
+                ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
+                ds = ds.assign_attrs(license = "")
+                ds = ds.assign_attrs(citation = "")
+                ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
+                
+                # Add station metadata
+                # Station name
+                ds = ds.assign_attrs(station_name = station_metadata['name']) 
+                
+                # Station sub-network
+                if "SNTLT" in i:
+                    subnetwork = "SNOTEL Lite"
+                elif "SNTL" in i:
+                    subnetwork = "SNOTEL"
+                elif "CSCAN" in i:
+                    subnetwork = "Tribal SCAN"
+                elif "SCAN" in i:
+                    subnetwork = "SCAN"
+                ds = ds.assign_attrs(subnetwork = subnetwork)
+                
+                # Other station IDs - only keep if not NA
+                if isinstance(station_metadata['actonId'], str):
+                    ds = ds.assign_attrs(actonId = station_metadata['actonId'])
+                if not np.isnan(station_metadata['huc']):
+                    ds = ds.assign_attrs(huc = station_metadata['huc'])
+                if not np.isnan(station_metadata['hud']):
+                    ds = ds.assign_attrs(hud = station_metadata['hud'])
+                if isinstance(station_metadata['shefId'], str):
+                    ds = ds.assign_attrs(shefId = station_metadata['shefId'])
+                
+                ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
+
+                # Add dimensions: station ID and time.
+                ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time.
+                ds = ds.assign_coords(id = str(station_id))
+                ds = ds.expand_dims("id") # Add station_id as index.
+                ds = ds.drop_vars(("index")) # Drop station_id variable and index coordinate.
+                ds = ds.rename({'id': 'station'}) # Rename id to station_id.
+
+                # Update dimensions and coordinates
+                                    
+                # Add coordinates: latitude and longitude.
+                lat = np.asarray([station_metadata['latitude']]*len(ds['time']))
+                lat.shape = (1, len(ds['time']))
+                
+                lon = np.asarray([station_metadata['longitude']]*len(ds['time']))
+                lon.shape = (1, len(ds['time']))
+
+                # reassign lat and lon as coordinates
+                ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
+                
+                # If any observation is missing lat or lon coordinates, drop these observations.
+                if np.count_nonzero(np.isnan(ds['lat'])) != 0:
+                    #print("Dropping missing lat values") # For testing.
+                    ds = ds.where(~np.isnan(ds['lat']))
+                
+                if np.count_nonzero(np.isnan(ds['lon'])) != 0:
+                    #print("Dropping missing lon values") # For testing.
+                    ds = ds.where(~np.isnan(ds['lon']))
+
+                                
+                # Add variable: elevation (in feet)
+                elev = np.asarray([station_metadata['elevation']]*len(ds['time']))
+                elev.shape = (1, len(ds['time']))
+                ds['elevation'] = (['station', 'time'], elev)
+
+                # Update dimension and coordinate attributes.
             
-            df[col] = np.where(df['time']==df[col], np.nan, df[col]) # Assign nan to any value identical to the time column.
-        
-        df = df.dropna(axis = 1, how = 'all')
+                # Update attributes.
+                ds['time'].attrs['long_name'] = "time"
+                ds['time'].attrs['standard_name'] = "time"
+                ds['time'].attrs['comment'] = "Converted from local time zone UTC{} to UTC.".format(str(int(hours_adj)))
+                
+                # Station ID
+                ds['station'].attrs['long_name'] = "station_id"
+                ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
+                
+                # Latitude
+                ds['lat'].attrs['long_name'] = "latitude"
+                ds['lat'].attrs['standard_name'] = "latitude"
+                ds['lat'].attrs['units'] = "degrees_north"
+                
+                # Longitude
+                ds['lon'].attrs['long_name'] = "longitude"
+                ds['lon'].attrs['standard_name'] = "longitude"
+                ds['lon'].attrs['units'] = "degrees_east"
+                
+                # Elevation
+                # Convert from feet to meters.
+                ds['elevation'] = calc_clean._unit_elev_ft_to_m(ds['elevation']) # Convert feet to meters.
+                ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
+                ds['elevation'].attrs['long_name'] = "station_elevation"
+                ds['elevation'].attrs['units'] = "meters"
+                ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
+                ds['elevation'].attrs['comment'] = "Converted from feet to meters."
 
-        if len([col for col in df.columns if 'time' in col]) > 1: # If more than one time column remains,
-            print("Conflicting time values: {}".format(list([col for col in df.columns if 'time' in col]))) # print warning
-            exit() # And kill code.
+                # Update variable attributes and do unit conversions
+                
+                #tas: air surface temperature (K)
+                if "TOBS_value" in ds.keys():
+                    ds['tas'] = calc_clean._unit_degF_to_K(ds['TOBS_value'])
+                    ds = ds.drop("TOBS_value")
 
-        # Fix time format issues caused by "Timeout" errors.
-        df['time'] = pd.to_datetime(df['time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
-        df = df[pd.notnull(df['time'])] # Remove any rows where time is missing.
+                    if "TOBS_flag" in ds.keys():
+                        # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
+                        ds = ds.rename({'TOBS_flag': 'tas_qc'})
+                        ds['tas_qc'].attrs['flag_values'] = "V S E" # Generate values from unique values from dataset.
+                        ds['tas_qc'].attrs['flag_meanings'] =  "valid suspect edited"
+                        
+                        ds['tas'].attrs['long_name'] = "air_temperature"
+                        ds['tas'].attrs['standard_name'] = "air_temperature"
+                        ds['tas'].attrs['units'] = "degree_Kelvin"
+                        ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
+                        ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
+                            
+                    else:
+                        ds['tas'].attrs['long_name'] = "air_temperature"
+                        ds['tas'].attrs['standard_name'] = "air_temperature"
+                        ds['tas'].attrs['units'] = "degree_Kelvin"
+                        ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
 
-        # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
-        df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+                # ps: surface air pressure (Pa)
+
+### LEFT OFF HERE 11.07.
+
+                # Set up column.
+                ### TO DO: what to name barometric pressure - psl or psb??
+                if 'PRES_value' in ds.keys(): # If barometric pressure available
+                    if not np.isnan(ds['PRES_value'].values).all():
+                        # Convert from inHg to PA
+                        ds['ps'] = calc_clean._unit_pres_inHg_to_pa(ds['PRES_value'])
+                        ds = ds.drop("PRES_value")
+
+                        # Set attributes
+                        ds['ps'].attrs['long_name'] = "station_air_pressure"
+                        ds['ps'].attrs['standard_name'] = "air_pressure"
+                        ds['ps'].attrs['units'] = "Pa"
+                        ds['ps'].attrs['comment'] = "Converted from inHg."
+
+                        if 'sea_level_pressure_set_1' in ds.keys():
+                            ds = ds.drop("sea_level_pressure_set_1") # Drop psl if station pressure available
+
+                if 'ps' not in ds.keys(): # If this didn't work, look for sea level pressure
+                    if 'sea_level_pressure_set_1' in ds.keys():
+                        ds = ds.rename({'sea_level_pressure_set_1': 'psl'})
+                        ds['psl'].attrs['long_name'] = "sea_level_air_pressure"
+                        ds['psl'].attrs['standard_name'] = "air_pressure"
+                        ds['psl'].attrs['units'] = "Pa"
+
+                if 'pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
+                    flagvals = ds['pressure_set_1_qc'].values.tolist()[0]
+                    flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
+                    flagvals = list(np.unique(flagvals)) # Get unique values
+                    flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
+                    
+                    if flagvals == ['nan']: # This should not occur, but leave in here for additional check.
+                        #print("Flag value is {}".format(flagvals)) # For testing.
+                        ds = ds.drop("pressure_set_1_qc")
+                    else:
+                        ds = ds.rename({'pressure_set_1_qc': 'ps_qc'})
+                        flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
+                        ds['ps_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
+                        ds['ps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
+                        if 'ps' in ds.keys():
+                            ds['ps'].attrs['ancillary_variables'] = "ps_qc"
+
+                if 'sea_level_pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
+                    if 'psl' in ds.keys():
+                        flagvals = ds['sea_level_pressure_set_1_qc'].values.tolist()[0]
+                        flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
+                        flagvals = list(np.unique(flagvals)) # Get unique values
+                        flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
+                        
+                        if flagvals == ['nan']: # This should not occur, but leave in as additional check.
+                            ds = ds.drop("sea_level_pressure_set_1_qc")
+                        else:
+                            ds = ds.rename({'sea_level_pressure_set_1_qc': 'psl_qc'})
+                            flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
+                            ds['psl_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
+                            ds['psl_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
+                            ds['psl'].attrs['ancillary_variables'] = "psl_qc"
+                    else: # if no sea level pressure, drop QC flags.
+                        ds = ds.drop("sea_level_pressure_set_1_qc")
+
+
+
+            except Exception as e:
+                print(e)
+                errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
+                errors['Time'].append(end_api)
+                errors['Error'].append(e)
+                continue
+
     
-        exit() # left off here.
-        
-#     # Remove any non-essential columns.
-#     coltokeep = ['Station_ID', 'Date_Time', 'altimeter_set_1', 'altimeter_set_1_qc',
-#                 'air_temp_set_1', 'air_temp_set_1_qc', 'relative_humidity_set_1',
-#                 'relative_humidity_set_1_qc', 'wind_speed_set_1', 'wind_speed_set_1_qc',
-#                 'wind_direction_set_1', 'wind_direction_set_1_qc', 'precip_accum_since_local_midnight_set_1',
-#                 'precip_accum_since_local_midnight_set_1_qc',
-#                 'precip_accum_24_hour_set_1', 'precip_accum_24_hour_set_1_qc',
-#                 'dew_point_temperature_set_1d', 'pressure_set_1d',
-#                 'pressure_set_1', 'pressure_set_1_qc', 'dew_point_temperature_set_1', 'dew_point_temperature_set_1_qc', 
-#                 'precip_accum_one_hour_set_1', 'precip_accum_one_hour_set_1_qc', 'solar_radiation_set_1', 'solar_radiation_set_1_qc', 
-#                 'precip_accum_set_1', 'precip_accum_set_1_qc', 'precip_accum_five_minute_set_1', 'precip_accum_five_minute_set_1_qc']
-    
-#     othercols = [col for col in df.columns if col not in coltokeep and col not in removedvars] 
-#     #print(removedvars)
-#     #print(othercols)
-
-#     removedvars += othercols # Add any new columns from drop list to removedvars, to save later.
-#     df = df.drop(columns=[col for col in df if col not in coltokeep]) # Drop all columns not in coltokeep list.
-    
-#     # # Manually convert "None" to np.nan
-#     df.replace(to_replace="None", value=np.nan, inplace=True)
-
-#     # Remove "status" error rows
-#     df = df.loc[df["Station_ID"].str.contains("status")==False]  
-    
-#     return df
-
-# def clean_madis(bucket_name, rawdir, cleandir, network):
-#     try:
-#         files = []
-#         for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir): 
-#             file = str(item.key)
-#             files += [file]
-
-#         files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
-#         files = [file for file in files if "error" not in file] # Remove error handling files.
-#         files = [file for file in files if "station" not in file] # Remove error handling files.
-        
-#         # Set up error handling.
-#         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
-#         end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
-#         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
-
             
-#         # Set up list of variables to be removed
-#         removedvars = []
-
-#         # # Get list of station IDs from filename and clean.
-#         ids = list()
-#         for file in files:
-#             # Remove errors_[....].csv file names - TO DO.
-#             id = file.split("/")[-1] # Remove leading folders
-#             id = id.split("_")[-1] # Remove leading prefixes (for mult files)
-#             id = re.sub('.csv', "", id) # Remove leading NDBC
-#             if id not in ids:
-#                 ids.append(id)
-    
-#     except Exception as e: # If unable to read files from cleandir, break function.
-#         errors['File'].append("Whole network")
-#         errors['Time'].append(end_api)
-#         errors['Error'].append(e)
-    
-#     else: # If files read successfully, continue.
-
-#         ids.append("junk") # For testing errors
-
-#         #for i in ids: # For each station (full run)
-#         #for i in ids[0:5]: # Subsample for testing merge
-#         for i in ids[-10:]: # Subsample for testing errors    
-#             try:
-#                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
-#                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
-#                 headers = []
-#                     # Iterate through files to clean. Each file represents a station's data.
-#                 for file in stat_files:
-#                     try:
-#                         header = parse_madis_headers(file)
-#                         headers.append(header)  
-#                     except Exception as e:
-#                         errors['File'].append(file)
-#                         errors['Time'].append(end_api)
-#                         errors['Error'].append(e)
-#                         continue
             
-#                 # If more than one station, metadata should be identical. Test this.
-#                 if(all(a == headers[0] for a in headers[1:])):
-#                     headers = headers[0]
-#                 else: # If not, provide user input option to proceed.
-#                     print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.")
-#                     for k in headers:
-#                         print("File {}:".format(i), headers[k])
-#                         resp = input("Which file's metadata would you like to use (0-n)?")
-#                         try:
-#                             int(resp)
-#                             headers = headers[resp]
-#                         except ValueError:
-#                             errors['File'].append(stat_files)
-#                             errors['Time'].append(end_api)
-#                             errors['Error'].append("Invalid response to metadata query. Skipping file.")
-#                             print("Invalid response. Skipping file {}.")
-#                             continue
-
-#                 try:
-#                     dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
-#                 except Exception as e: # Note: error handling will be slightly coarse here bc of list comprehension.
-#                     errors['File'].append(stat_files)
-#                     errors['Time'].append(end_api)
-#                     errors['Error'].append(e)
-            
-#             except Exception as e:
-#                 errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
-#                 errors['Time'].append(end_api)
-#                 errors['Error'].append(e)
-#                 continue
-            
-#             try:
 #                 station_name = headers['station_name'] # Get station name
-#                 file_count = len(dfs)
-#                 df_stat = pd.concat(dfs)
 
 #                 # Deal with units
 #                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
@@ -255,223 +445,10 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 #                     print("Units not standardized! Fix code")
 #                     exit()
                 
-#                 # Fix multi-type columns
-#                 # If column has QC in it, force to string.
-#                 for b in df_stat.columns:
-#                     multitype = set(type(x).__name__ for x in df_stat[b])
-#                     if len(multitype)>1:
-#                         if 'qc' in b:
-#                             df_stat[b] = df_stat[b].astype(str) # Coerce to string (to handle multiple QA/QC flags)
-#                             df_stat[b] = df_stat[b].str.replace(".0", "") # Remove trailing .0 from float conversion.
-#                         elif 'wind_cardinal_direction' in b:
-#                             df_stat[b] = df_stat[b].astype(str) # Coerce to string
-#                         elif 'sea_level_pressure_set' in b:
-#                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
-#                         else:
-#                             print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
-#                             errors['File'].append(file)
-#                             errors['Time'].append(end_api)
-#                             errors['Error'].append("Multitype error for column {} with data types {}. Please resolve".format(b, multitype))
-#                             continue
-#                     else:
-#                         if 'qc' in b:
-#                             df_stat[b] = df_stat[b].astype(str) # Coerce QA/QC flag to string in all instances.
-#                             df_stat[b] = df_stat[b].str.replace(".0", "") # Remove trailing .0 from float conversion.
-
-#                 # Fix issue with "nan" and nan causing comparison errors
-#                 df_stat = df_stat.replace("nan", np.nan)
-
-#                 # Sort by time and remove any overlapping timestamps.
-#                 df_stat = df_stat.sort_values(by = "Date_Time")
-#                 df_stat = df_stat.drop_duplicates()
                 
-#                 # Move df to xarray object.
-#                 ds = df_stat.to_xarray()
                 
-#                 # Update global attributes
-#                 ds = ds.assign_attrs(title = "{} cleaned".format(network))
-#                 ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
-#                 ds = ds.assign_attrs(source = "")
-#                 ds = ds.assign_attrs(history = "MADIS_clean.py script run on {} UTC".format(timestamp))
-#                 ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
-#                 ds = ds.assign_attrs(license = "")
-#                 ds = ds.assign_attrs(citation = "")
-#                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-#                 ds = ds.assign_attrs(station_name = station_name.replace("\n", ""))
-#                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
                 
-#                 # Update dimensions and coordinates
-
-#                 # Add dimensions: station ID and time.
-#                 ds = ds.rename({'Date_Time': 'time'}) # Rename time variable.
-#                 ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time.
-#                 ds = ds.assign_coords(id = str(station_id))
-#                 ds = ds.expand_dims("id") # Add station_id as index.
-#                 ds = ds.drop_vars(("index")) # Drop station_id variable and index coordinate.
-#                 ds = ds.rename({'id': 'station'}) # Rename id to station_id.
-                
-                    
-#                 # Add coordinates: latitude and longitude.
-#                 lat = np.asarray([headers['latitude']]*len(ds['time']))
-#                 lat.shape = (1, len(ds['time']))
-                
-#                 lon = np.asarray([headers['longitude']]*len(ds['time']))
-#                 lon.shape = (1, len(ds['time']))
-
-#                 # reassign lat and lon as coordinates
-#                 ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
-
-#                 # If any observation is missing lat or lon coordinates, drop these observations.
-#                 if np.count_nonzero(np.isnan(ds['lat'])) != 0:
-#                     #print("Dropping missing lat values") # For testing.
-#                     ds = ds.where(~np.isnan(ds['lat']))
-                
-#                 if np.count_nonzero(np.isnan(ds['lon'])) != 0:
-#                     #print("Dropping missing lon values") # For testing.
-#                     ds = ds.where(~np.isnan(ds['lon']))
-                
-#                 # Add variable: elevation
-#                 elev = np.asarray([headers['elevation']]*len(ds['time']))
-#                 elev.shape = (1, len(ds['time']))
-#                 ds['elevation'] = (['station', 'time'], elev)
-                
-#                 # Update dimension and coordinate attributes.
-            
-#                 # Convert column to datetime (and remove any rows that cannot be coerced).
-#                 ds['time'] = pd.to_datetime(ds['time'], utc = True) # Convert from string to incorrect time format.
-#                 ds['time'] = pd.to_datetime(ds['time'], unit = 'ns') # Fix time format.
-                
-#                 # Update attributes.
-#                 ds['time'].attrs['long_name'] = "time"
-#                 ds['time'].attrs['standard_name'] = "time"
-#                 ds['time'].attrs['comment'] = "In UTC."
-                
-#                 # Station ID
-#                 ds['station'].attrs['long_name'] = "station_id"
-#                 ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
-                
-#                 # Latitude
-#                 ds['lat'].attrs['long_name'] = "latitude"
-#                 ds['lat'].attrs['standard_name'] = "latitude"
-#                 ds['lat'].attrs['units'] = "degrees_north"
-                
-#                 # Longitude
-#                 ds['lon'].attrs['long_name'] = "longitude"
-#                 ds['lon'].attrs['standard_name'] = "longitude"
-#                 ds['lon'].attrs['units'] = "degrees_east"
-                
-#                 # Elevation
-#                 # Convert from feet to meters.
-#                 ds['elevation'] = calc_clean._unit_elev_ft_to_m(ds['elevation']) # Convert feet to meters.
-
-#                 ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
-#                 ds['elevation'].attrs['long_name'] = "station_elevation"
-#                 ds['elevation'].attrs['units'] = "meters"
-#                 ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
-#                 ds['elevation'].attrs['comment'] = "Converted from feet to meters."
-                
-#                 # Update variable attributes and do unit conversions
-                
-#                 #tas: air surface temperature (K)
-#                 if "air_temp_set_1" in ds.keys():
-#                     ds['tas'] = calc_clean._unit_degC_to_K(ds['air_temp_set_1'])
-#                     ds = ds.drop("air_temp_set_1")
-                    
-                    
-#                     if "air_temp_set_1_qc" in ds.keys():
-#                         # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
-#                         flagvals = ds['air_temp_set_1_qc'].values.tolist()[0]
-#                         flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                         flagvals = list(np.unique(flagvals)) # Get unique values
-#                         flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                        
-#                         if flagvals == ['nan']: # This should not occur, but leave in here for additional robustness.
-#                             #print("Flag value is {}".format(flagvals)) # For testing.
-#                             ds = ds.drop("air_temp_set_1_qc")
-#                             ds['tas'].attrs['long_name'] = "air_temperature"
-#                             ds['tas'].attrs['standard_name'] = "air_temperature"
-#                             ds['tas'].attrs['units'] = "degree_Kelvin"
-#                             ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
-                            
-#                         else:
-#                             ds = ds.rename({'air_temp_set_1_qc': 'tas_qc'})
-#                             flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                             ds['tas_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                             ds['tas_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                            
-#                             ds['tas'].attrs['long_name'] = "air_temperature"
-#                             ds['tas'].attrs['standard_name'] = "air_temperature"
-#                             ds['tas'].attrs['units'] = "degree_Kelvin"
-#                             ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
-#                             ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
-                            
-#                     else:
-#                         ds['tas'].attrs['long_name'] = "air_temperature"
-#                         ds['tas'].attrs['standard_name'] = "air_temperature"
-#                         ds['tas'].attrs['units'] = "degree_Kelvin"
-#                         ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
-
-#                 # ps: surface air pressure (Pa)
-#                 # Note here that if "pressure_set_1" has values this is a direct station observation reading.
-#                 # Otherwise, if "pressure_set_1d" has values this is a derived value calculated from altimeter and elevation.
-#                 # We will manually recalculate this here.
-
-#                 # Set up column.
-                
-#                 if 'pressure_set_1' in ds.keys(): # If station pressure directly observed
-#                     if not np.isnan(ds['pressure_set_1'].values).all(): # If station pressure directly observed
-#                         ds = ds.rename({'pressure_set_1': 'ps'})
-                        
-#                         # Set attributes
-#                         ds['ps'].attrs['long_name'] = "station_air_pressure"
-#                         ds['ps'].attrs['standard_name'] = "air_pressure"
-#                         ds['ps'].attrs['units'] = "Pa"
-
-#                         if 'sea_level_pressure_set_1' in ds.keys():
-#                             ds = ds.drop("sea_level_pressure_set_1") # Drop psl if station pressure available
-
-#                 if 'ps' not in ds.keys(): # If this didn't work, look for sea level pressure
-#                     if 'sea_level_pressure_set_1' in ds.keys():
-#                         ds = ds.rename({'sea_level_pressure_set_1': 'psl'})
-#                         ds['psl'].attrs['long_name'] = "sea_level_air_pressure"
-#                         ds['psl'].attrs['standard_name'] = "air_pressure"
-#                         ds['psl'].attrs['units'] = "Pa"
-
-#                 if 'pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
-#                     flagvals = ds['pressure_set_1_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                    
-#                     if flagvals == ['nan']: # This should not occur, but leave in here for additional check.
-#                         #print("Flag value is {}".format(flagvals)) # For testing.
-#                         ds = ds.drop("pressure_set_1_qc")
-#                     else:
-#                         ds = ds.rename({'pressure_set_1_qc': 'ps_qc'})
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['ps_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['ps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-#                         if 'ps' in ds.keys():
-#                             ds['ps'].attrs['ancillary_variables'] = "ps_qc"
-
-#                 if 'sea_level_pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
-#                     if 'psl' in ds.keys():
-#                         flagvals = ds['sea_level_pressure_set_1_qc'].values.tolist()[0]
-#                         flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                         flagvals = list(np.unique(flagvals)) # Get unique values
-#                         flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                        
-#                         if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                             ds = ds.drop("sea_level_pressure_set_1_qc")
-#                         else:
-#                             ds = ds.rename({'sea_level_pressure_set_1_qc': 'psl_qc'})
-#                             flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                             ds['psl_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                             ds['psl_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-#                             ds['psl'].attrs['ancillary_variables'] = "psl_qc"
-#                     else: # if no sea level pressure, drop QC flags.
-#                         ds = ds.drop("sea_level_pressure_set_1_qc")
 
                             
 #                 # tdps: dew point temperature (K)
