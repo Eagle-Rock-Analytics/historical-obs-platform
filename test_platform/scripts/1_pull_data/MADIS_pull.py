@@ -17,9 +17,8 @@ import pandas as pd
 from datetime import datetime
 import re
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 import calc_pull
-from smart_open import open
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -133,8 +132,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
         # Note: decision here to use full flag suite of MesoWest and Synoptic data.
         # See Data Checks section here for more information: https://developers.synopticdata.com/mesonet/v2/stations/timeseries/
         url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on&qc_checks=synopticlabs,mesowest".format(token, id['STID'], start_api, end_api)
-        # print(url) # For testing.
-
+        
         # Try to get station csv.
         try:
             #request = requests.get(url)
@@ -161,7 +159,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
                         next
                     else:
                         s3_obj.put(Body=r.content)
-                        print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+                        print("Saving data for station {}".format(id["STID"])) 
 
                 else:
                     errors['Station ID'].append(id['STID'])
@@ -229,10 +227,10 @@ def madis_pull(token, networks, pause = None):
             print(dirname, directory)
         
         # Get list of station IDs and start date.
-        #ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
+        ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
         
         # Get station CSVs.
-        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
+        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
 
 if __name__ == "__main__":    
     madis_pull(config.token, networks = ["CRN"])
