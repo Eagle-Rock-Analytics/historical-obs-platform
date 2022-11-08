@@ -30,10 +30,10 @@ bucket_name = 'wecc-historical-wx'
 directory = '1_raw_wx/CIMIS/'
 
 # Function to write FTP data directly to AWS S3 folder.
-# ftp here is the current ftp connection
-# file is the filename
+# Inputs: ftp is the current ftp connection,
+# file is the filename,
 # directory is the desired path (set of folders) in AWS
-# rename used to provide manual path name
+# rename used to provide manual path name (optional)
 def ftp_to_aws(ftp, file, directory, rename = None):
     r=BytesIO()
     ftp.retrbinary('RETR '+file, r.write)
