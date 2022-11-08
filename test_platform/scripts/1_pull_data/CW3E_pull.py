@@ -33,8 +33,8 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Function to write FTP data directly to AWS S3 folder.
-# ftp here is the current ftp connection
-# file is the filename
+# Inputs: ftp is the current ftp connection,
+# file is the filename,
 # directory is the desired path (set of folders) in AWS
 def ftp_to_aws(ftp, file, directory):
     r=BytesIO()
@@ -43,74 +43,6 @@ def ftp_to_aws(ftp, file, directory):
     s3.upload_fileobj(r, bucket_name, directory+file)
     print('{} saved'.format(file)) # Helpful for testing, can be removed.
     r.close() # Close file
-
-## Pull CW3E data using FTP.
-def get_cw3e(bucket_name, directory):
-
-    # ## Login.
-    # ## using ftplib
-    ftp = FTP('sioftp.ucsd.edu')
-    ftp.login() # user anonymous, password anonymous
-    ftp.cwd('CW3E_DataShare/CW3E_SurfaceMetObs/')  # Change WD.
-    ftp_to_aws(ftp, 'HourlyData_README.txt', directory) # Get hourly read me file.
-    pwd = ftp.pwd() # Get base file path.
-
-    # Set up error handling df.
-    errors = {'File':[], 'Time':[], 'Error':[]}
-
-    # Set end time to be current time at beginning of download
-    end_api = datetime.now().strftime('%Y%m%d%H%M')
-
-    # Get station list
-    stations = ftp.nlst() # Get list of all file names in folder.
-    stations = [k for k in stations if ".txt" not in k]
-
-    for i in stations: # For each station/folder
-        try:
-            ftp.cwd(pwd) # Return to original working directory
-            dir = i+"/"
-            if i not in ['FRC', 'LBH', 'SKI']: # List exceptions
-                filename = i+"_HourlyData_Full.txt"
-                #print(dir, filename)
-                ftp.cwd(dir) # Change working directory to year/month.
-                ftp_to_aws(ftp, filename, directory)
-            elif i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
-                ftp.cwd(dir)
-                ftp_to_aws(ftp, 'LowerBathHouse_TwoMin.dat', directory)
-            elif i in ["SKI", "FRC"]: # For these two files, each year has a folder containing a subfolder for each day.
-                #print(i)
-                ftp.cwd(dir)
-                years = ftp.nlst()
-                years = [x for x in years if len(x) == 4] # Filter out other files in folder
-                print(years)
-                for k in years:
-                    ftp.cwd(k+"/")
-                    days = ftp.nlst()
-                    print(days)
-                    days = [x for x in days if len(x) <= 3] # Filter out other files in folder
-                    for l in days:
-                        ftp.cwd(l)
-                        files = ftp.nlst()
-                        for file in files:
-                            ftp_to_aws(ftp, file, directory)
-                        ftp.cwd("../") # go back up one level
-                    # Return to working directory
-                    ftp.cwd("../") # Go back up one level
-                        
-
-        except Exception as e:
-            errors['File'].append(i)
-            errors['Time'].append(end_api)
-            errors['Error'].append(e)
-
-    # Write errors to csv
-    csv_buffer = StringIO()
-    errors = pd.DataFrame(errors)
-    errors.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cw3e_{}.csv".format(end_api))
-
-    ftp.quit() # This is the “polite” way to close a connection
 
 # CW3E data does not have a station list, so we use MADIS's but discard start and end dates (they're incorrect)
 try:
@@ -154,14 +86,83 @@ def get_cw3e_metadata(token, terrpath, marpath, bucket_name, directory):
         csv_buffer_err = StringIO()
         station_list.to_csv(csv_buffer_err)
         content = csv_buffer_err.getvalue()
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"CW3E_stationlist.csv")
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_CW3E.csv")
         
         return station_list
     except Exception as e:
         print("Error: {}".format(e))
 
 
-# To download all data, run:
-get_cw3e(bucket_name, directory)
-# To get station list, run:
-get_cw3e_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = "1_raw_wx/CW3E/")
+## Pull CW3E data using FTP.
+def get_cw3e(bucket_name, directory):
+
+    # ## Login.
+    # ## using ftplib
+    ftp = FTP('sioftp.ucsd.edu')
+    ftp.login() # user anonymous, password anonymous
+    ftp.cwd('CW3E_DataShare/CW3E_SurfaceMetObs/')  # Change WD.
+    ftp_to_aws(ftp, 'HourlyData_README.txt', directory) # Get hourly read me file.
+    pwd = ftp.pwd() # Get base file path.
+
+    # Set up error handling df.
+    errors = {'File':[], 'Time':[], 'Error':[]}
+
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime('%Y%m%d%H%M')
+
+    # Get station list
+    stations = ftp.nlst() # Get list of all file names in folder.
+    stations = [k for k in stations if ".txt" not in k]
+
+    for i in stations: # For each station/folder
+        try:
+            ftp.cwd(pwd) # Return to original working directory
+            dir = i+"/"
+            if i not in ['FRC', 'LBH', 'SKI']: # List exceptions
+                filename = i+"_HourlyData_Full.txt"
+                ftp.cwd(dir) # Change working directory to year/month.
+                ftp_to_aws(ftp, filename, directory)
+            elif i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
+                ftp.cwd(dir)
+                ftp_to_aws(ftp, 'LowerBathHouse_TwoMin.dat', directory)
+            elif i in ["SKI", "FRC"]: # For these two files, each year has a folder containing a subfolder for each day.
+                ftp.cwd(dir)
+                years = ftp.nlst()
+                years = [x for x in years if len(x) == 4] # Filter out other files in folder
+                print(years)
+                for k in years:
+                    ftp.cwd(k+"/")
+                    days = ftp.nlst()
+                    print(days)
+                    days = [x for x in days if len(x) <= 3] # Filter out other files in folder
+                    for l in days:
+                        ftp.cwd(l)
+                        files = ftp.nlst()
+                        for file in files:
+                            ftp_to_aws(ftp, file, directory)
+                        ftp.cwd("../") # go back up one level
+                    # Return to working directory
+                    ftp.cwd("../") # Go back up one level
+                        
+
+        except Exception as e:
+            errors['File'].append(i)
+            errors['Time'].append(end_api)
+            errors['Error'].append(e)
+
+    # Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cw3e_{}.csv".format(end_api))
+
+    ftp.quit() # This is the “polite” way to close a connection
+
+
+if __name__ == "__main__":
+    # To get station list, run:
+    get_cw3e_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = "1_raw_wx/CW3E/")
+    # To download all data, run:
+    get_cw3e(bucket_name, directory)
+    
