@@ -24,9 +24,8 @@ from zeep import Client # For calling SOAP APIs
 from zeep.helpers import serialize_object
 import calc_pull
 
-# Add debug logging - for testing only. Comment out otherwise.
-import logging.config
-
+# Debug logging - for testing only.
+#import logging.config
 # logging.config.dictConfig({
 #     'version': 1,
 #     'formatters': {
@@ -110,15 +109,13 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks = None):
             csv_buffer = StringIO()
             subset.to_csv(csv_buffer, index = False)
             content = csv_buffer.getvalue()
-            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=subdir+"{}_stations.csv".format(i))
+            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=subdir+"stationlist_{}.csv".format(i))
 
         return station_metadata
 
     except Exception as e:
         print("Error: {}".format(e))
 
-#stations = get_SCAN_stations(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
-#print(stations)
 # Function: download USDA station data using SOAP API.
 # Data is organized by station, by sensor. 
 # Inputs:
@@ -274,10 +271,13 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
         
 
 if __name__ == "__main__":
-    get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
+    stations = get_SCAN_stations(wecc_terr, wecc_mar, bucket_name, networks = ['SCAN'])
+    #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
+
+
 
 # Note: neither BOR nor USGS have hourly data for any of our variables of interest.
-# I've removed them from our default networks of interest but left the code in, in case we
+# At present, they are removed from our default networks of interest. However, they're left in the code, in the event that we
 #  want to explore other networks/frequencies of data in the future.
 
 # Note: code below downloads additional metadata lists (with different station names) for SCAN/SNOTEL stations.
