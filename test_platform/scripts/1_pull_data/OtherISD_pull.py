@@ -40,15 +40,15 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
 # Function to write FTP data directly to AWS S3 folder.
-# ftp here is the current ftp connection
-# file is the filename
+# Inputs: ftp is the current ftp connection,
+# file is the filename,
 # directory is the desired path (set of folders) in AWS
 def ftp_to_aws(ftp, file, directory):
     r=BytesIO()
     ftp.retrbinary('RETR '+file, r.write)
     r.seek(0)
     s3.upload_fileobj(r, bucket_name, directory+file)
-    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    print('{} saved'.format(file))
     r.close() # Close file
 
 # Function to get up to date station list of ISD stations in WECC, and remove all asos-awos stations.
@@ -104,7 +104,7 @@ def get_wecc_stations(terrpath, marpath, bucket_name, directory): #Could alter s
 
     # Now, read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations.
     # Note, this relies on having run the ASOSAWOS pull script prior.
-    response = s3.get_object(Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/stationlist_asosawos.csv")
+    response = s3.get_object(Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv")
     asosawos = pd.read_csv(response['Body'])
     
     m1 = weccstations.WBAN.isin(asosawos.WBAN) # Create mask
@@ -116,7 +116,7 @@ def get_wecc_stations(terrpath, marpath, bucket_name, directory): #Could alter s
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_otherisd.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_OtherISD.csv")
 
     return weccstations
 
@@ -228,4 +228,4 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
 if __name__ == "__main__":
     # Run functions
     stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
-    get_otherisd_data_ftp(stations, bucket_name, directory, start_date = "2022-01-01", get_all = True)
+    get_otherisd_data_ftp(stations, bucket_name, directory, start_date = None, get_all = True)
