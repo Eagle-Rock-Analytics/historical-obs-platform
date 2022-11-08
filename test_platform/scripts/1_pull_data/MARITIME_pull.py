@@ -19,7 +19,6 @@ import calc_pull
 from shapely.geometry import Point
 import geopandas as gp
 from geopandas.tools import sjoin
-import re
 import numpy as np
 
 
@@ -174,7 +173,7 @@ def get_maritime(stations, bucket_name, network, years = None):
 
                     with requests.get(url, stream=True) as r:
                         if r.status_code == 404: # Catches any stations that don't have specific years, could be cleaner potentially
-                            next
+                            continue
                         elif r.status_code == 200:
                             s3_obj.put(Body=r.content)
                             ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
@@ -204,23 +203,10 @@ def get_maritime(stations, bucket_name, network, years = None):
 
                         with requests.get(url, stream=True) as r:
                             if r.status_code == 404:
-                                next
+                                pass
                             elif r.status_code == 200:
-                                if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
-                                    # Get error message and clean.
-                                    error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
-                                    error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
-                                    error_text = re.sub(",.*", "", error_text)
-                                    error_text = re.sub('"', '', error_text)
-
-                                    # Append rows to dictionary
-                                    errors['Station ID'].append(dir_stations['STATION_ID'])
-                                    errors['Time'].append(end_api)
-                                    errors['Error'].append(error_text)
-                                    next
-                                else:
-                                    s3_obj.put(Body=r.content)
-                                    print("Saving data for station {} for {} {}".format(filename, x, year)) # Nice for testing, remove for full run.
+                                s3_obj.put(Body=r.content)
+                                print("Saving data for station {} for {} {}".format(filename, x, year)) # Nice for testing, remove for full run.
                             else:
                                 errors['Station ID'].append(filename)
                                 errors['Time'].append(end_api)
@@ -239,64 +225,12 @@ def get_maritime(stations, bucket_name, network, years = None):
     content = error_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network, end_api))
 
-
-## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
-## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
-## MARITIME: 99 of 123 downloaded (24 are not meteorological)
-## NDBC: 136 of 151 downloaded (16 are not meteorological)
-def download_comparison(stations, bucket_name, network):
-
-    ## There is a warning that is not relevant to our purposes, this turns it off
-    pd.options.mode.chained_assignment = None  # default='warn'
-
-    dir_bucket = s3.Bucket(bucket_name)
-
-    ## Read in station list to compare against
-    directory = "1_raw_wx/"+network+"/"
-    dir_stations = stations.loc[stations['NETWORK']==network]
-
-    files_downloaded = []
-    for object_summary in dir_bucket.objects.filter(Prefix=directory):
-        if (object_summary.key[-7:] == ".txt.gz") or (object_summary.key[-4:] == ".zip"):
-            files_downloaded.append(object_summary.key)
-
-    downloaded_stns = set()
-    for file in files_downloaded:
-        dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
-        downloaded_stns.add(dn_file)
-    downloaded_stns = list(downloaded_stns)
-
-    ## Adds download column so we can compare post full data pull, will get filled after full pull
-    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
-    dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
-
-    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
-    dir_stations = dir_stations.reindex(columns = [col for col in dir_stations.columns if col != 'NOTE'] + ['NOTE'])
-
-    ## Reorders the indices in both stationlists
-    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
-    # stn_idx = []
-    # for i in range(len(dir_stations.index)):
-    #     stn_idx.append(i)
-    dir_stations.reset_index(inplace=True, drop=True)
-
-    # ## Write stations to respective AWS bucket
-    new_buffer = StringIO()
-    dir_stations.to_csv(new_buffer)
-    content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
-
-    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
-
-    return dir_stations
-
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
 if __name__ == "__main__":
     network_to_run = "NDBC" # "MARITIME" or "NDBC"
     stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
     get_maritime(stations, bucket_name, network_to_run, years = None)
-    download_comparison(stations, bucket_name, network_to_run)
-
+    
 ## Full Pull Notes
 ## 1. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
