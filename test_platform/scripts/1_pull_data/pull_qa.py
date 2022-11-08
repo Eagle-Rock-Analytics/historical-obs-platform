@@ -15,7 +15,7 @@
 
 # Import packages
 from MADIS_pull import get_madis_station_csv
-from SCAN_pull import get_scan_station_data
+from SCANSNOTEL_pull import get_scan_station_data
 from ASOSAWOS_pullftp import get_asosawos_data_ftp, ftp_to_aws
 from OtherISD_pull import get_otherisd_data_ftp
 import boto3
@@ -89,7 +89,6 @@ def madis_retry_downloads(token, bucket_name, network):
     else:
         print("No missing station files. Checking for timeout errors.")
     
-
 # Quality control: if any files return end of file errors, split request into smaller requests and re-run.
 
 # Function: given a file object (e.g. from f.open, smart-open's open function)
@@ -125,7 +124,6 @@ def before(self):
 
     # Because we're reading backwards, reverse the order and decode into a string.
     return _tmp[::-1].decode()
-
 
 # Timeout function: Given a list of files, generate URL, read last lines and add to timeout list for re-download if error found.
 def get_timeouts(files):
@@ -218,6 +216,40 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
 
     print("No more timeout errors found in {} network".format(directory))
 
+# After attempted redownload, read in station list and add column "Downloaded" with Y/N.
+def madis_update_station_list(token, bucket_name, directory):
+    ## Read in station list to compare against
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
+        file = str(item.key)
+        files += [file]
+    files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+
+    station_file = [file for file in files if "stationlist" in file] # ID station file
+    station_file = str(station_file[0])
+
+    # Read in station file.
+    test = s3.Bucket(bucket_name).Object(station_file).get()
+    station_csv = pd.read_csv(test['Body'])
+    
+    # Filter files.
+    files = [file for file in files if "errors" not in file]
+    files = [file for file in files if "station" not in file] # Remove error and station list files
+
+    # Get list of downloaded IDs from file names.
+    downloaded_stns = set()
+    for file in files:
+        dn_file = file.split("/")[-1].replace(".csv", "") # Grabs station_id from each filename
+        dn_file = dn_file.split("_")[-1] # Remove leading extension, if file is one of multiple.
+        downloaded_stns.add(dn_file)
+    downloaded_stns = list(downloaded_stns)
+    
+    
+    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
+    station_csv['Download'] = np.where(station_csv['STATION_ID'].isin(downloaded_stns), "Y", "N")
+
+    pass
 
 # For SCAN/SNOTEL
 def scan_retry_downloads(bucket_name, network, terrpath, marpath):
@@ -496,10 +528,11 @@ def retry_downloads(token, bucket_name, networks = None):
         print("Attempting to download missing files for {} network".format(network))
         directory = "1_raw_wx/"+network+"/"
         if network in MADIS:
-            madis_retry_downloads(token, bucket_name, network) # Retry any missing downloads
+            #madis_retry_downloads(token, bucket_name, network) # Retry any missing downloads
             # Get timeout CSVs.
-            print("Identifying file timeouts for {} network".format(network))
-            get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
+            #print("Identifying file timeouts for {} network".format(network))
+            #get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
+            madis_update_station_list(token, bucket_name, directory)
         elif network in SNTL:
             scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar)
         elif network in ISD:
