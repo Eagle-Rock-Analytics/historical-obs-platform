@@ -138,8 +138,8 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
 
 
 ## Read in MARITIME data using HTTP access.
-# network = "NDBC" or "MARITIME"
-def get_maritime(stations, bucket_name, network, years, get_all = True):
+## Removing "get_all" functionality for now, but may need to be redesigned in future for current year/preliminary data
+def get_maritime(stations, bucket_name, network, years = None):
 
     # Set up error handling df.
     errors = {'Station ID':[], 'Time':[], 'Error':[]}
@@ -150,6 +150,12 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
     ## HTTP access instead of FTP: https://www.ndbc.noaa.gov/data/historical/stdmet/
     directory = "1_raw_wx/"+network+"/"
     dir_stations = stations.loc[stations['NETWORK']==network]
+
+    ## Default for years
+    if years is None:
+        years = list(map(str,range(1980,datetime.now().year+1))) # Get list of years from 1980 to current year
+    else:
+        years = years
 
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
     canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
@@ -169,23 +175,10 @@ def get_maritime(stations, bucket_name, network, years, get_all = True):
                     with requests.get(url, stream=True) as r:
                         if r.status_code == 404: # Catches any stations that don't have specific years, could be cleaner potentially
                             next
-                        elif r.status_code == 200: # If API call returns a response
-                            if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
-                                # Get error message and clean.
-                                error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
-                                error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
-                                error_text = re.sub(",.*", "", error_text)
-                                error_text = re.sub('"', '', error_text)
-
-                                # Append rows to dictionary
-                                errors['Station ID'].append(dir_stations['STATION_ID'])
-                                errors['Time'].append(end_api)
-                                errors['Error'].append(error_text)
-                                next
-                            else:
-                                s3_obj.put(Body=r.content)
-                                ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
-                                print("Saving data for station {} for {}".format(filename, year)) # Nice for testing/progress
+                        elif r.status_code == 200:
+                            s3_obj.put(Body=r.content)
+                            ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
+                            print("Saving data for station {} for {}".format(filename, year)) # Nice for testing/progress
                         else:
                             errors['Station ID'].append(filename)
                             errors['Time'].append(end_api)
@@ -285,7 +278,7 @@ def download_comparison(stations, bucket_name, network):
     # stn_idx = []
     # for i in range(len(dir_stations.index)):
     #     stn_idx.append(i)
-    dir_stations.reset_index()
+    dir_stations.reset_index(inplace=True, drop=True)
 
     # ## Write stations to respective AWS bucket
     new_buffer = StringIO()
@@ -302,10 +295,8 @@ def download_comparison(stations, bucket_name, network):
 if __name__ == "__main__":
     network_to_run = "NDBC" # "MARITIME" or "NDBC"
     stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
-    get_maritime(stations, bucket_name, network_to_run, years = years, get_all = True)
+    get_maritime(stations, bucket_name, network_to_run, years = None)
     download_comparison(stations, bucket_name, network_to_run)
 
 ## Full Pull Notes
-## 0. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
-## 1. For first full data pull, set get_all = True
-## 2. For all subsequent data pulls/update with newer data, set get_all = False
+## 1. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
