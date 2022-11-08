@@ -218,7 +218,11 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
     print("No more timeout errors found in {} network".format(directory))
 
 # After attempted redownload, read in station list and add column "Downloaded" with Y/N.
-def madis_update_station_list(bucket_name, network, directory):
+# Inputs: AWS bucket name, network name
+def update_station_list(bucket_name, network):
+    #TO DO: define ID col based on stationlist format! + add handling for xslx!
+    
+    directory = "1_raw_wx/"+network+"/"
     ## Read in station list to compare against
     files = []
     for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
