@@ -416,7 +416,55 @@ def maritime_retry_downloads(bucket_name, network):
     
     return missed_stations, missing_files
     
-    
+## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
+## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
+## MARITIME: 99 of 123 downloaded (24 are not meteorological)
+## NDBC: 136 of 151 downloaded (16 are not meteorological)
+def download_comparison(stations, bucket_name, network):
+
+    ## There is a warning that is not relevant to our purposes, this turns it off
+    pd.options.mode.chained_assignment = None  # default='warn'
+
+    dir_bucket = s3.Bucket(bucket_name)
+
+    ## Read in station list to compare against
+    directory = "1_raw_wx/"+network+"/"
+    dir_stations = stations.loc[stations['NETWORK']==network]
+
+    files_downloaded = []
+    for object_summary in dir_bucket.objects.filter(Prefix=directory):
+        if (object_summary.key[-7:] == ".txt.gz") or (object_summary.key[-4:] == ".zip"):
+            files_downloaded.append(object_summary.key)
+
+    downloaded_stns = set()
+    for file in files_downloaded:
+        dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
+        downloaded_stns.add(dn_file)
+    downloaded_stns = list(downloaded_stns)
+
+    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
+    dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
+
+    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
+    dir_stations = dir_stations.reindex(columns = [col for col in dir_stations.columns if col != 'NOTE'] + ['NOTE'])
+
+    ## Reorders the indices in both stationlists
+    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
+    # stn_idx = []
+    # for i in range(len(dir_stations.index)):
+    #     stn_idx.append(i)
+    dir_stations.reset_index(inplace=True, drop=True)
+
+    # ## Write stations to respective AWS bucket
+    new_buffer = StringIO()
+    dir_stations.to_csv(new_buffer)
+    content = new_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
+
+    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
+
+    return dir_stations
 
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
