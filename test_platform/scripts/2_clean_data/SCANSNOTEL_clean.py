@@ -92,7 +92,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
         # Get station file and read in metadata.
         station_file = [file for file in files if 'station' in file]
         if len(station_file)>1: # If more than one file returned
-            station_file = [file for file in station_file if 'SCAN_' in file] # CHANGE THIS - SCAN should be saved as stationlist_SCAN in finalpull.
+            station_file = [file for file in station_file if 'stationlist_' in file] 
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj['Body'].read()))    
 
@@ -151,8 +151,8 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                         df = pd.read_csv(BytesIO(obj['Body'].read()))
                         
                         # FOR TESTING ONLY
-                        #df = df.sample(5000)
-                        df = df.head(10000)
+                        df = df.sample(5000)
+                        #df = df.head(10000)
 
                         # Fix any NA mixed types
                         df = df.replace("NaN", np.nan)
@@ -345,12 +345,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                 # Update variable attributes and do unit conversions
                 
-                # #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                # for var in ds.variables:
-                #     try:
-                #         print([var, float(ds[var].min()), float(ds[var].max())]) 
-                #     except:
-                #         next
+                #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
                 
                 #tas: air surface temperature (K)
                 if "TOBS_value" in ds.keys():
@@ -653,7 +648,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
    
 # # Run functions
 if __name__ == "__main__":
-    network = "SNOTEL"
+    network = "SCAN"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     parse_scansnotel_to_pandas(rawdir, cleandir)
