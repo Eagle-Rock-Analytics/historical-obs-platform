@@ -271,8 +271,7 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
         
 
 if __name__ == "__main__":
-    stations = get_SCAN_stations(wecc_terr, wecc_mar, bucket_name, networks = ['SCAN'])
-    #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
+    get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks = ['SNTL'])
 
 
 
