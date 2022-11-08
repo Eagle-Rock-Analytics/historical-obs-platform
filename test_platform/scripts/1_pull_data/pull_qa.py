@@ -26,6 +26,7 @@ import os
 from datetime import datetime
 from ftplib import FTP
 from io import StringIO
+import numpy as np
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -217,7 +218,7 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
     print("No more timeout errors found in {} network".format(directory))
 
 # After attempted redownload, read in station list and add column "Downloaded" with Y/N.
-def madis_update_station_list(token, bucket_name, directory):
+def madis_update_station_list(bucket_name, network, directory):
     ## Read in station list to compare against
     files = []
     for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
@@ -244,12 +245,21 @@ def madis_update_station_list(token, bucket_name, directory):
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
     
-    
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
-    station_csv['Download'] = np.where(station_csv['STATION_ID'].isin(downloaded_stns), "Y", "N")
-
-    pass
+    station_csv['Pulled'] = np.where(station_csv['STID'].isin(downloaded_stns), "Y", "N")
+    station_csv['Time_Checked'] = pd.to_datetime('now').replace(microsecond=0)
+    
+    # Drop first column from station_csv
+    station_csv = station_csv.drop(columns = station_csv.columns[0], axis = 1)
+    
+    # ## Write stations to respective AWS bucket
+    new_buffer = StringIO()
+    station_csv.to_csv(new_buffer)
+    content = new_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
+    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
+    print(station_csv)
 
 # For SCAN/SNOTEL
 def scan_retry_downloads(bucket_name, network, terrpath, marpath):
@@ -532,7 +542,7 @@ def retry_downloads(token, bucket_name, networks = None):
             # Get timeout CSVs.
             #print("Identifying file timeouts for {} network".format(network))
             #get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
-            madis_update_station_list(token, bucket_name, directory)
+            madis_update_station_list(bucket_name, network, directory)
         elif network in SNTL:
             scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar)
         elif network in ISD:
@@ -565,5 +575,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["CAHYDRO"])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["MTRWFO"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
