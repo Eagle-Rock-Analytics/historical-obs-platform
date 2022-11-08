@@ -42,15 +42,15 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp" 
 
 # Set state shortcodes
-states = [ 'AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA',
+states =  ['AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA',
            'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME',
            'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM',
            'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX',
            'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY']
 
 # Function to write FTP data directly to AWS S3 folder.
-# ftp here is the current ftp connection
-# file is the filename
+# Inputs: ftp is the current ftp connection,
+# file is the filename,
 # directory is the desired path (set of folders) in AWS
 def ftp_to_aws(ftp, file, directory):
     r=BytesIO()
@@ -147,10 +147,9 @@ def get_asosawos_stations():
 
 # Function to get up to date station list of ASOS AWOS stations in WECC.
 # Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by WBAN and returns list of station IDs.
-# Inputs: path to terrestrial WECC shapefile, path to marine WECC file. 
-# Both paths given relative to home directory for git project.
+# Inputs: S3 path to terrestrial WECC shapefile, S3 path to marine WECC file. 
 # Outputs: saves 2 sets of metadata to AWS, returns filtered ISD station object for use in get_asosawos_data_ftp().
-def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile as input also, if there's a use for this.
+def get_wecc_stations(terrpath, marpath): 
     ## Login.
     ## using ftplib, get list of stations as csv
     filename = 'isd-history.csv'
@@ -240,7 +239,7 @@ def get_wecc_stations(terrpath, marpath): #Could alter script to have shapefile 
     return weccstations
 
 # Function: query ftp server for ASOS-AWOS data and download zipped files.
-# Run this one time to get all historical data or to update changed files for all years.
+# Run this one time to get all historical data, update changed files for all years, or get files for a subset of years.
 # Inputs: 
 # Station_list: Returned from get_wecc_stations() function.
 # bucket_name: name of AWS bucket
@@ -276,7 +275,7 @@ def get_asosawos_data_ftp(station_list, bucket_name, directory, start_date = Non
         try:
             station_list = station_list[station_list["end_time"] >= start_date] # Filter to ensure station is not depracated before time period of interest.
         except Exception as e:
-            print("Error:", e) # If error occurs here, 
+            print("Error:", e) # If error occurs with station list filter
             years = [i for i in years if (len(i)<5 and int(i)>1979)] # function will use years to filter station files.
 
     try:
