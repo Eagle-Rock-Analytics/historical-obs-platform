@@ -228,13 +228,13 @@ def get_wecc_stations(terrpath, marpath):
     csv_buffer = StringIO()
     asosawos.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_asosawos.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_ASOSAWOS.csv")
 
     # Write filtered ISD station list to CSV.
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_isd_asosawos.csv")
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"stationlist_ISD_ASOSAWOS.csv")
 
     return weccstations
 
