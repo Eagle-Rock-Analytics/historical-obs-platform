@@ -101,10 +101,14 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
         files = [file for file in files if 'station' not in file]
         files = [file for file in files if 'error' not in file]
 
+        # Get list of columns to remove
+        vars_to_remove = ['TAVG', 'RHUMV', 'SRADV', 'SRADT', 'WDIRV', 'WSPDV'] # Variables to remove
+        cols_to_remove = ['{}_flag'.format(elem) for elem in vars_to_remove] + ['{}_value'.format(elem) for elem in vars_to_remove] + ['{}_time'.format(elem) for elem in vars_to_remove] # Associated columns for each variable
+                        
+
         # Get list of station IDs from filename and clean.
         ids = list()
         for file in files:
-            # Remove errors_[....].csv file names - TO DO.
             id = file.split("/")[-1] # Remove leading folders
             id = id.split("_")[-1] # Remove leading prefixes (for mult files)
             id = re.sub('.csv', "", id) # Remove leading NDBC
@@ -158,8 +162,6 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                         # Drop any unnecessary columns.
                         
-                        vars_to_remove = ['TAVG', 'RHUMV', 'SRADV', 'SRADT', 'WDIRV', 'WSPDV'] # Variables to remove
-                        cols_to_remove = ['{}_flag'.format(elem) for elem in vars_to_remove] + ['{}_value'.format(elem) for elem in vars_to_remove] + ['{}_time'.format(elem) for elem in vars_to_remove] # Associated columns for each variable
                         for col in cols_to_remove:
                             if col in df.columns:
                                 df = df.drop(col, axis = 1)
@@ -194,7 +196,6 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                         # If more than one file for station, merge files.
                         # will not be triggered for full clean, but set up to work if slices of data added in future.
                         # will require additional testing at this point.
-                        # TO DO: concatenate dfs.
                         if df_stat is None:
                             df_stat = df
                             del(df) # For memory.
@@ -344,12 +345,12 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                 # Update variable attributes and do unit conversions
                 
-                #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                for var in ds.variables:
-                    try:
-                        print([var, float(ds[var].min()), float(ds[var].max())]) 
-                    except:
-                        next
+                # #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                # for var in ds.variables:
+                #     try:
+                #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                #     except:
+                #         next
                 
                 #tas: air surface temperature (K)
                 if "TOBS_value" in ds.keys():
@@ -509,7 +510,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     ds['sfcWind'].attrs['units'] = "m s-1"
 
                     #rsds: QA/QC flags
-                    if 'WSP_flag' in ds.keys():
+                    if 'WSPD_flag' in ds.keys():
                         ds = ds.rename({'WSPD_flag': 'sfcWind_qc'})
                         ds['sfcWind_qc'].attrs['flag_values'] = "V S E"
                         ds['sfcWind_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
@@ -538,7 +539,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                 # Partial vapor pressure (kPa -> Pa) ## No CMIP standard name for this var, just CF.
                 if 'PVPV_value' in ds.keys():
-                    ds['pvp'] = calc_clean._unit_pres_hpa_to_pa(ds['PVPV_value']) # WRONG - JUST USING AS PLACEHOLDER.
+                    ds['pvp'] = calc_clean._unit_pres_hpa_to_pa(ds['PVPV_value']) # TO DO: WRONG - JUST USING AS PLACEHOLDER.
                     #ds['pvp'] = calc_clean._unit_pres_kpa_to_pa(ds['PVPV_value'])
                     ds = ds.drop("PVPV_value")
 
@@ -555,14 +556,12 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     ds['pvp'].attrs['comment'] = "Converted from kPa to Pa."
                     
                 # Saturated vapor pressure (kPa -> Pa)
-                # Partial vapor pressure (kPa -> Pa) ## TO DO: CONFIRM variable name if CMIP standard exists.
                 if 'SVPV_value' in ds.keys():
-                    ds['svp'] = calc_clean._unit_pres_hpa_to_pa(ds['SVPV_value']) # WRONG - JUST USING AS PLACEHOLDER.
+                    ds['svp'] = calc_clean._unit_pres_hpa_to_pa(ds['SVPV_value']) # TO DO: WRONG - JUST USING AS PLACEHOLDER.
                     #ds['svp'] = calc_clean._unit_pres_kpa_to_pa(ds['SVPV_value'])
                     ds = ds.drop("SVPV_value")
 
                     ds['svp'].attrs['long_name'] = "saturated_vapor_pressure"
-                    ds['svp'].attrs['standard_name'] = "water_vapor_saturated_pressure_in_air" # CONFIRM
                     ds['svp'].attrs['units'] = "Pa"
                     
                     if "SVPV_flag" in ds.keys():
@@ -611,6 +610,9 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
             #Write station file to netcdf.
             if ds is None: # Should be caught in error handling above, but add in case.
                 print("{} not saved.".format(file))
+                errors['File'].append(file) # If stat_files is none, this will default to saving ID of station.
+                errors['Time'].append(end_api)
+                errors['Error'].append("File has no data.")
                 continue
             
             else:
@@ -627,7 +629,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                     print("Saving {} with dims {}".format(filename, ds.dims))
                     ds.close() # Close dataframe.
-                    exit()
+                    
                 except Exception as e:
                     print(e)
                     errors['File'].append(stat_files)
@@ -636,53 +638,22 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     continue  
 
                 
-#         # # Write the list of removed variables to csv for future reference. Keep these in one centralized "removedvars.csv" file that gets appended to
-#         # Read in existing removedvars.csv from AWS folder, if it already exists.
-#         # If removedvars.csv already in file list, save it to append to.
-#         key = cleandir+'removedvars.csv'
-#         #removedvars += ["junk"] # For testing
-#         removedvars = pd.DataFrame(removedvars, columns = ["Variable"])
-#         try:
-#             test = s3.Bucket(bucket_name).Object(key).get()
-#             removedvarscsv = pd.read_csv(test['Body'])
-#             removedvars = pd.concat([removedvarscsv, removedvars], axis = 0, ignore_index = True)
-#             removedvars = removedvars[['Variable']].drop_duplicates(ignore_index = True)
-#             #print(removedvars) # For testing
-
-#             csv_buffer = StringIO()
-#             removedvars.to_csv(csv_buffer)
-#             content = csv_buffer.getvalue()
-#             s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"removedvars.csv")
-#             # print("Updated removedvars.csv") # For testing
-            
-#         except botocore.exceptions.ClientError as ex:
-#             if ex.response['Error']['Code'] == 'NoSuchKey':
-#                 # Save to AWS
-#                 csv_buffer = StringIO()
-#                 removedvars.to_csv(csv_buffer)
-#                 content = csv_buffer.getvalue()
-#                 s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"removedvars.csv")
-#                 #print("Created removedvars.csv") # For testing
-                
-#             else: # list error if removedvars.csv not saved
-#                 errors['File'].append("Whole network error")
-#                 errors['Time'].append(end_api)
-#                 errors['Error'].append(e)
-                
-        
-#     # Write errors.csv
-#     finally: # Always execute this.
-#         print(errors)
-#         errors = pd.DataFrame(errors)
-#         csv_buffer = StringIO()
-#         errors.to_csv(csv_buffer)
-#         content = csv_buffer.getvalue()
-#         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"errors_{}_{}.csv".format(network, end_api))
+    # The list of removed variables is manually saved to AWS, as it includes many variables not initially downloaded.
+    # Obtained from: https://www.nrcs.usda.gov/wps/portal/wcc/home/dataAccessHelp/webService/webServiceReference
+   
+    # Write errors.csv
+    finally: # Always execute this.
+        print(errors)
+        errors = pd.DataFrame(errors)
+        csv_buffer = StringIO()
+        errors.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"errors_{}_{}.csv".format(network, end_api))
 
    
 # # Run functions
 if __name__ == "__main__":
-    network = "SCAN"
+    network = "SNOTEL"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     parse_scansnotel_to_pandas(rawdir, cleandir)
