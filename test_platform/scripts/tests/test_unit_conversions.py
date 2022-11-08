@@ -9,8 +9,7 @@ import sys
 
 ## Adding 2_clean_data.calc_clean to system path
 ## Note to use: must insert full path to where the 2_clean_data dir is stored locally
-# sys.path.insert(0, '/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
-sys.path.insert(0, '/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
+sys.path.insert(0, '/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
 
 from calc_clean import (_unit_degC_to_K,
                         _unit_degF_to_K,
