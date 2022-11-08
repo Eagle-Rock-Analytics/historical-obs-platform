@@ -30,6 +30,7 @@ from io import BytesIO, StringIO
 import smart_open
 import traceback
 import botocore
+import random
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -122,10 +123,15 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
         #for i in ids: # For each station (full run)
         #for i in ids[0:5]: # Subsample for testing merge
-        for i in ids[-10:]: # Subsample for testing errors    
+        for i in random.sample(ids,5): # Subsample for testing errors    
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
-                print(stat_files)
+                
+                if not stat_files: # If ID has no files downloaded
+                    errors['File'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No raw data found for station.")
+                    continue # Skip ID.
                 #stat_files.append("junk") # To test merge breaks.
                 
                 station_id = "{}_".format(network)+i.split(":")[0] # Save file ID, keeping STID from triplet.
@@ -141,8 +147,8 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                         df = pd.read_csv(BytesIO(obj['Body'].read()))
                         
                         # FOR TESTING ONLY
-                        #df = df.head(5000)
-                        df = df.sample(5000)
+                        #df = df.sample(5000)
+                        df = df.head(10000)
 
                         # Fix any NA mixed types
                         df = df.replace("NaN", np.nan)
@@ -151,11 +157,13 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                         df = df.dropna(axis = 1, how = 'all')
 
                         # Drop any unnecessary columns.
-                        if 'TAVG_value' in df.columns:
-                            df = df.drop("TAVG_value", axis = 1)
-                        if 'TAVG_flag' in df.columns:
-                            df = df.drop("TAVG_flag", axis = 1)
-
+                        
+                        vars_to_remove = ['TAVG', 'RHUMV', 'SRADV', 'SRADT', 'WDIRV', 'WSPDV'] # Variables to remove
+                        cols_to_remove = ['{}_flag'.format(elem) for elem in vars_to_remove] + ['{}_value'.format(elem) for elem in vars_to_remove] + ['{}_time'.format(elem) for elem in vars_to_remove] # Associated columns for each variable
+                        for col in cols_to_remove:
+                            if col in df.columns:
+                                df = df.drop(col, axis = 1)
+                        
                         # Resolve time differences between time and variable time observations.
                         # For each column, check if any value different than original time column
                         # Do so by setting to NA if identical, and then deleting all columns with all NAs.
@@ -262,9 +270,9 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 if isinstance(station_metadata['actonId'], str):
                     ds = ds.assign_attrs(actonId = station_metadata['actonId'])
                 if not np.isnan(station_metadata['huc']):
-                    ds = ds.assign_attrs(huc = station_metadata['huc'])
+                    ds = ds.assign_attrs(huc = int(station_metadata['huc']))
                 if not np.isnan(station_metadata['hud']):
-                    ds = ds.assign_attrs(hud = station_metadata['hud'])
+                    ds = ds.assign_attrs(hud = int(station_metadata['hud']))
                 if isinstance(station_metadata['shefId'], str):
                     ds = ds.assign_attrs(shefId = station_metadata['shefId'])
                 
@@ -336,94 +344,263 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                 # Update variable attributes and do unit conversions
                 
+                #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                for var in ds.variables:
+                    try:
+                        print([var, float(ds[var].min()), float(ds[var].max())]) 
+                    except:
+                        next
+                
                 #tas: air surface temperature (K)
                 if "TOBS_value" in ds.keys():
                     ds['tas'] = calc_clean._unit_degF_to_K(ds['TOBS_value'])
                     ds = ds.drop("TOBS_value")
 
+                    ds['tas'].attrs['long_name'] = "air_temperature"
+                    ds['tas'].attrs['standard_name'] = "air_temperature"
+                    ds['tas'].attrs['units'] = "degree_Kelvin"
+                    
                     if "TOBS_flag" in ds.keys():
                         # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
                         ds = ds.rename({'TOBS_flag': 'tas_qc'})
-                        ds['tas_qc'].attrs['flag_values'] = "V S E" # Generate values from unique values from dataset.
+                        ds['tas_qc'].attrs['flag_values'] = "V S E" 
                         ds['tas_qc'].attrs['flag_meanings'] =  "valid suspect edited"
-                        
-                        ds['tas'].attrs['long_name'] = "air_temperature"
-                        ds['tas'].attrs['standard_name'] = "air_temperature"
-                        ds['tas'].attrs['units'] = "degree_Kelvin"
                         ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
-                        ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
                             
-                    else:
-                        ds['tas'].attrs['long_name'] = "air_temperature"
-                        ds['tas'].attrs['standard_name'] = "air_temperature"
-                        ds['tas'].attrs['units'] = "degree_Kelvin"
-                        ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
+                    ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
 
                 # ps: surface air pressure (Pa)
 
-### LEFT OFF HERE 11.07.
-
-                # Set up column.
-                ### TO DO: what to name barometric pressure - psl or psb??
+                # Here we only have barometric pressure (sea-level).
                 if 'PRES_value' in ds.keys(): # If barometric pressure available
-                    if not np.isnan(ds['PRES_value'].values).all():
-                        # Convert from inHg to PA
-                        ds['ps'] = calc_clean._unit_pres_inHg_to_pa(ds['PRES_value'])
-                        ds = ds.drop("PRES_value")
+                    # Convert from inHg to PA
+                    ds['psl'] = calc_clean._unit_pres_inHg_to_pa(ds['PRES_value'])
+                    ds = ds.drop("PRES_value")
 
-                        # Set attributes
-                        ds['ps'].attrs['long_name'] = "station_air_pressure"
-                        ds['ps'].attrs['standard_name'] = "air_pressure"
-                        ds['ps'].attrs['units'] = "Pa"
-                        ds['ps'].attrs['comment'] = "Converted from inHg."
-
-                        if 'sea_level_pressure_set_1' in ds.keys():
-                            ds = ds.drop("sea_level_pressure_set_1") # Drop psl if station pressure available
-
-                if 'ps' not in ds.keys(): # If this didn't work, look for sea level pressure
-                    if 'sea_level_pressure_set_1' in ds.keys():
-                        ds = ds.rename({'sea_level_pressure_set_1': 'psl'})
-                        ds['psl'].attrs['long_name'] = "sea_level_air_pressure"
-                        ds['psl'].attrs['standard_name'] = "air_pressure"
-                        ds['psl'].attrs['units'] = "Pa"
-
-                if 'pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
-                    flagvals = ds['pressure_set_1_qc'].values.tolist()[0]
-                    flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-                    flagvals = list(np.unique(flagvals)) # Get unique values
-                    flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
+                    # Set attributes
+                    ds['psl'].attrs['long_name'] = "barometric_air_pressure"
+                    ds['psl'].attrs['standard_name'] = "air_pressure"
+                    ds['psl'].attrs['units'] = "Pa"
                     
-                    if flagvals == ['nan']: # This should not occur, but leave in here for additional check.
-                        #print("Flag value is {}".format(flagvals)) # For testing.
-                        ds = ds.drop("pressure_set_1_qc")
-                    else:
-                        ds = ds.rename({'pressure_set_1_qc': 'ps_qc'})
-                        flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-                        ds['ps_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-                        ds['ps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        if 'ps' in ds.keys():
-                            ds['ps'].attrs['ancillary_variables'] = "ps_qc"
-
-                if 'sea_level_pressure_set_1_qc' in ds.keys(): # If QA/QC exists.
-                    if 'psl' in ds.keys():
-                        flagvals = ds['sea_level_pressure_set_1_qc'].values.tolist()[0]
-                        flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-                        flagvals = list(np.unique(flagvals)) # Get unique values
-                        flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
+                    if 'PRES_flag' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'TOBS_flag': 'tas_qc'})
+                        ds['psl_qc'].attrs['flag_values'] = "V S E" 
+                        ds['psl_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['psl'].attrs['ancillary_variables'] = "psl_qc" # List other variables associated with variable (QA/QC)
                         
-                        if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-                            ds = ds.drop("sea_level_pressure_set_1_qc")
-                        else:
-                            ds = ds.rename({'sea_level_pressure_set_1_qc': 'psl_qc'})
-                            flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-                            ds['psl_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-                            ds['psl_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                            ds['psl'].attrs['ancillary_variables'] = "psl_qc"
-                    else: # if no sea level pressure, drop QC flags.
-                        ds = ds.drop("sea_level_pressure_set_1_qc")
+                    ds['psl'].attrs['comment'] = "Converted from inHg."
+
+                                            
+                # tdps: dew point temperature (K)
+                # if raw dew point temperature observed, use that.
+                if 'DPTP_value' in ds.keys():
+                    ds['tdps'] = calc_clean._unit_degF_to_K(ds['DPTP_value'])
+                    ds = ds.drop("DPTP_value")
+
+                    # Set attributes for conversion.
+                    ds['tdps'].attrs['long_name'] = "dew_point_temperature"
+                    ds['tdps'].attrs['standard_name'] = "dew_point_temperature"
+                    ds['tdps'].attrs['units'] = "degree_Kelvin"
+
+                    if 'DPTP_flag' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'DPTP_flag': 'tdps_qc'})
+                        ds['tdps_qc'].attrs['flag_values'] = "V S E" 
+                        ds['tdps_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['tdps'].attrs['ancillary_variables'] = "tdps_qc" # List other variables associated with variable (QA/QC)
+                    
+                    ds['tdps'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
+                
+
+                # pr: precipitation
+                # We have  different raw precipitation variables for precip.
+                # 'PREC', # Precipitation accumulation (in)
+                # 'PRCP', # Precipitation increment (in)
+                # 'PRCPSA', # Precipitation increment snow-adjusted (in)
+
+                # At this stage, no infilling. So we will keep all columns and simply rename them.
+                
+                # Precipitation accumulation
+                if "PREC_value" in ds.keys():
+                    ds['pr'] = calc_clean._unit_precip_in_to_mm(ds['PREC_value'])
+                    ds = ds.drop("PREC_value")
+                    ds['pr'].attrs['long_name'] = "precipitation_accumulation"
+                    ds['pr'].attrs['units'] = "mm/"
+
+                    if 'PREC_flag' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'PREC_flag': 'pr_qc'})
+                        ds['pr_qc'].attrs['flag_values'] = "V S E"
+                        ds['pr_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['pr'].attrs['ancillary_variables'] = "pr_qc" # List other variables associated with variable (QA/QC)
+                    
+                    ds['pr'].attrs['comment'] = "Accumulated precipitation. Converted from inches to mm."
+                
+                # Precipitation increment
+                if 'PRCP_value' in ds.keys():
+                    ds['pr_inc'] = calc_clean._unit_precip_in_to_mm(ds['PRCP_value'])
+                    ds = ds.drop("PRCP_value")
+                    ds['pr_inc'].attrs['long_name'] = "precipitation_increment"
+                    ds['pr_inc'].attrs['units'] = "mm"
+
+                    if 'PRCP_flag' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'PRCP_flag': 'pr_inc_qc'})
+                        ds['pr_inc_qc'].attrs['flag_values'] = "V S E"
+                        ds['pr_inc_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['pr_inc'].attrs['ancillary_variables'] = "pr_inc_qc" # List other variables associated with variable (QA/QC)
+                    
+                    ds['pr_inc'].attrs['comment'] = "Precipitation increment. Converted from inches to mm."
 
 
+                if 'PRCPSA_value' in ds.keys():
+                    ds['pr_incsa'] = calc_clean._unit_precip_in_to_mm(ds['PRCPSA_value'])
+                    ds = ds.drop("PRCPSA_value")
+                    ds['pr_incsa'].attrs['long_name'] = "precipitation_increment_snow_adjusted"
+                    ds['pr_incsa'].attrs['units'] = "mm"
 
+                    if 'PRCPSA_flag' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'PRCPSA_flag': 'pr_incsa_qc'})
+                        ds['pr_incsa_qc'].attrs['flag_values'] = "V S E" 
+                        ds['pr_incsa_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['pr_incsa'].attrs['ancillary_variables'] = "pr_incsa_qc" # List other variables associated with variable (QA/QC)
+                    
+                    ds['pr_incsa'].attrs['comment'] = "Precipitation increment (snow-adjusted). Converted from inches to mm."
+
+                            
+                # hurs: relative humidity (%)
+                if 'RHUM_value' in ds.keys(): # Already in %, no need to convert units.
+                    ds = ds.rename({'RHUM_value': 'hurs'})
+                    # Set attributes
+                    ds['hurs'].attrs['long_name'] = "relative_humidity"
+                    ds['hurs'].attrs['standard_name'] = "relative_humidity" 
+                    ds['hurs'].attrs['units'] = "percent" 
+                    
+                    # If QA/QC column exists
+                    if 'RHUM_flag' in ds.keys():
+                        ds = ds.rename({'RHUM_flag': 'hurs_qc'})
+                        ds['hurs_qc'].attrs['flag_values'] = "V S E" 
+                        ds['hurs_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['hurs'].attrs['ancillary_variables'] = "hurs_qc" # List other variables associated with variable (QA/QC)
+                    
+                
+                #rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
+                
+                if 'SRAD_value' in ds.keys(): # Already in w/m2, no need to convert units.
+                    # If column exists, rename.
+                    ds = ds.rename({'SRAD_value': 'rsds'})
+                    
+                    # Set attributes
+                    ds['rsds'].attrs['long_name'] = "solar_radiation"
+                    ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
+                    ds['rsds'].attrs['units'] = "W m-2"
+
+                    #rsds: QA/QC flags
+                    if 'SRAD_flag' in ds.keys():
+                        ds = ds.rename({'SRAD_flag': 'rsds_qc'})
+                        ds['rsds_qc'].attrs['flag_values'] = "V S E"
+                        ds['rsds_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['rsds'].attrs['ancillary_variables'] = "rsds_qc" # List other variables associated with variable (QA/QC)
+                    
+
+                # sfcWind : wind speed (m/s)
+                if "WSPD_value" in ds.keys(): # Data originally in mph.
+                    ds['sfcWind'] = calc_clean._unit_windspd_mph_to_ms(ds['WSPD_value'])
+                    ds = ds.drop("WSPD_value")
+                    ds['sfcWind'].attrs['long_name'] = "wind_speed"
+                    ds['sfcWind'].attrs['standard_name'] = "wind_speed"
+                    ds['sfcWind'].attrs['units'] = "m s-1"
+
+                    #rsds: QA/QC flags
+                    if 'WSP_flag' in ds.keys():
+                        ds = ds.rename({'WSPD_flag': 'sfcWind_qc'})
+                        ds['sfcWind_qc'].attrs['flag_values'] = "V S E"
+                        ds['sfcWind_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                        ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc" # List other variables associated with variable (QA/QC)
+                    
+                    ds['sfcWind'].attrs['comment'] = "Converted from mph to m/s."
+
+                
+                # sfcWind_dir: wind direction
+                if "WDIR_value" in ds.keys(): # No conversions needed, do not make raw column.
+                    ds = ds.rename({'WDIR_value': 'sfcWind_dir'})
+                    ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
+                    ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
+                    ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
+                    
+                    if 'WDIR_flag' in ds.keys():
+                        ds = ds.rename({'WDIR_flag': 'sfcWind_dir_qc'})
+                        ds['sfcWind_dir_qc'].attrs['flag_values'] = "V S E"
+                        ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "valid suspect edited"  
+                        ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc" # List other variables associated with variable (QA/QC)
+
+                    ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
+                    
+                
+                # Other variables: rename to match format
+
+                # Partial vapor pressure (kPa -> Pa) ## No CMIP standard name for this var, just CF.
+                if 'PVPV_value' in ds.keys():
+                    ds['pvp'] = calc_clean._unit_pres_hpa_to_pa(ds['PVPV_value']) # WRONG - JUST USING AS PLACEHOLDER.
+                    #ds['pvp'] = calc_clean._unit_pres_kpa_to_pa(ds['PVPV_value'])
+                    ds = ds.drop("PVPV_value")
+
+                    ds['pvp'].attrs['long_name'] = "partial_vapor_pressure"
+                    ds['pvp'].attrs['standard_name'] = "water_vapor_partial_pressure_in_air"
+                    ds['pvp'].attrs['units'] = "Pa"
+                    
+                    if "PVPV_flag" in ds.keys():
+                        ds = ds.rename({'PVPV_flag': 'pvp_qc'})
+                        ds['pvp_qc'].attrs['flag_values'] = "V S E"
+                        ds['pvp_qc'].attrs['flag_meanings'] = "valid suspect edited"  
+                        ds['pvp'].attrs['ancillary_variables'] = "pvp_qc" # List other variables associated with variable (QA/QC)
+
+                    ds['pvp'].attrs['comment'] = "Converted from kPa to Pa."
+                    
+                # Saturated vapor pressure (kPa -> Pa)
+                # Partial vapor pressure (kPa -> Pa) ## TO DO: CONFIRM variable name if CMIP standard exists.
+                if 'SVPV_value' in ds.keys():
+                    ds['svp'] = calc_clean._unit_pres_hpa_to_pa(ds['SVPV_value']) # WRONG - JUST USING AS PLACEHOLDER.
+                    #ds['svp'] = calc_clean._unit_pres_kpa_to_pa(ds['SVPV_value'])
+                    ds = ds.drop("SVPV_value")
+
+                    ds['svp'].attrs['long_name'] = "saturated_vapor_pressure"
+                    ds['svp'].attrs['standard_name'] = "water_vapor_saturated_pressure_in_air" # CONFIRM
+                    ds['svp'].attrs['units'] = "Pa"
+                    
+                    if "SVPV_flag" in ds.keys():
+                        ds = ds.rename({'SVPV_flag': 'svp_qc'})
+                        ds['svp_qc'].attrs['flag_values'] = "V S E"
+                        ds['svp_qc'].attrs['flag_meanings'] = "valid suspect edited"  
+                        ds['svp'].attrs['ancillary_variables'] = "svp_qc" # List other variables associated with variable (QA/QC)
+
+                    ds['svp'].attrs['comment'] = "Converted from kPa to Pa."
+
+                #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                #for var in ds.variables:
+                    # try:
+                    #     print([var, float(ds[var].min()), float(ds[var].max())]) 
+                    # except:
+                    #     next
+
+                # Quality control: if any variable is completely empty, drop it.
+                for key in ds.keys():
+                    try:
+                        if np.isnan(ds[key].values).all():
+                            print("Dropping {}".format(key))
+                            ds = ds.drop(key)
+                    except: # Add to handle errors for unsupported data types
+                        next
+
+                # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
+                for key in ds.keys():
+                    if 'qc' in key:
+                        ds[key] = ds[key].astype(str) # Coerce all values in key to string.
+
+                # Reorder variables
+                desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir', 'pvp', 'svp']
+                actual_order = [i for i in desired_order if i in list(ds.keys())]
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+                new_index = actual_order + rest_of_vars
+                ds = ds[new_index]
+        
             except Exception as e:
                 print(e)
                 errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
@@ -431,390 +608,34 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 errors['Error'].append(e)
                 continue
 
-    
+            #Write station file to netcdf.
+            if ds is None: # Should be caught in error handling above, but add in case.
+                print("{} not saved.".format(file))
+                continue
             
-            
-#                 station_name = headers['station_name'] # Get station name
+            else:
+                try:
+                    filename = station_id+".nc" # Make file name
+                    filepath = cleandir+filename # Write file path
+                    print(filepath)
 
-#                 # Deal with units
-#                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
-#                 varstokeep = list(df_stat.columns)
-#                 units = units[units.column.isin(varstokeep)] # Only keep non-removed cols
-#                 units = units[units['units'] != "QC_type"] # Only keep non qa-qc data types
-#                 if 'Fahrenheit' in units['units']: # Pull code set to get units as metric. Break if this condition is not met.
-#                     print("Units not standardized! Fix code")
-#                     exit()
-                
-                
-                
+                    # Write locally
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
 
-                
+                    # Push file to AWS with correct file name.
+                    s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
-                            
-#                 # tdps: dew point temperature (K)
-#                 # if raw dew point temperature observed, use that.
-#                 if 'dew_point_temperature_set_1' in ds.keys():
-#                     ds['tdps'] = calc_clean._unit_degC_to_K(ds['dew_point_temperature_set_1'])
-#                     ds = ds.drop("dew_point_temperature_set_1")
-
-#                     # Set attributes for conversion.
-#                     ds['tdps'].attrs['long_name'] = "dew_point_temperature"
-#                     ds['tdps'].attrs['standard_name'] = "dew_point_temperature"
-#                     ds['tdps'].attrs['units'] = "degree_Kelvin"
-#                     ds['tdps'].attrs['comment'] = "Converted from Celsius to Kelvin."
-                
-#                     # QAQC flag
-#                     if "dew_point_temperature_set_1_qc" in ds.keys():
-#                     # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
-#                         flagvals = ds['dew_point_temperature_set_1_qc'].values.tolist()[0]
-#                         flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                         flagvals = list(np.unique(flagvals)) # Get unique values
-#                         flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                        
-#                         if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                             #print("Flag value is {}".format(flagvals)) # For testing.
-#                             ds = ds.drop("dew_point_temperature_set_1_qc")
-#                         else:
-#                             ds = ds.rename({'dew_point_temperature_set_1_qc': 'tdps_qc'})
-#                             flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                             ds['tdps_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                             ds['tdps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                            
-#                             ds['tdps'].attrs['ancillary_variables'] = "tdps_qc" # List other variables associated with variable (QA/QC)
-                            
-
-#                 # pr: precipitation
-#                 # We have 4 different raw precipitation variables for precip.
-#                 # precip_accum_24_hour_set_1 # Precipitation from last 24 hours.
-#                 # precip_accum_since_local_midnight_set_1 # Precipitation from local midnight.
-#                 # precip_accum_set_1 # Precipitation since last record.
-#                 # precip_accum_one_hour_set_1 # Precipitation in last hour.
-
-#                 # At this stage, no infilling. So we will keep all columns and simply rename them.
-#                 # Remove any column if completely empty.
-#                 precip_cols = [elem for elem in ds.keys() if "precip" in elem]
-#                 for col in precip_cols:
-#                     if np.isnan(ds[col].values).all():
-#                         #print("Dropping {}".format(col))
-#                         ds = ds.drop(col)
-
-#                 # Reformat remaining columns
-#                 if "precip_accum_24_hour_set_1" in ds.keys():
-#                     ds = ds.rename({'precip_accum_24_hour_set_1': 'pr_24h'})
-#                     ds['pr_24h'].attrs['long_name'] = "24_hr_precipitation_amount"
-#                     ds['pr_24h'].attrs['units'] = "mm/24hr"
-#                     ds['pr_24h'].attrs['comment'] = "Precipitation accumulated in previous 24 hour period."
-
-#                     if 'precip_accum_24_hour_set_1_qc' in ds.keys():
-#                         ds = ds.rename({'precip_accum_24_hour_set_1_qc': 'pr_24h_qc'})
-                
-#                 if 'precip_accum_since_local_midnight_set_1' in ds.keys():
-#                     ds = ds.rename({'precip_accum_since_local_midnight_set_1': 'pr_localmid'})
-#                     ds['pr_localmid'].attrs['long_name'] = "precipitation_since_local_midnight"
-#                     ds['pr_localmid'].attrs['units'] = "mm since local midnight"
-#                     ds['pr_localmid'].attrs['comment'] = "Precipitation accumulated since local midnight."
-
-#                     if 'precip_accum_since_local_midnight_set_1_qc' in ds.keys():
-#                         ds = ds.rename({'precip_accum_since_local_midnight_set_1_qc': 'pr_localmid_qc'})
-                
-#                 if "precip_accum_set_1" in ds.keys():
-#                     ds = ds.rename({'precip_accum_set_1': 'pr'})
-#                     ds['pr'].attrs['long_name'] = "precipitation_amount"
-#                     ds['pr'].attrs['units'] = "mm/interval"
-#                     ds['pr'].attrs['comment'] = "Precipitation accumulated since previous measurement."
-
-#                     if 'precip_accum_set_1_qc' in ds.keys():
-#                         ds = ds.rename({'precip_accum_set_1_qc': 'pr_qc'})
-
-#                 if "precip_accum_one_hour_set_1" in ds.keys():
-#                     ds = ds.rename({'precip_accum_one_hour_set_1': 'pr_1h'})
-#                     ds['pr_1h'].attrs['long_name'] = "hourly_precipitation_amount"
-#                     ds['pr_1h'].attrs['units'] = "mm/hr"
-#                     ds['pr_1h'].attrs['comment'] = "Precipitation accumulated in previous hour."
-
-#                     if 'precip_accum_one_hour_set_1_qc' in ds.keys():
-#                         ds = ds.rename({'precip_accum_one_hour_set_1_qc': 'pr_1h_qc'})
-
-#                 # Reformat qc columns
-#                 if "pr_24h_qc" in ds.keys():
-#                     flagvals = ds['pr_24h_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                    
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         #print("Flag value is {}".format(flagvals)) # For testing.
-#                         ds = ds.drop("pr_24h_qc")
-#                     else:
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['pr_24h_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['pr_24h_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
-#                         ds['pr_24h'].attrs['ancillary_variables'] = "pr_24h_qc" # List other variables associated with variable (QA/QC)
-
-#                 if "pr_localmid_qc" in ds.keys():
-#                     flagvals = ds['pr_localmid_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         #print("Flag value is {}".format(flagvals)) # For testing.
-#                         ds = ds.drop("pr_localmid_qc")
-#                     else:
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['pr_localmid_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['pr_localmid_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
-#                         ds['pr_localmid'].attrs['ancillary_variables'] = "pr_localmid_qc" # List other variables associated with variable (QA/QC)
-                
-#                 if "pr_qc" in ds.keys():
-#                     flagvals = ds['pr_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         #print("Flag value is {}".format(flagvals)) # For testing.
-#                         ds = ds.drop("pr_qc")
-#                     else:
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['pr_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['pr_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
-#                         ds['pr'].attrs['ancillary_variables'] = "pr_qc" # List other variables associated with variable (QA/QC)
-                        
-#                 if "pr_1h_qc" in ds.keys():
-#                     flagvals = ds['pr_1h_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         #print("Flag value is {}".format(flagvals)) # For testing.
-#                         ds = ds.drop("pr_1h_qc")
-#                     else:
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['pr_1h_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['pr_1h_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
-#                         ds['pr_1h'].attrs['ancillary_variables'] = "pr_1h_qc" # List other variables associated with variable (QA/QC)
+                    print("Saving {} with dims {}".format(filename, ds.dims))
+                    ds.close() # Close dataframe.
+                    exit()
+                except Exception as e:
+                    print(e)
+                    errors['File'].append(stat_files)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
+                    continue  
 
                 
-#                 # Set ancillary variables based on other precip cols
-#                 precip_cols = [elem for elem in ds.keys() if "pr" in elem]
-#                 precip_cols = [elem for elem in precip_cols if "pressure" not in elem]
-                
-#                 if precip_cols: # if list not empty
-#                     if len(precip_cols)>1: # If list has more than one var in it.
-#                         for col in precip_cols:
-#                             relcols = [k for k in precip_cols if col not in k] # Get list of all vars other than col.
-#                             ds[col].attrs['ancillary_variables'] = " ".join(relcols)
-
-                
-#                 # hurs: relative humidity
-#                 if 'relative_humidity_set_1' in ds.keys():
-#                     ds = ds.rename({'relative_humidity_set_1': 'hurs'})
-#                     # Set attributes
-#                     ds['hurs'].attrs['long_name'] = "relative_humidity"
-#                     ds['hurs'].attrs['standard_name'] = "relative_humidity" 
-#                     ds['hurs'].attrs['units'] = "percent" 
-                    
-#                     # If QA/QC column exists
-#                     if 'relative_humidity_set_1_qc' in ds.keys():
-#                         flagvals = ds['relative_humidity_set_1_qc'].values.tolist()[0]
-#                         flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                         flagvals = list(np.unique(flagvals)) # Get unique values
-#                         flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                    
-#                         if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                             #print("Flag value is {}".format(flagvals)) # For testing.
-#                             ds = ds.drop("relative_humidity_set_1_qc")
-#                         else:
-#                             ds = ds.rename({'relative_humidity_set_1_qc': 'hurs_qc'})
-#                             flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                             ds['hurs_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                             ds['hurs_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-#                             ds['hurs'].attrs['ancillary_variables'] = "hurs_qc" # List other variables associated with variable (QA/QC)
-                            
-                
-#                 #rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
-                
-#                 if 'solar_radiation_set_1' in ds.keys(): # Already in w/m2, no need to convert units.
-#                     # If column exists, rename.
-#                     ds = ds.rename({'solar_radiation_set_1': 'rsds'})
-                    
-#                     # Set attributes
-#                     ds['rsds'].attrs['long_name'] = "solar_radiation"
-#                     ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
-#                     ds['rsds'].attrs['units'] = "W m-2"
-
-#                 #rsds: QA/QC flags
-#                 if 'solar_radiation_set_1_qc' in ds.keys():
-#                     flagvals = ds['solar_radiation_set_1_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         ds = ds.drop("solar_radiation_set_1_qc")
-#                     else:
-#                         ds = ds.rename({'solar_radiation_set_1_qc': 'rsds_qc'})
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-#                         ds['rsds_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
-#                         ds['rsds_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
-#                         ds['rsds'].attrs['ancillary_variables'] = "rsds_qc" # List other variables associated with variable (QA/QC)
-                        
-
-#                 # sfcWind : wind speed (m/s)
-#                 if "wind_speed_set_1" in ds.keys(): # Data already in m/s.
-#                     ds = ds.rename({'wind_speed_set_1': 'sfcWind'})
-#                     ds['sfcWind'].attrs['long_name'] = "wind_speed"
-#                     ds['sfcWind'].attrs['standard_name'] = "wind_speed"
-#                     ds['sfcWind'].attrs['units'] = "m s-1"
-#                     #ds['sfcWind'].attrs['comment'] = "Method of wind speed calculation varies within network, with 2-minute mean as CWOP sampling standard."
-#                     # (Method of calculation may vary and is unknown source by source.)
-#                     # See: https://weather.gladstonefamily.net/CWOP_Guide.pdf
-#                     # FLAG: HOW TO DEAL WITH SOURCE-unique sampling standards in MADIS_clean????
-                
-#                 if 'wind_speed_set_1_qc' in ds.keys():
-#                     flagvals = ds['wind_speed_set_1_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         ds = ds.drop("wind_speed_set_1_qc")
-#                     else: # Otherwise, rename and reformat.
-#                         ds = ds.rename({'wind_speed_set_1_qc': 'sfcWind_qc'})
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-                    
-#                         ds['sfcWind_qc'].attrs['flag_values'] = flagvals
-#                         ds['sfcWind_qc'].attrs['flag_meanings'] = "See QA/QC csv for network." 
-#                         ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc" # List other variables associated with variable (QA/QC)
-
-                
-#                 # sfcWind_dir: wind direction
-#                 if "wind_direction_set_1" in ds.keys(): # No conversions needed, do not make raw column.
-#                     ds = ds.rename({'wind_direction_set_1': 'sfcWind_dir'})
-#                     ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
-#                     ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
-#                     ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
-#                     ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
-                    
-#                 if 'wind_direction_set_1_qc' in ds.keys():
-#                     flagvals = ds['wind_direction_set_1_qc'].values.tolist()[0]
-#                     flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
-#                     flagvals = list(np.unique(flagvals)) # Get unique values
-#                     flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
-                
-#                     if flagvals == ['nan']: # This should not occur, but leave in as additional check.
-#                         ds = ds.drop("wind_direction_set_1_qc")
-#                     else: # Otherwise, rename and reformat.
-#                         ds = ds.rename({'wind_direction_set_1_qc': 'sfcWind_dir_qc'})
-#                         flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
-                    
-#                         ds['sfcWind_dir_qc'].attrs['flag_values'] = flagvals
-#                         ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "See QA/QC csv for network." 
-#                         ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc" # List other variables associated with variable (QA/QC)
-
-#                 # Other variables: rename to match format
-#                 if 'altimeter_set_1' in ds.keys():
-#                     ds = ds.rename({'altimeter_set_1': 'ps_altimeter'})
-#                 if 'altimeter_set_1_qc' in ds.keys():
-#                     ds = ds.rename({'altimeter_set_1_qc': 'ps_altimeter_qc'})
-#                 if 'dew_point_temperature_set_1d' in ds.keys():
-#                     ds = ds.rename({'dew_point_temperature_set_1d':'tdps_derived'})
-#                 if 'pressure_set_1d' in ds.keys():
-#                     ds = ds.rename({'pressure_set_1d':'ps_derived'})
-
-#                 if 'ps_altimeter' in ds.keys():
-#                     ds['ps_altimeter'].attrs['long_name'] = "altimeter"
-#                     ds['ps_altimeter'].attrs['units'] = "Pa"
-#                     ds['ps_altimeter'].attrs['ancillary_variables'] = "ps"
-
-#                 if 'tdps_derived' in ds.keys():
-#                     ds['tdps_derived'] = calc_clean._unit_degC_to_K(ds['tdps_derived'])
-#                     ds['tdps_derived'].attrs['long_name'] = "derived_dew_point_temperature"
-#                     ds['tdps_derived'].attrs['units'] = "degree_Kelvin"
-#                     ds['tdps_derived'].attrs['comment'] = "Derived by Synoptic. Converted from Celsius to Kelvin."
-
-#                 if 'ps_derived' in ds.keys():
-#                     ds['ps_derived'].attrs['long_name'] = "derived_station_pressure"
-#                     ds['ps_derived'].attrs['units'] = "Pa"
-#                     ds['ps_derived'].attrs['comment'] = "Derived by Synoptic."
-
-#                 ds = ds.drop("Station_ID") # Drop repeated Station_ID column.
-
-#                 #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-#                 # for var in ds.variables:
-#                 #     try:
-#                 #         print([var, float(ds[var].min()), float(ds[var].max())]) 
-#                 #     except:
-#                 #         next
-#                 # #Note: here we have tdps and hurs values of 0. This is what causes the "dividing by 0" errors, likely.
-#                 # Address in QA/QC stage (and recalc tdps if needed).
-
-
-#                 # Quality control: if any variable is completely empty, drop it.
-#                 for key in ds.keys():
-#                     try:
-#                         if np.isnan(ds[key].values).all():
-#                             print("Dropping {}".format(key))
-#                             ds = ds.drop(key)
-#                     except: # Add to handle errors for unsupported data types
-#                         next
-
-#                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
-#                 for key in ds.keys():
-#                     if 'qc' in key:
-#                         ds[key] = ds[key].astype(str) # Coerce all values in key to string.
-
-#                 # Reorder variables
-#                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-#                 actual_order = [i for i in desired_order if i in list(ds.keys())]
-#                 rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
-#                 new_index = actual_order + rest_of_vars
-#                 ds = ds[new_index]
-        
-#                 print(ds) # For testing
-
-#             except Exception as e:
-#                 print(e)
-#                 errors['File'].append(stat_files)
-#                 errors['Time'].append(end_api)
-#                 errors['Error'].append(e)
-#                 continue # Move on to next station
-
-#             #Write station file to netcdf.
-#             if ds is None: # Should be caught in error handling above, but add in case.
-#                 print("{} not saved.".format(file))
-#                 continue
-            
-#             else:
-#                 try:
-#                     filename = station_id+".nc" # Make file name
-#                     filepath = cleandir+filename # Write file path
-#                     print(filepath)
-
-#                     print(ds) # For testing
-
-#                     # Write locally
-#                     ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
-
-#                     # Push file to AWS with correct file name.
-#                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
-
-#                     print("Saving {} with dims {}".format(filename, ds.dims))
-#                     ds.close() # Close dataframe.
-#                 except Exception as e:
-#                     print(e)
-#                     errors['File'].append(stat_files)
-#                     errors['Time'].append(end_api)
-#                     errors['Error'].append(e)
-#                     continue  
-
 #         # # Write the list of removed variables to csv for future reference. Keep these in one centralized "removedvars.csv" file that gets appended to
 #         # Read in existing removedvars.csv from AWS folder, if it already exists.
 #         # If removedvars.csv already in file list, save it to append to.
