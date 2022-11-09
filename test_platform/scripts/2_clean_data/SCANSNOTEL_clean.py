@@ -11,6 +11,8 @@ Approach:
 Inputs: Raw data for the network's stations, with each csv file representing a station.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
+
+Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
 
 # Step 0: Environment set-up
@@ -23,13 +25,8 @@ import numpy as np
 import warnings
 warnings.filterwarnings(action = 'ignore', category = FutureWarning) # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
-import requests
-from collections import Counter
 import boto3
 from io import BytesIO, StringIO
-import smart_open
-import traceback
-import botocore
 import random
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
@@ -75,7 +72,7 @@ def get_file_paths(network):
 # # Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
 
 # # Function: take heads, read csv into pandas db and clean.
-def parse_scansnotel_to_pandas(rawdir, cleandir):
+def clean_scansnotel(rawdir, cleandir):
     
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
@@ -101,11 +98,9 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
         files = [file for file in files if 'station' not in file]
         files = [file for file in files if 'error' not in file]
 
-        # Get list of columns to remove
         vars_to_remove = ['TAVG', 'RHUMV', 'SRADV', 'SRADT', 'WDIRV', 'WSPDV'] # Variables to remove
         cols_to_remove = ['{}_flag'.format(elem) for elem in vars_to_remove] + ['{}_value'.format(elem) for elem in vars_to_remove] + ['{}_time'.format(elem) for elem in vars_to_remove] # Associated columns for each variable
-                        
-
+        
         # Get list of station IDs from filename and clean.
         ids = list()
         for file in files:
@@ -122,12 +117,11 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
         errors['Error'].append(e)
 
     else: # If files read successfully, continue.
-        df_stat = None # Initialize merged df.
         ids.append("junk") # For testing errors
-
         #for i in ids: # For each station (full run)
         #for i in ids[0:5]: # Subsample for testing merge
         for i in random.sample(ids,5): # Subsample for testing errors    
+            df_stat = None # Initialize merged df.
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 
@@ -148,7 +142,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 # Read in CSV, removing header.
                     try:
                         obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-                        df = pd.read_csv(BytesIO(obj['Body'].read()))
+                        df = pd.read_csv(BytesIO(obj['Body'].read())) # here we can either set engine = 'python' (slower) to suppress dtype warning, or remove but ignore it - it gets fixed down the line either way.
                         
                         # FOR TESTING ONLY
                         df = df.sample(5000)
@@ -161,7 +155,6 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                         df = df.dropna(axis = 1, how = 'all')
 
                         # Drop any unnecessary columns.
-                        
                         for col in cols_to_remove:
                             if col in df.columns:
                                 df = df.drop(col, axis = 1)
@@ -241,6 +234,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 
                 # Move df to xarray object.
                 ds = df_stat.to_xarray()
+                del(df_stat)
 
                 # Update global attributes
                 ds = ds.assign_attrs(title = "{} cleaned".format(network))
@@ -291,7 +285,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 # Add coordinates: latitude and longitude.
                 lat = np.asarray([station_metadata['latitude']]*len(ds['time']))
                 lat.shape = (1, len(ds['time']))
-                
+                re
                 lon = np.asarray([station_metadata['longitude']]*len(ds['time']))
                 lon.shape = (1, len(ds['time']))
 
@@ -420,7 +414,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     ds['pr'] = calc_clean._unit_precip_in_to_mm(ds['PREC_value'])
                     ds = ds.drop("PREC_value")
                     ds['pr'].attrs['long_name'] = "precipitation_accumulation"
-                    ds['pr'].attrs['units'] = "mm/"
+                    ds['pr'].attrs['units'] = "mm/?"
 
                     if 'PREC_flag' in ds.keys(): # If QA/QC exists.
                         ds = ds.rename({'PREC_flag': 'pr_qc'})
@@ -435,7 +429,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     ds['pr_inc'] = calc_clean._unit_precip_in_to_mm(ds['PRCP_value'])
                     ds = ds.drop("PRCP_value")
                     ds['pr_inc'].attrs['long_name'] = "precipitation_increment"
-                    ds['pr_inc'].attrs['units'] = "mm"
+                    ds['pr_inc'].attrs['units'] = "mm/?"
 
                     if 'PRCP_flag' in ds.keys(): # If QA/QC exists.
                         ds = ds.rename({'PRCP_flag': 'pr_inc_qc'})
@@ -450,7 +444,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     ds['pr_incsa'] = calc_clean._unit_precip_in_to_mm(ds['PRCPSA_value'])
                     ds = ds.drop("PRCPSA_value")
                     ds['pr_incsa'].attrs['long_name'] = "precipitation_increment_snow_adjusted"
-                    ds['pr_incsa'].attrs['units'] = "mm"
+                    ds['pr_incsa'].attrs['units'] = "mm/?"
 
                     if 'PRCPSA_flag' in ds.keys(): # If QA/QC exists.
                         ds = ds.rename({'PRCPSA_flag': 'pr_incsa_qc'})
@@ -534,8 +528,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                 # Partial vapor pressure (kPa -> Pa) ## No CMIP standard name for this var, just CF.
                 if 'PVPV_value' in ds.keys():
-                    ds['pvp'] = calc_clean._unit_pres_hpa_to_pa(ds['PVPV_value']) # TO DO: WRONG - JUST USING AS PLACEHOLDER.
-                    #ds['pvp'] = calc_clean._unit_pres_kpa_to_pa(ds['PVPV_value'])
+                    ds['pvp'] = calc_clean._unit_pres_kpa_to_pa(ds['PVPV_value'])
                     ds = ds.drop("PVPV_value")
 
                     ds['pvp'].attrs['long_name'] = "partial_vapor_pressure"
@@ -552,8 +545,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                     
                 # Saturated vapor pressure (kPa -> Pa)
                 if 'SVPV_value' in ds.keys():
-                    ds['svp'] = calc_clean._unit_pres_hpa_to_pa(ds['SVPV_value']) # TO DO: WRONG - JUST USING AS PLACEHOLDER.
-                    #ds['svp'] = calc_clean._unit_pres_kpa_to_pa(ds['SVPV_value'])
+                    ds['svp'] = calc_clean._unit_pres_kpa_to_pa(ds['SVPV_value'])
                     ds = ds.drop("SVPV_value")
 
                     ds['svp'].attrs['long_name'] = "saturated_vapor_pressure"
@@ -614,7 +606,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
                 try:
                     filename = station_id+".nc" # Make file name
                     filepath = cleandir+filename # Write file path
-                    print(filepath)
+                    print(filepath) # For testing
 
                     # Write locally
                     ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
@@ -624,6 +616,7 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 
                     print("Saving {} with dims {}".format(filename, ds.dims))
                     ds.close() # Close dataframe.
+                    continue
                     
                 except Exception as e:
                     print(e)
@@ -650,55 +643,54 @@ def parse_scansnotel_to_pandas(rawdir, cleandir):
 if __name__ == "__main__":
     network = "SCAN"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-    print(rawdir, cleandir, qaqcdir)
-    parse_scansnotel_to_pandas(rawdir, cleandir)
-    #clean_madis(bucket_name, rawdir, cleandir, network)
-
+    #print(rawdir, cleandir, qaqcdir)
+    clean_scansnotel(rawdir, cleandir)
+    
     # # # Testing:
-    # import random # To get random subsample
-    # import s3fs # To read in .nc files
+    import random # To get random subsample
+    import s3fs # To read in .nc files
     
-    # # # ## Import file.
-    # files = []
-    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
-    #     file = str(item.key)
-    #     files += [file]
+    # # ## Import file.
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+        file = str(item.key)
+        files += [file]
 
-    # files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-    # files = [file for file in files if "error" not in file] # Remove error handling files.
-    # files = [file for file in files if "station" not in file] # Remove error handling files.
-    # files = random.sample(files, 4)
+    files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+    files = [file for file in files if "error" not in file] # Remove error handling files.
+    files = [file for file in files if "station" not in file] # Remove error handling files.
+    files = random.sample(files, 4)
 
-    # # File 1:
-    # fs = s3fs.S3FileSystem()
-    # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+    # File 1:
+    fs = s3fs.S3FileSystem()
+    aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
     
-    # with fs.open(aws_urls[0]) as fileObj:
-    #     test = xr.open_dataset(fileObj)
-    #     print(test)
-    #     for var in test.keys():
-    #         print(var)
-    #         print(test[var])
-    #     test.close()
+    with fs.open(aws_urls[0]) as fileObj:
+        test = xr.open_dataset(fileObj)
+        print(test)
+        for var in test.keys():
+            print(var)
+            print(test[var])
+        test.close()
         
-    # # File 2:
-    # # Test: multi-year merges work as expected.
-    # with fs.open(aws_urls[1]) as fileObj:
-    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
-    #     print(str(test['time'].min())) # Get start time
-    #     print(str(test['time'].max())) # Get end time
-    #     test.close()
+    # File 2:
+    # Test: multi-year merges work as expected.
+    with fs.open(aws_urls[1]) as fileObj:
+        test = xr.open_dataset(fileObj, engine='h5netcdf')
+        print(str(test['time'].min())) # Get start time
+        print(str(test['time'].max())) # Get end time
+        test.close()
 
     
-    # # File 3:
-    # # Test: Inspect vars and attributes
-    # with fs.open(aws_urls[2]) as fileObj:
-    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
-    #     for var in test.variables: 
-    #         try:
-    #             print([var, float(test[var].min()), float(test[var].max())]) 
-    #         except:
-    #             continue
-    #     test.close()
+    # File 3:
+    # Test: Inspect vars and attributes
+    with fs.open(aws_urls[2]) as fileObj:
+        test = xr.open_dataset(fileObj, engine='h5netcdf')
+        for var in test.variables: 
+            try:
+                print([var, float(test[var].min()), float(test[var].max())]) 
+            except:
+                continue
+        test.close()
     
     
