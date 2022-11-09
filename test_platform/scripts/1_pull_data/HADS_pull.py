@@ -5,7 +5,7 @@ Approach:
 (2) Download data using station list.
 Inputs: bucket name in AWS, directory to save file to (folder path), station list (optional), start date of file pull (optional),
 parameter to only download changed files (optional)
-Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 station per day per year.
+Outputs: Raw data for an individual network, all variables, all times. Organized by time, with 1 file per day per year.
 
 Notes:
 1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
