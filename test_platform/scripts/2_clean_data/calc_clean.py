@@ -9,7 +9,6 @@ for the Historical Observations Platform.
 ## Import Libraries
 import geopandas as gp
 import numpy as np
-import string
 
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
@@ -53,6 +52,15 @@ def _unit_pres_hpa_to_pa(data):
     Note: this also works for the conversion from mb
     """
     data = data * 100.
+    return data
+
+def _unit_pres_kpa_to_pa(data):
+    """
+    Converts air pressure from kilopascals to pascals
+    Inputs: air pressure (kPa)
+    Returns: air pressure (Pa)
+    """
+    data = data * 1000.
     return data
 
 def _unit_pres_inHg_to_pa(data):
@@ -150,12 +158,12 @@ def _lon_DMm_to_Dd(data):
     """
     This is specific to CWOP longitude data converting from LORAN (DM.m) coordinates to decimal-degrees (D.d) for the WESTERN HEMISPHERE.
     Input: longitude (DDDMM.mm) example: 12234.72
-    Returns: longitude (D.d) example: 122.578
+    Returns: longitude (D.d) example: -122.578
     """
-     _min = float(data[:3])
-     _sec = float(data[3:])
-     data = -1 * (_deg + _mm/60)
-     return data
+    _min = float(data[:3])
+    _sec = float(data[3:])
+    data = -1 * (_min + _sec/60)
+    return data
 
 def _lat_DMm_to_Dd(data):
     """
