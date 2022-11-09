@@ -17,6 +17,7 @@ from calc_clean import (_unit_degC_to_K,
                         _unit_windspd_kts_to_ms,
                         _unit_windspd_mph_to_ms,
                         _unit_pres_hpa_to_pa,
+                        _unit_pres_kpa_to_pa,
                         _unit_pres_inHg_to_pa,
                         _unit_elev_ft_to_m,
                         _unit_moisture_gkg_to_kgkg,
@@ -96,8 +97,12 @@ def test_wind_conversion_mph(grab_wind_mph):
 ## Pressure conversions -- desired unit is Pascal
 @pytest.fixture
 def grab_pressure_hpa(df):
-    """Grab the pressure variable. Native units could be hPa, mb, Pa, inHg"""
+    """Grab the pressure variable. Native units could be hPa, kPa, Pa, mb, inHg"""
     return df['press_hpa']
+
+@pytest.fixture
+def grab_pressure_kpa(df):
+    return df['press_kpa']
 
 @pytest.fixture
 def grab_pressure_inhg(df):
@@ -108,6 +113,12 @@ def test_pressure_conversion_hpa(grab_pressure_hpa):
     calc_clean_converted = _unit_pres_hpa_to_pa(grab_pressure_hpa)
     correct_conversion = grab_pressure_hpa * 100.
     assert correct_conversion.equals(calc_clean_converted)
+
+def test_pressure_conversion_kpa(grab_pressure_kpa):
+    """Test that the _unit_pres_kpa_to_pa correctly converts from kPa to Pa"""
+    calc_clean_converted = _unit_pres_kpa_to_pa(grab_pressure_kpa)
+    correct_coversion = grab_pressure_kpa * 1000.
+    assert correct_coversion.equals(calc_clean_converted)
 
 def test_pressure_conversion_inHg(grab_pressure_inhg):
     """Test that the _unit_pres_inHg_to_pa correctly converts from inHg to Pa"""

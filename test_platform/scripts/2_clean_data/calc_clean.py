@@ -54,6 +54,15 @@ def _unit_pres_hpa_to_pa(data):
     data = data * 100.
     return data
 
+def _unit_pres_kpa_to_pa(data):
+    """
+    Converts air pressure from kilopascals to pascals
+    Inputs: air pressure (kPa)
+    Returns: air pressure (Pa)
+    """
+    data = data * 1000.
+    return data
+
 def _unit_pres_inHg_to_pa(data):
     """
     Converts air pressure from inHg to hectopascals
