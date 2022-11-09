@@ -1,16 +1,21 @@
 '''
-# This function iterates through all networks, 
+# This function iterates through all networks and checks for missing files or stations, attempting to redownload them
+and updating the station list to reflect station availability.
 
-# For station-based file systems (SCAN, SNOTEL, MADIS networks),
+# For station-based file systems (SCAN/SNOTEL, MADIS networks),
 # it does the following:
 # 1) compare station lists to all files and identify any missing station files, attempting to redownload them.
 # 2) MADIS only: opens the last line of each file to locate timeout errors, and redownloads from the last timestamp if error found.
 
-# For time-based station files (e.g. ASOSAWOS, OtherISD, MARITIME/NDBC),
+# For time-based station files (e.g. ASOSAWOS/OtherISD, MARITIME/NDBC),
 # it does the following:
 # 1) Read in station lists and file names from AWS
 # 2) Compare station lists to all files, and identify any stations that are completely missing from downloaded data.
-# 3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations.
+# 3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations,
+and update station list to remove stations whose end date precedes the time period of analysis.
+
+# For time-based files (HADS, CIMIS), no method has been developed.
+# For mixed-system files (CW3E), no method has been developed.
 '''
 
 # Import packages
@@ -217,52 +222,6 @@ def get_madis_station_timeout_csv(token, bucket_name, directory):
 
     print("No more timeout errors found in {} network".format(directory))
 
-# After attempted redownload, read in station list and add column "Downloaded" with Y/N.
-# Inputs: AWS bucket name, network name
-def madis_update_station_list(bucket_name, network):
-    directory = "1_raw_wx/"+network+"/"
-    ## Read in station list to compare against
-    files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
-        file = str(item.key)
-        files += [file]
-    files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
-
-    station_file = [file for file in files if "stationlist" in file] # ID station file
-    station_file = str(station_file[0])
-
-    # Read in station file.
-    test = s3.Bucket(bucket_name).Object(station_file).get()
-    station_csv = pd.read_csv(test['Body'])
-    
-    # Filter files.
-    files = [file for file in files if "errors" not in file]
-    files = [file for file in files if "station" not in file] # Remove error and station list files
-
-    # Get list of downloaded IDs from file names.
-    downloaded_stns = set()
-    for file in files:
-        dn_file = file.split("/")[-1].replace(".csv", "") # Grabs station_id from each filename
-        dn_file = dn_file.split("_")[-1] # Remove leading extension, if file is one of multiple.
-        downloaded_stns.add(dn_file)
-    downloaded_stns = list(downloaded_stns)
-    
-    ## Adds download column so we can compare post full data pull, will get filled after full pull
-    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
-    station_csv['Pulled'] = np.where(station_csv['STID'].isin(downloaded_stns), "Y", "N")
-    station_csv['Time_Checked'] = pd.to_datetime('now').replace(microsecond=0)
-    
-    # Drop first column from station_csv
-    station_csv = station_csv.drop(columns = station_csv.columns[0], axis = 1)
-    
-    # ## Write stations to respective AWS bucket
-    new_buffer = StringIO()
-    station_csv.to_csv(new_buffer)
-    content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
-    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
-    print(station_csv)
-
 # For SCAN/SNOTEL
 def scan_retry_downloads(bucket_name, network, terrpath, marpath):
     prefix = "1_raw_wx/"+network[0]
@@ -293,10 +252,9 @@ def scan_retry_downloads(bucket_name, network, terrpath, marpath):
     print(missed_stations)
     
     # # Note here we ignore the end date of files, since we will be trimming the last 2 months of data anyways.
-    # # This could be changed down the road as these dates diverge.
     errors = get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, stations = missed_stations, primary = True)
 
-    # # Manually print out errors for immediate verification of success. Will also save to AWS.
+    # # Manually print out errors for immediate verification of success. Will also save to AWS as part of above function.
     print(errors)
 
 # For ASOSAWOS / OtherISD
@@ -415,6 +373,90 @@ def isd_get_missing_files(missing_files, bucket_name, network):
         content = csv_buffer.getvalue()
         s3_cl.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_{}_{}.csv".format(network.lower(),end_api))
 
+# After attempted redownload, read in station list and add column "Downloaded" with Y/N.
+# Inputs: AWS bucket name, network name
+def update_station_list(bucket_name, network):
+    
+    # Define list of all MADIS networks.
+    MADIS = ['CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HADS', 'HNXWFO', 'HOLFUY', 'HPWREN', 'LOXWFO', 'MAP', 'MTRWFO', 'NCAWOS', 'NOS-NWLON', 'NOS-PORTS', 'RAWS', 
+    'SGXWFO', 'SHASAVAL', 'VCAPCD']
+
+    # Define list of SCAN/SNOTEL networks.
+    SNTL = ['SNOTEL', 'SCAN']
+
+    # Define list of ISD networks
+    ISD = ['ASOSAWOS', 'OtherISD']
+
+    directory = "1_raw_wx/"+network+"/"
+    ## Read in station list to compare against
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
+        file = str(item.key)
+        files += [file]
+    
+    # Get station file and list of files
+    station_file = [file for file in files if "stationlist" in file] # ID station file
+
+    if network in MADIS or network in SNTL:
+        files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
+    
+    elif network in ISD:
+        files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
+
+    if network == "ASOSAWOS":
+        station_file = [file for file in station_file if "isd" in file] # Get the station list used to download files.
+    
+    station_file = str(station_file[0])
+
+    # Read in station file.
+    test = s3.Bucket(bucket_name).Object(station_file).get()
+    station_csv = pd.read_csv(test['Body'])
+    
+    # Filter files.
+    files = [file for file in files if "errors" not in file]
+    files = [file for file in files if "station" not in file] # Remove error and station list files
+
+    # Get list of downloaded IDs from file names.
+    downloaded_stns = set()
+    for file in files:
+        dn_file = file.split("/")[-1].replace(".csv", "") # Grabs station_id from each filename
+        dn_file = file.split("/")[-1].replace(".gz", "") # Grabs station_id from each filename
+        if network in MADIS:
+            dn_file = dn_file.split("_")[-1] # Remove leading extension, if file is one of multiple.
+        elif network in ISD:
+            dn_file = dn_file.rsplit("-", 1)[0] # Remove year suffix (e.g. '-2015')
+        downloaded_stns.add(dn_file)
+    downloaded_stns = list(downloaded_stns)
+    
+    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    # For each network, specify ID column to check against.
+    if network in MADIS:
+        station_csv['Pulled'] = np.where(station_csv["STID"].isin(downloaded_stns), "Y", "N")
+    elif network in SNTL:
+        # Split triplet ID into 3 subcomponents.
+        station_csv[['id', 'state', 'subnetwork']] = station_csv['stationTriplet'].str.split(":", expand = True)
+        station_csv['Pulled'] = np.where(station_csv["stationTriplet"].isin(downloaded_stns), "Y", "N")
+    elif network in ISD:
+        station_csv['Pulled'] = np.where(station_csv["ISD-ID"].isin(downloaded_stns), "Y", "N")
+        
+    station_csv['Time_Checked'] = pd.to_datetime('now', utc = True).replace(microsecond=0)
+    
+    # Drop first column from station_csv
+    station_csv = station_csv.drop(columns = station_csv.columns[0], axis = 1)
+
+    # For ISD stations, also double check that stations in list meet time criteria and filter any that aren't, updating station list.
+    # (This gets done in practice in the code, but isn't yet reflected in our station lists)
+    if network in ISD:
+        station_csv = station_csv[station_csv['end_time'].str[0:4].astype(int)>=1980] # Remove rows where data ends before 1980.
+        
+    # ## Write stations to respective AWS bucket
+    new_buffer = StringIO()
+    station_csv.to_csv(new_buffer)
+    content = new_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
+    print("{} station_list updated. {} successful downloads, {} failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y'], station_csv['Pulled'].value_counts()['N'])) ## Function may take a while to run, useful to indicate completion
+    print(station_csv)
+
 # For MARITIME/NDBC data
 def maritime_retry_downloads(bucket_name, network):
     # Get list of files in folder
@@ -438,11 +480,88 @@ def maritime_retry_downloads(bucket_name, network):
     # Get list of IDs not in download folder
     missing_ids = [id for id in station_list['STATION_ID'] if id not in stations]
     missed_stations = station_list[station_list['STATION_ID'].isin(missing_ids)]
+    print(missed_stations)
+    return missed_stations
+    
+## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
+## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
+def download_comparison(bucket_name, network):
+
+    # Get list of files in folder
+    directory = "1_raw_wx/"+network
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = directory): 
+        file = str(item.key)
+        files += [file]
+    
+    station_file = [file for file in files if 'stationlist' in file] 
+    files = list(filter(lambda f: f.endswith(".txt.gz"), files)) # Get list of file names
+    
+    # Get only station IDs from file names
+    stations = [file.split("/")[-1] for file in files]
+    downloaded_stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz
+    
+    # Read in station list
+    station_csv = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
+    station_csv = pd.read_csv(station_csv['Body'])
+    
+    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
+    station_csv['Pulled'] = np.where(station_csv['STATION_ID'].isin(downloaded_stations), "Y", "N")
+    station_csv['Time_Checked'] = pd.to_datetime('now', utc = True).replace(microsecond=0)
+    
+
+    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
+    station_csv = station_csv.reindex(columns = [col for col in station_csv.columns if col != 'NOTE'] + ['NOTE'])
+
+    ## Reorders the indices in both stationlists
+    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
+    station_csv.reset_index(inplace=True, drop=True)
+
+    # ## Write stations to respective AWS bucket
+    new_buffer = StringIO()
+    station_csv.to_csv(new_buffer)
+    content = new_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
+
+    print("{} station_list updated. {} successful downloads, {} failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y'], station_csv['Pulled'].value_counts()['N'])) ## Function may take a while to run, useful to indicate completion
+    print(station_csv)
+
+# For HADS data
+def had_retry_downloads(bucket_name, network):
+    # Get list of files in folder
+    prefix = "1_raw_wx/"+network
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = prefix): 
+        file = str(item.key)
+        files += [file]
+    
+    station_file = [file for file in files if 'station' in file] 
+    
+    files = list(filter(lambda f: f.endswith(".dat.gz"), files)) # Get list of file names
+    
+    # Get only station IDs from file names
+    stations = [file.replace("HADS-Data-", "") for file in files]
+    stations = [file.split("/")[-1] for file in stations]
+    stations = [file.replace(".gz", '') for file in stations]
+    stations = [file[0:-5] for file in stations]
+    
+    # Read in station list
+    station_list = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
+    station_list = pd.read_csv(station_list['Body'])
+    
+    # Get list of IDs not in download folder
+    missing_ids = [id for id in station_list['ISD-ID'] if id not in stations]
+    missed_stations = station_list[station_list['ISD-ID'].isin(missing_ids)]
+
+    # Fix formatting
+    # Drop first column of dataframe
+    missed_stations = missed_stations.iloc[: , 1:]
+    missed_stations['WBAN'] = missed_stations['WBAN'].astype(str).str.pad(5,fillchar='0')
     
     # Get list of filenames where IDs have partially downloaded (years missing).
-    downloaded_ids = station_list[~station_list['STATION_ID'].isin(missing_ids)]
+    downloaded_ids = station_list[~station_list['ISD-ID'].isin(missing_ids)]
     missing_files = pd.DataFrame()
-    
     for index, id in downloaded_ids.iterrows():
         if int(id['start_time'][0:4])<1980:
             years = range(1980, int(id['end_time'][0:4])+1) # +1 to make inclusive of current year
@@ -459,56 +578,6 @@ def maritime_retry_downloads(bucket_name, network):
     missing_files.columns = ['year', 'file_name']
     
     return missed_stations, missing_files
-    
-## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
-## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
-## MARITIME: 99 of 123 downloaded (24 are not meteorological)
-## NDBC: 136 of 151 downloaded (16 are not meteorological)
-def download_comparison(stations, bucket_name, network):
-
-    ## There is a warning that is not relevant to our purposes, this turns it off
-    pd.options.mode.chained_assignment = None  # default='warn'
-
-    dir_bucket = s3.Bucket(bucket_name)
-
-    ## Read in station list to compare against
-    directory = "1_raw_wx/"+network+"/"
-    dir_stations = stations.loc[stations['NETWORK']==network]
-
-    files_downloaded = []
-    for object_summary in dir_bucket.objects.filter(Prefix=directory):
-        if (object_summary.key[-7:] == ".txt.gz") or (object_summary.key[-4:] == ".zip"):
-            files_downloaded.append(object_summary.key)
-
-    downloaded_stns = set()
-    for file in files_downloaded:
-        dn_file = file.split("/")[2][:5]    # Grabs station_id from each filename
-        downloaded_stns.add(dn_file)
-    downloaded_stns = list(downloaded_stns)
-
-    ## Adds download column so we can compare post full data pull, will get filled after full pull
-    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
-    dir_stations['Download'] = np.where(dir_stations['STATION_ID'].isin(downloaded_stns), "Y", "N")
-
-    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
-    dir_stations = dir_stations.reindex(columns = [col for col in dir_stations.columns if col != 'NOTE'] + ['NOTE'])
-
-    ## Reorders the indices in both stationlists
-    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
-    # stn_idx = []
-    # for i in range(len(dir_stations.index)):
-    #     stn_idx.append(i)
-    dir_stations.reset_index(inplace=True, drop=True)
-
-    # ## Write stations to respective AWS bucket
-    new_buffer = StringIO()
-    dir_stations.to_csv(new_buffer)
-    content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
-
-    print("{} station_list updated to reflect which weather-observing stations downloaded".format(network)) ## Function may take a while to run, useful to indicate completion
-
-    return dir_stations
 
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
@@ -540,17 +609,18 @@ def retry_downloads(token, bucket_name, networks = None):
         print("Attempting to download missing files for {} network".format(network))
         directory = "1_raw_wx/"+network+"/"
         if network in MADIS:
-            #madis_retry_downloads(token, bucket_name, network) # Retry any missing downloads
+            madis_retry_downloads(token, bucket_name, network) # Retry any missing downloads
             # Get timeout CSVs.
-            #print("Identifying file timeouts for {} network".format(network))
-            #get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
-            madis_update_station_list(bucket_name, network, directory)
+            print("Identifying file timeouts for {} network".format(network))
+            get_madis_station_timeout_csv(token = token, bucket_name = bucket_name, directory = directory) # Get timeout CSVs.
+            update_station_list(bucket_name, network)
         elif network in SNTL:
-            scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar)
+            scan_retry_downloads(bucket_name = bucket_name, network = [network], terrpath = wecc_terr, marpath = wecc_mar) # Get IDs.
+            update_station_list(bucket_name, network)
         elif network in ISD:
             missed_stations, file_list = isd_retry_downloads(bucket_name = bucket_name, network = network)
-            print("Attempting to download data for {} missing stations.".format(len(missed_stations)))
             
+            print("Attempting to download data for {} missing stations.".format(len(missed_stations)))
             if network == "ASOSAWOS":
                 # Download all missing stations
                 get_asosawos_data_ftp(missed_stations.iloc[0:10,:], bucket_name, directory, get_all = True) 
@@ -565,17 +635,20 @@ def retry_downloads(token, bucket_name, networks = None):
             
             # Download missing files
             print("Attempting to download {} missing files.".format(len(file_list)))
-            isd_get_missing_files(file_list.iloc[0:50, :], bucket_name, network)
-            # ^ SUBSETTED FOR TESTING, remove for full run.
+            isd_get_missing_files(file_list, bucket_name, network)
+
+            #Then, update station list.
+            update_station_list(bucket_name, network)
             
         elif network in MARITIME:
             # Get list of missing stations, missing files.
             maritime_retry_downloads(bucket_name, network)
+            download_comparison(bucket_name, network)
 
         else:
             print("{} network not currently configured for download retry.".format(network))
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["MTRWFO"])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["NDBC"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
