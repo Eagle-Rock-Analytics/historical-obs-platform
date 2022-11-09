@@ -177,7 +177,7 @@ def get_maritime(stations, bucket_name, network, years = None):
                         elif r.status_code == 200:
                             s3_obj.put(Body=r.content)
                             ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
-                            print("Saving data for station {} for {}".format(filename, year)) # Nice for testing/progress
+                            print("Saving data for station {} for {}".format(filename, year)) 
                         else:
                             errors['Station ID'].append(filename)
                             errors['Time'].append(end_api)
@@ -206,7 +206,7 @@ def get_maritime(stations, bucket_name, network, years = None):
                                 pass
                             elif r.status_code == 200:
                                 s3_obj.put(Body=r.content)
-                                print("Saving data for station {} for {} {}".format(filename, x, year)) # Nice for testing, remove for full run.
+                                print("Saving data for station {} for {} {}".format(filename, x, year)) 
                             else:
                                 errors['Station ID'].append(filename)
                                 errors['Time'].append(end_api)
