@@ -10,7 +10,9 @@ import numpy as np
 
 ## Adding 2_clean_data.calc_clean to system path
 ## Note to use: must insert full path to where the 2_clean_data dir is stored locally
-sys.path.insert(0, '/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
+# sys.path.insert(0, '/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
+sys.path.insert(0, '/Users/victoriaford/Desktop/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/')
+
 
 from calc_clean import (_calc_dewpointtemp_opt1,
                         _calc_dewpointtemp_opt2,
@@ -18,7 +20,8 @@ from calc_clean import (_calc_dewpointtemp_opt1,
                         _calc_windmag,
                         _calc_winddir,
                         _calc_ps,
-                        _calc_ps_alt)
+                        _calc_ps_alt,
+                        _unit_pres_inHg_to_pa)
 
 @pytest.fixture
 def df():
@@ -88,19 +91,6 @@ def test_windmag_derivation(grab_uwind, grab_vwind):
 
 ## -----------------------------------------------------------------------------------------
 ## Wind direction -- note this is not functional at present
-@pytest.fixture
-def grab_uwind(df):
-    return df['u10']
-
-@pytest.fixture
-def grab_vwind(df):
-    return df['v10']
-
-def test_winddir_derivation(grab_uwind, grab_vwind):
-    """Test that the _calc_winddir function correctly calculates wind direction"""
-    calc_clean_derived = _calc_winddir(grab_uwind, grab_vwind)
-    correct_derivation = None
-    assert correct_derivation.equals(calc_clean_derived)
 
 ## -----------------------------------------------------------------------------------------
 ## Station air pressure
@@ -116,32 +106,20 @@ def grab_temp_k(df):
 def grab_psl_pa(df):
     return df['psl_pa']
 
+@pytest.fixture
+def grab_alt(df):
+    return df['alt_pa']
+
 def test_pres_derivation_slp(grab_psl_pa, grab_elev, grab_temp_k):
     """Test that the _calc_ps function correctly calculates station air pressure"""
     calc_clean_derived = _calc_ps(grab_psl_pa, grab_elev, grab_temp_k)
-    correct_derivation = grab_psl_pa / ((1 - ((0.0065 * grab_elev)/(gab_temp_k + 0.0065 * grab_elev)))**-5.257)
+    correct_derivation = grab_psl_pa / ((1 - ((0.0065 * grab_elev)/(grab_temp_k + 0.0065 * grab_elev)))**-5.257)
+    assert correct_derivation.equals(calc_clean_derived)
 
-
-def _calc_ps(psl, elev, temp):
-    """
-    Calculates station air pressure from sea level air pressure, if station pressure is not available
-    Inputs: sea level pressure (Pa), elevation (m), and air temperature (K)
-    Returns: air pressure (Pa)
-    Note: this calculation checks with this formula, with differences due to rounding in the decimal place:
-    https://keisan.casio.com/exec/system/1224575267
-    """
-    ps = psl / ((1 - ((0.0065 * elev)/(temp + 0.0065 * elev)))**-5.257)
-    return ps
-
-def _calc_ps_alt(alt, elev):
-    """
-    Calculates station air pressure from altimeter setting and station elevation, if station pressure is not available
-    Inputs: altimeter setting (Pa) and station elevation (m)
-    Returns: air pressure (Pa)
-    Note: this calculation uses the following formula:
-    https://www.weather.gov/media/epz/wxcalc/stationPressure.pdf
-    """
-    alt = alt / 3386.39 # Convert altimeter from Pa to inHg for use in formula
-    ps = alt * ((288-0.0065*elev)/288)**5.2561
-    ps = _unit_pres_inHg_to_pa(ps) # Convert back to Pa from inHg
-    return ps
+def test_pres_derivation_alt(grab_alt, grab_elev):
+    """Test that the _calc_ps_alt function correctly calculates station air pressure"""
+    calc_clean_derived = _calc_ps_alt(grab_alt, grab_elev)
+    alt_inhg = grab_alt / 3386.39
+    ps = alt_inhg * ((288-0.0065 * grab_elev)/288)**5.2561
+    correct_derivation = _unit_pres_inHg_to_pa(ps)
+    assert correct_derivation.equals(calc_clean_derived)
