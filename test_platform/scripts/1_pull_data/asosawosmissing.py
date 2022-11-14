@@ -1,4 +1,6 @@
-
+'''
+SCRIPT IS DEPRACATED AS OF NOV 14 2022. USE pull_qa.py INSTEAD.
+'''
 ## Step 0: Environment set-up
 # Import libraries
 from ftplib import FTP
@@ -231,7 +233,6 @@ def asosawos_retry_downloads(token, bucket_name, network):
         files += [file]
     files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
 
-    station_file = [file for file in files if "isd" in file] # ID station file
     files = [file for file in files if "errors" not in file]
     files = [file for file in files if "station" not in file] # Remove error and station list files
 
