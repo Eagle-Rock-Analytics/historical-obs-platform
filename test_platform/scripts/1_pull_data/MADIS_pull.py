@@ -232,7 +232,7 @@ def madis_pull(token, networks = None, pause = None):
         ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
         
         # Get station CSVs.
-        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
+        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
 
 if __name__ == "__main__":    
     madis_pull(config.token)
