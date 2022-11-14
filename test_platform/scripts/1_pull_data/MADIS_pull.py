@@ -87,7 +87,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
         networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
         networkname = networkname.replace("/", "")
 
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stationlist.csv".format(networkname))
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(networkname))
         
         return ids
     except Exception as e:
@@ -184,7 +184,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
 # Note here this will look for an exact word match in the shortnames (e.g. RAWS will not return NSRAWS but ASOS returns ASOS/AWOS and HF-ASOS)
 # Pause: Optional. If True, prompts user to indicate yes to continue before downloading large networks.
 ## Automatically set to yes when networks is not specified.
-def madis_pull(token, networks, pause = None):
+def madis_pull(token, networks = None, pause = None):
     if networks is None: # If no networks provided, pull full list.
         networkdf = get_network_metadata(token)
         networkdf = networkdf[networkdf['TOTAL_RESTRICTED']==0] # Remove restricted networks.
@@ -233,5 +233,5 @@ def madis_pull(token, networks, pause = None):
         get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
 
 if __name__ == "__main__":    
-    madis_pull(config.token, networks = ["CRN"])
+    madis_pull(config.token)
 

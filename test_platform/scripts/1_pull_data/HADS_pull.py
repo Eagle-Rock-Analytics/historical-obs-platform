@@ -244,7 +244,7 @@ def get_hads_dat(bucket_name, directory, start_date = None, get_all = True):
 
 
 if __name__ == "__main__":
-    test = get_hads_stations(wecc_terr, wecc_mar)
+    get_hads_stations(wecc_terr, wecc_mar)
     get_hads_dat(bucket_name, directory, start_date = None, get_all = True)
 
 # Note, for first full data pull, set get_all = True
