@@ -61,9 +61,7 @@ def get_file_paths(network):
     qaqcdir = "3_qaqc_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir
               
-# ## FUNCTION: Get SNOTEL QA/QC flag data and parse into csv.
-
-# ## FUNCTION: Clean MADIS data.
+# ## FUNCTION: Clean SCAN and SNOTEL data.
 # # Input: 
 # # bucket_name: name of AWS bucket.
 # # rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
