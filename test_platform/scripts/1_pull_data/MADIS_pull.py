@@ -17,9 +17,8 @@ import pandas as pd
 from datetime import datetime
 import re
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 import calc_pull
-from smart_open import open
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -88,7 +87,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
         networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
         networkname = networkname.replace("/", "")
 
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_stationlist.csv".format(networkname))
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(networkname))
         
         return ids
     except Exception as e:
@@ -133,8 +132,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
         # Note: decision here to use full flag suite of MesoWest and Synoptic data.
         # See Data Checks section here for more information: https://developers.synopticdata.com/mesonet/v2/stations/timeseries/
         url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on&qc_checks=synopticlabs,mesowest".format(token, id['STID'], start_api, end_api)
-        # print(url) # For testing.
-
+        
         # Try to get station csv.
         try:
             #request = requests.get(url)
@@ -161,7 +159,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
                         next
                     else:
                         s3_obj.put(Body=r.content)
-                        print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+                        print("Saving data for station {}".format(id["STID"])) 
 
                 else:
                     errors['Station ID'].append(id['STID'])
@@ -186,7 +184,7 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
 # Note here this will look for an exact word match in the shortnames (e.g. RAWS will not return NSRAWS but ASOS returns ASOS/AWOS and HF-ASOS)
 # Pause: Optional. If True, prompts user to indicate yes to continue before downloading large networks.
 ## Automatically set to yes when networks is not specified.
-def madis_pull(token, networks, pause = None):
+def madis_pull(token, networks = None, pause = None):
     if networks is None: # If no networks provided, pull full list.
         networkdf = get_network_metadata(token)
         networkdf = networkdf[networkdf['TOTAL_RESTRICTED']==0] # Remove restricted networks.
@@ -229,11 +227,11 @@ def madis_pull(token, networks, pause = None):
             print(dirname, directory)
         
         # Get list of station IDs and start date.
-        #ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
+        ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
         
         # Get station CSVs.
-        #get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) # .Sample() subset is for testing(!), remove for full run.
+        get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
 
 if __name__ == "__main__":    
-    madis_pull(config.token, networks = ["CRN"])
+    madis_pull(config.token)
 
