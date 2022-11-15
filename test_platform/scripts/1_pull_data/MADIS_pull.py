@@ -237,4 +237,5 @@ def madis_pull(token, networks = None, pause = None):
 if __name__ == "__main__":    
     madis_pull(config.token)
     # Note: this will download all non-restricted networks in MADIS. Specify to subset.
+    # Warning: running this without specification may overwrite metadata for networks that are in MADIS, but downloaded directly.
 
