@@ -541,10 +541,6 @@ def download_comparison(bucket_name, network):
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
 def retry_downloads(token, bucket_name, networks = None):
     
-    # Remove any spaces or slashes in network names.
-    networks = [i.replace(" ", "") for i in networks]
-    networks = [i.replace("/", "") for i in networks]
-
     # Set paths to WECC shapefiles in AWS bucket.
     wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
     wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
@@ -567,7 +563,12 @@ def retry_downloads(token, bucket_name, networks = None):
         print("All networks specified.")
         response = s3_cl.list_objects_v2(Bucket=bucket_name, Prefix = "1_raw_wx/", Delimiter = '/')
         networks = [prefix['Prefix'][:-1].replace("1_raw_wx/", "") for prefix in response['CommonPrefixes']]
-        
+
+    else:
+        # Remove any spaces or slashes in inputted network names.
+        networks = [i.replace(" ", "") for i in networks]
+        networks = [i.replace("/", "") for i in networks]
+
     for network in networks:
         print("Attempting to download missing files for {} network".format(network))
         directory = "1_raw_wx/"+network+"/"
@@ -624,5 +625,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["CA HYDRO"])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["CAHYDRO"])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
