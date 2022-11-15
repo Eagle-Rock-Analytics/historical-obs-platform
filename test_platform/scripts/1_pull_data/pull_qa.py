@@ -421,19 +421,19 @@ def update_station_list(bucket_name, network):
     downloaded_stns = set()
     for file in files:
         dn_file = file.split("/")[-1].replace(".csv", "") # Grabs station_id from each filename
-        dn_file = file.split("/")[-1].replace(".gz", "") # Grabs station_id from each filename
+        dn_file = dn_file.replace(".gz", "") # Grabs station_id from each filename
         if network in MADIS:
             dn_file = dn_file.split("_")[-1] # Remove leading extension, if file is one of multiple.
         elif network in ISD:
             dn_file = dn_file.rsplit("-", 1)[0] # Remove year suffix (e.g. '-2015')
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
-    
+
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     # For each network, specify ID column to check against.
     if network in MADIS:
         station_csv['Pulled'] = np.where(station_csv["STID"].isin(downloaded_stns), "Y", "N")
-    elif network in SNTL:
+    elif network in SNTL:   
         # Split triplet ID into 3 subcomponents.
         station_csv[['id', 'state', 'subnetwork']] = station_csv['stationTriplet'].str.split(":", expand = True)
         station_csv['Pulled'] = np.where(station_csv["stationTriplet"].isin(downloaded_stns), "Y", "N")
@@ -457,11 +457,12 @@ def update_station_list(bucket_name, network):
 
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=station_file)
     
-    if 'N' in station_csv['Pulled']:
+    if 'N' in station_csv['Pulled'].values:
         print("{} station_list updated. {} successful downloads, {} failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y'], station_csv['Pulled'].value_counts()['N'])) ## Function may take a while to run, useful to indicate completion
     else:
-        print("{} station_list updated. {} successful downloads, 0 failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y']))
-    print(station_csv)
+        print("{} station_list updated. {} successful downloads.".format(network, station_csv['Pulled'].value_counts()['Y']))
+
+    return station_csv
 
 # For MARITIME/NDBC data
 def maritime_retry_downloads(bucket_name, network):
@@ -505,11 +506,11 @@ def download_comparison(bucket_name, network):
     
     station_file = [file for file in files if 'stationlist' in file] 
 
-    files = list(filter(lambda f: f.endswith(".txt.gz"), files)) # Get list of file names
+    files = [file for file in files if 'stationlist' not in file] # Get list of file names
     
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
-    downloaded_stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz
+    downloaded_stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz or _csv.zip
     
     # Read in station list
     station_csv = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
@@ -625,5 +626,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["CAHYDRO"])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['VCAPCD'])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
