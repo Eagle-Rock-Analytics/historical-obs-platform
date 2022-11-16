@@ -186,7 +186,6 @@ def get_otherisd_data_ftp(station_list, bucket_name, directory, start_date = Non
                     filefiltlist = station_list["ISD-ID"]+"-"+i+'.gz' # Reformat station IDs to match file names.
                     filefiltlist = filefiltlist.tolist() # Convert to list.
                     fileswecc = [x for x in filenames if x in filefiltlist] # Only pull all file names that are contained in station_list ID column.
-                    fileswecc = fileswecc[0:40] # For downloading sample of data. FOR TESTING ONLY. Comment out otherwise.
                     for filename in fileswecc:
                         modifiedTime = ftp.sendcmd('MDTM ' + filename)[4:].strip() # Returns time modified (in UTC)
                         modifiedTime = datetime.strptime(modifiedTime, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc) # Convert to datetime.
