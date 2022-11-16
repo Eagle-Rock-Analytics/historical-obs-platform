@@ -84,7 +84,7 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
     ids = []
     for each in request['QCTYPES']:
         ids.append([each['ID'], each['SHORTNAME'], each['NAME']])
-    ids = pd.DataFrame(ids, columns = ['ID', 'SHORTNAME', 'NAME']) # Sort by start date (note some stations return 'None' here)
+    ids = pd.DataFrame(ids, columns = ['FLAG', 'SHORTNAME', 'NAME']) # Sort by start date (note some stations return 'None' here)
     
     # Save to AWS bucket.
     #print(ids)
@@ -100,7 +100,7 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
 # Input: 
 # bucket_name: name of AWS bucket.
 # rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
-# Some stations have more than one csv file, with the second file named [STID]_2.csv.
+# Some stations have more than one csv file, with the second file named 2_[STID].csv, and so on.
 # cleandir: path to where cleaned files should be saved.
 # Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 # Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
@@ -156,7 +156,7 @@ def parse_madis_headers(file):
             else:
                 continue
                 
-    # Read in entire csv starting aBut maybe it's a helpful t first_row, using pandas.
+    # Read in entire csv starting at first_row, using pandas.
     # First, some error handling.
     
     #Check for duplicated columns. If duplicated names, manually rename as 1 and 2, and then check for duplicates after reading in.    
@@ -199,7 +199,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
                 df.drop(cols[1], axis = 1, inplace = True)
                 #print(df.columns)
             else:
-                print("None-identical duplicate columns found.") # For testing
+                print("Non-identical duplicate columns found.") # For testing
                 errors['File'].append(file)
                 errors['Time'].append(end_api)
                 errors['Error'].append("Non-identical duplicate columns found. Columns: {}".format(i))
@@ -261,10 +261,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         # # Get list of station IDs from filename and clean.
         ids = list()
         for file in files:
-            # Remove errors_[....].csv file names - TO DO.
             id = file.split("/")[-1] # Remove leading folders
             id = id.split("_")[-1] # Remove leading prefixes (for mult files)
-            id = re.sub('.csv', "", id) # Remove leading NDBC
+            id = re.sub('.csv', "", id) # Remove file extension.
             if id not in ids:
                 ids.append(id)
     
@@ -352,6 +351,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             df_stat[b] = df_stat[b].astype(str) # Coerce to string
                         elif 'sea_level_pressure_set' in b:
                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
+                        elif 'wind_gust_set_1' in b:
+                            df_stat[b] = df_stat[b].astype(float) # Coerce to float.
+                        elif 'heat_index_set_1' in b:
+                            df_stat[b] = df_stat[b].astype(float) # Coerce to float.
                         else:
                             print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
                             errors['File'].append(file)
@@ -424,8 +427,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 # Update dimension and coordinate attributes.
             
                 # Convert column to datetime (and remove any rows that cannot be coerced).
+                print(file)
+                print(ds['time'].values[0:5])
                 ds['time'] = pd.to_datetime(ds['time'], utc = True) # Convert from string to incorrect time format.
                 ds['time'] = pd.to_datetime(ds['time'], unit = 'ns') # Fix time format.
+                print(ds['time'].values[0:5])
+                continue
                 
                 # Update attributes.
                 ds['time'].attrs['long_name'] = "time"
@@ -943,7 +950,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
             # print("Updated removedvars.csv") # For testing
             
         except botocore.exceptions.ClientError as ex:
-            if ex.response['Error']['Code'] == 'NoSuchKey':
+            if ex.response['Error']['Code'] == 'NoSuchKey': # If removed vars doesn't already exist, save.
                 # Save to AWS
                 csv_buffer = StringIO()
                 removedvars.to_csv(csv_buffer)
@@ -951,10 +958,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"removedvars.csv")
                 #print("Created removedvars.csv") # For testing
                 
-            else: # list error if removedvars.csv not saved
+            else: # If some other error occurs.
                 errors['File'].append("Whole network error")
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append(ex.response)
                 
         
     # Write errors.csv
