@@ -1,4 +1,5 @@
 """
+DEPRACATED AS OF NOV 8 2022. Use MADIS_pull.py instead.
 This script scrapes CWOP network data for ingestion into the Historical Observations Platform via API.
 Approach:
 (1) get_wecc_poly generates a bounding box from WECC shapefiles.

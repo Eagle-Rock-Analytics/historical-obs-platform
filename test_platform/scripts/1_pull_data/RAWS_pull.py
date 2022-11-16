@@ -1,4 +1,5 @@
 """
+DEPRACATED as of Nov 8 2022: Use MADIS_pull.py instead.
 This script downloads RAWS data from Synoptic.
 Approach:
 (1) Get station list (does not need to be re-run constantly)
@@ -9,7 +10,7 @@ Outputs: Raw data for an individual network, all variables, all times. Organized
 """
 
 ## Step 0: Environment set-up
-# Import libraries -- delete as appropriate per datasource
+# Import libraries
 import requests
 import pandas as pd
 from datetime import datetime
@@ -130,7 +131,7 @@ def get_raws_station_csv(token, ids, bucket_name, directory, start_date = None, 
                         next
                     else:
                         s3_obj.put(Body=r.content)
-                        print("Saving data for station {}".format(id["STID"])) # Nice for testing, remove for full run.
+                        print("Saving data for station {}".format(id["STID"])) 
 
                 else:
                     errors['Station ID'].append(id['STID'])
@@ -196,14 +197,13 @@ def get_raws_station_timeout_csv(token, bucket_name, directory):
                     time = lastrealrow.split(",")[1] # Get last completed timestamp
                     ids_split.append([station, time]) # Add to dataframe
                     if ids_split.empty is False:
-                        print("Attention!: Run this script again on _2.csv files.")
+                        print("Attention!: Run this script again on 2_.csv files.")
 
     elif ids_split.empty is True:
         return
 
-# Run script.
-ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = directory)
-get_raws_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids.sample(2))
-get_raws_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
-
-# Note: set ids = ids.sample(2) for subset pull testing in get_raws_station_csv, keep ids=ids for full run
+if __name__ == "__main__":
+    # Run script.
+    ids = get_meso_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = directory)
+    get_raws_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids)
+    get_raws_station_timeout_csv(token = config.token, bucket_name = bucket_name, directory = directory)
