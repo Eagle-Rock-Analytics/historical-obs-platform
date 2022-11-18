@@ -1,0 +1,34 @@
+﻿missing_flag,network,note,source
+NaN,catch_all,,
+NULL,MADIS,,https://developers.synopticdata.com/about/qc/
+ ,MADIS,space character,
+-99,ISD,,
+-999,ISD,,
+-9999,ISD,,
+-99999,ISD,,
+-999999,ISD,,
+99,ISD,,
+999,ISD,,
+9999,ISD,,
+99999,ISD,,
+999999,ISD,,
+…,CWOP,may get replaced by space character by MADIS qa,
+….,CWOP,may get replaced by space character by MADIS qa,
+6////,ASOSAWOS,,https://www.weather.gov/media/asos/aum-toc.pdf
+7////,ASOSAWOS,,https://www.weather.gov/media/asos/aum-toc.pdf
+M,CDEC,,https://wrcc.dri.edu/cgi-bin/wea_listex.pl?flags
+M,CIMIS,missing,
+R,CIMIS,far out of historical limits,
+Y,CIMIS,moderately out of historical limits,
+999999,MADIS,,https://madis-data.ncep.noaa.gov/raobdump.f
+MM,MARITIME,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/measdes.shtml
+9999.0,MARITIME,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+999.0,MARITIME,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+99.0,MARITIME,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+MM,NDBC,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/measdes.shtml
+9999.0,NDBC,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+999.0,NDBC,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+99.0,NDBC,historical data,https://www.ndbc.noaa.gov/measdes.shtml
+-9999,NOS-NWLON,,https://tidesandcurrents.noaa.gov/publications/tech_rpt_026.pdf
+-9999,NOS-PORTS,,https://tidesandcurrents.noaa.gov/publications/tech_rpt_026.pdf
+M,RAWS,,https://wrcc.dri.edu/cgi-bin/wea_listex.pl?flags
