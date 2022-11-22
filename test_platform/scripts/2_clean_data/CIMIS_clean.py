@@ -451,7 +451,8 @@ def clean_cimis(rawdir, cleandir):
                 # This is calculated by CIMIS from relative humidity and air temperature data.
                 if 'Vapor Pressure (kPa)' in ds.keys():
                     ds['pvp_derived'] = calc_clean._unit_pres_kpa_to_pa(ds['Vapor Pressure (kPa)'])
-                    
+                    ds = ds.drop("Vapor Pressure (kPa)")
+
                     ds['pvp_derived'].attrs['long_name'] = "partial_vapor_pressure"
                     ds['pvp_derived'].attrs['standard_name'] = "water_vapor_partial_pressure_in_air"
                     ds['pvp_derived'].attrs['units'] = "Pa"
@@ -552,53 +553,53 @@ def clean_cimis(rawdir, cleandir):
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CIMIS")
     print(rawdir, cleandir, qaqcdir)
-    #clean_cimis(rawdir, cleandir)
+    clean_cimis(rawdir, cleandir)
     
     # # Testing:
-    import random # To get random subsample
-    import s3fs # To read in .nc files
+    # import random # To get random subsample
+    # import s3fs # To read in .nc files
     
-    # # ## Import file.
-    files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
-        file = str(item.key)
-        files += [file]
+    # # # ## Import file.
+    # files = []
+    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+    #     file = str(item.key)
+    #     files += [file]
 
-    files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-    files = [file for file in files if "error" not in file] # Remove error handling files.
-    files = [file for file in files if "station" not in file] # Remove error handling files.
-    files = random.sample(files, 4)
+    # files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+    # files = [file for file in files if "error" not in file] # Remove error handling files.
+    # files = [file for file in files if "station" not in file] # Remove error handling files.
+    # files = random.sample(files, 4)
 
-    # File 1:
-    fs = s3fs.S3FileSystem()
-    aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+    # # File 1:
+    # fs = s3fs.S3FileSystem()
+    # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
     
-    with fs.open(aws_urls[0]) as fileObj:
-        test = xr.open_dataset(fileObj)
-        print(test)
-        for var in test.keys():
-            print(var)
-            print(test[var])
-        test.close()
+    # with fs.open(aws_urls[0]) as fileObj:
+    #     test = xr.open_dataset(fileObj)
+    #     print(test)
+    #     for var in test.keys():
+    #         print(var)
+    #         print(test[var])
+    #     test.close()
         
-    # File 2:
-    # Test: multi-year merges work as expected.
-    with fs.open(aws_urls[1]) as fileObj:
-        test = xr.open_dataset(fileObj, engine='h5netcdf')
-        print(str(test['time'].min())) # Get start time
-        print(str(test['time'].max())) # Get end time
-        test.close()
+    # # File 2:
+    # # Test: multi-year merges work as expected.
+    # with fs.open(aws_urls[1]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     print(str(test['time'].min())) # Get start time
+    #     print(str(test['time'].max())) # Get end time
+    #     test.close()
 
     
-    # File 3:
-    # Test: Inspect vars and attributes
-    with fs.open(aws_urls[2]) as fileObj:
-        test = xr.open_dataset(fileObj, engine='h5netcdf')
-        for var in test.variables: 
-            try:
-                print([var, float(test[var].min()), float(test[var].max())]) 
-            except:
-                continue
-        test.close()
+    # # File 3:
+    # # Test: Inspect vars and attributes
+    # with fs.open(aws_urls[2]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     for var in test.variables: 
+    #         try:
+    #             print([var, float(test[var].min()), float(test[var].max())]) 
+    #         except:
+    #             continue
+    #     test.close()
     
     
