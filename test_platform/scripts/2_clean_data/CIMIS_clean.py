@@ -12,7 +12,9 @@ Inputs: Raw data for the network's stations, with each csv file representing dat
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
-Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
+Note: QAQC flags formatted and uploaded manually. Last update Nov 22 2022.
+Source: https://cimis.water.ca.gov/Content/PDF/CurrentFlags2.pdf (1995-present)
+Source: https://cimis.water.ca.gov/Content/PDF/FormerFlags2.pdf (Pre 1995)
 """
 
 # Step 0: Environment set-up
@@ -29,6 +31,9 @@ import boto3
 from io import BytesIO, StringIO
 import random
 import zipfile
+from ftplib import FTP
+from cleaning_helpers import var_to_unique_list
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -61,8 +66,9 @@ def get_file_paths(network):
     cleandir = "2_clean_wx/{}/".format(network)
     qaqcdir = "3_qaqc_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir
+
               
-# ## FUNCTION: Clean SCAN and SNOTEL data.
+# ## FUNCTION: Clean CIMIS data.
 # # Input: 
 # # bucket_name: name of AWS bucket.
 # # rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
@@ -74,19 +80,28 @@ def get_file_paths(network):
 def clean_cimis(rawdir, cleandir):
     network = "CIMIS"
 
-    # Specify column names (based on: readme-ftp-Revised5units.txt)
-    columns = ['Station ID', 'Date', 'Hour (PST)', 'Julian Date', 'Reference ETo (in) (mm)', 'QC for Reference ETo',
-                'Precipitation (in) (mm)', 'QC for Precipitation', 'Solar Radiation (Ly/day) (W/m²)', 'QC for Solar Radiation',
-                'Vapor Pressure (mBars) (kPa)', 'QC for Vapor Pressure', 'Air Temperature (°F) (°C)', 'QC for Air Temperature',
-                'Relative Humidity (%)', 'QC for Relative Humidity', 'Dew Point (°F) (°C)', 'QC for Dew Point', 
-                'Wind Speed (mph) (m/s)', 'QC for Wind Speed', 'Wind Direction (0-360)', 'QC for Wind Direction',
-                'Soil Temperature (°F) (°C)', 'QC for Soil Temperature']
-
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
     timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
     
+    # Column format changes in June 2014 for this dataset.
+    newcols = ['Station ID', 'Date', 'Hour (PST)', 'Julian Date', 'Reference ETo (mm)', 'QC for Reference ETo',
+                    'Precipitation (mm)', 'QC for Precipitation', 'Solar Radiation (W/m²)', 'QC for Solar Radiation',
+                    'Vapor Pressure (kPa)', 'QC for Vapor Pressure', 'Air Temperature (°C)', 'QC for Air Temperature',
+                    'Relative Humidity (%)', 'QC for Relative Humidity', 'Dew Point (°C)', 'QC for Dew Point', 
+                    'Wind Speed (m/s)', 'QC for Wind Speed', 'Wind Direction (0-360)', 'QC for Wind Direction',
+                    'Soil Temperature (°C)', 'QC for Soil Temperature']
+    oldcols = ['Station ID', 'Date', 'Hour (PST)', 'Julian Date', 'QC for Reference ETo', 'Reference ETo (mm)',
+                    'QC for Precipitation', 'Precipitation (mm)', 'QC for Solar Radiation', 'Solar Radiation (W/m²)',
+                    'QC for Vapor Pressure', 'Vapor Pressure (kPa)', 'QC for Air Temperature', 'Air Temperature (°C)', 
+                    'QC for Relative Humidity', 'Relative Humidity (%)', 'QC for Dew Point', 'Dew Point (°C)', 
+                    'QC for Wind Speed', 'Wind Speed (m/s)', 'QC for Wind Direction', 'Wind Direction (0-360)', 
+                    'QC for Soil Temperature', 'Soil Temperature (°C)']
+
+    # Specify columns to remove
+    removecols = ['Julian Date', 'QC for Soil Temperature', 'Soil Temperature (°C)', 'Reference ETo (mm)', 'QC for Reference ETo']
+
     try:
         # Get files
         files = []
@@ -98,42 +113,13 @@ def clean_cimis(rawdir, cleandir):
         station_file = [file for file in files if 'stationlist_' in file]
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_excel(BytesIO(obj['Body'].read()))    
-
+        stations = station_file['Station Number'].dropna().astype(int)
+        
         # Remove error, station files
         files = [file for file in files if '.zip' in file]
         files = [file for file in files if 'stationlist' not in file]
         files = [file for file in files if 'error' not in file]
 
-        for file in files:
-            obj = s3.Bucket(bucket_name).Object(file)
-            with BytesIO(obj.get()["Body"].read()) as tf:
-                # rewind the file
-                tf.seek(0)
-                # Read the file as a zipfile and process the members
-                with zipfile.ZipFile(tf, mode='r') as zipf:
-                    for subfile in zipf.namelist(): # For each csv file in a zipfile
-                        file_contents= pd.read_csv(zipf.open(subfile), names = columns) # Read into pandas
-                        for column in file_contents.columns: # SOMETHING IN COLUMN ORDER ISNT RIGHT. RETURN TO ME!
-                            print(file_contents[column].head())
-                        #print(file_contents.head())
-                        exit()
-            # Unzip files to temp
-
-            # Parse
-
-            # Delete files
-       
-        print(files)
-        exit()
-        # # Get list of station IDs from filename and clean.
-        # ids = list()
-        # for file in files:
-        #     id = file.split("/")[-1] # Remove leading folders
-        #     id = id.split("_")[-1] # Remove leading prefixes (for mult files)
-        #     id = re.sub('.csv', "", id) # Remove leading NDBC
-        #     if id not in ids:
-        #         ids.append(id)
-    
     except Exception as e: # If unable to read files from rawdir, break function.
         print(e)
         errors['File'].append("Whole network")
@@ -141,121 +127,98 @@ def clean_cimis(rawdir, cleandir):
         errors['Error'].append(e)
 
     else: # If files read successfully, continue.
-        ids.append("junk") # For testing errors
-        #for i in ids: # For each station (full run)
-        #for i in ids[0:5]: # Subsample for testing merge
-        for i in random.sample(ids,5): # Subsample for testing errors    
-            df_stat = None # Initialize merged df.
-            try:
-                stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
-                
-                if not stat_files: # If ID has no files downloaded
-                    errors['File'].append(i)
+        for station in stations.sample(5): # subset for testing
+            station_metadata = station_file.loc[station_file['Station Number']==float(station)]
+            station_id = "CIMIS_"+str(station)
+            
+            dfs = []
+            for file in files: # For each zip file (annual or monthly)
+                try:
+                    fileyear = file.split("/")[-1]
+                    fileyear = fileyear.replace("hourlyStns", "")
+                    # Set default columns to be columns for pre-June 2014 data.
+                    if fileyear[0:4].isnumeric():
+                        if int(fileyear[0:4])>=2014: # If data from 2014 on
+                            columns = newcols
+                        else:
+                            columns = oldcols
+                    else: # If data from current year
+                        columns = newcols
+                    
+                    obj = s3.Bucket(bucket_name).Object(file)
+                    with BytesIO(obj.get()["Body"].read()) as tf:
+                        # rewind the file
+                        tf.seek(0)
+                        # Read the file as a zipfile and process the members
+                        with zipfile.ZipFile(tf, mode='r') as zipf: # Unzip
+                            for subfile in zipf.namelist(): # For each csv file in a zipfile
+                                stationid = subfile.replace(".csv", '')
+                                stationid = int(stationid[-3:])
+                                if station == stationid:
+                                    df= pd.read_csv(zipf.open(subfile), names = columns, skipinitialspace= True, na_values = ["*", "--"]) # Read into pandas
+                                    # Fix non-standard NAs and whitespace issues while reading in.
+                                    
+                                    # Reorder columns into new column order
+                                    df = df.reindex(columns = newcols)
+
+                                    # Drop columns
+                                    df = df.drop(columns = removecols, axis = 1)
+                                    
+                                    # Fix time format. Dataset reports 1-24h time, while datetime requires 0-23h.
+                                    # Convert 24h to 0h, and assign to the day of the following date.
+
+                                    df['Hour'] = df['Hour (PST)'].astype(str).str.zfill(4)
+                                    df['Hour'] = [x[0:2]+":"+x[2:] for x in df['Hour']]
+                                    df['Hour'] = np.where(df['Hour'] == "24:00", "00:00", df['Hour'])
+
+                                    df['Date'] = pd.to_datetime(df['Date'])
+                                    df['Date'] = np.where(df['Hour'] == "00:00", df['Date']+timedelta(days=1), df['Date'])
+
+                                    df['time'] = pd.to_datetime(df['Date'].dt.strftime("%Y-%m-%d") + df['Hour'], format = "%Y-%m-%d%H:%M")
+                                    # tz_localize expects PST and PDT time inputs, but we just have PST here so we take a timedelta to UTC.
+                                    df['time'] = df['time']+timedelta(hours = 8)
+                                    df['time'] = df['time'].dt.tz_localize('UTC')
+
+                                    # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+                                    df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+                                    
+                                    # Remove unnecessary columns.
+                                    df = df.drop(['Hour', 'Date', 'Hour (PST)'], axis = 1)
+                                    
+                                    dfs.append(df)
+                                else:
+                                    continue
+
+                except Exception as e: # Handle exceptions thrown during individual file read in.
+                    print(e)
+                    errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("No raw data found for station.")
-                    continue # Skip ID.
-                #stat_files.append("junk") # To test merge breaks.
+                    errors['Error'].append(e)
+                    continue
+
+
+            try:
+                file_count = len(dfs)
+                df_stat = pd.concat(dfs)
                 
-                station_id = "{}_".format(network)+i.split(":")[0] # Save file ID, keeping STID from triplet.
-                
-                # Get metadata attributes from station list.
-                station_metadata = station_file.loc[station_file['stationTriplet'] == i] # Get metadata for station.
-                station_metadata = station_metadata.iloc[0]
-
-                for file in stat_files: # For each station   
-                # Read in CSV, removing header.
-                    try:
-                        obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-                        df = pd.read_csv(BytesIO(obj['Body'].read())) # here we can either set engine = 'python' (slower) to suppress dtype warning, or remove but ignore it - it gets fixed down the line either way.
-                        
-                        # FOR TESTING ONLY
-                        df = df.sample(5000)
-                        #df = df.head(10000)
-
-                        # Fix any NA mixed types
-                        df = df.replace("NaN", np.nan)
-
-                        # Drop any columns that only contain NAs.
-                        df = df.dropna(axis = 1, how = 'all')
-
-                        # Drop any unnecessary columns.
-                        for col in cols_to_remove:
-                            if col in df.columns:
-                                df = df.drop(col, axis = 1)
-                        
-                        # Resolve time differences between time and variable time observations.
-                        # For each column, check if any value different than original time column
-                        # Do so by setting to NA if identical, and then deleting all columns with all NAs.
-                        timecols = [col for col in df.columns if 'time' in col]
-                        timecols = [col for col in timecols if col != 'time'] # Remove 'time' column
-                        
-                        for col in timecols:
-                            
-                            df[col] = np.where(df['time']==df[col], np.nan, df[col]) # Assign nan to any value identical to the time column.
-                        
-                        df = df.dropna(axis = 1, how = 'all')
-
-                        if len([col for col in df.columns if 'time' in col]) > 1: # If more than one time column remains,
-                            print("Conflicting time values: {}".format(list([col for col in df.columns if 'time' in col]))) # print warning
-                            exit() # And kill code.
-
-                        # Fix time format issues caused by "Timeout" errors.
-                        df['time'] = pd.to_datetime(df['time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
-                        df = df[pd.notnull(df['time'])] # Remove any rows where time is missing.
-
-                        # Adjust station time by local time offset.
-                        hours_adj = float(station_metadata['stationDataTimeZone']) # Get UTC offset from metadata
-                        df['time'] = df['time'] - pd.Timedelta(hours = hours_adj)
-                        
-                        # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
-                        df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
-                        
-                        # If more than one file for station, merge files.
-                        # will not be triggered for full clean, but set up to work if slices of data added in future.
-                        # will require additional testing at this point.
-                        if df_stat is None:
-                            df_stat = df
-                            del(df) # For memory.
-                        else:
-                            if len(stat_files)>1: # If there is more than one file per station
-                                df_stat = pd.concat([df_stat, df], axis = 0, ignore_index= True)
-
-                    except Exception as e: # Exceptions thrown during individual file read in.
-                        print(e)
-                        errors['File'].append(file)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append(e)
-                        continue
-
-
-                # Format joined station file.
-                file_count = len(stat_files)
-                
-                # Fix multi-type columns
-                # If column has QC in it, force to string.
-                for b in df_stat.columns:
-                    multitype = set(type(x).__name__ for x in df_stat[b])
-                    if len(multitype)>1:
-                        if 'flag' in b: # QC columns
-                            df_stat[b] = df_stat[b].astype(str) # Coerce to string (to handle multiple QA/QC flags)
-                        else:
-                            print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
-                            errors['File'].append(file)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append("Multitype error for column {} with data types {}. Please resolve".format(b, multitype))
-                            continue
-                    else:
-                        if 'flag' in b:
-                            df_stat[b] = df_stat[b].astype(str) # Coerce QA/QC flag to string in all instances.
-                            
+                # Drop any columns that only contain NAs.
+                df_stat = df_stat.dropna(axis = 1, how = 'all')
+                                                
                 
                 # Fix issue with "nan" and nan causing comparison errors
                 df_stat = df_stat.replace("nan", np.nan)
 
+                # Replace non-standard NAs
+                df_stat = df_stat.replace(-9998, np.nan)
+                df_stat = df_stat.replace(-9997, np.nan)
+                df_stat = df_stat.replace(-6999, np.nan)
+                df_stat = df_stat.replace(6999, np.nan)
+                df_stat = df_stat.replace(-8484, np.nan)
+
                 # Sort by time and remove any overlapping timestamps.
                 df_stat = df_stat.sort_values(by = "time")
                 df_stat = df_stat.drop_duplicates()
-                
+                    
                 # Move df to xarray object.
                 ds = df_stat.to_xarray()
                 del(df_stat)
@@ -264,7 +227,7 @@ def clean_cimis(rawdir, cleandir):
                 ds = ds.assign_attrs(title = "{} cleaned".format(network))
                 ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source = "")
-                ds = ds.assign_attrs(history = "SCANSNOTEL_clean.py script run on {} UTC".format(timestamp))
+                ds = ds.assign_attrs(history = "CIMIS_clean.py script run on {} UTC".format(timestamp))
                 ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
                 ds = ds.assign_attrs(license = "")
                 ds = ds.assign_attrs(citation = "")
@@ -272,29 +235,16 @@ def clean_cimis(rawdir, cleandir):
                 
                 # Add station metadata
                 # Station name
-                ds = ds.assign_attrs(station_name = station_metadata['name']) 
-                
-                # Station sub-network
-                if "SNTLT" in i:
-                    subnetwork = "SNOTEL Lite"
-                elif "SNTL" in i:
-                    subnetwork = "SNOTEL"
-                elif "CSCAN" in i:
-                    subnetwork = "Tribal SCAN"
-                elif "SCAN" in i:
-                    subnetwork = "SCAN"
-                ds = ds.assign_attrs(subnetwork = subnetwork)
-                
-                # Other station IDs - only keep if not NA
-                if isinstance(station_metadata['actonId'], str):
-                    ds = ds.assign_attrs(actonId = station_metadata['actonId'])
-                if not np.isnan(station_metadata['huc']):
-                    ds = ds.assign_attrs(huc = int(station_metadata['huc']))
-                if not np.isnan(station_metadata['hud']):
-                    ds = ds.assign_attrs(hud = int(station_metadata['hud']))
-                if isinstance(station_metadata['shefId'], str):
-                    ds = ds.assign_attrs(shefId = station_metadata['shefId'])
-                
+                ds = ds.assign_attrs(station_name = station_metadata['Name'].values[0]) 
+
+                # Sensor heights
+                ds = ds.assign_attrs(pyranometer_height_m = 2)
+                ds = ds.assign_attrs(wind_vane_height_m = 2)
+                ds = ds.assign_attrs(anemometer_height_m = 2)
+                ds = ds.assign_attrs(air_temperature_height_m = 1.5)
+                ds = ds.assign_attrs(humidity_height_m = 1.5)
+                ds = ds.assign_attrs(rain_gauge_height_m = 1)
+
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
                 # Add dimensions: station ID and time.
@@ -303,19 +253,20 @@ def clean_cimis(rawdir, cleandir):
                 ds = ds.expand_dims("id") # Add station_id as index.
                 ds = ds.drop_vars(("index")) # Drop station_id variable and index coordinate.
                 ds = ds.rename({'id': 'station'}) # Rename id to station_id.
+                ds = ds.drop('Station ID') # Drop station ID column
 
                 # Update dimensions and coordinates
                                     
                 # Add coordinates: latitude and longitude.
-                lat = np.asarray([station_metadata['latitude']]*len(ds['time']))
+                lat = np.asarray([station_metadata['Latitude']]*len(ds['time']))
                 lat.shape = (1, len(ds['time']))
-                re
-                lon = np.asarray([station_metadata['longitude']]*len(ds['time']))
+
+                lon = np.asarray([station_metadata['Longitude']]*len(ds['time']))
                 lon.shape = (1, len(ds['time']))
 
                 # reassign lat and lon as coordinates
                 ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
-                
+                    
                 # If any observation is missing lat or lon coordinates, drop these observations.
                 if np.count_nonzero(np.isnan(ds['lat'])) != 0:
                     #print("Dropping missing lat values") # For testing.
@@ -325,18 +276,19 @@ def clean_cimis(rawdir, cleandir):
                     #print("Dropping missing lon values") # For testing.
                     ds = ds.where(~np.isnan(ds['lon']))
 
-                                
                 # Add variable: elevation (in feet)
-                elev = np.asarray([station_metadata['elevation']]*len(ds['time']))
+                elev = np.asarray([station_metadata['ELEV']]*len(ds['time']))
                 elev.shape = (1, len(ds['time']))
                 ds['elevation'] = (['station', 'time'], elev)
 
                 # Update dimension and coordinate attributes.
             
                 # Update attributes.
+                ds['time'] = pd.to_datetime(ds['time']) # Remove timezone data from string (to match other networks)
+                ds['time'] = pd.to_datetime(ds['time'], unit = 'ns')
                 ds['time'].attrs['long_name'] = "time"
                 ds['time'].attrs['standard_name'] = "time"
-                ds['time'].attrs['comment'] = "Converted from local time zone UTC{} to UTC.".format(str(int(hours_adj)))
+                ds['time'].attrs['comment'] = "Converted from PST to UTC."
                 
                 # Station ID
                 ds['station'].attrs['long_name'] = "station_id"
@@ -364,142 +316,88 @@ def clean_cimis(rawdir, cleandir):
                 # Update variable attributes and do unit conversions
                 
                 #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                # for var in list(ds.keys()):
+                #     try:
+                #         print([var, float(ds[var].min()), float(ds[var].max())])
+                #     except:
+                #         continue
+
                 
                 #tas: air surface temperature (K)
-                if "TOBS_value" in ds.keys():
-                    ds['tas'] = calc_clean._unit_degF_to_K(ds['TOBS_value'])
-                    ds = ds.drop("TOBS_value")
+                if "Air Temperature (°C)" in ds.keys():
+                    ds['tas'] = calc_clean._unit_degC_to_K(ds['Air Temperature (°C)'])
+                    ds = ds.drop("Air Temperature (°C)")
 
                     ds['tas'].attrs['long_name'] = "air_temperature"
                     ds['tas'].attrs['standard_name'] = "air_temperature"
                     ds['tas'].attrs['units'] = "degree_Kelvin"
                     
-                    if "TOBS_flag" in ds.keys():
+                    if "QC for Air Temperature" in ds.keys():
                         # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
-                        ds = ds.rename({'TOBS_flag': 'tas_qc'})
-                        ds['tas_qc'].attrs['flag_values'] = "V S E" 
-                        ds['tas_qc'].attrs['flag_meanings'] =  "valid suspect edited"
+                        ds = ds.rename({'QC for Air Temperature': 'tas_qc'})
+                        ds['tas_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'tas_qc')
+                        ds['tas_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
                         ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
-                            
+
                     ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
 
                 # ps: surface air pressure (Pa)
-
-                # Here we only have barometric pressure (sea-level).
-                if 'PRES_value' in ds.keys(): # If barometric pressure available
-                    # Convert from inHg to PA
-                    ds['psl'] = calc_clean._unit_pres_inHg_to_pa(ds['PRES_value'])
-                    ds = ds.drop("PRES_value")
-
-                    # Set attributes
-                    ds['psl'].attrs['long_name'] = "barometric_air_pressure"
-                    ds['psl'].attrs['standard_name'] = "air_pressure"
-                    ds['psl'].attrs['units'] = "Pa"
-                    
-                    if 'PRES_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'TOBS_flag': 'tas_qc'})
-                        ds['psl_qc'].attrs['flag_values'] = "V S E" 
-                        ds['psl_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
-                        ds['psl'].attrs['ancillary_variables'] = "psl_qc" # List other variables associated with variable (QA/QC)
-                        
-                    ds['psl'].attrs['comment'] = "Converted from inHg."
-
-                                            
+                # No pressure sensors in this dataset.
+                                                
                 # tdps: dew point temperature (K)
-                # if raw dew point temperature observed, use that.
-                if 'DPTP_value' in ds.keys():
-                    ds['tdps'] = calc_clean._unit_degF_to_K(ds['DPTP_value'])
-                    ds = ds.drop("DPTP_value")
+                # This is calculated by CIMIS from vapor pressure and air temperature data, not a raw observation.
+                if 'Dew Point (°C)' in ds.keys():
+                    ds['tdps_derived'] = calc_clean._unit_degC_to_K(ds['Dew Point (°C)'])
+                    ds = ds.drop("Dew Point (°C)")
 
                     # Set attributes for conversion.
-                    ds['tdps'].attrs['long_name'] = "dew_point_temperature"
-                    ds['tdps'].attrs['standard_name'] = "dew_point_temperature"
-                    ds['tdps'].attrs['units'] = "degree_Kelvin"
+                    ds['tdps_derived'].attrs['long_name'] = "dew_point_temperature"
+                    ds['tdps_derived'].attrs['standard_name'] = "dew_point_temperature"
+                    ds['tdps_derived'].attrs['units'] = "degree_Kelvin"
 
-                    if 'DPTP_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'DPTP_flag': 'tdps_qc'})
-                        ds['tdps_qc'].attrs['flag_values'] = "V S E" 
-                        ds['tdps_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
-                        ds['tdps'].attrs['ancillary_variables'] = "tdps_qc" # List other variables associated with variable (QA/QC)
+                    if 'QC for Dew Point' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'QC for Dew Point': 'tdps_derived_qc'})
+                        ds['tdps_derived_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'tdps_derived_qc')
+                        ds['tdps_derived_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                  
+                        ds['tdps_derived'].attrs['ancillary_variables'] = "tdps_derived_qc" # List other variables associated with variable (QA/QC)
                     
-                    ds['tdps'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
-                
-
+                    ds['tdps_derived'].attrs['comment'] = "Derived by CIMIS from vapor pressure and air temperature. Converted from Celsius to Kelvin."
+                    
                 # pr: precipitation
-                # We have  different raw precipitation variables for precip.
-                # 'PREC', # Precipitation accumulation (in)
-                # 'PRCP', # Precipitation increment (in)
-                # 'PRCPSA', # Precipitation increment snow-adjusted (in)
-
-                # At this stage, no infilling. So we will keep all columns and simply rename them.
-                
-                # Precipitation accumulation
-                if "PREC_value" in ds.keys():
-                    ds['pr'] = calc_clean._unit_precip_in_to_mm(ds['PREC_value'])
-                    ds = ds.drop("PREC_value")
+                if "Precipitation (mm)" in ds.keys():
+                    ds = ds.rename({"Precipitation (mm)":"pr"})
                     ds['pr'].attrs['long_name'] = "precipitation_accumulation"
-                    ds['pr'].attrs['units'] = "mm/?"
+                    ds['pr'].attrs['units'] = "mm/hour"
 
-                    if 'PREC_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'PREC_flag': 'pr_qc'})
-                        ds['pr_qc'].attrs['flag_values'] = "V S E"
-                        ds['pr_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                    if 'QC for Precipitation' in ds.keys(): # If QA/QC exists.
+                        ds = ds.rename({'QC for Precipitation': 'pr_qc'})
+                        ds['pr_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'pr_qc')
+                        ds['pr_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                  
                         ds['pr'].attrs['ancillary_variables'] = "pr_qc" # List other variables associated with variable (QA/QC)
                     
                     ds['pr'].attrs['comment'] = "Accumulated precipitation. Converted from inches to mm."
                 
-                # Precipitation increment
-                if 'PRCP_value' in ds.keys():
-                    ds['pr_inc'] = calc_clean._unit_precip_in_to_mm(ds['PRCP_value'])
-                    ds = ds.drop("PRCP_value")
-                    ds['pr_inc'].attrs['long_name'] = "precipitation_increment"
-                    ds['pr_inc'].attrs['units'] = "mm/?"
-
-                    if 'PRCP_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'PRCP_flag': 'pr_inc_qc'})
-                        ds['pr_inc_qc'].attrs['flag_values'] = "V S E"
-                        ds['pr_inc_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
-                        ds['pr_inc'].attrs['ancillary_variables'] = "pr_inc_qc" # List other variables associated with variable (QA/QC)
-                    
-                    ds['pr_inc'].attrs['comment'] = "Precipitation increment. Converted from inches to mm."
-
-
-                if 'PRCPSA_value' in ds.keys():
-                    ds['pr_incsa'] = calc_clean._unit_precip_in_to_mm(ds['PRCPSA_value'])
-                    ds = ds.drop("PRCPSA_value")
-                    ds['pr_incsa'].attrs['long_name'] = "precipitation_increment_snow_adjusted"
-                    ds['pr_incsa'].attrs['units'] = "mm/?"
-
-                    if 'PRCPSA_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'PRCPSA_flag': 'pr_incsa_qc'})
-                        ds['pr_incsa_qc'].attrs['flag_values'] = "V S E" 
-                        ds['pr_incsa_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
-                        ds['pr_incsa'].attrs['ancillary_variables'] = "pr_incsa_qc" # List other variables associated with variable (QA/QC)
-                    
-                    ds['pr_incsa'].attrs['comment'] = "Precipitation increment (snow-adjusted). Converted from inches to mm."
-
-                            
+                                
                 # hurs: relative humidity (%)
-                if 'RHUM_value' in ds.keys(): # Already in %, no need to convert units.
-                    ds = ds.rename({'RHUM_value': 'hurs'})
+                if 'Relative Humidity (%)' in ds.keys(): # Already in %, no need to convert units.
+                    ds = ds.rename({'Relative Humidity (%)': 'hurs'})
                     # Set attributes
                     ds['hurs'].attrs['long_name'] = "relative_humidity"
                     ds['hurs'].attrs['standard_name'] = "relative_humidity" 
                     ds['hurs'].attrs['units'] = "percent" 
                     
                     # If QA/QC column exists
-                    if 'RHUM_flag' in ds.keys():
-                        ds = ds.rename({'RHUM_flag': 'hurs_qc'})
-                        ds['hurs_qc'].attrs['flag_values'] = "V S E" 
-                        ds['hurs_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                    if 'QC for Relative Humidity' in ds.keys():
+                        ds = ds.rename({'QC for Relative Humidity': 'hurs_qc'})
+                        ds['hurs_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'hurs_qc')
+                        ds['hurs_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                     
                         ds['hurs'].attrs['ancillary_variables'] = "hurs_qc" # List other variables associated with variable (QA/QC)
                     
-                
                 #rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
                 
-                if 'SRAD_value' in ds.keys(): # Already in w/m2, no need to convert units.
+                if 'Solar Radiation (W/m²)' in ds.keys(): # Already in w/m2, no need to convert units.
                     # If column exists, rename.
-                    ds = ds.rename({'SRAD_value': 'rsds'})
+                    ds = ds.rename({'Solar Radiation (W/m²)': 'rsds'})
                     
                     # Set attributes
                     ds['rsds'].attrs['long_name'] = "solar_radiation"
@@ -507,88 +405,72 @@ def clean_cimis(rawdir, cleandir):
                     ds['rsds'].attrs['units'] = "W m-2"
 
                     #rsds: QA/QC flags
-                    if 'SRAD_flag' in ds.keys():
-                        ds = ds.rename({'SRAD_flag': 'rsds_qc'})
-                        ds['rsds_qc'].attrs['flag_values'] = "V S E"
-                        ds['rsds_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                    if 'QC for Solar Radiation' in ds.keys():
+                        ds = ds.rename({'QC for Solar Radiation': 'rsds_qc'})
+                        ds['rsds_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'rsds_qc')
+                        ds['rsds_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                     
                         ds['rsds'].attrs['ancillary_variables'] = "rsds_qc" # List other variables associated with variable (QA/QC)
-                    
-
+                
+                
                 # sfcWind : wind speed (m/s)
-                if "WSPD_value" in ds.keys(): # Data originally in mph.
-                    ds['sfcWind'] = calc_clean._unit_windspd_mph_to_ms(ds['WSPD_value'])
-                    ds = ds.drop("WSPD_value")
+                if "Wind Speed (m/s)" in ds.keys(): # Data originally in mph.
+                    ds = ds.rename({'Wind Speed (m/s)':"sfcWind"})
                     ds['sfcWind'].attrs['long_name'] = "wind_speed"
                     ds['sfcWind'].attrs['standard_name'] = "wind_speed"
                     ds['sfcWind'].attrs['units'] = "m s-1"
 
-                    #rsds: QA/QC flags
-                    if 'WSPD_flag' in ds.keys():
-                        ds = ds.rename({'WSPD_flag': 'sfcWind_qc'})
-                        ds['sfcWind_qc'].attrs['flag_values'] = "V S E"
-                        ds['sfcWind_qc'].attrs['flag_meanings'] =  "valid suspect edited"                    
+                    #sfcWind: QA/QC flags
+                    if 'QC for Wind Speed' in ds.keys():
+                        ds = ds.rename({'QC for Wind Speed': 'sfcWind_qc'})
+                        ds['sfcWind_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'sfcWind_qc')
+                        ds['sfcWind_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                 
                         ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc" # List other variables associated with variable (QA/QC)
                     
                     ds['sfcWind'].attrs['comment'] = "Converted from mph to m/s."
 
                 
                 # sfcWind_dir: wind direction
-                if "WDIR_value" in ds.keys(): # No conversions needed, do not make raw column.
-                    ds = ds.rename({'WDIR_value': 'sfcWind_dir'})
+                if "Wind Direction (0-360)" in ds.keys(): # No conversions needed, do not make raw column.
+                    ds = ds.rename({'Wind Direction (0-360)': 'sfcWind_dir'})
                     ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
                     ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
                     ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
                     
-                    if 'WDIR_flag' in ds.keys():
-                        ds = ds.rename({'WDIR_flag': 'sfcWind_dir_qc'})
-                        ds['sfcWind_dir_qc'].attrs['flag_values'] = "V S E"
-                        ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "valid suspect edited"  
+                    if 'QC for Wind Direction' in ds.keys():
+                        ds = ds.rename({'QC for Wind Direction': 'sfcWind_dir_qc'})
+                        ds['sfcWind_dir_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'sfcWind_dir_qc')
+                        ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "See QA/QC csv for network."  
                         ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc" # List other variables associated with variable (QA/QC)
 
                     ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
+
                     
-                
                 # Other variables: rename to match format
 
                 # Partial vapor pressure (kPa -> Pa) ## No CMIP standard name for this var, just CF.
-                if 'PVPV_value' in ds.keys():
-                    ds['pvp'] = calc_clean._unit_pres_kpa_to_pa(ds['PVPV_value'])
-                    ds = ds.drop("PVPV_value")
-
-                    ds['pvp'].attrs['long_name'] = "partial_vapor_pressure"
-                    ds['pvp'].attrs['standard_name'] = "water_vapor_partial_pressure_in_air"
-                    ds['pvp'].attrs['units'] = "Pa"
+                # This is calculated by CIMIS from relative humidity and air temperature data.
+                if 'Vapor Pressure (kPa)' in ds.keys():
+                    ds['pvp_derived'] = calc_clean._unit_pres_kpa_to_pa(ds['Vapor Pressure (kPa)'])
                     
-                    if "PVPV_flag" in ds.keys():
-                        ds = ds.rename({'PVPV_flag': 'pvp_qc'})
-                        ds['pvp_qc'].attrs['flag_values'] = "V S E"
-                        ds['pvp_qc'].attrs['flag_meanings'] = "valid suspect edited"  
-                        ds['pvp'].attrs['ancillary_variables'] = "pvp_qc" # List other variables associated with variable (QA/QC)
-
-                    ds['pvp'].attrs['comment'] = "Converted from kPa to Pa."
+                    ds['pvp_derived'].attrs['long_name'] = "partial_vapor_pressure"
+                    ds['pvp_derived'].attrs['standard_name'] = "water_vapor_partial_pressure_in_air"
+                    ds['pvp_derived'].attrs['units'] = "Pa"
                     
-                # Saturated vapor pressure (kPa -> Pa)
-                if 'SVPV_value' in ds.keys():
-                    ds['svp'] = calc_clean._unit_pres_kpa_to_pa(ds['SVPV_value'])
-                    ds = ds.drop("SVPV_value")
+                    if "QC for Vapor Pressure" in ds.keys():
+                        ds = ds.rename({'QC for Vapor Pressure': 'pvp_derived_qc'})
+                        ds['pvp_derived_qc'].attrs['flag_values'] = var_to_unique_list(ds, 'pvp_derived_qc')
+                        ds['pvp_derived_qc'].attrs['flag_meanings'] = "See QA/QC csv for network." 
+                        ds['pvp_derived'].attrs['ancillary_variables'] = "pvp_qc" # List other variables associated with variable (QA/QC)
 
-                    ds['svp'].attrs['long_name'] = "saturated_vapor_pressure"
-                    ds['svp'].attrs['units'] = "Pa"
+                    ds['pvp_derived'].attrs['comment'] = "Derived by CIMIS from relative humidity and air temperature measurements. Converted from kPa to Pa."
                     
-                    if "SVPV_flag" in ds.keys():
-                        ds = ds.rename({'SVPV_flag': 'svp_qc'})
-                        ds['svp_qc'].attrs['flag_values'] = "V S E"
-                        ds['svp_qc'].attrs['flag_meanings'] = "valid suspect edited"  
-                        ds['svp'].attrs['ancillary_variables'] = "svp_qc" # List other variables associated with variable (QA/QC)
-
-                    ds['svp'].attrs['comment'] = "Converted from kPa to Pa."
-
+                
                 #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                #for var in ds.variables:
-                    # try:
-                    #     print([var, float(ds[var].min()), float(ds[var].max())]) 
-                    # except:
-                    #     next
+                # for var in ds.variables:
+                #     try:
+                #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                #     except:
+                #         next
 
                 # Quality control: if any variable is completely empty, drop it.
                 for key in ds.keys():
@@ -613,7 +495,7 @@ def clean_cimis(rawdir, cleandir):
         
             except Exception as e:
                 print(e)
-                errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
+                errors['File'].append(station) # Save ID of station.
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
                 continue
@@ -640,18 +522,21 @@ def clean_cimis(rawdir, cleandir):
 
                     print("Saving {} with dims {}".format(filename, ds.dims))
                     ds.close() # Close dataframe.
-                    continue
                     
                 except Exception as e:
                     print(e)
-                    errors['File'].append(stat_files)
+                    errors['File'].append(station)
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
                     continue  
 
-                
-    # The list of removed variables is manually saved to AWS, as it includes many variables not initially downloaded.
-    # Obtained from: https://www.nrcs.usda.gov/wps/portal/wcc/home/dataAccessHelp/webService/webServiceReference
+        # # Save the list of removed variables to AWS
+        removedvars = pd.DataFrame(removecols, columns = ["Variable"])
+        csv_buffer = StringIO()
+        removedvars.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"removedvars.csv")
+        
    
     # Write errors.csv
     finally: # Always execute this.
@@ -666,54 +551,54 @@ def clean_cimis(rawdir, cleandir):
 # # Run functions
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CIMIS")
-    #print(rawdir, cleandir, qaqcdir)
-    clean_cimis(rawdir, cleandir)
+    print(rawdir, cleandir, qaqcdir)
+    #clean_cimis(rawdir, cleandir)
     
-    # # # Testing:
-    # import random # To get random subsample
-    # import s3fs # To read in .nc files
+    # # Testing:
+    import random # To get random subsample
+    import s3fs # To read in .nc files
     
-    # # # ## Import file.
-    # files = []
-    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
-    #     file = str(item.key)
-    #     files += [file]
+    # # ## Import file.
+    files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+        file = str(item.key)
+        files += [file]
 
-    # files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-    # files = [file for file in files if "error" not in file] # Remove error handling files.
-    # files = [file for file in files if "station" not in file] # Remove error handling files.
-    # files = random.sample(files, 4)
+    files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+    files = [file for file in files if "error" not in file] # Remove error handling files.
+    files = [file for file in files if "station" not in file] # Remove error handling files.
+    files = random.sample(files, 4)
 
-    # # File 1:
-    # fs = s3fs.S3FileSystem()
-    # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+    # File 1:
+    fs = s3fs.S3FileSystem()
+    aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
     
-    # with fs.open(aws_urls[0]) as fileObj:
-    #     test = xr.open_dataset(fileObj)
-    #     print(test)
-    #     for var in test.keys():
-    #         print(var)
-    #         print(test[var])
-    #     test.close()
+    with fs.open(aws_urls[0]) as fileObj:
+        test = xr.open_dataset(fileObj)
+        print(test)
+        for var in test.keys():
+            print(var)
+            print(test[var])
+        test.close()
         
-    # # File 2:
-    # # Test: multi-year merges work as expected.
-    # with fs.open(aws_urls[1]) as fileObj:
-    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
-    #     print(str(test['time'].min())) # Get start time
-    #     print(str(test['time'].max())) # Get end time
-    #     test.close()
+    # File 2:
+    # Test: multi-year merges work as expected.
+    with fs.open(aws_urls[1]) as fileObj:
+        test = xr.open_dataset(fileObj, engine='h5netcdf')
+        print(str(test['time'].min())) # Get start time
+        print(str(test['time'].max())) # Get end time
+        test.close()
 
     
-    # # File 3:
-    # # Test: Inspect vars and attributes
-    # with fs.open(aws_urls[2]) as fileObj:
-    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
-    #     for var in test.variables: 
-    #         try:
-    #             print([var, float(test[var].min()), float(test[var].max())]) 
-    #         except:
-    #             continue
-    #     test.close()
+    # File 3:
+    # Test: Inspect vars and attributes
+    with fs.open(aws_urls[2]) as fileObj:
+        test = xr.open_dataset(fileObj, engine='h5netcdf')
+        for var in test.variables: 
+            try:
+                print([var, float(test[var].min()), float(test[var].max())]) 
+            except:
+                continue
+        test.close()
     
     
