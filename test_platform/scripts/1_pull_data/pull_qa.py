@@ -267,7 +267,7 @@ def isd_retry_downloads(bucket_name, network):
         file = str(item.key)
         files += [file]
     
-    station_file = [file for file in files if "isd" in file] # ID station file
+    station_file = [file for file in files if "ISD" in file] # ID station file
     station_file = [file for file in station_file if 'station' in file] 
     
     files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
@@ -405,7 +405,7 @@ def update_station_list(bucket_name, network):
         files = list(filter(lambda f: f.endswith(".gz"), files)) # Get list of file names
 
     if network == "ASOSAWOS":
-        station_file = [file for file in station_file if "isd" in file] # Get the station list used to download files.
+        station_file = [file for file in station_file if "ISD" in file] # Get the station list used to download files.
     
     station_file = str(station_file[0])
 
@@ -421,19 +421,19 @@ def update_station_list(bucket_name, network):
     downloaded_stns = set()
     for file in files:
         dn_file = file.split("/")[-1].replace(".csv", "") # Grabs station_id from each filename
-        dn_file = file.split("/")[-1].replace(".gz", "") # Grabs station_id from each filename
+        dn_file = dn_file.replace(".gz", "") # Grabs station_id from each filename
         if network in MADIS:
             dn_file = dn_file.split("_")[-1] # Remove leading extension, if file is one of multiple.
         elif network in ISD:
             dn_file = dn_file.rsplit("-", 1)[0] # Remove year suffix (e.g. '-2015')
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
-    
+
     ## Adds download column so we can compare post full data pull, will get filled after full pull
     # For each network, specify ID column to check against.
     if network in MADIS:
         station_csv['Pulled'] = np.where(station_csv["STID"].isin(downloaded_stns), "Y", "N")
-    elif network in SNTL:
+    elif network in SNTL:   
         # Split triplet ID into 3 subcomponents.
         station_csv[['id', 'state', 'subnetwork']] = station_csv['stationTriplet'].str.split(":", expand = True)
         station_csv['Pulled'] = np.where(station_csv["stationTriplet"].isin(downloaded_stns), "Y", "N")
@@ -454,9 +454,15 @@ def update_station_list(bucket_name, network):
     new_buffer = StringIO()
     station_csv.to_csv(new_buffer)
     content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(network))
-    print("{} station_list updated. {} successful downloads, {} failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y'], station_csv['Pulled'].value_counts()['N'])) ## Function may take a while to run, useful to indicate completion
-    print(station_csv)
+
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=station_file)
+    
+    if 'N' in station_csv['Pulled'].values:
+        print("{} station_list updated. {} successful downloads, {} failed downloads.".format(network, station_csv['Pulled'].value_counts()['Y'], station_csv['Pulled'].value_counts()['N'])) ## Function may take a while to run, useful to indicate completion
+    else:
+        print("{} station_list updated. {} successful downloads.".format(network, station_csv['Pulled'].value_counts()['Y']))
+
+    return station_csv
 
 # For MARITIME/NDBC data
 def maritime_retry_downloads(bucket_name, network):
@@ -499,11 +505,12 @@ def download_comparison(bucket_name, network):
         files += [file]
     
     station_file = [file for file in files if 'stationlist' in file] 
-    files = list(filter(lambda f: f.endswith(".txt.gz"), files)) # Get list of file names
+
+    files = [file for file in files if 'stationlist' not in file] # Get list of file names
     
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
-    downloaded_stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz
+    downloaded_stations = [file[0:5] for file in stations] # Drop hYYYYtxt.gz or _csv.zip
     
     # Read in station list
     station_csv = s3_cl.get_object(Bucket= bucket_name, Key= str(station_file[0]))
@@ -534,6 +541,7 @@ def download_comparison(bucket_name, network):
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
 def retry_downloads(token, bucket_name, networks = None):
+    
     # Set paths to WECC shapefiles in AWS bucket.
     wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
     wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
@@ -556,7 +564,12 @@ def retry_downloads(token, bucket_name, networks = None):
         print("All networks specified.")
         response = s3_cl.list_objects_v2(Bucket=bucket_name, Prefix = "1_raw_wx/", Delimiter = '/')
         networks = [prefix['Prefix'][:-1].replace("1_raw_wx/", "") for prefix in response['CommonPrefixes']]
-        
+
+    else:
+        # Remove any spaces or slashes in inputted network names.
+        networks = [i.replace(" ", "") for i in networks]
+        networks = [i.replace("/", "") for i in networks]
+
     for network in networks:
         print("Attempting to download missing files for {} network".format(network))
         directory = "1_raw_wx/"+network+"/"
@@ -577,15 +590,19 @@ def retry_downloads(token, bucket_name, networks = None):
         # ASOSAWOS / OtherISD
         elif network in ISD:
             missed_stations, file_list = isd_retry_downloads(bucket_name = bucket_name, network = network)
-            print("Attempting to download data for {} missing stations.".format(len(missed_stations)))
-            if network == "ASOSAWOS":
-                # Download all missing stations
-                get_asosawos_data_ftp(missed_stations.iloc[0:10,:], bucket_name, directory, get_all = True) 
-                # ^ SUBSETTED FOR TESTING, remove for full run.
-            elif network == "OtherISD":
-                # Download all missing stations
-                get_otherisd_data_ftp(missed_stations.iloc[0:10,:], bucket_name, directory, get_all = True)
-                # ^ SUBSETTED FOR TESTING, remove for full run.
+            
+            if len(missed_stations) == 0: # If no missing stations.
+                print("All selected stations have data downloaded.")
+            else:
+                print("Attempting to download data for {} missing stations.".format(len(missed_stations)))
+                if network == "ASOSAWOS":
+                    # Download all missing stations
+                    get_asosawos_data_ftp(missed_stations, bucket_name, directory, get_all = True) 
+                    # ^ SUBSETTED FOR TESTING, remove for full run.
+                elif network == "OtherISD":
+                    # Download all missing stations
+                    get_otherisd_data_ftp(missed_stations, bucket_name, directory, get_all = True)
+                    # ^ SUBSETTED FOR TESTING, remove for full run.
             
             # Regenerate file_list after full station download.
             missed_stations, file_list = isd_retry_downloads(bucket_name = bucket_name, network = network)
@@ -609,5 +626,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ["MARITIME"])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['VCAPCD'])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)

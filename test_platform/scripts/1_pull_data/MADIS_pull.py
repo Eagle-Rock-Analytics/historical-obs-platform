@@ -86,6 +86,7 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
         content = csv_buffer_err.getvalue()
         networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
         networkname = networkname.replace("/", "")
+        networkname = networkname.replace(" ", "") # Remove spaces
 
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"stationlist_{}.csv".format(networkname))
         
@@ -217,7 +218,8 @@ def madis_pull(token, networks = None, pause = None):
                     pass
                 else:
                     print("Invalid response. Skipping network.")
-        dirname = row['SHORTNAME'].replace("/", "-") # Get rid of slashes for AWS
+        dirname = row['SHORTNAME'].replace(" ", "") # Get rid of spaces for AWS
+        dirname = dirname.replace("/", "-") # Get rid of slashes for AWS
         directory = raw_path+dirname+"/" # Use name from syntopic to name folder
         
         # Except if the network is CWOP, then manually set to be CWOP.
@@ -234,4 +236,6 @@ def madis_pull(token, networks = None, pause = None):
 
 if __name__ == "__main__":    
     madis_pull(config.token)
+    # Note: this will download all non-restricted networks in MADIS. Specify to subset.
+    # Warning: running this without specification may overwrite metadata for networks that are in MADIS, but downloaded directly.
 
