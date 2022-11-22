@@ -123,6 +123,19 @@ def get_cw3e(bucket_name, directory):
                 filename = i+"_HourlyData_Full.txt"
                 ftp.cwd(dir) # Change working directory to year/month.
                 ftp_to_aws(ftp, filename, directory)
+
+                # Full text isn't updated correctly for present year. Also manually download current year's data.
+                currentyear = str(datetime.now().year)
+                ftp.cwd(currentyear+"/") # Change working directory to year/month.
+                days = ftp.nlst()
+                days = [x for x in days if len(x) <= 3] # Filter out other files in folder
+                for l in days:
+                    ftp.cwd(l)
+                    files = ftp.nlst()
+                    for file in files:
+                        ftp_to_aws(ftp, file, directory)
+                    ftp.cwd("../") # go back up one level
+
             elif i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
                 ftp.cwd(dir)
                 ftp_to_aws(ftp, 'LowerBathHouse_TwoMin.dat', directory)
