@@ -53,11 +53,12 @@ def ftp_to_aws(ftp, file, directory, rename = None):
 def get_cimis_stations(directory): 
     ## Login.
     ## using ftplib, get list of stations as csv
-    filename = 'CIMIS Stations List (January20).xlsx'
     ftp = FTP('ftpcimis.water.ca.gov')
     ftp.login() # user anonymous, password anonymous
     ftp.cwd('pub2')  # Change WD.
-    ftp_to_aws(ftp, filename, directory, rename = "stationlist_CIMIS.xlsx")
+    ftp_to_aws(ftp, 'CIMIS Stations List (January20).xlsx', directory, rename = "stationlist_CIMIS.xlsx") # Get station list.
+    ftp_to_aws(ftp, 'readme-ftp-Revised5units.txt', '1_raw_wx/CIMIS/', rename = "ftpunits_post2014.txt") # Get recent units.
+    ftp_to_aws(ftp, 'readme (prior to June 2014)units.txt', '1_raw_wx/CIMIS/', rename = "ftpunits_pre2014.txt") # Get older units.
     return
 
 # Function: query ftp server for CIMIS data and download csv files.
@@ -104,7 +105,7 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
 
     try:
         # First all data not from current year through annual folder
-        ftp.cwd('annual/')
+        ftp.cwd('annualMetric/')
 
         filenames = ftp.nlst() # Get list of all file names in folder.
         filenames = [i for i in filenames if i.endswith('.zip')]
@@ -134,7 +135,7 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
         
         if (years is None) or (pres_year in years): # If years includes present year or years not specified.
             ftp.cwd(pwd)
-            ftp.cwd('monthly/')
+            ftp.cwd('monthlyMetric/')
             
             filenames = ftp.nlst() # Get list of all file names in folder.
             filenames = [i for i in filenames if i.endswith('.zip')]
