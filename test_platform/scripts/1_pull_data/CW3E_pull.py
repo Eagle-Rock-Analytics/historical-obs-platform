@@ -36,12 +36,16 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 # Inputs: ftp is the current ftp connection,
 # file is the filename,
 # directory is the desired path (set of folders) in AWS
-def ftp_to_aws(ftp, file, directory):
+def ftp_to_aws(ftp, file, directory, rename = None):
     r=BytesIO()
     ftp.retrbinary('RETR '+file, r.write)
     r.seek(0)
-    s3.upload_fileobj(r, bucket_name, directory+file)
-    print('{} saved'.format(file)) # Helpful for testing, can be removed.
+    if rename is not None:
+        write_name = rename
+    else:
+        write_name = file.replace(" ", "") # Remove any spaces from file name
+    s3.upload_fileobj(r, bucket_name, directory+write_name)
+    print('{} saved'.format(write_name)) # Optional.
     r.close() # Close file
 
 try:
@@ -95,6 +99,7 @@ def get_cw3e_metadata(token, terrpath, marpath, bucket_name, directory):
 
 
 ## Pull CW3E data using FTP.
+## HourlyData_Full files do not include as many variables as the individual bytes files, so we download the entire dataset in byte format.
 def get_cw3e(bucket_name, directory):
 
     # ## Login.
@@ -119,31 +124,16 @@ def get_cw3e(bucket_name, directory):
         try:
             ftp.cwd(pwd) # Return to original working directory
             dir = i+"/"
-            if i not in ['FRC', 'LBH', 'SKI']: # List exceptions
-                filename = i+"_HourlyData_Full.txt"
-                ftp.cwd(dir) # Change working directory to year/month.
-                ftp_to_aws(ftp, filename, directory)
-
-                # Full text isn't updated correctly for present year. Also manually download current year's data.
-                currentyear = str(datetime.now().year)
-                ftp.cwd(currentyear+"/") # Change working directory to year/month.
-                days = ftp.nlst()
-                days = [x for x in days if len(x) <= 3] # Filter out other files in folder
-                for l in days:
-                    ftp.cwd(l)
-                    files = ftp.nlst()
-                    for file in files:
-                        ftp_to_aws(ftp, file, directory)
-                    ftp.cwd("../") # go back up one level
-
-            elif i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
+            if i == "LBH": # For LowerBathHouse, Table1-NewObs and TwoMin file appear to span same dates. Grab TwoMin.
                 ftp.cwd(dir)
                 ftp_to_aws(ftp, 'LowerBathHouse_TwoMin.dat', directory)
-            elif i in ["SKI", "FRC"]: # For these two files, each year has a folder containing a subfolder for each day.
+            else: # For all other files, each year has a folder containing a subfolder for each day.
                 ftp.cwd(dir)
-                years = ftp.nlst()
-                years = [x for x in years if len(x) == 4] # Filter out other files in folder
-                print(years)
+                files = ftp.nlst()
+                years = [x for x in files if len(x) == 4] # Filter out other files in folder
+                ftp_to_aws(ftp, "{}_README.txt".format(i), directory) # Get station readme
+                ftp_to_aws(ftp, "DataFormat.txt", directory, rename = "{}_DataFormat.txt".format(i)) # Get station data format file
+
                 for k in years:
                     ftp.cwd(k+"/")
                     days = ftp.nlst()
