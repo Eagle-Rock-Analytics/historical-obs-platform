@@ -376,7 +376,7 @@ def clean_cimis(rawdir, cleandir):
                         ds['pr_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                  
                         ds['pr'].attrs['ancillary_variables'] = "pr_qc" # List other variables associated with variable (QA/QC)
                     
-                    ds['pr'].attrs['comment'] = "Accumulated precipitation. Converted from inches to mm."
+                    ds['pr'].attrs['comment'] = "Accumulated precipitation."
                 
                                 
                 # hurs: relative humidity (%)
