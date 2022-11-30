@@ -427,8 +427,6 @@ def clean_cimis(rawdir, cleandir):
                         ds['sfcWind_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                 
                         ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc" # List other variables associated with variable (QA/QC)
                     
-                    ds['sfcWind'].attrs['comment'] = "Converted from mph to m/s."
-
                 
                 # sfcWind_dir: wind direction
                 if "Wind Direction (0-360)" in ds.keys(): # No conversions needed, do not make raw column.
