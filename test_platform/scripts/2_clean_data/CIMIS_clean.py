@@ -340,7 +340,7 @@ def clean_cimis(rawdir, cleandir):
                         ds['tas_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
                         ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
 
-                    ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
+                    ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
 
                 # ps: surface air pressure (Pa)
                 # No pressure sensors in this dataset.
