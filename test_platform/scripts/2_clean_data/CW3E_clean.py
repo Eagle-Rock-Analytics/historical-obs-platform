@@ -34,6 +34,7 @@ from ftplib import FTP
 from cleaning_helpers import var_to_unique_list
 import dask.dataframe as dd
 from random import sample # For testing only
+import sys, traceback
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
@@ -118,7 +119,7 @@ def clean_cw3e(rawdir, cleandir):
         files = [file for file in files if 'error' not in file]
 
     except Exception as e: # If unable to read files from rawdir, break function.
-        print(e)
+        print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
         errors['Error'].append(e)
@@ -133,7 +134,7 @@ def clean_cw3e(rawdir, cleandir):
                 usecols = [col for col in colnames if col not in removecols]
                 
                 # Get metadata from .txt file
-                obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_README.txt".format('BCC'))
+                obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_README.txt".format(station))
                 with StringIO(obj['Body'].read().decode()) as f:
                     for line in f.readlines():
                         if 'Lat' in line:
@@ -160,7 +161,7 @@ def clean_cw3e(rawdir, cleandir):
                 years = ['19', '20', '21', '22']
 
                 for year in years:
-                    year_files = [file for file in station_files if year==file[17:19]] # Get files for station for year.
+                    year_files = [file for file in station_files if year==file[-9:-7]] # Get files for station for year.
                     file_count = len(year_files)
                     
                     # Read in data.
@@ -402,21 +403,21 @@ def clean_cw3e(rawdir, cleandir):
                                 ds.close() # Close dataframe.
                                 
                             except Exception as e:
-                                print(e)
+                                print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                                 errors['File'].append(filename)
                                 errors['Time'].append(end_api)
                                 errors['Error'].append(e)
                                 continue  
 
                     except Exception as e:
-                        print(e)
+                        print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                         errors['File'].append(station+year) # Save ID of station.
                         errors['Time'].append(end_api)
                         errors['Error'].append(e)
                         continue
         
             except Exception as e:
-                print(e)
+                print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                 errors['File'].append(station) # Save ID of station.
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
