@@ -100,7 +100,8 @@ def get_cw3e_metadata(token, terrpath, marpath, bucket_name, directory):
 
 ## Pull CW3E data using FTP.
 ## HourlyData_Full files do not include as many variables as the individual bytes files, so we download the entire dataset in byte format.
-def get_cw3e(bucket_name, directory):
+# Station is an optional parameter to download one station at a time.
+def get_cw3e(bucket_name, directory, station = None):
 
     # ## Login.
     # ## using ftplib
@@ -120,6 +121,9 @@ def get_cw3e(bucket_name, directory):
     stations = ftp.nlst() # Get list of all file names in folder.
     stations = [k for k in stations if ".txt" not in k]
 
+    if station:
+        stations = [sta for sta in stations if sta in station] # Subset by station list provided
+
     for i in stations: # For each station/folder
         try:
             ftp.cwd(pwd) # Return to original working directory
@@ -132,12 +136,12 @@ def get_cw3e(bucket_name, directory):
                 files = ftp.nlst()
                 years = [x for x in files if len(x) == 4] # Filter out other files in folder
                 ftp_to_aws(ftp, "{}_README.txt".format(i), directory) # Get station readme
-                ftp_to_aws(ftp, "DataFormat.txt", directory, rename = "{}_DataFormat.txt".format(i)) # Get station data format file
-
+                if 'DataFormat.txt' in files: # Not all stations have this
+                    ftp_to_aws(ftp, "DataFormat.txt", directory, rename = "{}_DataFormat.txt".format(i)) # Get station data format file
+                
                 for k in years:
                     ftp.cwd(k+"/")
                     days = ftp.nlst()
-                    print(days)
                     days = [x for x in days if len(x) <= 3] # Filter out other files in folder
                     for l in days:
                         ftp.cwd(l)
