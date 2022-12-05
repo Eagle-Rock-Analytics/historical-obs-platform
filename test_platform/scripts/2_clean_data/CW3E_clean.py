@@ -69,7 +69,7 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir
 
               
-# ## FUNCTION: Clean CIMIS data.
+# ## FUNCTION: Clean CW3E data.
 # # Input: 
 # # bucket_name: name of AWS bucket.
 # # rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
@@ -150,7 +150,7 @@ def clean_cw3e(rawdir, cleandir):
                             
                 # Station full name is not in README so we pull it in from MADIS metadata.
                 station_metadata = station_file.loc[station_file['STID'].str.replace("C3", "")==station]
-                station_id = "CIMIS_"+str(station)
+                station_id = "CW3E_"+str(station)
 
                 # Get number of files
                 station_files = [file for file in files if file.startswith('1_raw_wx/CW3E/{}'.format(station.lower()))]
