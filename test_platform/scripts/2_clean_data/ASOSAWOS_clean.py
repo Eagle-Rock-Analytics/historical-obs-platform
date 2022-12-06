@@ -736,41 +736,52 @@ if __name__ == "__main__":
     merge_station_lists(key_asosawos, key_isd, cleandir)
     clean_asosawos(rawdir, cleandir)
 
-# Testing:
-## Import file.
-# os.chdir(savedir)
-# test = xr.open_dataset("ASOSAWOS_72061999999.nc")
-# print(test) 
 
-# # # # Test 1: multi-year merges work as expected.
-# print(str(test['time'].min())) # Get start time
-# print(str(test['time'].max())) # Get end time
+    # # # # Testing:
+    # import random # To get random subsample
+    # import s3fs # To read in .nc files
+    
+    # # # ## Import file.
+    # files = []
+    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+    #     file = str(item.key)
+    #     files += [file]
 
+    # files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
+    # files = [file for file in files if "error" not in file] # Remove error handling files.
+    # files = [file for file in files if "station" not in file] # Remove station files.
+    # files = random.sample(files, 4)
 
-# # ## Test 2: Inspect vars and attributes
-# # ## 
-# for var in test.variables: 
-#     try:
-#         print([var, float(test[var].min()), float(test[var].max())]) 
-#     except:
-#         continue
+    # # File 1:
+    # fs = s3fs.S3FileSystem()
+    # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+    
+    # with fs.open(aws_urls[0]) as fileObj:
+    #     test = xr.open_dataset(fileObj)
+    #     print(test)
+    #     for var in test.keys():
+    #         print(var)
+    #         print(test[var])
+    #     test.close()
+        
+    # # File 2:
+    # # Test: multi-year merges work as expected.
+    # with fs.open(aws_urls[1]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     print(str(test['time'].min())) # Get start time
+    #     print(str(test['time'].max())) # Get end time
+    #     test.close()
 
-# # # Test 3: Get one month's data and test subsetting.
-# print(test.sel(time = "2015-05"))
-
-# # # Next file.
-# test = xr.open_dataset("ASOSAWOS_72268999999.nc") 
-# print(test)
-# print(str(test['time'].min())) # Get start time
-# print(str(test['time'].max())) # Get end time
-
-# ## Inspect vars and attributes
-# ## 
-# for var in test.variables: 
-#     try:
-#         print([var, float(test[var].min()), float(test[var].max())]) 
-#     except:
-#         continue
-
-# # # Get a few rows
-# print(test.sel(time = "1989-06")) # Should only be 3 observations here. Very incomplete year.
+    
+    # # File 3:
+    # # Test: Inspect vars and attributes
+    # with fs.open(aws_urls[2]) as fileObj:
+    #     test = xr.open_dataset(fileObj, engine='h5netcdf')
+    #     for var in test.variables: 
+    #         try:
+    #             print([var, float(test[var].min()), float(test[var].max())]) 
+    #         except:
+    #             continue
+    #     test.close()
+    
+    
