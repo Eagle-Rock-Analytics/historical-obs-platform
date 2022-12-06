@@ -12,3 +12,12 @@ def var_to_unique_list(ds, column):
     flagvals = " ".join(flagvals)
     return flagvals
 
+
+# Given a network name, return all relevant AWS filepaths for other functions.
+def get_file_paths(network):
+    rawdir = "1_raw_wx/{}/".format(network)
+    cleandir = "2_clean_wx/{}/".format(network)
+    qaqcdir = "3_qaqc_wx/{}/".format(network)
+    return rawdir, cleandir, qaqcdir
+
+
