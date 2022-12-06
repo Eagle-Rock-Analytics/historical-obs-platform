@@ -421,6 +421,16 @@ def clean_asosawos(rawdir, cleandir):
                     # Station name
                     ds = ds.assign_attrs(station_name = station_metadata['STATION NAME'].values[0]) 
 
+                    # Other station IDs - only add if not NA
+                    ids = ['USAF', 'WBAN', 'ICAO', 'NCDCID', 'COOPID', 'CALL', 'GHCN-DailyID']
+                    for i in ids:
+                        if isinstance(station_metadata[i].values[0], (int, str)):
+                            ds.attrs[i] = station_metadata[i].values[0]
+
+                    # Sub-networks - only add if not NA
+                    if isinstance(station_metadata['STNTYPE'].values[0], str):
+                        ds.attrs['Networks'] = station_metadata['STNTYPE'].values[0]
+
                     # Sensor heights
                     if station_metadata['Anemometer_elev'].isnull().all():
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
