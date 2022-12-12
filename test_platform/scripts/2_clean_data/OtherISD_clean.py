@@ -387,19 +387,9 @@ def clean_otherisd(rawdir, cleandir):
                             ds.attrs[i] = station_metadata[i].values[0]
 
                     # # Sensor heights
-                    # if station_metadata['Anemometer_elev'].isnull().all():
-                    #     ds = ds.assign_attrs(anemometer_height_m = np.nan)
-                    # else:
-                    #     anemometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Anemometer_elev'].astype(float)).round(2)
-                    #     ds = ds.assign_attrs(anemometer_height_m = anemometer_height.values[0])
-
-                    # # TO DO: ELEVATION OR HEIGHT FROM STATION?
-                    # if station_metadata['Barometer_elev'].isnull().all():
-                    #     ds = ds.assign_attrs(barometer_height_m = np.nan)
-                    # else:
-                    #     barometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Barometer_elev'].astype(float)).round(2)
-                    #     ds = ds.assign_attrs(barometer_height_m = barometer_height.values[0])
-
+                    ds = ds.assign_attrs(anemometer_height_m = 1.5) # As per p. 99 of ISD manual.
+                    ds = ds.assign_attrs(barometer_height_m = np.nan) # To do: email to double check? Not in manual seemingly.
+                
                     ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
                     # Update dimensions and coordinates
