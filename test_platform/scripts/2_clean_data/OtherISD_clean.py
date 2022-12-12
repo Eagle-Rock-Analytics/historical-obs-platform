@@ -1,5 +1,5 @@
 """
-This script performs data cleaning for the ASOS/AWOS network for
+This script performs data cleaning for all non-ASOS/AWOS ISD networks for
 ingestion into the Historical Observations Platform.
 Approach:
 (1) Read through variables, and calculates derived priority variables if not observed
@@ -9,7 +9,7 @@ Approach:
 (5) Converts missing data to standard format
 (6) Tracks existing qa/qc flag for review
 (7) Merge files by station, and outputs cleaned variables as a single .nc file for an individual network.
-Inputs: Raw data for ASOS and AWOS stations, with each file representing a month of a year.
+Inputs: Raw data for ISD stations, with each file representing a month of a year.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
@@ -30,8 +30,6 @@ import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 import random
-import zipfile
-import openpyxl
 from ftplib import FTP
 from cleaning_helpers import var_to_unique_list, get_file_paths
 import gzip
@@ -57,62 +55,21 @@ bucket_name = "wecc-historical-wx"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-key_asosawos = "1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
-key_isd = "1_raw_wx/ASOSAWOS/stationlist_ISD_ASOSAWOS.csv"
-
 # Set up directory to save files, if it doesn't already exist.
 try:
     os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
 except:
     pass
 
-## Function: Merge station lists.
-# Inputs:
-# Path to asosawos station file
-# Path to ISD station file
-# Path to cleaned directory
-def merge_station_lists(key_asosawos, key_isd, cleandir):
-    asosawos = s3_cl.get_object(Bucket=bucket_name, Key=key_asosawos)
-    asosawos_list = pd.read_csv(BytesIO(asosawos['Body'].read()))  
-
-    # ASOSAWOS list has one duplicated station, one row which has start/stop data and one which does not.
-    # Drop the less complete row.
-    index = asosawos_list[(asosawos_list.NCDCID == 20022657)&(np.isnan(asosawos_list.STARTDATE))].index
-    asosawos_list = asosawos_list.drop(index)
-
-    isd = s3_cl.get_object(Bucket=bucket_name, Key=key_isd)
-    isd_list = pd.read_csv(BytesIO(isd['Body'].read()))  
-
-    # Round asosawos down to 3 decimal points of accuracy
-    asosawos_round = asosawos_list.round({'LAT':3, 'LON':3})
-
-    # For final join, use both methods. Join left on ISD as this is what will match to pulled data.
-    stationlist_join = isd_list.merge(asosawos_round,left_on = ['WBAN', 'LAT', 'LON'], right_on = ['WBAN', 'LAT', 'LON'], how = 'left')
-    add_rows = isd_list.merge(asosawos_round,left_on = ['WBAN'], right_on = ['WBAN'], how = 'left')
-    add_rows = add_rows[~add_rows['NCDCID'].isin(stationlist_join['NCDCID'])]
-    stationlist_join[stationlist_join.WBAN.isin(add_rows.WBAN)] = add_rows
-
-    # Reorganize
-    stationlist_join = stationlist_join.drop(["Unnamed: 0_x", "Unnamed: 0_y"], axis = 1)
-    stationlist_join['Pulled'], stationlist_join['Time_Checked'] = stationlist_join.pop('Pulled'), stationlist_join.pop('Time_Checked')# Write to AWS
-    #print(stationlist_join) # For testing
-
-    # Write to AWS
-    csv_buffer = StringIO()
-    stationlist_join.to_csv(csv_buffer, index = False)
-    content = csv_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"stationlist_ASOSAWOS_merge.csv")
-
-
-## FUNCTION: Clean ASOS and AWOS data.
+## FUNCTION: Clean 'OtherISD' data.
 # Input: 
 # homedir: path to git repository.
 # workdir: path to where raw data is saved as .gz files, with each file representing a station's records for 1 year.
 # savedir: path to where cleaned files should be saved.
 # Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 
-def clean_asosawos(rawdir, cleandir):
-    network = "ASOSAWOS"
+def clean_otherisd(rawdir, cleandir):
+    network = "OtherISD"
 
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
@@ -135,8 +92,10 @@ def clean_asosawos(rawdir, cleandir):
             lonmin, lonmax = -139.047795, -102.03721
             latmin, latmax = 30.142739, 60.003861
 
+        
         # Get station file and read in metadata.
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=cleandir+'stationlist_ASOSAWOS_merge.csv')
+        station_file = [file for file in files if 'stationlist'in file]
+        obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj['Body'].read()))  
         stations = station_file['ISD-ID'].dropna().astype(str)
         
@@ -163,7 +122,7 @@ def clean_asosawos(rawdir, cleandir):
             if bool(subfiles) is False: # If ID returns no files, go to next ID.
                 continue
 
-            station = "ASOSAWOS_"+id.replace("-", "")
+            station = "OtherISD_"+id.replace("-", "")
             station_metadata = station_file.loc[station_file['ISD-ID']==id]
             
             # Initialize list of dictionaries.
@@ -408,10 +367,10 @@ def clean_asosawos(rawdir, cleandir):
                     ds = df.to_xarray()
 
                     # Update global attributes
-                    ds = ds.assign_attrs(title = "ASOS/AWOS cleaned")
+                    ds = ds.assign_attrs(title = "ISD (non-ASOS/AWOS networks) cleaned")
                     ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
                     ds = ds.assign_attrs(source = "")
-                    ds = ds.assign_attrs(history = "ASOSAWOS_clean.py script run on {} UTC".format(timestamp))
+                    ds = ds.assign_attrs(history = "OtherISD_clean.py script run on {} UTC".format(timestamp))
                     ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
                     ds = ds.assign_attrs(license = "")
                     ds = ds.assign_attrs(citation = "")
@@ -422,28 +381,24 @@ def clean_asosawos(rawdir, cleandir):
                     ds = ds.assign_attrs(station_name = station_metadata['STATION NAME'].values[0]) 
 
                     # Other station IDs - only add if not NA
-                    ids = ['USAF', 'WBAN', 'ICAO', 'NCDCID', 'COOPID', 'CALL', 'GHCN-DailyID']
+                    ids = ['USAF', 'WBAN', 'ICAO']
                     for i in ids:
                         if isinstance(station_metadata[i].values[0], (int, str, np.integer)):
                             ds.attrs[i] = station_metadata[i].values[0]
 
-                    # Sub-networks - only add if not NA
-                    if isinstance(station_metadata['STNTYPE'].values[0], str):
-                        ds.attrs['Networks'] = station_metadata['STNTYPE'].values[0]
+                    # # Sensor heights
+                    # if station_metadata['Anemometer_elev'].isnull().all():
+                    #     ds = ds.assign_attrs(anemometer_height_m = np.nan)
+                    # else:
+                    #     anemometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Anemometer_elev'].astype(float)).round(2)
+                    #     ds = ds.assign_attrs(anemometer_height_m = anemometer_height.values[0])
 
-                    # Sensor heights
-                    if station_metadata['Anemometer_elev'].isnull().all():
-                        ds = ds.assign_attrs(anemometer_height_m = np.nan)
-                    else:
-                        anemometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Anemometer_elev'].astype(float)).round(2)
-                        ds = ds.assign_attrs(anemometer_height_m = anemometer_height.values[0])
-
-                    # TO DO: ELEVATION OR HEIGHT FROM STATION?
-                    if station_metadata['Barometer_elev'].isnull().all():
-                        ds = ds.assign_attrs(barometer_height_m = np.nan)
-                    else:
-                        barometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Barometer_elev'].astype(float)).round(2)
-                        ds = ds.assign_attrs(barometer_height_m = barometer_height.values[0])
+                    # # TO DO: ELEVATION OR HEIGHT FROM STATION?
+                    # if station_metadata['Barometer_elev'].isnull().all():
+                    #     ds = ds.assign_attrs(barometer_height_m = np.nan)
+                    # else:
+                    #     barometer_height = calc_clean._unit_elev_ft_to_m(station_metadata['Barometer_elev'].astype(float)).round(2)
+                    #     ds = ds.assign_attrs(barometer_height_m = barometer_height.values[0])
 
                     ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
@@ -665,8 +620,8 @@ def clean_asosawos(rawdir, cleandir):
                     # Data source
                     if "data_source" in ds.keys():
                         ds['data_source'].attrs['long_name'] = "source_of_data"
-                        ds['data_source'].attrs['flag_values'] = "6 7"
-                        ds['data_source'].attrs['flag_meanings'] = "ASOSAWOS ASOSAWOS_merged_with_USAF_surface_hourly" 
+                        ds['data_source'].attrs['flag_values'] = "1 2 3 4 5 6 7 8 A B C D E F G H I J K L M N O 9"
+                        ds['data_source'].attrs['flag_meanings'] = "See QA/QC csv for network." 
 
                     # # Reorder variables
                     # In following order:
@@ -701,6 +656,7 @@ def clean_asosawos(rawdir, cleandir):
                 
                 else:
                     try:
+                        print(ds)
                         filename = station+".nc" # Make file name
                         filepath = cleandir+filename # Write file path
                         print(filepath) # For testing
@@ -728,13 +684,13 @@ def clean_asosawos(rawdir, cleandir):
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"errors_asosawos_{}.csv".format(end_api))
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"errors_otherisd_{}.csv".format(end_api))
 
 # Run function
 if __name__ == "__main__":
-    rawdir, cleandir, qaqcdir = get_file_paths("ASOSAWOS")
-    merge_station_lists(key_asosawos, key_isd, cleandir)
-    clean_asosawos(rawdir, cleandir)
+    rawdir, cleandir, qaqcdir = get_file_paths("OtherISD")
+    clean_otherisd(rawdir, cleandir)
+    print(cleandir)
 
 
     # # # # Testing:
