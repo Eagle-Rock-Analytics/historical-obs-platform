@@ -18,8 +18,6 @@ NULL,MADIS,,https://developers.synopticdata.com/about/qc/
 7////,ASOSAWOS,,https://www.weather.gov/media/asos/aum-toc.pdf
 M,CDEC,,https://wrcc.dri.edu/cgi-bin/wea_listex.pl?flags
 M,CIMIS,missing,
-R,CIMIS,far out of historical limits,
-Y,CIMIS,moderately out of historical limits,
 999999,MADIS,,https://madis-data.ncep.noaa.gov/raobdump.f
 MM,MARITIME,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/measdes.shtml
 9999.0,MARITIME,historical data,https://www.ndbc.noaa.gov/measdes.shtml
