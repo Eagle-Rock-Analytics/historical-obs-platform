@@ -509,7 +509,7 @@ def clean_asosawos(rawdir, cleandir):
                         ds['ps'].attrs['standard_name'] = "air_pressure"
                         ds['ps'].attrs['units'] = "Pa"
                         ds['ps'].attrs['ancillary_variables'] = "ps_qc ps_altimeter ps_altimeter_qc" # List other variables associated with variable (QA/QC)
-                        ds['tas'].attrs['comment'] = "Converted from hPa to Pa."
+                        ds['ps'].attrs['comment'] = "Converted from hPa to Pa."
 
                         # Delete sea level pressure if station pressure included.
                         if 'psl' in ds.keys():
