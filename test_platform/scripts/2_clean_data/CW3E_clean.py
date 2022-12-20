@@ -203,7 +203,7 @@ def clean_cw3e(rawdir, cleandir):
                         ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0]) 
 
                         # Sensor heights - TO DO: Waiting on CW3E response.
-                        ds = ds.assign_attrs(barometer_height_m = np.nan)
+                        ds = ds.assign_attrs(barometer_elev_m = np.nan)
                         ds = ds.assign_attrs(pyranometer_height_m = np.nan)
                         ds = ds.assign_attrs(wind_vane_height_m = np.nan)
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
