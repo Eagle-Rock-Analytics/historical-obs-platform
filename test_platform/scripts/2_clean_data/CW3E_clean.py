@@ -6,16 +6,15 @@ Approach:
 (2) Converts station metadata to standard format, with unique identifier
 (3) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
 (4) Converts missing data to standard format
-(5) Tracks existing qa/qc flag for review
-(6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
+(5) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
 Inputs: Raw data for the network's stations, with each csv file representing data for one station either throughout time (HourlyData_Full.txt), 
 or for a given day (current year's data).
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
-Note: one station, Lower Bath House, has an entirely different data structure and file format and is not included in MADIS metadata. 
+Notes: 
+1) One station, Lower Bath House, has an entirely different data structure and file format and is not included in MADIS metadata. 
 Data is available from 04/23/2021-11/18/2021. At this time this script does not clean this file, but it could be included in future rounds of cleaning.
-
+2) This dataset does not have QA/QC flags.
 """
 
 # Step 0: Environment set-up
@@ -203,7 +202,7 @@ def clean_cw3e(rawdir, cleandir):
                         # Station name
                         ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0]) 
 
-                        # Sensor heights - TO DO: NEED TO EMAIL CW3E
+                        # Sensor heights - TO DO: Waiting on CW3E response.
                         ds = ds.assign_attrs(barometer_height_m = np.nan)
                         ds = ds.assign_attrs(pyranometer_height_m = np.nan)
                         ds = ds.assign_attrs(wind_vane_height_m = np.nan)
