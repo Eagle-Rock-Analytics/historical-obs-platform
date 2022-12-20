@@ -13,8 +13,9 @@ Inputs: Raw data for ASOS and AWOS stations, with each file representing a month
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
-Removed variables are not saved as removedvars.csv, due to the large number of variables available.
+Removed variables are not saved as removedvars.csv, due to the large number of variables available. These are documented in the ISD format document.
 See ISD format document for list of available variables.
+The QA/QC flag dictionary has been manually formatted and uploaded to the QAQC folder for ASOS/AWOS data.
 """
 
 # Step 0: Environment set-up
@@ -432,6 +433,9 @@ def clean_asosawos(rawdir, cleandir):
                         ds.attrs['Networks'] = station_metadata['STNTYPE'].values[0]
 
                     # Sensor heights
+                    
+                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    
                     if station_metadata['Anemometer_elev'].isnull().all():
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
                     else:

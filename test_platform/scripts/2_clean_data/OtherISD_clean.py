@@ -13,8 +13,9 @@ Inputs: Raw data for ISD stations, with each file representing a month of a year
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
-Removed variables are not saved as removedvars.csv, due to the large number of variables available.
+Removed variables are not saved as removedvars.csv, due to the large number of variables available. These are documented in the ISD format document.
 See ISD format document for list of available variables.
+The QA/QC flag dictionary has been manually formatted and uploaded to the QAQC folder for ASOS/AWOS data.
 """
 
 # Step 0: Environment set-up
@@ -387,9 +388,10 @@ def clean_otherisd(rawdir, cleandir):
                             ds.attrs[i] = station_metadata[i].values[0]
 
                     # # Sensor heights
+                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     ds = ds.assign_attrs(anemometer_height_m = 1.5) # As per p. 99 of ISD manual.
-                    ds = ds.assign_attrs(barometer_height_m = np.nan) # To do: email to double check? Not in manual seemingly.
-                
+                    ds = ds.assign_attrs(barometer_elev_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    
                     ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
                     # Update dimensions and coordinates
