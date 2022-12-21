@@ -340,7 +340,7 @@ def clean_cimis(rawdir, cleandir):
                         ds['tas_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
                         ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
 
-                    ds['tas'].attrs['comment'] = "Converted from Fahrenheit to Kelvin."
+                    ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
 
                 # ps: surface air pressure (Pa)
                 # No pressure sensors in this dataset.
@@ -376,7 +376,7 @@ def clean_cimis(rawdir, cleandir):
                         ds['pr_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                  
                         ds['pr'].attrs['ancillary_variables'] = "pr_qc" # List other variables associated with variable (QA/QC)
                     
-                    ds['pr'].attrs['comment'] = "Accumulated precipitation. Converted from inches to mm."
+                    ds['pr'].attrs['comment'] = "Accumulated precipitation."
                 
                                 
                 # hurs: relative humidity (%)
@@ -427,8 +427,6 @@ def clean_cimis(rawdir, cleandir):
                         ds['sfcWind_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."                 
                         ds['sfcWind'].attrs['ancillary_variables'] = "sfcWind_qc" # List other variables associated with variable (QA/QC)
                     
-                    ds['sfcWind'].attrs['comment'] = "Converted from mph to m/s."
-
                 
                 # sfcWind_dir: wind direction
                 if "Wind Direction (0-360)" in ds.keys(): # No conversions needed, do not make raw column.
