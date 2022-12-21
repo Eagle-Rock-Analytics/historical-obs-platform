@@ -239,12 +239,12 @@ def clean_cimis(rawdir, cleandir):
                 ds = ds.assign_attrs(station_name = station_metadata['Name'].values[0]) 
 
                 # Sensor heights
-                ds = ds.assign_attrs(pyranometer_height_m = 2)
-                ds = ds.assign_attrs(wind_vane_height_m = 2)
-                ds = ds.assign_attrs(anemometer_height_m = 2)
+                ds = ds.assign_attrs(pyranometer_height_m = 2.)
+                ds = ds.assign_attrs(wind_vane_height_m = 2.)
+                ds = ds.assign_attrs(anemometer_height_m = 2.)
                 ds = ds.assign_attrs(air_temperature_height_m = 1.5)
                 ds = ds.assign_attrs(humidity_height_m = 1.5)
-                ds = ds.assign_attrs(rain_gauge_height_m = 1)
+                ds = ds.assign_attrs(rain_gauge_height_m = 1.)
 
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
