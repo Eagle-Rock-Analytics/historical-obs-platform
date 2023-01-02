@@ -30,6 +30,7 @@ from io import BytesIO, StringIO
 import smart_open
 import traceback
 import botocore
+from random import sample
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -110,6 +111,9 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
 def parse_madis_headers(file):
     url = "s3://{}/{}".format(bucket_name, file)
     index = 0
+    # If no data available for station, both of these variables will remain as NaN
+    units = np.nan
+    first_row = np.nan
     for line in smart_open.open(url, mode = 'rb'):
         if index>10:
             return
@@ -179,6 +183,7 @@ def parse_madis_headers(file):
 
 # Function: take heads, read csv into pandas db and clean.
 def parse_madis_to_pandas(file, headers, errors, removedvars):
+
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1)
@@ -266,7 +271,11 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
             id = re.sub('.csv', "", id) # Remove file extension.
             if id not in ids:
                 ids.append(id)
-    
+
+        # Get sensor metadata from QA/QC folder
+        sensor_filepath = "s3://wecc-historical-wx/3_qaqc_wx/{}/sensorlist_{}.csv".format(network, network)
+        sensor_data = pd.read_csv(smart_open.smart_open(sensor_filepath))
+        
     except Exception as e: # If unable to read files from cleandir, break function.
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
@@ -278,7 +287,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
         #for i in ids: # For each station (full run)
         #for i in ids[0:5]: # Subsample for testing merge
-        for i in ids[-10:]: # Subsample for testing errors    
+        #for i in ids[-20:]: # Subsample for testing errors    
+        for i in sample(ids, 10):
+        #for i in ["CEZC2"]:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -286,13 +297,25 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     # Iterate through files to clean. Each file represents a station's data.
                 for file in stat_files:
                     try:
+                        skip = 0
                         header = parse_madis_headers(file)
+                        # If units are NaN, this signifies an empty dataframe. Write to errors, but do not clean station.
+                        if isinstance(header['units'], float) and np.isnan(header['units']):
+                            print(file, "No data in file")
+                            errors['File'].append(file)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("No data available for station. Cleaning stage skipped.")
+                            stat_files.remove(file) # Remove from file list
+                            continue
                         headers.append(header)  
                     except Exception as e:
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
                         errors['Error'].append(e)
                         continue
+
+                if not stat_files: # If no files left in list
+                    continue
             
                 # If more than one station, metadata should be identical. Test this.
                 if(all(a == headers[0] for a in headers[1:])):
@@ -331,6 +354,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 df_stat = pd.concat(dfs)
 
                 # Deal with units
+
                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
                 varstokeep = list(df_stat.columns)
                 units = units[units.column.isin(varstokeep)] # Only keep non-removed cols
@@ -388,7 +412,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 ds = ds.assign_attrs(station_name = station_name.replace("\n", ""))
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
-                
                 # Update dimensions and coordinates
 
                 # Add dimensions: station ID and time.
@@ -427,12 +450,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 # Update dimension and coordinate attributes.
             
                 # Convert column to datetime (and remove any rows that cannot be coerced).
-                print(file)
-                print(ds['time'].values[0:5])
                 ds['time'] = pd.to_datetime(ds['time'], utc = True) # Convert from string to incorrect time format.
                 ds['time'] = pd.to_datetime(ds['time'], unit = 'ns') # Fix time format.
-                print(ds['time'].values[0:5])
-                continue
                 
                 # Update attributes.
                 ds['time'].attrs['long_name'] = "time"
@@ -462,6 +481,80 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 ds['elevation'].attrs['units'] = "meters"
                 ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
                 ds['elevation'].attrs['comment'] = "Converted from feet to meters."
+                
+
+                # Update sensor metadata
+                station_sensors = sensor_data.loc[sensor_data.STID==i] # May be multiple rows if sensors added/removed over time.
+                sensorheights = station_sensors[[x for x in station_sensors.columns if 'position' in x]].drop_duplicates() # Get all position columns, dropping duplicate rows
+
+                # If sensor heights is completely NA, ignore.
+                if sensorheights.isnull().all().all():
+                    ds = ds.assign_attrs(anemometer_height_m = np.nan)
+                    ds = ds.assign_attrs(air_temperature_height_m = np.nan)
+                    ds = ds.assign_attrs(barometer_elevation_m = np.nan)
+
+                else:
+
+                    # If there is more than one row and the values for sensor heights change between rows, 
+                    # TO DO: DECIDE WHAT TO DO!
+                    if len(sensorheights)>1:
+                        print("Multiple sensor heights! Resolve")
+                        break
+
+                    
+                    # Wind speed & direction (m)
+                    if 'wind_speed_1_position' in sensorheights.columns and True in sensorheights.wind_speed_1_position.notnull().values: # If any value not null
+                        sensor_height = sensorheights.wind_speed_1_position.dropna().unique() # Get all unique values from column.
+                        ds = ds.assign_attrs(anemometer_height_m = float(sensor_height[0]))
+                    else:
+                        ds = ds.assign_attrs(anemometer_height_m = np.nan)
+                    
+                        
+                    # Air temperature (m)
+                    if 'air_temp_1_position' in sensorheights.columns and True in sensorheights.air_temp_1_position.notnull().values: # If any value not null
+                        sensor_height = sensorheights.air_temp_1_position.dropna().unique() # Get all unique values from column.
+                        ds = ds.assign_attrs(air_temperature_height_m = float(sensor_height[0]))   
+                    else:
+                        ds = ds.assign_attrs(air_temperature_height_m = np.nan)
+                    
+                        
+                    # Barometer elevation (convert from height)
+                    if 'pressure_1_position' in sensorheights.columns and True in sensorheights.pressure_1_position.notnull().values: # If any value not null
+                        sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
+                        barometer_elev = sensor_height[0]+float(ds['elevation'].values[0])
+                        ds = ds.assign_attrs(barometer_elevation_m = barometer_elev)
+                        
+                    else:
+                        ds = ds.assign_attrs(barometer_elevation_m = np.nan)
+
+                    # Any other sensors with values
+                    sensorheights = sensorheights.dropna(axis="columns", how="all") # Drop all-na columns
+                    
+                    # For precip columns, get single value
+                    precip_heights = sensorheights[[col for col in sensorheights.columns if 'precip' in col]]
+                    if not precip_heights.isnull().values.all(): # if any value not NaN
+                        if len(precip_heights.columns)>1: # If multiple rainfall columns
+                            if precip_heights.nunique(axis = 1).eq(1).all(): # If all values the same in row
+                                ds = ds.assign_attrs(rain_gauge_height_m = float(precip_heights.values[0][0]))
+                            else:
+                                print("Competing rain gauge height values")
+                                exit() # To do!
+                        else:
+                            ds = ds.assign_attrs(rain_gauge_height_m = float(precip_heights.values[0]))
+                    
+                    for col in sensorheights.columns:
+                        if col not in ['altimeter_1_position', 'wind_speed_1_position', 'pressure_1_position']:
+
+                            sensor_height = sensorheights[col].dropna().unique() 
+                            if col == 'relative_humidity_1_position':
+                                ds = ds.assign_attrs(humidity_height_m = float(sensor_height[0]))
+                            if col == 'dew_point_temperature_1_position':
+                                ds = ds.assign_attrs(dew_point_temperature_height_m = float(sensor_height[0]))
+                            if col == 'solar_radiation_1_position':
+                                ds = ds.assign_attrs(pyranometer_height_m = float(sensor_height[0]))
+                            if col == 'wind_direction_1_position':
+                                ds = ds.assign_attrs(wind_vane_height_m = float(sensor_height[0]))
+
                 
                 # Update variable attributes and do unit conversions
                 
@@ -605,14 +698,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 # precip_accum_set_1 # Precipitation since last record.
                 # precip_accum_one_hour_set_1 # Precipitation in last hour.
 
-                # At this stage, no infilling. So we will keep all columns and simply rename them.
-                # Remove any column if completely empty.
-                precip_cols = [elem for elem in ds.keys() if "precip" in elem]
-                for col in precip_cols:
-                    if np.isnan(ds[col].values).all():
-                        #print("Dropping {}".format(col))
-                        ds = ds.drop(col)
-
+                # At this stage, no infilling. So we will keep all columns with data and simply rename them.
+                
                 # Reformat remaining columns
                 if "precip_accum_24_hour_set_1" in ds.keys():
                     ds = ds.rename({'precip_accum_24_hour_set_1': 'pr_24h'})
@@ -649,6 +736,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
                     if 'precip_accum_one_hour_set_1_qc' in ds.keys():
                         ds = ds.rename({'precip_accum_one_hour_set_1_qc': 'pr_1h_qc'})
+
+                if "precip_accum_five_minute_set_1" in ds.keys():
+                    ds = ds.rename({'precip_accum_five_minute_set_1': 'pr_5min'})
+                    ds['pr_5min'].attrs['long_name'] = "5_minute_precipitation_amount"
+                    ds['pr_5min'].attrs['units'] = "mm/5 min"
+                    ds['pr_5min'].attrs['comment'] = "Precipitation accumulated in previous 5 minutes."
+
+                    if 'precip_accum_five_minute_set_1_qc' in ds.keys():
+                        ds = ds.rename({'precip_accum_five_minute_set_1_qc': 'pr_5min_qc'})
 
                 # Reformat qc columns
                 if "pr_24h_qc" in ds.keys():
@@ -714,6 +810,22 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         ds['pr_1h_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
                         
                         ds['pr_1h'].attrs['ancillary_variables'] = "pr_1h_qc" # List other variables associated with variable (QA/QC)
+
+                if "pr_5min_qc" in ds.keys():
+                    flagvals = ds['pr_5min_qc'].values.tolist()[0]
+                    flagvals = [x for x in flagvals if pd.isnull(x) == False] # Remove nas
+                    flagvals = list(np.unique(flagvals)) # Get unique values
+                    flagvals = list(np.unique([split_item for item in flagvals for split_item in str(item).split(";")])) # Split any rows with multiple flags and run unique again.
+                
+                    if flagvals == ['nan']: # This should not occur, but leave in as additional check.
+                        #print("Flag value is {}".format(flagvals)) # For testing.
+                        ds = ds.drop("pr_5min_qc")
+                    else:
+                        flagvals = [ele.replace(".0", "") for ele in flagvals] # Reformat to match csv.
+                        ds['pr_5min_qc'].attrs['flag_values'] = flagvals # Generate values from unique values from dataset.
+                        ds['pr_5min_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
+                        
+                        ds['pr_5min'].attrs['ancillary_variables'] = "pr_5min_qc" # List other variables associated with variable (QA/QC)
 
                 
                 # Set ancillary variables based on other precip cols
@@ -894,8 +1006,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 ds = ds[new_index]
         
                 print(ds) # For testing
+                continue
 
             except Exception as e:
+                print(traceback.format_exc())
                 print(e)
                 errors['File'].append(stat_files)
                 errors['Time'].append(end_api)
@@ -976,7 +1090,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
    
 # # Run functions
 if __name__ == "__main__":
-    network = "LOXWFO"
+    network = "CNRFC"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
