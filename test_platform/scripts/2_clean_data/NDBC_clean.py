@@ -266,7 +266,7 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(citation = '')
                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
                 ds = ds.assign_attrs(station_name = station_id)
-                ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
+                ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station
 
                 # Add dimensions and coordinates
                 ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time
@@ -317,6 +317,45 @@ def clean_buoys(rawdir, cleandir, network):
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
 
+                # Add sensor heights, grab from NDBC
+                # defaulting to nan, as we are assuming most stations will only have some of these sensor heights available
+                ds = ds.assign_attrs(thermometer_height_m = np.nan)
+                ds = ds.assign_attrs(barometer_height_m = np.nan)
+                ds = ds.assign_attrs(anemometer_height_m = np.nan)
+                try:
+                    if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0: # station exists in NDBC list
+                        print('station is in list for sensor heights') # testing
+                        idx = elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values
+
+                        # air temperature
+                        if (elevs_df['Air_Temp_elevation'].iloc[idx].values) != 'NA': # air temp sensor has value
+                            print('thermometer height has non-zero value') # testing
+                            ds.attrs['thermometer_height_m'] = float(elevs_df['Air_Temp_Elevation'].iloc[idx])
+                        else:
+                            print('thermometer height has nan value') # testing
+
+                        # air pressure
+                        if (elevs_df['Barometer_Elevation'].iloc[idx].values) != 'NA': # air pressure sensor has value
+                            print('barometer height has non-zero value') # testing
+                            ds.attrs['barometer_height_m'] = float(elevs_df['Barometer_Elevation'].iloc[idx])
+                        else:
+                            print('barometer height has nan value') # testing
+
+                        # wind
+                        if (elevs_df['Anemometer_Elevation'].iloc[idx].values) != 'NA': # wind sensor has value
+                            print('aneomemeter height has non-zero value') # testing
+                            ds.attrs['anemometer_height_m'] = float(elevs_df['Anemometer_Elevation'].iloc[idx])
+                        else:
+                            print('anemometer height has nan value') # testing
+                    else:
+                        # station does not exist in NDBC list but is in our station_list -- does this happen?
+                        print('This station is not in the sensor height list -- setting to NaN') # can delete, "setting to NaN" aka keeping default
+
+                except Exception as e:
+                    print(e)
+                    errors['File'].append(file)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(e)
 
                 # Update dimension and coordinate attributes
                 ds['time'] = pd.to_datetime(ds['time'].values, utc=True)
@@ -355,6 +394,8 @@ def clean_buoys(rawdir, cleandir, network):
                     ds['tas'].attrs['standard_name'] = 'air_temperature'
                     ds['tas'].attrs['units'] = 'degree_Kelvin'
                     ds['tas'].attrs['comment'] = 'Converted from degC to K'
+
+
 
                 # ps: surface air pressure (Pa)
                 if 'ps' in ds.keys():
