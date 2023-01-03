@@ -9,6 +9,7 @@ from SCANSNOTEL_pull import get_scan_station_data
 from OtherISD_pull import get_wecc_stations, get_otherisd_data_ftp
 from MADIS_pull import get_madis_metadata, get_madis_station_csv
 from CIMIS_pull import get_cimis_update_ftp
+from HADS_pull import get_hads_update
 from pull_qa import retry_downloads
 import boto3
 import config
@@ -103,6 +104,7 @@ def update_asosawos():
 
 # Update script: CIMIS
 # No retry download method available.
+# This may overwrite the most recent if pull is repeated more frequently than monthly.
 def update_cimis():
     network = "CIMIS"
     directory = f'1_raw_wx/{network}/'
@@ -112,6 +114,16 @@ def update_cimis():
         get_cimis_update_ftp(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
     else:
         print(f"{network} station files up to date.")
+
+# Update script: HADS
+def update_hads():
+    network = "HADS"
+    directory = f'1_raw_wx/{network}/'
+    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.gz')
+    
+    # if last_time_mod < download_date:
+    #     print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+    get_hads_update(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
 
 # To do:
 # CW3E needs the download date methods to be updated to work correctly here
@@ -124,5 +136,5 @@ if __name__ == "__main__":
     #update_SNOTEL()
     #update_otherisd()
     #update_asosawos()
-    update_cimis()
-
+    #update_cimis()
+    update_hads()

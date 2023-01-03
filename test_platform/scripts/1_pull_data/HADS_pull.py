@@ -242,6 +242,77 @@ def get_hads_dat(bucket_name, directory, start_date = None, get_all = True):
 
     return
 
+# Function: query NCEI server for HADS data and download zipped files.
+# Run this to get updated data.
+# Inputs:
+# bucket_name: name of AWS bucket
+# directory: folder path within bucket
+# start_date: YYYY-MM-DD (optional)
+# end_date: YYYY-MM-DD (optional)
+def get_hads_update(bucket_name, directory, start_date = None, end_date = None):
+    # Set up error handling
+    errors = {'Date':[], 'Time':[], 'Error':[]}
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
+    # Set up AWS to write to bucket.
+    s3 = boto3.client('s3')
+
+    
+    # Set up filtering by time.
+    if start_date is None:
+        if end_date is None:
+            years = range(1997, int(datetime.now().year)+1)
+        else:
+            years = range(1997, int(end_date[0:4])+1)
+            end_day = datetime.strptime(end_date, '%Y-%m-%d').strftime('%j')
+    else:
+        start_year = int(start_date[0:4])
+        start_day = datetime.strptime(start_date, '%Y-%m-%d').strftime('%j')
+        if end_date is None:
+            years = range(start_year, int(datetime.now().year)+1)
+        else:
+            years = range(start_year, int(end_date[0:4])+1)
+            end_day = datetime.strptime(end_date, '%Y-%m-%d').strftime('%j')
+
+    
+    for i in years:
+        try:
+            yearurl = 'https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/{}/'.format(str(i))
+            links = get_file_links(yearurl)
+
+            days_to_download = list(range(0,367)) # To include leap years
+            if start_date is not None and i == start_year:
+                # Get rid of links before start date.
+                days_to_download = [x for x in days_to_download if x >= int(start_day)]
+                
+            if end_date is not None and i == int(end_date[0:4]):
+                # Get rid of links after end date.    
+                days_to_download = [x for x in days_to_download if x <= int(end_day)]
+            
+            # TO DO: filter file names by day
+            #for k, (link, date) in enumerate(links):
+            #    if link.split("/")[-1] in alreadysaved:
+
+
+            # # TO DO: Filter links by year of day
+
+            #         print(links)
+            #link_to_aws(links, bucket_name, directory)
+        except Exception as e:
+            print("Error in downloading year {}: {}". format(i, e))
+            errors['Date'].append(i)
+            errors['Time'].append(end_api)
+            errors['Error'].append(e)
+
+    # #Write errors to csv
+    # csv_buffer = StringIO()
+    # errors = pd.DataFrame(errors)
+    # errors.to_csv(csv_buffer)
+    # content = csv_buffer.getvalue()
+    # s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_hads_{}.csv".format(end_api))
+
+    return
+
 
 if __name__ == "__main__":
     get_hads_stations(wecc_terr, wecc_mar)
