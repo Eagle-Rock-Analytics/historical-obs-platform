@@ -1,12 +1,17 @@
+'''
+The following scripts query the HOMR metadata API and returns information about relevant stations.
+get_homr_metadata takes an NCDC ID and returns up to 6 tables with metadata information about the station.
+get_all_homr_ids returns a table with all NCDC IDs in WECC states and high-level metadata (e.g. location, state, network) for each station, saving this table to AWS
+get_all_homr_metadata reads in this table and queries all NCDC IDs in these states for detailed information, including sensor maintenance logs, obstructions
+and detailed remarks. These are saved as 6 tables, linked through the shared NCDC ID.
+'''
 # From https://www.ncei.noaa.gov/access/homr/api
-# Takes any of the following ids:
-#qid=[COOP|FAA|GHCND|GHCNMLT|ICAO|IGRA|NCDCSTNID|NWSLI|TRANS|WBAN|WMO]?:[a-z0-9]*
 
 # Returns four tables
 
 import requests
 import pandas as pd
-from io import StringIO
+from io import StringIO, BytesIO
 import boto3
 
 ## Set AWS credentials
@@ -43,25 +48,44 @@ def get_homr_metadata(id):
 
         # Split into 4 tables:
         # Names
-        names = pd.json_normalize(pandas["names"])
-        print(names)
-        exit()
+        names = pd.json_normalize(pandas["names"][0])
+        names.insert(loc=0, column='ncdcid', value=id)
             
-        # Identifiers & Platforms
-        # Location
-        # Remarks
-        # Updates
+        # Identifiers
+        identifiers = pd.json_normalize(pandas['identifiers'][0])
+        identifiers.insert(loc=0, column='ncdcid', value=id)
+        
+        # Platforms
+        if 'platforms' in pandas.columns:
+            platforms = pd.json_normalize(pandas['platforms'][0])
+            platforms.insert(loc=0, column='ncdcid', value=id)
+        else:
+            platforms = pd.DataFrame()
 
-        print(pandas)
-        print(pandas.columns)
-        exit()
-    #print(homr_metadata)
-    #print(homr_metadata.columns)
+        # Location
+        location = flatten_data(pandas['location'][0])
+        location = pd.json_normalize(location)
+        location.insert(loc=0, column='ncdcid', value=id)
+        
+        # Remarks
+        if 'remarks' in pandas.columns:
+            remarks = pd.json_normalize(pandas['remarks'][0])
+            remarks.insert(loc=0, column='ncdcid', value=id)
+        else:
+            remarks = pd.DataFrame()
+        
+        # Updates
+        if 'updates' in pandas.columns:
+            updates = pd.json_normalize(pandas['updates'][0])
+            updates.insert(loc=0, column='ncdcid', value=id)
+        else:
+            updates = pd.DataFrame()
+        
+    return names, identifiers, platforms, location, remarks, updates
 
 # get_homr_metadata("coop", "0467")
 
-
-def get_all_homr_ids():
+def get_all_homr_ids(bucket_name, savedir):
     # Function to iterate through all WECC states and save header HOMR metadata for all stations.
     # Saves homr_ids.csv to the QAQC folder in AWS.
 
@@ -82,15 +106,56 @@ def get_all_homr_ids():
 
     homr_df = pd.concat(dfs)
     # Save station list to AWS
-    savedir = "3_qaqc_wx/"
     
     csv_buffer = StringIO()
     homr_df.to_csv(csv_buffer, index = False)
     content = csv_buffer.getvalue()
     
-    s3_cl.put_object(Bucket="wecc-historical-wx", Body=content, Key=savedir+"homr_ids.csv")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir+"homr_ids.csv")
+
+def get_all_homr_metadata(bucket_name, savedir):
+    # initialize dfs
+    namedf = []
+    identifierdf = []
+    platformdf = []
+    locationdf = []
+    remarkdf = []
+    updatedf = []
+
+    # Read in homr_ids.csv
+    obj = s3_cl.get_object(Bucket=bucket_name, Key=savedir+"homr_ids.csv")
+    homr_ids = pd.read_csv(BytesIO(obj['Body'].read()))    
+    for i in homr_ids['ncdcStnId']:
+        names, identifiers, platforms, location, remarks, updates = get_homr_metadata(i)
+        namedf.append(names)
+        identifierdf.append(identifiers)
+        platformdf.append(platforms)
+        locationdf.append(location)
+        remarkdf.append(remarks)
+        updatedf.append(updates)
+
+    namedf = pd.concat(namedf)
+    identifierdf = pd.concat(identifierdf)
+    platformdf = pd.concat(platformdf)
+    locationdf = pd.concat(locationdf)
+    remarkdf = pd.concat(remarkdf)
+    updatedf = pd.concat(updatedf)
+        
+    # Save to AWS
+    for dic in [{'homr_name.csv': namedf}, {'homr_identifier.csv': identifierdf}, {'homr_platform.csv':platformdf}, {'homr_location.csv':locationdf}, {'homr_remark.csv':remarkdf}, {'homr_update.csv':updatedf}]:    
+        for key, val in dic.items():
+            
+            csv_buffer = StringIO()
+            val.to_csv(csv_buffer, index = False)
+            content = csv_buffer.getvalue()
+            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir+key)
+        
 
 if __name__ == "__main__":   
-    #get_all_homr_ids() # Only run periodically.
-    get_homr_metadata('20002078')
+    bucket_name = "wecc-historical-wx"
+    savedir = "3_qaqc_wx/HOMR-Metadata/"
+    
+    #get_all_homr_ids(bucket_name, savedir) # Only run periodically.
+    #get_homr_metadata('20027492') # Run for one station
+    get_all_homr_metadata(bucket_name, savedir) # Only run periodically.
     
