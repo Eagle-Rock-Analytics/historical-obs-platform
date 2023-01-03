@@ -97,7 +97,7 @@ def get_elevs(url):
     df = pd.concat([df, dftemp])
     df=df.reset_index(drop=True)
 
-#     Table 3 has 9 columns, but we only want the first 6.
+#   Table 3 has 9 columns, but we only want the first 6.
     tabletext = tables[2]
     columns = ["Station_ID", "Site_Elevation", "Air_Temp_Elevation", "Anemometer_Elevation", "Tide_Reference", "Barometer_Elevation"]
     table = tabletext.get_text().rsplit('CIRCLE',1)[1] # Remove headers.
@@ -145,7 +145,7 @@ def clean_buoys(rawdir, cleandir, network):
         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
         end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-        print('successfully grabbed {} files'.format(len(files))) # testing
+        print('Successfully grabbed {} files for {}'.format(len(files), network)) # testing
 
     except Exception as e: # If unable to read files from rawdir, break function
         print(e)
@@ -155,7 +155,8 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        for station in stations.sample(4): # SUBST FOR TESTING
+        # for station in stations.sample(4): # SUBST FOR TESTING
+        for station in ['46028']: # testing station that does have wx data
             station_metadata = station_file.loc[station_file['STATION_ID']==float(station)] ## FLAGGING HERE - need to add capability for non-numeric station_ids for maritime
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id) # testing
@@ -164,11 +165,11 @@ def clean_buoys(rawdir, cleandir, network):
 
             try:
                 stat_files = [k for k in files if station in k] # Gets list of files from the same station
-                print(stat_files)
+                print('{} has {} files available for cleaning.'.format(station_id, len(stat_files))) # useful, but can be deleted
 
                 if not stat_files: # If station has no files downloaded
-                    print('This station does not have any files downloaded to AWS at present. Several buoys do not record any meteorological observations.')
-                    errors['File'].append(i)
+                    print('{} does not have any raw data downloaded to AWS at present. Several buoys do not record any meteorological observations.'.format(station_id)) ## NEED TO REMOVE STATIONS THAT DONT HAVE ANY WX DATA
+                    errors['File'].append(station_id) # confirm behavior here
                     errors['Time'].append(end_api)
                     errors['Error'].append('No raw data found for this station.')
                     continue # Skip this station
@@ -178,13 +179,7 @@ def clean_buoys(rawdir, cleandir, network):
                         obj = s3.Object(bucket_name, file)
 
                         with gzip.GzipFile(fileobj=obj.get()["Body"]) as gzipped_txt_file:
-                            # Modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
-                            col_names = ['year', 'month', 'day', 'hour', 'minute',
-                                         'sfcWind_dir', 'sfcWind', 'sfcWind_gust',
-                                         'wave_height', 'dominant_wave_period', 'average_wave_period', 'dominant_wave_dir',
-                                         'ps', 'tas', 'water_temperature', 'tdps',
-                                         'visibility', '3hr_pressure_tendency', 'water_level_above_mean']
-
+                            # modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
                             col_units = {'sfcWind_dir': 'degrees',   # degT is "degrees true" for wind (might just be literally degrees, need to confirm)
                                          'sfcWind': 'm/s',
                                          'sfcWind_gust': 'm/s',
@@ -201,37 +196,88 @@ def clean_buoys(rawdir, cleandir, network):
                                          'water_level_above_mean': 'ft',
                                          'time': None}
 
-                            df = pd.read_csv(gzipped_txt_file, comment='#', na_values='MM', names=col_names, sep='\s+')
+                            df = pd.read_csv(gzipped_txt_file, sep='\s+', low_memory=False)
 
-                            # Convert time to datetime object
+                            # older files are missing the minute column
+                            if {'mm'}.issubset(df.columns) == False:
+                                df.insert(loc=4, column='mm', value='00') # setting to 00, but could also be NaN/99?
+
+                            # fix year label mismatch
+                            yr_raw = str(df.iloc[1][0]).split('.')[0]
+                            if len(yr_raw) != 4: # older files have a two-digit year
+                                if df.iloc[1][0] >= 80: # 1980-1999
+                                    df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('19', x))
+                                    df = df.iloc[:, 1:]
+
+                                elif df.iloc[1][0][0] <= 23: # 2000-present
+                                    df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('20', x))
+                                    df = df.iloc[:, 1:]
+
+                            if (df.columns[0][0].isdigit()) == False: # newer files have a 2-line header with comments
+                                df.drop([0], inplace=True)
+                                df.rename(columns={'#YY':'YYYY'}, inplace=True)
+
+                            # fix variable label mismatch
+                            if {'WD', 'BAR'}.issubset(df.columns) == True: # older files have different var names
+                                df.rename(columns={'WD':'WDIR', 'BAR':'PRES'}, inplace=True)
+
+                            df['WDIR'] = pd.to_numeric(df['WDIR'])
+                            df['WSPD'] = pd.to_numeric(df['WSPD'])
+                            df['PRES'] = pd.to_numeric(df['PRES'])
+                            df['ATMP'] = pd.to_numeric(df['ATMP'])
+                            df['DEWP'] = pd.to_numeric(df['DEWP'])
+
+                            # standardize NA codes -- CHECK ON THIS
+                            try:
+                                df.replace(999, np.nan, inplace=True) # sfcWind_dir
+                                df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                df.replace(99.0, np.nan, inplace=True) # sfcWind
+                                df.replace(9999.0, np.nan, inplace=True) # ps
+
+                                # shouldn't have to do this twice, but not working without it
+                                df.replace('999', np.nan, inplace=True) # sfcWind_dir
+                                df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                df.replace('99.0', np.nan, inplace=True) # sfcWind
+                                df.replace('9999.0', np.nan, inplace=True) # ps
+
+                            except Exception as e:
+                                print(e) # check to see nan standardization worked as desired
+
+                            # convert date to datetime
+                            df.rename(columns={'YYYY':'year', 'MM':'month', 'DD':'day', 'hh':'hour', 'mm':'minute'}, inplace=True)
                             df['time'] = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']], utc=True)
                             df = df.drop(columns=['year', 'month', 'day', 'hour', 'minute'])
-                            # df['units'] = col_units
 
-                            # Standardize NA codes
-                            try:
-                                df = df.replace(999.0, np.nan) # sfcWind_dir, tas, tdps
-                                df = df.replace(99.0, np.nan) # sfcWind
-                                df = df.replace(9999.0, np.nan) # ps
-                            except Exception as e:
-                                print(e) # Check to see nan standardization worked as desired
+                            # time filter: remove any rows before Jan 01 1980 and after August 30 2022
+                            df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
 
-                            # Drop unnecessary vars
-                            cols_to_drop = ['sfcWind_gust','wave_height', 'dominant_wave_period', 'average_wave_period',
-                                            'dominant_wave_dir', 'water_temperature', 'visibility', '3hr_pressure_tendency',
-                                            'water_level_above_mean']
-                            df = df.drop(columns = cols_to_drop)
+                            # drop variables if not desired variable
+                            cols_to_keep = ['WDIR', 'WSPD', 'PRES', 'ATMP', 'DEWP', 'time']
+                            df = df[df.columns.intersection(cols_to_keep)]
 
-                            # If more than one file per station, merge files together
-                            # Will require additional testing
-                            if df_stat is None:
-                                df_stat = df
-                                del(df) # Deleting for memory
+                            df.rename(columns={'WDIR':'sfcWind_dir',
+                                              'WSPD':'sfcWind',
+                                              'PRES':'ps',
+                                              'ATMP':'tas',
+                                              'DEWP':'tdps'}, inplace=True)
 
-                            else:
-                                if len(stat_files) > 1: # If there is mroe than one file per station
-                                    df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
-                            # print(df.head) # testing
+                            # if more than one file per station, merge files together
+                            # if df_stat is None:
+                            #     df_stat = df
+                            #     del(df) # deleting for memory
+                            #
+                            # else:
+                            if len(stat_files) > 1: # if there is more than one file per station
+                                df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
+
+                            print(df_stat.head)
+
+                            # drop any column that does not have any valid (non-nan data)
+                            df_stat = df_stat.dropna(axis=1, how='all')
+                            if df_stat.empty == True:
+                                print('Station {} does not include any meteorological data throughout its current reporting, station not cleaned.'.format(station_id))
+                                continue # skip this station
+                                ## NEED TO REMOVE FROM STATION LIST?
 
                     except Exception as e:
                         print(e)
@@ -286,7 +332,6 @@ def clean_buoys(rawdir, cleandir, network):
                     else:
                         print('This station is not in the station list -- please check') # Can delete
                 except Exception as e:
-                    print(e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
@@ -308,11 +353,11 @@ def clean_buoys(rawdir, cleandir, network):
                             # print('elevation is NA') # testing
                             ds['elevation'] = np.nan # Some stations have NA in for elevation
                     else:
-                        print('This station is not in the elevation list -- setting to NaN') # Can delete
+                        print('This station is not in the elevation list -- setting to NaN') # Useful for testing, can delete
                         ds['elevation'] = np.nan # Handles if station is not in the list above
 
                 except Exception as e:
-                    print(e)
+                    # print(e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
@@ -322,37 +367,31 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(thermometer_height_m = np.nan)
                 ds = ds.assign_attrs(barometer_height_m = np.nan)
                 ds = ds.assign_attrs(anemometer_height_m = np.nan)
+
                 try:
                     if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0: # station exists in NDBC list
-                        print('station is in list for sensor heights') # testing
+                        # print('station is in list for sensor heights') # testing
                         idx = elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values
 
                         # air temperature
-                        if (elevs_df['Air_Temp_elevation'].iloc[idx].values) != 'NA': # air temp sensor has value
-                            print('thermometer height has non-zero value') # testing
+                        if (elevs_df['Air_Temp_Elevation'].iloc[idx].values) != 'NA': # air temp sensor has value
+                            # print('thermometer height has non-zero value') # testing
                             ds.attrs['thermometer_height_m'] = float(elevs_df['Air_Temp_Elevation'].iloc[idx])
-                        else:
-                            print('thermometer height has nan value') # testing
 
                         # air pressure
                         if (elevs_df['Barometer_Elevation'].iloc[idx].values) != 'NA': # air pressure sensor has value
-                            print('barometer height has non-zero value') # testing
+                            # print('barometer height has non-zero value') # testing
                             ds.attrs['barometer_height_m'] = float(elevs_df['Barometer_Elevation'].iloc[idx])
-                        else:
-                            print('barometer height has nan value') # testing
 
                         # wind
                         if (elevs_df['Anemometer_Elevation'].iloc[idx].values) != 'NA': # wind sensor has value
-                            print('aneomemeter height has non-zero value') # testing
+                            # print('aneomemeter height has non-zero value') # testing
                             ds.attrs['anemometer_height_m'] = float(elevs_df['Anemometer_Elevation'].iloc[idx])
-                        else:
-                            print('anemometer height has nan value') # testing
                     else:
                         # station does not exist in NDBC list but is in our station_list -- does this happen?
                         print('This station is not in the sensor height list -- setting to NaN') # can delete, "setting to NaN" aka keeping default
 
                 except Exception as e:
-                    print(e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
@@ -394,8 +433,6 @@ def clean_buoys(rawdir, cleandir, network):
                     ds['tas'].attrs['standard_name'] = 'air_temperature'
                     ds['tas'].attrs['units'] = 'degree_Kelvin'
                     ds['tas'].attrs['comment'] = 'Converted from degC to K'
-
-
 
                 # ps: surface air pressure (Pa)
                 if 'ps' in ds.keys():
@@ -447,6 +484,11 @@ def clean_buoys(rawdir, cleandir, network):
                 #         next
 
                 # Need to consider what to do if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+                ## DELETE STATIONS THAT DO NOT HAVE ANY WX DATA
+
+                # othercols = [col for col in df.columns if col not in coltokeep and col not in removedvars]
+                # removedvars += othercols # Add any new columns from drop list to removedvars, to save later.
+                # df = df.drop(columns=[col for col in df if col not in coltokeep]) # Drop all columns not in coltokeep list.
 
                 # Reorder variables
                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
@@ -457,7 +499,6 @@ def clean_buoys(rawdir, cleandir, network):
                 print(ds) # Testing
 
             except Exception as e:
-                print(e)
                 errors['File'].append(file)
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
@@ -474,7 +515,6 @@ def clean_buoys(rawdir, cleandir, network):
                 try:
                     filename = station_id + ".nc" # Make file name
                     filepath = cleandir + filename # Writes file path
-                    print(filepath) # for testing
 
                     # Write locally
                     ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
@@ -491,6 +531,13 @@ def clean_buoys(rawdir, cleandir, network):
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
                     continue
+
+        # # Save list of removed variables to AWS
+        # removedvars = pd.DataFrame(cols_to_drop, columns = ['Variable'])
+        # csv_buffer = StringIO()
+        # removedvars.to_csv(csv_buffer)
+        # content = csv_buffer.getvalue()
+        # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"removedvars.csv")
 
     # Write errors to csv
     finally:
@@ -515,3 +562,4 @@ if __name__ == "__main__":
 # 2. Rename to maritime_clean.py so to be consistent with maritime_pull.py
 # 3. go through imports to remove ones not used
 # 4. drop tide_reference column in get_elevs
+# 5. rmeoved variables csv
