@@ -100,7 +100,10 @@ def update_asosawos():
     else:
         print(f"{network} station files up to date.")
 
-
+# To do:
+# CW3E and CIMIS need the download date methods to be updated to work correctly here
+# HADS names file by day, need to update time filtering method to work like this rather than by year.
+# MADIS: add end_time as parameter to input into url.
 
 
 if __name__ == "__main__":
