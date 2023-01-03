@@ -8,6 +8,7 @@ import ASOSAWOS_pullftp
 from SCANSNOTEL_pull import get_scan_station_data
 from OtherISD_pull import get_wecc_stations, get_otherisd_data_ftp
 from MADIS_pull import get_madis_metadata, get_madis_station_csv
+from CIMIS_pull import get_cimis_update_ftp
 from pull_qa import retry_downloads
 import boto3
 import config
@@ -100,15 +101,28 @@ def update_asosawos():
     else:
         print(f"{network} station files up to date.")
 
+# Update script: CIMIS
+# No retry download method available.
+def update_cimis():
+    network = "CIMIS"
+    directory = f'1_raw_wx/{network}/'
+    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.zip')
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        get_cimis_update_ftp(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
+    else:
+        print(f"{network} station files up to date.")
+
 # To do:
-# CW3E and CIMIS need the download date methods to be updated to work correctly here
+# CW3E needs the download date methods to be updated to work correctly here
 # HADS names file by day, need to update time filtering method to work like this rather than by year.
 # MADIS: add end_time as parameter to input into url.
 
 
 if __name__ == "__main__":
-    update_SCAN()
-    update_SNOTEL()
-    update_otherisd()
-    update_asosawos()
+    #update_SCAN()
+    #update_SNOTEL()
+    #update_otherisd()
+    #update_asosawos()
+    update_cimis()
 
