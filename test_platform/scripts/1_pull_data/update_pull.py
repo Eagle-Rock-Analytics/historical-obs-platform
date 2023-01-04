@@ -8,11 +8,14 @@ import ASOSAWOS_pullftp
 from SCANSNOTEL_pull import get_scan_station_data
 from OtherISD_pull import get_wecc_stations, get_otherisd_data_ftp
 from MADIS_pull import get_madis_metadata, get_madis_station_csv
+from CW3E_pull import get_cw3e_metadata, get_cw3e_update
 from CIMIS_pull import get_cimis_update_ftp
 from HADS_pull import get_hads_update
 from pull_qa import retry_downloads
 import boto3
 import config
+import pandas as pd
+from io import BytesIO
 
 # Set AWS credentials
 s3 = boto3.resource('s3')
@@ -22,7 +25,6 @@ bucket_name = 'wecc-historical-wx'
 # Set file paths
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
-
 
 # Set parameters
 today = datetime.now(timezone.utc).date() # Get today's day, month and year
@@ -53,33 +55,56 @@ def get_last_date(bucket_name, folder, n, file_ext = None):
     
     return last_time_modified.date()
 
+# Get number of stations in network
+def get_no_stations(bucket_name, station_file_path, percent = None):
+    # Inputs
+    # bucket_name: name of AWS bucket
+    # station_file_path: path to master_station_list.csv
+    # percent (0-100): percent of files to examine to get last updated date (e.g. last modified date of most recently changed X% of stations)
+
+    # Get station file path
+    obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file_path)
+    station_file = pd.read_csv(BytesIO(obj['Body'].read()))    
+        
+    # Make summary table by network
+    n = station_file.groupby(['network']).size()
+    if n is not None:
+        n = (n * percent / 100).round()
+    # To do, scale by %
+    #n = len(network_stations)*percent/100
+    return n
+        
+
 # Update script: SCAN
-def update_SCAN():
+def update_SCAN(n, last_time_mod = None):
     network = "SCAN"
-    last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = 25)
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = int(n[network]))
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-    #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [network]) 
+        #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [network]) 
+    else:
+        print(f"{network} station files up to date.")
     # # TO DO: how do we want to deal with file names for update snippets??? give separate name? save in separate folder????
 
 # Update script: SNOTEL
-def update_SNOTEL():
+def update_SNOTEL(n, last_time_mod = None):
     network = "SNOTEL"
     usda_network = "SNTL"
-    last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = 25)
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = int(n[network]))
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-    else:
-        print(f"{network} station files up to date.")
-    #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [usda_network]) 
+        #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [usda_network])      
     # # TO DO: how do we want to deal with file names for update snippets??? give separate name? save in separate folder????
 
 # Update script: OtherISD
 # As currently written, this will overwrite all files for the current year.
-def update_otherisd():
+def update_otherisd(n, last_time_mod = None):
     network = "OtherISD"
     directory = f'1_raw_wx/{network}/'
-    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.gz')
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
         stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
@@ -90,10 +115,11 @@ def update_otherisd():
 
 # Update script: ASOS-AWOS
 # As currently written, this will overwrite all files for the current year.
-def update_asosawos():
+def update_asosawos(n, last_time_mod = None):
     network = "ASOSAWOS"
     directory = f'1_raw_wx/{network}/'
-    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.gz')
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
         stations = ASOSAWOS_pullftp.get_wecc_stations(wecc_terr, wecc_mar)
@@ -105,10 +131,11 @@ def update_asosawos():
 # Update script: CIMIS
 # No retry download method available.
 # This may overwrite the most recent if pull is repeated more frequently than monthly.
-def update_cimis():
+def update_cimis(n, last_time_mod = None):
     network = "CIMIS"
     directory = f'1_raw_wx/{network}/'
-    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.zip')
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.zip')
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
         get_cimis_update_ftp(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
@@ -116,25 +143,50 @@ def update_cimis():
         print(f"{network} station files up to date.")
 
 # Update script: HADS
-def update_hads():
+def update_hads(n, last_time_mod = None):
     network = "HADS"
     directory = f'1_raw_wx/{network}/'
-    last_time_mod = get_last_date(bucket_name, folder = directory, n = 25, file_ext = '.gz')
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
     
-    # if last_time_mod < download_date:
-    #     print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-    get_hads_update(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        get_hads_update(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
+
+    else:
+        print(f"{network} station files up to date.")
+
+# Update script: CW3E
+# Script will download multiple byte files for each station for each day selected.
+# The LBH station file will always be redownloaded completely. 
+# At this point, this station gets dropped during the cleaning phase, so this should not affect anything.
+# Massive number of files will make this update script slower than the others.
+def update_cw3e(n, last_time_mod = None):
+    network = "CW3E"
+    directory = f'1_raw_wx/{network}/'
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = 'm')
+    
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        get_cw3e_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = directory)
+        get_cw3e_update(bucket_name, directory, start_date = str(last_time_mod), end_date = str(download_date))
+    else:
+        print(f"{network} station files up to date.")
+
 
 # To do:
-# CW3E needs the download date methods to be updated to work correctly here
-# HADS names file by day, need to update time filtering method to work like this rather than by year.
 # MADIS: add end_time as parameter to input into url.
+# SCAN/SNOTEL: figure out how to save files without overwriting.
 
 
 if __name__ == "__main__":
-    #update_SCAN()
-    #update_SNOTEL()
-    #update_otherisd()
-    #update_asosawos()
-    #update_cimis()
-    update_hads()
+    last_time_mod = None # option to custom select start date of download (format: datetime(year, month, day).date())
+    n = get_no_stations(bucket_name = bucket_name, station_file_path = "1_raw_wx/temp_master_station_list.csv", percent = 30)
+    #update_SCAN(n)
+    #update_SNOTEL(n)
+    #update_otherisd(n)
+    #update_asosawos(n)
+    #update_cimis(n)
+    #update_hads(n)
+    #update_cw3e(n)

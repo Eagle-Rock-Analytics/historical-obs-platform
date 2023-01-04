@@ -280,7 +280,7 @@ def get_hads_update(bucket_name, directory, start_date = None, end_date = None):
             yearurl = 'https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/{}/'.format(str(i))
             links = get_file_links(yearurl)
 
-            days_to_download = list(range(0,367)) # To include leap years
+            days_to_download = list(range(0,367)) # 366 to include leap years
             if start_date is not None and i == start_year:
                 # Get rid of links before start date.
                 days_to_download = [x for x in days_to_download if x >= int(start_day)]
@@ -289,27 +289,30 @@ def get_hads_update(bucket_name, directory, start_date = None, end_date = None):
                 # Get rid of links after end date.    
                 days_to_download = [x for x in days_to_download if x <= int(end_day)]
             
-            # TO DO: filter file names by day
-            #for k, (link, date) in enumerate(links):
-            #    if link.split("/")[-1] in alreadysaved:
-
-
-            # # TO DO: Filter links by year of day
-
-            #         print(links)
-            #link_to_aws(links, bucket_name, directory)
+            # Filter file names by day
+            link_sub = []
+            date_sub = []
+                    
+            for k, (link, date) in enumerate(links):
+                if int(link.split("/")[-1].replace(".dat.gz", "").split("-")[-1]) in days_to_download:
+                    link_sub.append(link)
+                    date_sub.append(date)
+            
+            link_sub = list(zip(link_sub, date_sub))
+            link_to_aws(link_sub, bucket_name, directory)
+            
         except Exception as e:
             print("Error in downloading year {}: {}". format(i, e))
             errors['Date'].append(i)
             errors['Time'].append(end_api)
             errors['Error'].append(e)
 
-    # #Write errors to csv
-    # csv_buffer = StringIO()
-    # errors = pd.DataFrame(errors)
-    # errors.to_csv(csv_buffer)
-    # content = csv_buffer.getvalue()
-    # s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_hads_{}.csv".format(end_api))
+    #Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_hads_{}.csv".format(end_api))
 
     return
 
