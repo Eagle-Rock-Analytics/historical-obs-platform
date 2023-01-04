@@ -127,7 +127,7 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks = None):
 # (6) primary: if primary is False, download secondary sensor data.
 # (7) networks: specify which network to download. If blank, get all networks: ["SNTL", "SCAN", "USGS", "BOR"]
 # Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
-def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, stations = None, primary = True, networks = None):
+def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, end_date = None, stations = None, primary = True, networks = None):
 
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime('%Y%m%d%H%M')
@@ -146,7 +146,9 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, sta
     # Get start and end dates
     if start_date is None:
         start_date = "1980-01-01"
-    end_date = datetime.now().strftime('%Y-%m-%d') #yyyy-MM-dd
+        
+    if end_date is None:
+        end_date = datetime.now().strftime('%Y-%m-%d') #yyyy-mm-dd
     
     # Select primary or secondary sensors
     if primary: # If primary True
