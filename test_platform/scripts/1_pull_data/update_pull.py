@@ -174,6 +174,9 @@ def update_cw3e(n, last_time_mod = None):
     else:
         print(f"{network} station files up to date.")
 
+# Update script: MARITIME/NDBC
+## To do: figure out naming convention for months after september of current year, and what is adequate waiting period for this data.
+# (Oct data currently marked with 'a', not sure if this is standard/permanent data or in progress. Check back in a few weeks?)
 
 # To do:
 # MADIS: add end_time as parameter to input into url.
