@@ -154,10 +154,12 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        for station in stations.sample(4): # SUBST FOR TESTING
+        for station in stations.sample(2): # SUBST FOR TESTING
         # for station in ['46028']: # testing station that does have wx data
         # for station in ['46138', '46411']: # testing stations that do not have any data downloaded to aws for emptybuoy list
-            station_metadata = station_file.loc[station_file['STATION_ID']==float(station)] ## FLAGGING HERE - need to add capability for non-numeric station_ids for maritime
+        # for station in ['46d04', '46flo', '46t29']: # testing stations that have mixed case names
+            # station_metadata = station_file.loc[station_file['STATION_ID']==float(station)] ## FLAGGING HERE - need to add capability for non-numeric station_ids for maritime
+            # print(station_metadata)
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id) # testing
 
@@ -172,6 +174,7 @@ def clean_buoys(rawdir, cleandir, network):
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
                     errors['Error'].append('No raw data found for this station.')
+                    othercols = None
                     continue # Skip this station
 
                 for file in stat_files: # Files within a station
@@ -490,7 +493,6 @@ def clean_buoys(rawdir, cleandir, network):
                 errors['Error'].append('Station has no data.')
                 continue
             else:
-                print(ds) # Testing, but nice to have
                 try:
                     filename = station_id + ".nc" # Make file name
                     filepath = cleandir + filename # Writes file path
@@ -502,6 +504,7 @@ def clean_buoys(rawdir, cleandir, network):
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
                     print('Saving {} with dims {}'.format(filename, ds.dims))
+                    print(ds) # Testing, but nice to have
                     ds.close() # Close dataframe
 
                 except Exception as e:
@@ -520,7 +523,7 @@ def clean_buoys(rawdir, cleandir, network):
 
     # Write errors to csv
     finally:
-        # print(errors) # Testing
+        print(errors) # Testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -537,7 +540,7 @@ def clean_buoys(rawdir, cleandir, network):
 
 # Run functions
 if __name__ == "__main__":
-    network = "NDBC" # or "MARITIME"
+    network = "MARITIME" # or "MARITIME"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir) # TESTING
     clean_buoys(rawdir, cleandir, network=network)
