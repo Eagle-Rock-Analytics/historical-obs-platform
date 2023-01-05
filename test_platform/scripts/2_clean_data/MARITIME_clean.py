@@ -151,11 +151,11 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        for station in stations.sample(4): # SUBST FOR TESTING
+        # for station in stations.sample(4): # SUBST FOR TESTING
         # for station in ['46028']: # testing station that does have wx data
         # for station in ['46138', '46411']: # testing stations that do not have any data downloaded to aws for emptybuoy list
         # for station in ['46d04', '46flo', '46t29']: # testing stations that have mixed case names
-        # for station in ['46185']: # testing canadian buoy
+        for station in ['46146']: # testing canadian buoy
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id) # testing
 
@@ -278,7 +278,7 @@ def clean_buoys(rawdir, cleandir, network):
 
                                             # drop variables if not desired variable
                                             # cols_to_keep = ['time', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WDIR.1', 'WSPD.1', 'WSPD', 'ATMS', 'ATMS.1', 'DRYT'] # waiting on response about ".1" - thinking these are secondary sensors, but with different nan codes
-                                            cols_to_keep = ['Q_FLAG', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WSPD', 'ATMS', 'DRYT'] # 'SLEV' is sea level height, could also be useful
+                                            cols_to_keep = ['time', 'Q_FLAG', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WSPD', 'ATMS', 'DRYT'] # 'SLEV' is sea level height, could also be useful
                                             othercols = [col for col in df.columns if col not in cols_to_keep]
                                             df = df[df.columns.intersection(cols_to_keep)] # drop all columns not in cols_to_keep list
 
@@ -288,7 +288,8 @@ def clean_buoys(rawdir, cleandir, network):
                                                                 'WSPD':'sfcWind',
                                                                 'ATMS':'ps',
                                                                 'DRYT':'tas',
-                                                                'Q_FLAG':'qc_flag'}, inplace=True)
+                                                                'Q_FLAG':'qc_flag',
+                                                                'time':'time'}, inplace=True)
 
                                             # missing data flags - mainly as a catchall in case qc check did not catch
                                             df.replace(999, np.nan, inplace=True) # sfcWind_dir
