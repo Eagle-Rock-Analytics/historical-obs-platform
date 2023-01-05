@@ -17,17 +17,14 @@ Outputs: Cleaned data for an individual network, priority variables, all times. 
 import os
 import xarray as xr
 from datetime import datetime, date, timedelta
-import re
 import numpy as np
-import random
-# import warnings
-# warnings.filterwarnings(action = 'ignore', category = FutureWarning) # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 import gzip
 import requests
 from bs4 import BeautifulSoup
+import zipfile
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -135,8 +132,8 @@ def clean_buoys(rawdir, cleandir, network):
         stations = station_file['STATION_ID'].dropna() # handful of stations have letters in place of numbers
 
         # Remove error, station files
-        files = [file for file in files if '.txt.gz' in file]
-        # files = [file for file in files if '.zip' in file] ## COME BACK TO ZIP FILES - THESE ARE THE CANADIAN BUOYS
+        # files = [file for file in files if '.txt.gz' in file] # US-owned stations
+        # files = [file for file in files if '.zip' in file] # Canada-owned stations
         files = [file for file in files if 'stationlist' not in file]
         files = [file for file in files if 'error' not in file]
 
@@ -154,12 +151,11 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        for station in stations.sample(2): # SUBST FOR TESTING
+        for station in stations.sample(4): # SUBST FOR TESTING
         # for station in ['46028']: # testing station that does have wx data
         # for station in ['46138', '46411']: # testing stations that do not have any data downloaded to aws for emptybuoy list
         # for station in ['46d04', '46flo', '46t29']: # testing stations that have mixed case names
-            # station_metadata = station_file.loc[station_file['STATION_ID']==float(station)] ## FLAGGING HERE - need to add capability for non-numeric station_ids for maritime
-            # print(station_metadata)
+        # for station in ['46185']: # testing canadian buoy
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id) # testing
 
@@ -174,90 +170,139 @@ def clean_buoys(rawdir, cleandir, network):
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
                     errors['Error'].append('No raw data found for this station.')
-                    othercols = None
+                    othercols = None # setting to none here so script doesn't fail if the first station grabbed is one with no data
                     continue # Skip this station
 
                 for file in stat_files: # Files within a station
                     try:
-                        obj = s3.Object(bucket_name, file)
+                        # handling for different file extensions (.txt.gz = US-owner, .zip = Canada-owner)
+                        if file.endswith('.txt.gz'): # US-based owner
+                            obj = s3.Object(bucket_name, file)
+                            with gzip.GzipFile(fileobj=obj.get()["Body"]) as file_to_parse:
+                                # modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
+                                df = pd.read_csv(file_to_parse, sep='\s+', low_memory=False)
 
-                        with gzip.GzipFile(fileobj=obj.get()["Body"]) as gzipped_txt_file:
-                            # modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
-                            df = pd.read_csv(gzipped_txt_file, sep='\s+', low_memory=False)
+                                # older files are missing the minute column
+                                if {'mm'}.issubset(df.columns) == False:
+                                    df.insert(loc=4, column='mm', value='00') # setting to 00, but could also be NaN/99?
 
-                            # older files are missing the minute column
-                            if {'mm'}.issubset(df.columns) == False:
-                                df.insert(loc=4, column='mm', value='00') # setting to 00, but could also be NaN/99?
+                                # fix year label mismatch
+                                yr_raw = str(df.iloc[1][0]).split('.')[0]
+                                if len(yr_raw) != 4: # older files have a two-digit year
+                                    if df.iloc[1][0] >= 80: # 1980-1999
+                                        df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('19', x))
+                                        df = df.iloc[:, 1:]
 
-                            # fix year label mismatch
-                            yr_raw = str(df.iloc[1][0]).split('.')[0]
-                            if len(yr_raw) != 4: # older files have a two-digit year
-                                if df.iloc[1][0] >= 80: # 1980-1999
-                                    df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('19', x))
-                                    df = df.iloc[:, 1:]
+                                    elif df.iloc[1][0][0] <= 23: # 2000-present
+                                        df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('20', x))
+                                        df = df.iloc[:, 1:]
 
-                                elif df.iloc[1][0][0] <= 23: # 2000-present
-                                    df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('20', x))
-                                    df = df.iloc[:, 1:]
+                                if (df.columns[0][0].isdigit()) == False: # newer files have a 2-line header with comments
+                                    df.drop([0], inplace=True)
+                                    df.rename(columns={'#YY':'YYYY'}, inplace=True)
 
-                            if (df.columns[0][0].isdigit()) == False: # newer files have a 2-line header with comments
-                                df.drop([0], inplace=True)
-                                df.rename(columns={'#YY':'YYYY'}, inplace=True)
+                                # fix variable label mismatch
+                                if {'WD', 'BAR'}.issubset(df.columns) == True: # older files have different var names
+                                    df.rename(columns={'WD':'WDIR', 'BAR':'PRES'}, inplace=True)
 
-                            # fix variable label mismatch
-                            if {'WD', 'BAR'}.issubset(df.columns) == True: # older files have different var names
-                                df.rename(columns={'WD':'WDIR', 'BAR':'PRES'}, inplace=True)
+                                df['WDIR'] = pd.to_numeric(df['WDIR'])
+                                df['WSPD'] = pd.to_numeric(df['WSPD'])
+                                df['PRES'] = pd.to_numeric(df['PRES'])
+                                df['ATMP'] = pd.to_numeric(df['ATMP'])
+                                df['DEWP'] = pd.to_numeric(df['DEWP'])
 
-                            df['WDIR'] = pd.to_numeric(df['WDIR'])
-                            df['WSPD'] = pd.to_numeric(df['WSPD'])
-                            df['PRES'] = pd.to_numeric(df['PRES'])
-                            df['ATMP'] = pd.to_numeric(df['ATMP'])
-                            df['DEWP'] = pd.to_numeric(df['DEWP'])
+                                # standardize NA codes -- CHECK ON THIS
+                                try:
+                                    df.replace(999, np.nan, inplace=True) # sfcWind_dir
+                                    df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                    df.replace(99.0, np.nan, inplace=True) # sfcWind
+                                    df.replace(9999.0, np.nan, inplace=True) # ps
 
-                            # standardize NA codes -- CHECK ON THIS
-                            try:
-                                df.replace(999, np.nan, inplace=True) # sfcWind_dir
-                                df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
-                                df.replace(99.0, np.nan, inplace=True) # sfcWind
-                                df.replace(9999.0, np.nan, inplace=True) # ps
+                                    # shouldn't have to do this twice, but not working without it
+                                    df.replace('999', np.nan, inplace=True) # sfcWind_dir
+                                    df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                    df.replace('99.0', np.nan, inplace=True) # sfcWind
+                                    df.replace('9999.0', np.nan, inplace=True) # ps
 
-                                # shouldn't have to do this twice, but not working without it
-                                df.replace('999', np.nan, inplace=True) # sfcWind_dir
-                                df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
-                                df.replace('99.0', np.nan, inplace=True) # sfcWind
-                                df.replace('9999.0', np.nan, inplace=True) # ps
+                                except Exception as e:
+                                    print(e)
 
-                            except Exception as e:
-                                print(e)
+                                # convert date to datetime
+                                df.rename(columns={'YYYY':'year', 'MM':'month', 'DD':'day', 'hh':'hour', 'mm':'minute'}, inplace=True)
+                                df['time'] = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']], utc=True)
+                                df = df.drop(columns=['year', 'month', 'day', 'hour', 'minute'])
 
-                            # convert date to datetime
-                            df.rename(columns={'YYYY':'year', 'MM':'month', 'DD':'day', 'hh':'hour', 'mm':'minute'}, inplace=True)
-                            df['time'] = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']], utc=True)
-                            df = df.drop(columns=['year', 'month', 'day', 'hour', 'minute'])
+                                # time filter: remove any rows before Jan 01 1980 and after August 30 2022
+                                df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
 
-                            # time filter: remove any rows before Jan 01 1980 and after August 30 2022
-                            df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+                                # drop variables if not desired variable
+                                cols_to_keep = ['WDIR', 'WSPD', 'PRES', 'ATMP', 'DEWP', 'time']
+                                othercols = [col for col in df.columns if col not in cols_to_keep]
+                                df = df[df.columns.intersection(cols_to_keep)] # drop all columns not in cols_to_keep list
 
-                            # drop variables if not desired variable
-                            cols_to_keep = ['WDIR', 'WSPD', 'PRES', 'ATMP', 'DEWP', 'time']
-                            othercols = [col for col in df.columns if col not in cols_to_keep]
-                            df = df[df.columns.intersection(cols_to_keep)] # drop all columns not in cols_to_keep list
+                                df.rename(columns={'WDIR':'sfcWind_dir',
+                                                  'WSPD':'sfcWind',
+                                                  'PRES':'ps',
+                                                  'ATMP':'tas',
+                                                  'DEWP':'tdps'}, inplace=True)
 
-                            df.rename(columns={'WDIR':'sfcWind_dir',
-                                              'WSPD':'sfcWind',
-                                              'PRES':'ps',
-                                              'ATMP':'tas',
-                                              'DEWP':'tdps'}, inplace=True)
+                                # if more than one file per station, merge files together
+                                if df_stat is None:
+                                    df_stat = df
+                                    del(df) # deleting for memory
+                                else:
+                                    if len(stat_files) > 1: # if there is more than one file per station
+                                        df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
 
-                            # if more than one file per station, merge files together
-                            if df_stat is None:
-                                df_stat = df
-                                del(df) # deleting for memory
-                            else:
-                                if len(stat_files) > 1: # if there is more than one file per station
-                                    df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
+                        elif file.endswith('.zip'): # canadian buoy
+                            obj = s3.Bucket(bucket_name).Object(file)
 
-                            # print(df_stat.head) # testing
+                            with BytesIO(obj.get()["Body"].read()) as tf:
+                                tf.seek(0) # rewind the file
+
+                                with zipfile.ZipFile(tf, mode='r') as zipf:
+
+                                    for subfile in zipf.namelist():
+                                        filestn = subfile.replace(".csv", "")
+                                        filestn = int(filestn[1:]) # drops proceeding 'c'
+
+                                        if int(station) == filestn:
+                                            df = pd.read_csv(zipf.open(subfile), low_memory=False)
+                                            # https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html
+
+                                            # convert date to datetime
+                                            df['time'] =  pd.to_datetime(df['DATE'], format='%m/%d/%Y %H:%M', utc=True)
+
+                                            # time filter: remove any rows before Jan 01 1980 and after August 30 2022
+                                            df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+
+                                            # drop variables if not desired variable
+                                            # cols_to_keep = ['time', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WDIR.1', 'WSPD.1', 'WSPD', 'ATMS', 'ATMS.1', 'DRYT'] # waiting on response about ".1" - thinking these are secondary sensors, but with different nan codes
+                                            cols_to_keep = ['Q_FLAG', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WSPD', 'ATMS', 'DRYT'] # 'SLEV' is sea level height, could also be useful
+                                            othercols = [col for col in df.columns if col not in cols_to_keep]
+                                            df = df[df.columns.intersection(cols_to_keep)] # drop all columns not in cols_to_keep list
+
+                                            df.rename(columns={'LATITUDE':'lat',
+                                                                'LONGITUDE':'lon',
+                                                                'WDIR':'sfcWind_dir',
+                                                                'WSPD':'sfcWind',
+                                                                'ATMS':'ps',
+                                                                'DRYT':'tas',
+                                                                'Q_FLAG':'qc_flag'}, inplace=True)
+
+                                            # missing data flags - mainly as a catchall in case qc check did not catch
+                                            df.replace(999, np.nan, inplace=True) # sfcWind_dir
+                                            df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                            df.replace(99.0, np.nan, inplace=True) # sfcWind
+                                            df.replace(9999.0, np.nan, inplace=True) # ps
+
+                                            # if more than one file per station, merge files together
+                                            if df_stat is None:
+                                                df_stat = df
+                                                del(df) # deleting for memory
+                                            else:
+                                                if len(stat_files) > 1: # if there is more than one file per station
+                                                    df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
 
                     except Exception as e:
                         print(e)
@@ -265,11 +310,6 @@ def clean_buoys(rawdir, cleandir, network):
                         errors['Time'].append(end_api)
                         errors['Error'].append(e)
                         continue
-
-                    # TO DO: Canadian zip files will need extra layer here
-                    # Read the file as a zipfile and process the members
-                    # with zipfile.ZipFile(tf, mode='r') as zipf: # Unzip ## USE FOR CANADIAN ZIP FILES
-                    # https://stackoverflow.com/questions/18885175/read-a-zipped-file-as-a-pandas-dataframe
 
                 # Format joined station file
                 file_count = len(stat_files)
@@ -454,6 +494,12 @@ def clean_buoys(rawdir, cleandir, network):
                     ds['sfcWind_dir'].attrs['standard_name'] = 'wind_from_direction'
                     ds['sfcWind_dir'].attrs['units'] = 'degrees_clockwise_from_north'
 
+                # qc_flag: quality control flag
+                # note this flag appears that it applies to every observation at that time stamp - waiting on confirmation
+                if "qc_flag" in ds.keys():
+                    ds['qc_flag'].attrs['flag_values'] = "[0, 1, 3, 4, 5, 6, 7, 8, 9]"
+                    ds['qc_flag'].attrs['flag_meanings'] =  "https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html"
+
                 # drop any column that does not have any valid (non-nan data)
                 # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
                 for key in ds.keys():
@@ -471,11 +517,11 @@ def clean_buoys(rawdir, cleandir, network):
                     except: # Add to handle errors for unsupported data types
                         next
 
-                # Reorder variables
+                # Reorder variables, in the following order
                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-                vars_in_ds = [i for i in list(ds.keys()) if i in desired_order] # Some stations have various arrangements of these variables with/without nans
-                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom
-                new_index = vars_in_ds + rest_of_vars
+                desired_order = [i for i in desired_order if i in list(ds.keys())] # only keep vars that are in ds
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom (elevation)
+                new_index = desired_order + rest_of_vars
                 ds = ds[new_index]
 
             except Exception as e:
@@ -540,14 +586,7 @@ def clean_buoys(rawdir, cleandir, network):
 
 # Run functions
 if __name__ == "__main__":
-    network = "MARITIME" # or "MARITIME"
+    network = "NDBC" # or "MARITIME"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir) # TESTING
     clean_buoys(rawdir, cleandir, network=network)
-
-
-# To do upon completion:
-# 1. Run through maritime_clean.py to ensure that missing pieces (elevation) are correctly incorporated and delete when complete
-# 2. Rename to maritime_clean.py so to be consistent with maritime_pull.py
-# 3. go through imports to remove ones not used
-# 4. drop tide_reference column in get_elevs
