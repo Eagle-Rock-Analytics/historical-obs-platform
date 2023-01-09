@@ -1,2 +1,4 @@
 # historical-obs-platform
-The code here is not done as nice functions - it is all hardcoded. Still, it will provide a point of reference for those who need to delve into what I have done. 
+Code and data associated with PIR-19-007
+
+For scripts associated with data pipeline, see `/test_platform/scripts`
