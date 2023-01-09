@@ -16,7 +16,7 @@ Outputs: Cleaned data for an individual network, priority variables, all times. 
 # Import libraries
 import os
 import xarray as xr
-from datetime import datetime, date, timedelta
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import boto3
@@ -129,7 +129,7 @@ def clean_buoys(rawdir, cleandir, network):
         station_file = [file for file in files if 'stationlist_' in file]
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj['Body'].read()))
-        stations = station_file['STATION_ID'].dropna() # handful of stations have letters in place of numbers
+        stations = station_file['STATION_ID'].dropna()
 
         # Remove error, station files
         # files = [file for file in files if '.txt.gz' in file] # US-owned stations
@@ -141,7 +141,6 @@ def clean_buoys(rawdir, cleandir, network):
         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
         end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-        print('Successfully grabbed {} stations for {}'.format(len(stations), network)) # testing
 
     except Exception as e: # If unable to read files from rawdir, break function
         print(e)
@@ -151,11 +150,7 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        # for station in stations.sample(4): # SUBST FOR TESTING
-        # for station in ['46028']: # testing station that does have wx data
-        # for station in ['46138', '46411']: # testing stations that do not have any data downloaded to aws for emptybuoy list
-        # for station in ['46d04', '46flo', '46t29']: # testing stations that have mixed case names
-        for station in ['46146']: # testing canadian buoy
+        for station in stations.sample(4): # SUBST FOR TESTING
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id) # testing
 
@@ -184,7 +179,7 @@ def clean_buoys(rawdir, cleandir, network):
 
                                 # older files are missing the minute column
                                 if {'mm'}.issubset(df.columns) == False:
-                                    df.insert(loc=4, column='mm', value='00') # setting to 00, but could also be NaN/99?
+                                    df.insert(loc=4, column='mm', value='00') # manually setting to top of hour, our process will collapse all other obs to top of hour at next stage
 
                                 # fix year label mismatch
                                 yr_raw = str(df.iloc[1][0]).split('.')[0]
@@ -361,7 +356,7 @@ def clean_buoys(rawdir, cleandir, network):
                     errors['Error'].append(e)
 
                 # Add variable: elevation
-                # Note: Datafriles do not have elevation information, grab from NDBC
+                # Note: Datafiles do not have elevation information, grab from NDBC
                 url = 'https://www.ndbc.noaa.gov/bmanht.shtml'
                 elevs_df = get_elevs(url)
                 try:
@@ -390,7 +385,7 @@ def clean_buoys(rawdir, cleandir, network):
                 # Add sensor heights, grab from NDBC
                 # defaulting to nan, as we are assuming most stations will only have some of these sensor heights available
                 ds = ds.assign_attrs(thermometer_height_m = np.nan)
-                ds = ds.assign_attrs(barometer_height_m = np.nan)
+                ds = ds.assign_attrs(barometer_elevation_m = np.nan)
                 ds = ds.assign_attrs(anemometer_height_m = np.nan)
                 try:
                     if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0: # station exists in NDBC list
@@ -405,7 +400,7 @@ def clean_buoys(rawdir, cleandir, network):
                         # air pressure
                         if (elevs_df['Barometer_Elevation'].iloc[idx].values) != 'NA': # air pressure sensor has value
                             # print('barometer height has non-zero value') # testing
-                            ds.attrs['barometer_height_m'] = float(elevs_df['Barometer_Elevation'].iloc[idx])
+                            ds.attrs['barometer_elevation_m'] = float(elevs_df['Barometer_Elevation'].iloc[idx])
 
                         # wind
                         if (elevs_df['Anemometer_Elevation'].iloc[idx].values) != 'NA': # wind sensor has value
@@ -478,7 +473,7 @@ def clean_buoys(rawdir, cleandir, network):
 
                 # hurs: relative humidity (%)
                 # Note: not measured by NDBC or MARITIME
-                # Note: will be calcualted with tas and tdps
+                # Note: will be calculated with tas and tdps
 
                 # rsds: solar radiation (W/m2)
                 # Note: not measured by NDBC or MARITIME
@@ -517,6 +512,8 @@ def clean_buoys(rawdir, cleandir, network):
                             continue
                     except: # Add to handle errors for unsupported data types
                         next
+
+                        ## TO DO: # delete stations that have only elevation and qc flag
 
                 # Reorder variables, in the following order
                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
