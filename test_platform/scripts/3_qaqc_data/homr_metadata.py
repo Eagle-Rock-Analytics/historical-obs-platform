@@ -18,7 +18,8 @@ import boto3
 s3_cl = boto3.client('s3') 
 bucket_name = "wecc-historical-wx"
 
-
+# This function flattens multi-level nested JSONs, splitting columns composed of both lists and dictionaries.
+# Borrowed from: https://gist.github.com/davidwarshaw/8d4c74c31371f8f8d5eb00cccb86dd08
 def flatten_data(y):
     out = {}
 
@@ -39,11 +40,13 @@ def flatten_data(y):
 
 
 def get_homr_metadata(id):
+    # This function takes one NCDC ID (string) as input and returns the station's names, identifiers, platforms, location, remarks, and updates
+    # as distinct objects.
     testurl = f'https://www.ncei.noaa.gov/access/homr/services/station/{id}'
     request = requests.get(testurl).json()
     for i in request['stationCollection']['stations']:
         #print(i)
-        #flat = flatten_data(i) # Ignore dictionaries, keep each row as a station
+        #flat = flatten_data(i) # Ignore dictionaries, keep each row as a station 
         pandas = pd.json_normalize(i, max_level = 0)
 
         # Split into 4 tables:
@@ -83,7 +86,6 @@ def get_homr_metadata(id):
         
     return names, identifiers, platforms, location, remarks, updates
 
-# get_homr_metadata("coop", "0467")
 
 def get_all_homr_ids(bucket_name, savedir):
     # Function to iterate through all WECC states and save header HOMR metadata for all stations.
@@ -114,6 +116,9 @@ def get_all_homr_ids(bucket_name, savedir):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir+"homr_ids.csv")
 
 def get_all_homr_metadata(bucket_name, savedir):
+    # This function takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates
+    # to save to the AWS bucket and directory provided as input.
+
     # initialize dfs
     namedf = []
     identifierdf = []
@@ -125,7 +130,9 @@ def get_all_homr_metadata(bucket_name, savedir):
     # Read in homr_ids.csv
     obj = s3_cl.get_object(Bucket=bucket_name, Key=savedir+"homr_ids.csv")
     homr_ids = pd.read_csv(BytesIO(obj['Body'].read()))    
+    count = 0
     for i in homr_ids['ncdcStnId']:
+        count +=1
         names, identifiers, platforms, location, remarks, updates = get_homr_metadata(i)
         namedf.append(names)
         identifierdf.append(identifiers)
@@ -133,6 +140,11 @@ def get_all_homr_metadata(bucket_name, savedir):
         locationdf.append(location)
         remarkdf.append(remarks)
         updatedf.append(updates)
+        print(count)
+
+        # Print progress statement.
+        if count % 250 == 0: # For every two hundred and fifty records
+            print(f'Metadata for {count} of {len(homr_ids.ncdcStnId)} stations processed.')
 
     namedf = pd.concat(namedf)
     identifierdf = pd.concat(identifierdf)
