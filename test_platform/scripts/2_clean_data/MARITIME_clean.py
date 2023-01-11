@@ -150,14 +150,14 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        for station in stations.sample(4): # SUBST FOR TESTING
+        # for station in stations.sample(4): # SUBSET FOR TESTING
+        for station in ['46138']:
             station_id = network+"_"+str(station)
-            print('Parsing: ', station_id) # testing
+            print('Parsing: ', station_id)
 
             df_stat = None # Initialize merged df
             try:
                 stat_files = [k for k in files if station in k] # Gets list of files from the same station
-                print('{} has {} files available for cleaning.'.format(station_id, len(stat_files))) # useful, but can be deleted
 
                 if not stat_files: # If station has no files downloaded
                     emptybuoy += [station_id]
@@ -168,7 +168,7 @@ def clean_buoys(rawdir, cleandir, network):
                     othercols = None # setting to none here so script doesn't fail if the first station grabbed is one with no data
                     continue # Skip this station
 
-                for file in stat_files: # Files within a station
+                for file in stat_files:
                     try:
                         # handling for different file extensions (.txt.gz = US-owner, .zip = Canada-owner)
                         if file.endswith('.txt.gz'): # US-based owner
@@ -322,12 +322,12 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(title = network+" cleaned")
                 ds = ds.assign_attrs(institution = 'Eagle Rock Analytics / Cal Adapt')
                 ds = ds.assign_attrs(source = '')
-                ds = ds.assign_attrs(history = 'MARITIME_clean.py script run on {} UTC'.format(timestamp)) # note that the script is currently called NDBC_clean, but will rename once complete to match pull stage
+                ds = ds.assign_attrs(history = 'MARITIME_clean.py script run on {} UTC'.format(timestamp))
                 ds = ds.assign_attrs(comment = 'Intermediate data product: may not have been subject to any cleaning or QA/QC processing.')
                 ds = ds.assign_attrs(license = '')
                 ds = ds.assign_attrs(citation = '')
                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-                ds = ds.assign_attrs(station_name = station_id)
+                # ds = ds.assign_attrs(station_name = station_file['NAME'].values[0]) ## FIX
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station
 
                 # Add dimensions and coordinates
@@ -357,27 +357,24 @@ def clean_buoys(rawdir, cleandir, network):
 
                 # Add variable: elevation
                 # Note: Datafiles do not have elevation information, grab from NDBC
+                # Note: We are keeping the valid NA elevations for stations at this stage. Will infill from DEM in Stage 3: QA/QC
                 url = 'https://www.ndbc.noaa.gov/bmanht.shtml'
                 elevs_df = get_elevs(url)
                 try:
-                    if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0:
-                        # print('station is in list for elevation') # testing
+                    if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0: # station is in NDBC elevation list
                         idx = elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values
-                        if (elevs_df['Site_Elevation'].iloc[idx].values) != 'NA':
-                            # print('elevation is not NA') # testing
+                        if (elevs_df['Site_Elevation'].iloc[idx].values) != 'NA': # elevation has a non-NA valid value
                             elev = np.asarray([float(elevs_df['Site_Elevation'].iloc[idx])] * len(ds['time']))
                             elev.shape = (1, len(ds['time']))
                         else:
-                            # print('elevation is NA') # testing
-                            elev = np.asarray([np.nan] * len(ds['time']))   # Some stations have NA in for elevation
+                            elev = np.asarray([np.nan] * len(ds['time'])) # some stations have NA in for elevation
                             elev.shape = (1, len(ds['time']))
                     else:
-                        print('This station is not in the elevation list -- setting to NaN')
-                        elev = np.asarray([np.nan] * len(ds['time']))   # Some stations have NA in for elevation
+                        print('This station is not in the elevation list -- setting to NaN') # station in our stationlist but not in the NDBC elevation list
+                        elev = np.asarray([np.nan] * len(ds['time']))
                         elev.shape = (1, len(ds['time']))
                     ds['elevation'] = (['station', 'time'], elev)
                 except Exception as e:
-                    # print(e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
                     errors['Error'].append(e)
@@ -389,26 +386,22 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(anemometer_height_m = np.nan)
                 try:
                     if elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values.size > 0: # station exists in NDBC list
-                        # print('station is in list for sensor heights') # testing
                         idx = elevs_df[elevs_df['Station_ID'].str.contains(station)].index.values
 
                         # air temperature
                         if (elevs_df['Air_Temp_Elevation'].iloc[idx].values) != 'NA': # air temp sensor has value
-                            # print('thermometer height has non-zero value') # testing
                             ds.attrs['thermometer_height_m'] = float(elevs_df['Air_Temp_Elevation'].iloc[idx])
 
                         # air pressure
                         if (elevs_df['Barometer_Elevation'].iloc[idx].values) != 'NA': # air pressure sensor has value
-                            # print('barometer height has non-zero value') # testing
                             ds.attrs['barometer_elevation_m'] = float(elevs_df['Barometer_Elevation'].iloc[idx])
 
                         # wind
                         if (elevs_df['Anemometer_Elevation'].iloc[idx].values) != 'NA': # wind sensor has value
-                            # print('aneomemeter height has non-zero value') # testing
                             ds.attrs['anemometer_height_m'] = float(elevs_df['Anemometer_Elevation'].iloc[idx])
                     else:
-                        # station does not exist in NDBC list but is in our station_list -- does this happen?
-                        print('This station is not in the sensor height list -- setting to NaN') # can delete, "setting to NaN" aka keeping default
+                        # station does not exist in NDBC sensor height list but is in our station_list
+                        print('This station is not in the sensor height list -- setting to NaN')
                 except Exception as e:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
@@ -493,14 +486,14 @@ def clean_buoys(rawdir, cleandir, network):
                 # qc_flag: quality control flag
                 # note this flag appears that it applies to every observation at that time stamp - waiting on confirmation
                 if "qc_flag" in ds.keys():
-                    ds['qc_flag'].attrs['flag_values'] = "[0, 1, 3, 4, 5, 6, 7, 8, 9]"
+                    ds['qc_flag'].attrs['flag_values'] = "0 1 3 4 5 6 7 8 9"
                     ds['qc_flag'].attrs['flag_meanings'] =  "https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html"
 
                 # drop any column that does not have any valid (non-nan data)
                 # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
                 for key in ds.keys():
                     try:
-                        if key != 'elevation':
+                        if (key != 'elevation'):
                             if np.isnan(ds[key].values).all():
                                 print("Dropping empty var: {}".format(key))
                                 ds = ds.drop(key)
@@ -513,7 +506,15 @@ def clean_buoys(rawdir, cleandir, network):
                     except: # Add to handle errors for unsupported data types
                         next
 
-                        ## TO DO: # delete stations that have only elevation and qc flag
+                # removes elevation and qc_flag (canadian buoy only) if the only remaining variables (occurs at least once)
+                for key in ds.keys():
+                    if 'qc_flag' in list(ds.keys()):
+                        if len(ds.keys())==2:
+                            print("Dropping empty var: {}".format('elevation'))
+                            print("Dropping empty var: {}".format('qc_flag'))
+                            ds = ds.drop('qc_flag')
+                            ds = ds.drop('elevation')
+                            continue
 
                 # Reorder variables, in the following order
                 desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
