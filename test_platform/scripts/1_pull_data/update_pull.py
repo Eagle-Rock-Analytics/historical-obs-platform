@@ -72,8 +72,6 @@ def get_no_stations(bucket_name, station_file_path, percent = None):
     n = station_file.groupby(['network']).size()
     if n is not None:
         n = (n * percent / 100).round()
-    # To do, scale by %
-    #n = len(network_stations)*percent/100
     return n
         
 
@@ -178,10 +176,25 @@ def update_cw3e(n, last_time_mod = None):
     else:
         print(f"{network} station files up to date.")
 
-# Update script: MARITIME/NDBC
+# Update script: MARITIME
 # Update delay by 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
 def update_maritime(n, last_time_mod = None):
     network = "MARITIME"
+    directory = f'1_raw_wx/{network}/'
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
+    
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        stations = get_maritime_station_ids(wecc_terr, wecc_mar, '1_raw_wx/MARITIME/','1_raw_wx/NDBC/')
+        get_maritime_update(stations, bucket_name, network, start_date = str(last_time_mod), end_date = str(download_date))
+    else:
+        print(f"{network} station files up to date.")
+
+# Update script: MARITIME
+# Update delay by 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+def update_ndbc(n, last_time_mod = None):
+    network = "NDBC"
     directory = f'1_raw_wx/{network}/'
     if last_time_mod is None:
         last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
@@ -217,4 +230,5 @@ if __name__ == "__main__":
     #update_hads(n)
     #update_cw3e(n)
     #update_maritime(n)
+    #update_ndbc(n)
     #update_madis(n, network = 'VCAPCD')
