@@ -127,7 +127,7 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks = None):
 # (6) primary: if primary is False, download secondary sensor data.
 # (7) networks: specify which network to download. If blank, get all networks: ["SNTL", "SCAN", "USGS", "BOR"]
 # Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
-def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, end_date = None, stations = None, primary = True, networks = None):
+def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, end_date = None, stations = None, primary = True, networks = None, fileext = None):
 
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime('%Y%m%d%H%M')
@@ -252,7 +252,10 @@ def get_scan_station_data(terrpath, marpath, bucket_name, start_date = None, end
                 csv_buffer = StringIO()
                 df.to_csv(csv_buffer, index = False)
                 content = csv_buffer.getvalue()
-                s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}.csv".format(j))
+                if fileext is None:
+                    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}.csv".format(j))
+                else:
+                    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"{}_{}.csv".format(j, fileext))
                 print("Saved data for station {} in network {}".format(j, i))
             except Exception as e:
                 print(e)

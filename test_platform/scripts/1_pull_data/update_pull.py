@@ -11,6 +11,7 @@ from MADIS_pull import get_madis_metadata, get_madis_station_csv
 from CW3E_pull import get_cw3e_metadata, get_cw3e_update
 from CIMIS_pull import get_cimis_update_ftp
 from HADS_pull import get_hads_update
+from MARITIME_pull import get_maritime_update, get_maritime_station_ids
 from pull_qa import retry_downloads
 import boto3
 import config
@@ -77,26 +78,28 @@ def get_no_stations(bucket_name, station_file_path, percent = None):
 
 # Update script: SCAN
 def update_SCAN(n, last_time_mod = None):
+    today = datetime.now(timezone.utc).date() # Get today's day, month and year
     network = "SCAN"
     if last_time_mod is None:
         last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = int(n[network]))
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-        #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [network]) 
+        get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [network], fileext = str(today)) 
     else:
         print(f"{network} station files up to date.")
-    # # TO DO: how do we want to deal with file names for update snippets??? give separate name? save in separate folder????
 
 # Update script: SNOTEL
 def update_SNOTEL(n, last_time_mod = None):
+    today = datetime.now(timezone.utc).date() # Get today's day, month and year
     network = "SNOTEL"
     usda_network = "SNTL"
     if last_time_mod is None:
         last_time_mod = get_last_date(bucket_name, f'1_raw_wx/{network}/', n = int(n[network]))
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-        #get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [usda_network])      
-    # # TO DO: how do we want to deal with file names for update snippets??? give separate name? save in separate folder????
+        get_scan_station_data(wecc_terr, wecc_mar, bucket_name, start_date = str(last_time_mod), end_date = str(download_date), networks = [usda_network], fileext = str(today))      
+    else:
+        print(f"{network} station files up to date.")
 
 # Update script: OtherISD
 # As currently written, this will overwrite all files for the current year.
@@ -175,12 +178,27 @@ def update_cw3e(n, last_time_mod = None):
         print(f"{network} station files up to date.")
 
 # Update script: MARITIME/NDBC
+# Update delay by 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+def update_maritime(n, last_time_mod = None):
+    network = "MARITIME"
+    directory = f'1_raw_wx/{network}/'
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
+    
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        stations = get_maritime_station_ids(wecc_terr, wecc_mar, '1_raw_wx/MARITIME/','1_raw_wx/NDBC/')
+        get_maritime_update(stations, bucket_name, network, start_date = str(last_time_mod), end_date = str(download_date))
+    else:
+        print(f"{network} station files up to date.")
+
 ## To do: figure out naming convention for months after september of current year, and what is adequate waiting period for this data.
-# (Oct data currently marked with 'a', not sure if this is standard/permanent data or in progress. Check back in a few weeks?)
+# (Oct data currently marked with 'a' and November with 'b', not sure if this is standard/permanent data or in progress. Check back in a few weeks?)
+
+# Update script: MADIS
 
 # To do:
 # MADIS: add end_time as parameter to input into url.
-# SCAN/SNOTEL: figure out how to save files without overwriting.
 
 
 if __name__ == "__main__":
@@ -193,3 +211,4 @@ if __name__ == "__main__":
     #update_cimis(n)
     #update_hads(n)
     #update_cw3e(n)
+    update_maritime(n)
