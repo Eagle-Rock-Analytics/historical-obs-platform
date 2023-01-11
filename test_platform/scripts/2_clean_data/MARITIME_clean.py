@@ -341,15 +341,13 @@ def clean_buoys(rawdir, cleandir, network):
                 # Note: Datafiles do not have lat/lon information, grab from stationlist file
                 try:
                     if station_file[station_file['STATION_ID'].str.contains(station)].index.values.size > 0:
-                        # print('station is in list for lat/lon') # testing, can delete
                         idx = station_file[station_file['STATION_ID'].str.contains(station)].index.values
                         lat = np.asarray([float(station_file['LATITUDE'].iloc[idx])] * len(ds['time']))
                         lat.shape = (1, len(ds['time']))
                         lon = np.asarray([float(station_file['LONGITUDE'].iloc[idx])] * len(ds['time']))
                         lon.shape = (1, len(ds['time']))
                         ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
-                    else:
-                        print('This station is not in the station list -- please check') # shouldn't ever be the case, can delete, but good for an initial flag
+
                 except Exception as e:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
