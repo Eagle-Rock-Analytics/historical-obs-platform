@@ -260,27 +260,17 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
             end_month = datetime.strptime(end_date, '%Y-%m-%d').month
 
 
-    ### IN PROGRESS
     # Set up cross year flag
     if int(datetime.now().strftime('%j'))<=45: # if download occurring in first 45 days of year
         if (str(datetime.now().year-1)) in years: # and includes previous year's data
             
-            month_list = pd.period_range(start=start_date, end=end_date, freq='M')
-            month_list = [month.strftime("%b") for month in month_list]
-            
+            # get list of months from start to end.
+            date_list = pd.period_range(start=start_date, end=end_date, freq='M')
+            month_list = [month.strftime("%b") for month in date_list]
             cross_year = 1 # Set flag to be true
     
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
     canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
-
-    if cross_year == 1:
-        if start_date is not None and end_date is not None:
-            month_list = pd.period_range(start=start_date, end=end_date, freq='M')
-            month_list = [month.strftime("%b") for month in month_list]
-            print(month_list)
-            exit()
-
-    ### IN PROGRESS ^
 
     for year in years:
         if year < str(datetime.now().year): # If not in current year
@@ -311,11 +301,10 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                     print("Error: {}".format(e))
 
 
-        else: # only applicable for the NDBC stored data (non-Canadian source)
+        else: # if year in present year, download by month. only applicable for the NDBC stored data (non-Canadian source)
             for filename in dir_stations['STATION_ID']:
                 try:
-                        
-                    # For each month in the current year
+                    year = int(year)
                     start_month = date(year, 1, 1) # Jan
                     current_month = date.today()
                     i = current_month.month
@@ -323,6 +312,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                     while i >= start_month.month:
                         current_date = date(year, i, 1)
                         x = current_date.strftime("%b") # NDBC folder names is 3-letter month code
+
                         url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(x, filename, i, year)
                         s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, i, year))
 
@@ -343,6 +333,55 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                 except Exception as e:
                     print("Error: {}".format(e))
 
+    # Additionally, if data includes cross-year data, manually download dates from previous year from monthly data.
+    if cross_year == 1:
+        #print("Cross-year flag triggered")
+        for filename in dir_stations['STATION_ID']:
+            try:
+                # If list spans two years, remove new year months.
+                if 'January' in month_list:
+                    prior_year_ind = month_list.index('January') # Get index of January
+                    prior_year_months = month_list[:prior_year_ind]
+
+                else:
+                    prior_year_months = month_list
+
+                # Then, download all months in month list
+                
+                for i in prior_year_months:
+                    
+                    month_nom = datetime.strptime(i, '%b').month # Get month in number form
+
+                    # Last three months have different file format. Reformat to match.
+                    # If files in folder have just station id and no time in their filename, they are not final data and the script will skip them automatically (line 371).
+                    if month_nom > 9:
+                        if month_nom ==10:
+                            month_nom = 'a'
+                        if month_nom == 11:
+                            month_nom = 'b'
+                        if month_nom == 12:
+                            month_nom = 'c'
+
+                    url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(i, filename, month_nom, year)
+                    #print(url) # For testing
+                    
+                    s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month_nom, year))
+
+                    with requests.get(url, stream=True) as r:
+                        if r.status_code == 404:
+                            pass
+                        elif r.status_code == 200:
+                            s3_obj.put(Body=r.content)
+                            print("Saving data for station {} for {} {}".format(filename, i, year)) 
+                        else:
+                            errors['Station ID'].append(filename)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append(r.status_code)
+                            print("Error: {}".format(r.status_code))
+
+            except Exception as e:
+                print("Error: {}".format(e))
+            
 
     ### Write errors to csv with respective networks
     error_buffer = StringIO()
