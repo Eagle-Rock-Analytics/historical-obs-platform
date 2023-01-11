@@ -80,7 +80,6 @@ def get_elevs(url):
     df = pd.DataFrame(composite_list)
     df.columns = columns
     df['Tide_Reference'] = np.NAN # Add 6th column -- don't really  need this column, drop in update
-#     df = df.reindex(columns = ["Station_ID", "Site_Elevation", "Air_Temp_Elevation", "Anemometer_Elevation", "Tide_Reference", "Barometer_Elevation"])
 
     # Table 2 has 6 columns
     tabletext = tables[1]
@@ -106,7 +105,6 @@ def get_elevs(url):
     dftemp.columns = columns
     df = pd.concat([df, dftemp])
     df=df.reset_index(drop=True)
-    # print(df) # testing
     return df
 
 
@@ -150,10 +148,11 @@ def clean_buoys(rawdir, cleandir, network):
 
     else: # If files read successfully, continue
         # for station in stations: # Full run
-        # for station in stations.sample(4): # SUBSET FOR TESTING
-        for station in ['46138']:
+        for station in stations.sample(4): # SUBSET FOR TESTING
+        # for station in ['46041', '46240']:
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id)
+            station_metadata = station_file.loc[station_file['STATION_ID']==station]
 
             df_stat = None # Initialize merged df
             try:
@@ -184,11 +183,10 @@ def clean_buoys(rawdir, cleandir, network):
                                 # fix year label mismatch
                                 yr_raw = str(df.iloc[1][0]).split('.')[0]
                                 if len(yr_raw) != 4: # older files have a two-digit year
-                                    if df.iloc[1][0] >= 80: # 1980-1999
+                                    if (df.iloc[1][0] >= 80) & (df.iloc[1][0] <= 99): # 1980-1999
                                         df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('19', x))
                                         df = df.iloc[:, 1:]
-
-                                    elif df.iloc[1][0][0] <= 23: # 2000-present
+                                    else: # 2000-present
                                         df['YYYY'] = df['YY'].apply(lambda x: "{}{}".format('20', x))
                                         df = df.iloc[:, 1:]
 
@@ -286,7 +284,7 @@ def clean_buoys(rawdir, cleandir, network):
                                                                 'Q_FLAG':'qc_flag',
                                                                 'time':'time'}, inplace=True)
 
-                                            # missing data flags - mainly as a catchall in case qc check did not catch
+                                            # missing data flags - mainly as a catchall in case pre-proccessed data did not catch
                                             df.replace(999, np.nan, inplace=True) # sfcWind_dir
                                             df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
                                             df.replace(99.0, np.nan, inplace=True) # sfcWind
@@ -327,7 +325,7 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(license = '')
                 ds = ds.assign_attrs(citation = '')
                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-                # ds = ds.assign_attrs(station_name = station_file['NAME'].values[0]) ## FIX
+                ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0])
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station
 
                 # Add dimensions and coordinates
