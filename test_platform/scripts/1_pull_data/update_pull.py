@@ -12,6 +12,7 @@ from CW3E_pull import get_cw3e_metadata, get_cw3e_update
 from CIMIS_pull import get_cimis_update_ftp
 from HADS_pull import get_hads_update
 from MARITIME_pull import get_maritime_update, get_maritime_station_ids
+from MADIS_pull import madis_update
 from pull_qa import retry_downloads
 import boto3
 import config
@@ -192,11 +193,17 @@ def update_maritime(n, last_time_mod = None):
     else:
         print(f"{network} station files up to date.")
 
-
 # Update script: MADIS
-
-# To do:
-# MADIS: add end_time as parameter to input into url.
+def update_madis(n, network, last_time_mod = None):
+    directory = f'1_raw_wx/{network}/'
+    if last_time_mod is None:
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.csv')
+    
+    if last_time_mod < download_date:
+        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+        madis_update(token= config.token, networks = [network], pause = None, start_date = str(last_time_mod), end_date = str(download_date))
+    else:
+        print(f"{network} station files up to date.")
 
 
 if __name__ == "__main__":
@@ -209,4 +216,5 @@ if __name__ == "__main__":
     #update_cimis(n)
     #update_hads(n)
     #update_cw3e(n)
-    update_maritime(n)
+    #update_maritime(n)
+    #update_madis(n, network = 'VCAPCD')
