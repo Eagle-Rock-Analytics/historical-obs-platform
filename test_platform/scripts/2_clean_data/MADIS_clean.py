@@ -189,7 +189,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1)
     # Ignore dtype warning here, we resolve this manually below.
     
-    # FOR TESTING ONLY
+    # FOR TESTING ONLY - remove subset for full run
     df = df.head(5000)
 
     # Drop any columns that only contain NAs.
@@ -494,36 +494,98 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
                 else:
+                    # For wind direction, air temp and barometer sensors, keep multiple sensor heights if there are more than one.
 
-                    # If there is more than one row and the values for sensor heights change between rows, 
-                    # TO DO: DECIDE WHAT TO DO!
-                    if len(sensorheights)>1:
-                        print("Multiple sensor heights! Resolve")
-                        break
-
-                    
                     # Wind speed & direction (m)
                     if 'wind_speed_1_position' in sensorheights.columns and True in sensorheights.wind_speed_1_position.notnull().values: # If any value not null
-                        sensor_height = sensorheights.wind_speed_1_position.dropna().unique() # Get all unique values from column.
-                        ds = ds.assign_attrs(anemometer_height_m = float(sensor_height[0]))
+                        if len(sensorheights.wind_speed_1_position)>1 and sensorheights.wind_speed_1_position.nunique() != 1: 
+                            print(f"{station_id} has more than one wind sensor height. Check these are saved as expected.") # Testing, to flag cases of this.
+                            # If more than one anemometer sensor w/ diff heights
+                            # Use time column to name attributes
+                            
+                            # Get start date for each sensor height
+                            start_dates = station_sensors.sort_values('wind_speed_1_start').groupby('wind_speed_1_position').head(1)
+                            start_dates = start_dates[['wind_speed_1_position', 'wind_speed_1_start']]
+
+                            # Get end date for each sensor height
+                            end_dates = station_sensors.sort_values('wind_speed_1_end').groupby('wind_speed_1_position').tail(1)
+                            end_dates = end_dates[['wind_speed_1_position', 'wind_speed_1_end']]
+
+                            # Join by sensor heights
+                            dates = start_dates.merge(end_dates, on = 'wind_speed_1_position')
+                            row['names'] = np.nan # Add names column
+
+                            # generate attribute names
+                            for index, row in dates.iterrows():
+                                row['names'] = f'anemometer_height_m_{row.wind_speed_1_start[0:10]}_{row.wind_speed_1_end[0:10]}'
+                                ds.attrs[row['names']] = float(row['wind_speed_1_position'])
+
+                        else:
+                            sensor_height = sensorheights.wind_speed_1_position.dropna().unique() # Get all unique values from column.
+                            ds = ds.assign_attrs(anemometer_height_m = float(sensor_height[0]))
                     else:
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
                     
                         
                     # Air temperature (m)
                     if 'air_temp_1_position' in sensorheights.columns and True in sensorheights.air_temp_1_position.notnull().values: # If any value not null
-                        sensor_height = sensorheights.air_temp_1_position.dropna().unique() # Get all unique values from column.
-                        ds = ds.assign_attrs(air_temperature_height_m = float(sensor_height[0]))   
+                        if len(sensorheights.air_temp_1_position)>1 and sensorheights.air_temp_1_position.nunique() != 1: 
+                            print(f"{station_id} has more than one air temp sensor height. Check these are saved as expected.") # Testing, to flag cases of this.
+                            # If more than one anemometer sensor w/ diff heights
+                            # Use time column to name attributes
+                            
+                            # Get start date for each sensor height
+                            start_dates = station_sensors.sort_values('air_temp_1_start').groupby('air_temp_1_position').head(1)
+                            start_dates = start_dates[['air_temp_1_position', 'air_temp_1_start']]
+
+                            # Get end date for each sensor height
+                            end_dates = station_sensors.sort_values('air_temp_1_end').groupby('air_temp_1_position').tail(1)
+                            end_dates = end_dates[['air_temp_1_position', 'air_temp_1_end']]
+
+                            # Join by sensor heights
+                            dates = start_dates.merge(end_dates, on = 'air_temp_1_position')
+                            row['names'] = np.nan # Add names column
+
+                            # generate attribute names
+                            for index, row in dates.iterrows():
+                                row['names'] = f'anemometer_height_m_{row.air_temp_1_start[0:10]}_{row.air_temp_1_end[0:10]}'
+                                ds.attrs[row['names']] = float(row['air_temp_1_position'])
+                        else:        
+                            sensor_height = sensorheights.air_temp_1_position.dropna().unique() # Get all unique values from column.
+                            ds = ds.assign_attrs(air_temperature_height_m = float(sensor_height[0]))   
                     else:
                         ds = ds.assign_attrs(air_temperature_height_m = np.nan)
                     
                         
                     # Barometer elevation (convert from height)
                     if 'pressure_1_position' in sensorheights.columns and True in sensorheights.pressure_1_position.notnull().values: # If any value not null
-                        sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
-                        barometer_elev = sensor_height[0]+float(ds['elevation'].values[0])
-                        ds = ds.assign_attrs(barometer_elevation_m = barometer_elev)
+                        if len(sensorheights.pressure_1_position)>1 and sensorheights.pressure_1_position.nunique() != 1: 
+                            print(f"{station_id} has more than one pressure sensor height. Check these are saved as expected.") # Testing, to flag cases of this.
+                            # If more than one anemometer sensor w/ diff heights
+                            # Use time column to name attributes
+                            
+                            # Get start date for each sensor height
+                            start_dates = station_sensors.sort_values('pressure_1_start').groupby('pressure_1_position').head(1)
+                            start_dates = start_dates[['pressure_1_position', 'pressure_1_start']]
+
+                            # Get end date for each sensor height
+                            end_dates = station_sensors.sort_values('pressure_1_end').groupby('pressure_1_position').tail(1)
+                            end_dates = end_dates[['pressure_1_position', 'pressure_1_end']]
+
+                            # Join by sensor heights
+                            dates = start_dates.merge(end_dates, on = 'pressure_1_position')
+                            row['names'] = np.nan # Add names column
+
+                            # generate attribute names
+                            for index, row in dates.iterrows():
+                                row['names'] = f'anemometer_height_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}'
+                                ds.attrs[row['names']] = float(row['pressure_1_position'])
                         
+                        else:
+                            sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
+                            barometer_elev = sensor_height[0]+float(ds['elevation'].values[0])
+                            ds = ds.assign_attrs(barometer_elevation_m = barometer_elev)
+                            
                     else:
                         ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
@@ -542,6 +604,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         else:
                             ds = ds.assign_attrs(rain_gauge_height_m = float(precip_heights.values[0]))
                     
+
+                    # Currently, these only take one sensor height if there is more than one provided.
                     for col in sensorheights.columns:
                         if col not in ['altimeter_1_position', 'wind_speed_1_position', 'pressure_1_position']:
 
@@ -555,7 +619,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             if col == 'wind_direction_1_position':
                                 ds = ds.assign_attrs(wind_vane_height_m = float(sensor_height[0]))
 
-                
                 # Update variable attributes and do unit conversions
                 
                 #tas: air surface temperature (K)
@@ -1005,8 +1068,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
         
-                print(ds) # For testing
-                continue
+                print(ds) # For testing - remove for full run
 
             except Exception as e:
                 print(traceback.format_exc())
@@ -1090,7 +1152,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
    
 # # Run functions
 if __name__ == "__main__":
-    network = "CNRFC"
+    network = "RAWS"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
