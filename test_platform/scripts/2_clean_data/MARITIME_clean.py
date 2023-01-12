@@ -149,7 +149,6 @@ def clean_buoys(rawdir, cleandir, network):
     else: # If files read successfully, continue
         # for station in stations: # Full run
         for station in stations.sample(4): # SUBSET FOR TESTING
-        # for station in ['46041', '46240']:
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id)
             station_metadata = station_file.loc[station_file['STATION_ID']==station]
@@ -281,7 +280,7 @@ def clean_buoys(rawdir, cleandir, network):
                                                                 'WSPD':'sfcWind',
                                                                 'ATMS':'ps',
                                                                 'DRYT':'tas',
-                                                                'Q_FLAG':'qc_flag',
+                                                                'Q_FLAG':'q_code',
                                                                 'time':'time'}, inplace=True)
 
                                             # missing data flags - mainly as a catchall in case pre-proccessed data did not catch
@@ -479,11 +478,11 @@ def clean_buoys(rawdir, cleandir, network):
                     ds['sfcWind_dir'].attrs['standard_name'] = 'wind_from_direction'
                     ds['sfcWind_dir'].attrs['units'] = 'degrees_clockwise_from_north'
 
-                # qc_flag: quality control flag
+                # q_code: quality code flag in Canadian-data ONLY
                 # note this flag appears that it applies to every observation at that time stamp - waiting on confirmation
-                if "qc_flag" in ds.keys():
-                    ds['qc_flag'].attrs['flag_values'] = "0 1 3 4 5 6 7 8 9"
-                    ds['qc_flag'].attrs['flag_meanings'] =  "https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html"
+                if "q_code" in ds.keys():
+                    ds['q_code'].attrs['code_values'] = "0 1 3 4 5 6 7 8 9"
+                    ds['q_code'].attrs['flag_meanings'] = "See QA/QC csv for network."
 
                 # drop any column that does not have any valid (non-nan data)
                 # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
@@ -502,13 +501,13 @@ def clean_buoys(rawdir, cleandir, network):
                     except: # Add to handle errors for unsupported data types
                         next
 
-                # removes elevation and qc_flag (canadian buoy only) if the only remaining variables (occurs at least once)
+                # removes elevation and quality code (canadian buoy only) if the only remaining variables (occurs at least once)
                 for key in ds.keys():
-                    if 'qc_flag' in list(ds.keys()):
+                    if 'q_code' in list(ds.keys()):
                         if len(ds.keys())==2:
                             print("Dropping empty var: {}".format('elevation'))
-                            print("Dropping empty var: {}".format('qc_flag'))
-                            ds = ds.drop('qc_flag')
+                            print("Dropping empty var: {}".format('q_code'))
+                            ds = ds.drop('q_code')
                             ds = ds.drop('elevation')
                             continue
 
