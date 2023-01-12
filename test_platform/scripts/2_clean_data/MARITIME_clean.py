@@ -116,7 +116,6 @@ def get_elevs(url):
 # network: network to be cleaned
 # Output: Cleaned data for an individual network, priority variables, all times. Organized by staiton as .nc file
 def clean_buoys(rawdir, cleandir, network):
-    emptybuoy = [] # intialize list of buoys that do not have wx data for various reasons
     try:
         files = [] # Get files
         for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir):
@@ -158,11 +157,10 @@ def clean_buoys(rawdir, cleandir, network):
                 stat_files = [k for k in files if station in k] # Gets list of files from the same station
 
                 if not stat_files: # If station has no files downloaded
-                    emptybuoy += [station_id]
                     print('{} does not have any raw data downloaded to AWS at present. Several buoys do not record any meteorological observations.'.format(station_id))
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
-                    errors['Error'].append('No raw data found for this station.')
+                    errors['Error'].append('No raw data found for this station on AWS.')
                     othercols = None # setting to none here so script doesn't fail if the first station grabbed is one with no data
                     continue # Skip this station
 
@@ -298,7 +296,6 @@ def clean_buoys(rawdir, cleandir, network):
                                                     df_stat = pd.concat([df_stat, df], axis=0, ignore_index=True)
 
                     except Exception as e:
-                        print(e)
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
                         errors['Error'].append(e)
@@ -526,11 +523,10 @@ def clean_buoys(rawdir, cleandir, network):
 
             # Write station file to netcdf format
             if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
-                emptybuoy += [station_id]
                 print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
                 errors['File'].append(station_id)
                 errors['Time'].append(end_api)
-                errors['Error'].append('Station has no data.')
+                errors['Error'].append('Station does not report any valid meteorological data.')
                 continue
             else:
                 try:
@@ -569,14 +565,6 @@ def clean_buoys(rawdir, cleandir, network):
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"errors_{}_{}.csv".format(network, end_api)) # Make sure error files save to correct directory
-
-    # Save list of all buoy stations that do not report any wx data, but have raw data files on AWS
-    print('Empty buoys to remove: ', emptybuoy)
-    no_wx_buoys = pd.DataFrame(emptybuoy, columns = ['Station_ID'])
-    csv_buffer = StringIO()
-    no_wx_buoys.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=cleandir+"emptybuoys.csv")
 
 # Run functions
 if __name__ == "__main__":
