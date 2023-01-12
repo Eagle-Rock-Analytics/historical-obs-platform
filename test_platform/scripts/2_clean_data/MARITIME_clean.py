@@ -195,28 +195,6 @@ def clean_buoys(rawdir, cleandir, network):
                                 if {'WD', 'BAR'}.issubset(df.columns) == True: # older files have different var names
                                     df.rename(columns={'WD':'WDIR', 'BAR':'PRES'}, inplace=True)
 
-                                df['WDIR'] = pd.to_numeric(df['WDIR'])
-                                df['WSPD'] = pd.to_numeric(df['WSPD'])
-                                df['PRES'] = pd.to_numeric(df['PRES'])
-                                df['ATMP'] = pd.to_numeric(df['ATMP'])
-                                df['DEWP'] = pd.to_numeric(df['DEWP'])
-
-                                # standardize NA codes -- CHECK ON THIS
-                                try:
-                                    df.replace(999, np.nan, inplace=True) # sfcWind_dir
-                                    df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
-                                    df.replace(99.0, np.nan, inplace=True) # sfcWind
-                                    df.replace(9999.0, np.nan, inplace=True) # ps
-
-                                    # shouldn't have to do this twice, but not working without it
-                                    df.replace('999', np.nan, inplace=True) # sfcWind_dir
-                                    df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
-                                    df.replace('99.0', np.nan, inplace=True) # sfcWind
-                                    df.replace('9999.0', np.nan, inplace=True) # ps
-
-                                except Exception as e:
-                                    print(e)
-
                                 # convert date to datetime
                                 df.rename(columns={'YYYY':'year', 'MM':'month', 'DD':'day', 'hh':'hour', 'mm':'minute'}, inplace=True)
                                 df['time'] = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']], utc=True)
@@ -235,6 +213,28 @@ def clean_buoys(rawdir, cleandir, network):
                                                   'PRES':'ps',
                                                   'ATMP':'tas',
                                                   'DEWP':'tdps'}, inplace=True)
+
+                                df['sfcWind_dir'] = pd.to_numeric(df['sfcWind_dir'])
+                                df['sfcWind'] = pd.to_numeric(df['sfcWind'])
+                                df['ps'] = pd.to_numeric(df['ps'])
+                                df['tas'] = pd.to_numeric(df['tas'])
+                                df['tdps'] = pd.to_numeric(df['tdps'])
+
+                                # standardize NA codes -- CHECK ON THIS
+                                try:
+                                    df.replace(999, np.nan, inplace=True) # sfcWind_dir
+                                    df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                    df.replace(99.0, np.nan, inplace=True) # sfcWind
+                                    df.replace(9999.0, np.nan, inplace=True) # ps
+                                    #
+                                    # # shouldn't have to do this twice, but not working without it
+                                    # df.replace('999', np.nan, inplace=True) # sfcWind_dir
+                                    # df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
+                                    # df.replace('99.0', np.nan, inplace=True) # sfcWind
+                                    # df.replace('9999.0', np.nan, inplace=True) # ps
+
+                                except Exception as e:
+                                    print(e)
 
                                 # if more than one file per station, merge files together
                                 if df_stat is None:
@@ -570,5 +570,5 @@ def clean_buoys(rawdir, cleandir, network):
 if __name__ == "__main__":
     network = "NDBC" # or "MARITIME"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-    print(rawdir, cleandir, qaqcdir) # TESTING
+    print(rawdir, cleandir, qaqcdir)
     clean_buoys(rawdir, cleandir, network=network)
