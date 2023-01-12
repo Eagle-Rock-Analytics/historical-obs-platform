@@ -220,18 +220,12 @@ def clean_buoys(rawdir, cleandir, network):
                                 df['tas'] = pd.to_numeric(df['tas'])
                                 df['tdps'] = pd.to_numeric(df['tdps'])
 
-                                # standardize NA codes -- CHECK ON THIS
+                                # standardize NA codes
                                 try:
                                     df.replace(999, np.nan, inplace=True) # sfcWind_dir
                                     df.replace(999.0, np.nan, inplace=True) # sfcWind_dir, tas, tdps
                                     df.replace(99.0, np.nan, inplace=True) # sfcWind
                                     df.replace(9999.0, np.nan, inplace=True) # ps
-                                    #
-                                    # # shouldn't have to do this twice, but not working without it
-                                    # df.replace('999', np.nan, inplace=True) # sfcWind_dir
-                                    # df.replace('999.0', np.nan, inplace=True) # sfcWind_dir, tas, tdps
-                                    # df.replace('99.0', np.nan, inplace=True) # sfcWind
-                                    # df.replace('9999.0', np.nan, inplace=True) # ps
 
                                 except Exception as e:
                                     print(e)
