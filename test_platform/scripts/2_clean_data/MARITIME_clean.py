@@ -90,7 +90,7 @@ def get_elevs(url):
     composite_list = [table[x:x+6] for x in range(0, len(table),6)] # Split into rows
     dftemp = pd.DataFrame(composite_list)
     dftemp.columns = columns
-    df = pd.concat([df, dftemp])
+    df = pd.concat([df, dftemp], sort=True)
     df=df.reset_index(drop=True)
 
 #   Table 3 has 9 columns, but we only want the first 6
@@ -103,7 +103,7 @@ def get_elevs(url):
     dftemp = pd.DataFrame(composite_list)
     dftemp = dftemp.iloc[:,0:6] # Drop last three columns
     dftemp.columns = columns
-    df = pd.concat([df, dftemp])
+    df = pd.concat([df, dftemp], sort=True)
     df=df.reset_index(drop=True)
     return df
 
