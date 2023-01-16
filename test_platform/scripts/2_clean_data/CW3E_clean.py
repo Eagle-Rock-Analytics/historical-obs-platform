@@ -202,7 +202,7 @@ def clean_cw3e(rawdir, cleandir):
                         # Station name
                         ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0]) 
 
-                        # Sensor heights - TO DO: Waiting on CW3E response.
+                        # Sensor heights - Final confirmation is still waiting on CW3E response.
                         ds = ds.assign_attrs(barometer_elev_m = np.nan)
                         ds = ds.assign_attrs(pyranometer_height_m = np.nan)
                         ds = ds.assign_attrs(wind_vane_height_m = np.nan)
@@ -364,8 +364,9 @@ def clean_cw3e(rawdir, cleandir):
                         for key in ds.keys():
                             try:
                                 if np.isnan(ds[key].values).all():
-                                    print("Dropping {}".format(key))
-                                    ds = ds.drop(key)
+                                    if 'elevation' not in key: # Exclude elevation
+                                        print("Dropping {}".format(key))
+                                        ds = ds.drop(key)
                             except: # Add to handle errors for unsupported data types
                                 next
 

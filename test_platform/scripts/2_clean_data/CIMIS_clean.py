@@ -476,8 +476,9 @@ def clean_cimis(rawdir, cleandir):
                 for key in ds.keys():
                     try:
                         if np.isnan(ds[key].values).all():
-                            print("Dropping {}".format(key))
-                            ds = ds.drop(key)
+                            if 'elevation' not in key: # Exclude elevation
+                                print("Dropping {}".format(key))
+                                ds = ds.drop(key)
                     except: # Add to handle errors for unsupported data types
                         next
 
@@ -512,8 +513,7 @@ def clean_cimis(rawdir, cleandir):
                 try:
                     filename = station_id+".nc" # Make file name
                     filepath = cleandir+filename # Write file path
-                    print(filepath) # For testing
-
+                    
                     # Write locally
                     ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
 

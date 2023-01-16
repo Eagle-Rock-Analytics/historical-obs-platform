@@ -615,6 +615,11 @@ def clean_otherisd(rawdir, cleandir):
                         ds['data_source'].attrs['flag_values'] = "1 2 3 4 5 6 7 8 A B C D E F G H I J K L M N O 9"
                         ds['data_source'].attrs['flag_meanings'] = "See QA/QC csv for network." 
 
+                    # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
+                    for key in ds.keys():
+                        if 'qc' in key:
+                            ds[key] = ds[key].astype(str) # Coerce all values in key to string.
+                    
                     # # Reorder variables
                     # In following order:
                     desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
@@ -624,11 +629,13 @@ def clean_otherisd(rawdir, cleandir):
                     ds = ds[new_index]
 
                     # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                    for var in ds.variables:
-                        try:
-                            print([var, float(ds[var].min()), float(ds[var].max())]) 
-                        except:
-                            next
+                    # for var in ds.variables:
+                    #     try:
+                    #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                    #     except:
+                    #         next
+
+                    
                     
                 except Exception as e: # If error in xarray reorganization
                     print(file, e)
@@ -648,10 +655,10 @@ def clean_otherisd(rawdir, cleandir):
                 
                 else:
                     try:
-                        print(ds)
+                        #print(ds)
                         filename = station+".nc" # Make file name
                         filepath = cleandir+filename # Write file path
-                        print(filepath) # For testing
+                        #print(filepath) # For testing
 
                         # Write locally
                         ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
