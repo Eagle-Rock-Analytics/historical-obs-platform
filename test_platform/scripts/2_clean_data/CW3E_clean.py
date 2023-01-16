@@ -207,7 +207,7 @@ def clean_cw3e(rawdir, cleandir):
                         ds = ds.assign_attrs(pyranometer_height_m = np.nan)
                         ds = ds.assign_attrs(wind_vane_height_m = np.nan)
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
-                        ds = ds.assign_attrs(air_temperature_height_m = np.nan)
+                        ds = ds.assign_attrs(thermometer_height_m = np.nan)
                         ds = ds.assign_attrs(humidity_height_m = np.nan)
                         ds = ds.assign_attrs(rain_gauge_height_m = np.nan)
 

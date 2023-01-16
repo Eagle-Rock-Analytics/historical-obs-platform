@@ -434,7 +434,7 @@ def clean_asosawos(rawdir, cleandir):
 
                     # Sensor heights
                     
-                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    ds = ds.assign_attrs(thermometer_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     
                     if station_metadata['Anemometer_elev'].isnull().all():
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)

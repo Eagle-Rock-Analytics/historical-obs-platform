@@ -244,6 +244,11 @@ def clean_scansnotel(rawdir, cleandir):
                 ds = ds.assign_attrs(citation = "")
                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
                 
+                # Sensor heights - TO DO: waiting on response from USDA
+                ds = ds.assign_attrs(thermometer_height_m = np.nan) 
+                ds = ds.assign_attrs(anemometer_height_m = 1.5) 
+                ds = ds.assign_attrs(barometer_elev_m = np.nan) 
+
                 # Add station metadata
                 # Station name
                 ds = ds.assign_attrs(station_name = station_metadata['name']) 
@@ -283,7 +288,7 @@ def clean_scansnotel(rawdir, cleandir):
                 # Add coordinates: latitude and longitude.
                 lat = np.asarray([station_metadata['latitude']]*len(ds['time']))
                 lat.shape = (1, len(ds['time']))
-                re
+                
                 lon = np.asarray([station_metadata['longitude']]*len(ds['time']))
                 lon.shape = (1, len(ds['time']))
 

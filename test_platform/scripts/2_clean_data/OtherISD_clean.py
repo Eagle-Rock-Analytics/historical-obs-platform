@@ -388,7 +388,7 @@ def clean_otherisd(rawdir, cleandir):
                             ds.attrs[i] = station_metadata[i].values[0]
 
                     # # Sensor heights
-                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    ds = ds.assign_attrs(thermometer_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     ds = ds.assign_attrs(anemometer_height_m = 1.5) # As per p. 99 of ISD manual.
                     ds = ds.assign_attrs(barometer_elev_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     
