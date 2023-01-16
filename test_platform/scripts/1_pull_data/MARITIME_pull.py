@@ -104,7 +104,7 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     weccstations.drop(['OBJECTID_1', 'OBJECTID', 'Shape_Leng','geometry', 'FID_WECC_B', 'BUFF_DIST', 'index_right'], axis = 1, inplace = True)
     weccstations.rename(columns = {'in_WECC':'in_terr_wecc', 'in_marine':'in_mar_wecc'}, inplace = True)
 
-    ## Identify which buoys are NDBC and which are CMAN/MARITIME
+    ## Identify which buoys are moored buoys (46xxx) and which are C-MAN/water level obs network/other
     network = []
     for item in weccstations['STATION_ID']:
         if item[:2] == "46":
@@ -157,7 +157,7 @@ def get_maritime(stations, bucket_name, network, years = None):
         years = years
 
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
-    canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
+    canadian_owners = list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"])
 
     for year in years:
         if year < str(datetime.now().year):
@@ -177,7 +177,7 @@ def get_maritime(stations, bucket_name, network, years = None):
                         elif r.status_code == 200:
                             s3_obj.put(Body=r.content)
                             ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
-                            print("Saving data for station {} for {}".format(filename, year)) 
+                            print("Saving data for station {} for {}".format(filename, year))
                         else:
                             errors['Station ID'].append(filename)
                             errors['Time'].append(end_api)
@@ -206,7 +206,7 @@ def get_maritime(stations, bucket_name, network, years = None):
                                 pass
                             elif r.status_code == 200:
                                 s3_obj.put(Body=r.content)
-                                print("Saving data for station {} for {} {}".format(filename, x, year)) 
+                                print("Saving data for station {} for {} {}".format(filename, x, year))
                             else:
                                 errors['Station ID'].append(filename)
                                 errors['Time'].append(end_api)
@@ -263,14 +263,14 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
     # Set up cross year flag
     if int(datetime.now().strftime('%j'))<=45: # if download occurring in first 45 days of year
         if (str(datetime.now().year-1)) in years: # and includes previous year's data
-            
+
             # get list of months from start to end.
             date_list = pd.period_range(start=start_date, end=end_date, freq='M')
             month_list = [month.strftime("%b") for month in date_list]
             cross_year = 1 # Set flag to be true
-    
+
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
-    canadian_owners = list(stations.loc[stations['OWNER'] == "CM"]['STATION_ID']) + list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
+    canadian_owners = list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
 
     for year in years:
         if year < str(datetime.now().year): # If not in current year
@@ -290,7 +290,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                         elif r.status_code == 200:
                             s3_obj.put(Body=r.content)
                             ## Note: The Canadian buoy all-years-file still gets downloaded/overwritten for len(years) times, where it could just be downloaded once
-                            print("Saving data for station {} for {}".format(filename, year)) 
+                            print("Saving data for station {} for {}".format(filename, year))
                         else:
                             errors['Station ID'].append(filename)
                             errors['Time'].append(end_api)
@@ -326,7 +326,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                                     pass
                                 elif r.status_code == 200:
                                     s3_obj.put(Body=r.content)
-                                    print("Saving data for station {} for {} {}".format(filename, x, year)) 
+                                    print("Saving data for station {} for {} {}".format(filename, x, year))
                                 else:
                                     errors['Station ID'].append(filename)
                                     errors['Time'].append(end_api)
@@ -355,9 +355,9 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                         prior_year_months = month_list
 
                     # Then, download all months in month list
-                    
+
                     for i in prior_year_months:
-                        
+
                         month_nom = datetime.strptime(i, '%b').month # Get month in number form
 
                         # Last three months have different file format. Reformat to match.
@@ -372,7 +372,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
 
                         url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(i, filename, month_nom, year)
                         #print(url) # For testing
-                        
+
                         s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month_nom, year))
 
                         with requests.get(url, stream=True) as r:
@@ -380,7 +380,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                                 pass
                             elif r.status_code == 200:
                                 s3_obj.put(Body=r.content)
-                                print("Saving data for station {} for {} {}".format(filename, i, year)) 
+                                print("Saving data for station {} for {} {}".format(filename, i, year))
                             else:
                                 errors['Station ID'].append(filename)
                                 errors['Time'].append(end_api)
@@ -389,7 +389,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
 
                 except Exception as e:
                     print("Error: {}".format(e))
-            
+
 
     ### Write errors to csv with respective networks
     error_buffer = StringIO()
@@ -404,6 +404,6 @@ if __name__ == "__main__":
     network_to_run = "NDBC" # "MARITIME" or "NDBC"
     stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
     get_maritime(stations, bucket_name, network_to_run, years = None)
-    
+
 ## Full Pull Notes
 ## 1. Select either "MARITIME" or "NDBC" as network of choice to download for "network_to_run"
