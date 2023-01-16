@@ -182,7 +182,9 @@ def update_maritime(n, last_time_mod = None):
     network = "MARITIME"
     directory = f'1_raw_wx/{network}/'
     if last_time_mod is None:
-        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]))
+        # Note: File extension is either .gz or .zip, so do not filter by file extension here as errors & station files will be dropped automatically.
+
     
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
@@ -197,7 +199,8 @@ def update_ndbc(n, last_time_mod = None):
     network = "NDBC"
     directory = f'1_raw_wx/{network}/'
     if last_time_mod is None:
-        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.gz')
+        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network])) 
+        # Note: File extension is either .gz or .zip, so do not filter by file extension here as errors & station files will be dropped automatically.
     
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
