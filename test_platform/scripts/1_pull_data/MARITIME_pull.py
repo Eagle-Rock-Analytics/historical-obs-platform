@@ -277,8 +277,8 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
             for filename in dir_stations['STATION_ID']:
                 try:  # Try to get station txt.gz.
                     if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
-                        url = "https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/csvData/c{}_csv.zip".format(filename) # all years in one file, including current year
-                        s3_obj = s3.Object(bucket_name, directory+"{}_csv.zip".format(filename)) # all years file format
+                        url = f"https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/FBYEARS/{filename}/{filename}_{year}.zip" # Data for year desired
+                        s3_obj = s3.Object(bucket_name, directory+"{}_{}_csv.zip".format(filename, year)) # all years file format
 
                     else: # NOAA NDBC Buoy archive
                         url = "https://www.ndbc.noaa.gov/data/historical/stdmet/{}h{}.txt.gz".format(filename, year)
@@ -303,30 +303,35 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
 
         else: # if year in present year, download by month. only applicable for the NDBC stored data (non-Canadian source)
             for filename in dir_stations['STATION_ID']:
+
                 try:
-                    year = int(year)
-                    start_month = date(year, 1, 1) # Jan
-                    current_month = date.today()
-                    i = current_month.month
+                    if filename in canadian_owners: # Environment and Climate Change Canadian Moored buoy
+                        url = f"https://www.meds-sdmm.dfo-mpo.gc.ca/alphapro/wave/waveshare/FBYEAR2DATE/{filename}_Y2D.zip" # Data for current year
+                        s3_obj = s3.Object(bucket_name, directory+"{}_{}_csv.zip".format(filename, year)) # Overwrite current year data file
+                    else:
+                        year = int(year)
+                        start_month = date(year, 1, 1) # Jan
+                        current_month = date.today()
+                        i = current_month.month
 
-                    while i >= start_month.month:
-                        current_date = date(year, i, 1)
-                        x = current_date.strftime("%b") # NDBC folder names is 3-letter month code
+                        while i >= start_month.month:
+                            current_date = date(year, i, 1)
+                            x = current_date.strftime("%b") # NDBC folder names is 3-letter month code
 
-                        url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(x, filename, i, year)
-                        s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, i, year))
+                            url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(x, filename, i, year)
+                            s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, i, year))
 
-                        with requests.get(url, stream=True) as r:
-                            if r.status_code == 404:
-                                pass
-                            elif r.status_code == 200:
-                                s3_obj.put(Body=r.content)
-                                print("Saving data for station {} for {} {}".format(filename, x, year)) 
-                            else:
-                                errors['Station ID'].append(filename)
-                                errors['Time'].append(end_api)
-                                errors['Error'].append(r.status_code)
-                                print("Error: {}".format(r.status_code))
+                            with requests.get(url, stream=True) as r:
+                                if r.status_code == 404:
+                                    pass
+                                elif r.status_code == 200:
+                                    s3_obj.put(Body=r.content)
+                                    print("Saving data for station {} for {} {}".format(filename, x, year)) 
+                                else:
+                                    errors['Station ID'].append(filename)
+                                    errors['Time'].append(end_api)
+                                    errors['Error'].append(r.status_code)
+                                    print("Error: {}".format(r.status_code))
 
                         i -= 1
 
@@ -337,50 +342,53 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
     if cross_year == 1:
         #print("Cross-year flag triggered")
         for filename in dir_stations['STATION_ID']:
-            try:
-                # If list spans two years, remove new year months.
-                if 'January' in month_list:
-                    prior_year_ind = month_list.index('January') # Get index of January
-                    prior_year_months = month_list[:prior_year_ind]
+            if filename in canadian_owners:
+                continue
+            else:
+                try:
+                    # If list spans two years, remove new year months.
+                    if 'January' in month_list:
+                        prior_year_ind = month_list.index('January') # Get index of January
+                        prior_year_months = month_list[:prior_year_ind]
 
-                else:
-                    prior_year_months = month_list
+                    else:
+                        prior_year_months = month_list
 
-                # Then, download all months in month list
-                
-                for i in prior_year_months:
+                    # Then, download all months in month list
                     
-                    month_nom = datetime.strptime(i, '%b').month # Get month in number form
+                    for i in prior_year_months:
+                        
+                        month_nom = datetime.strptime(i, '%b').month # Get month in number form
 
-                    # Last three months have different file format. Reformat to match.
-                    # If files in folder have just station id and no time in their filename, they are not final data and the script will skip them automatically (line 371).
-                    if month_nom > 9:
-                        if month_nom ==10:
-                            month_nom = 'a'
-                        if month_nom == 11:
-                            month_nom = 'b'
-                        if month_nom == 12:
-                            month_nom = 'c'
+                        # Last three months have different file format. Reformat to match.
+                        # If files in folder have just station id and no time in their filename, they are not final data and the script will skip them automatically (line 371).
+                        if month_nom > 9:
+                            if month_nom ==10:
+                                month_nom = 'a'
+                            if month_nom == 11:
+                                month_nom = 'b'
+                            if month_nom == 12:
+                                month_nom = 'c'
 
-                    url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(i, filename, month_nom, year)
-                    #print(url) # For testing
-                    
-                    s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month_nom, year))
+                        url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(i, filename, month_nom, year)
+                        #print(url) # For testing
+                        
+                        s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month_nom, year))
 
-                    with requests.get(url, stream=True) as r:
-                        if r.status_code == 404:
-                            pass
-                        elif r.status_code == 200:
-                            s3_obj.put(Body=r.content)
-                            print("Saving data for station {} for {} {}".format(filename, i, year)) 
-                        else:
-                            errors['Station ID'].append(filename)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append(r.status_code)
-                            print("Error: {}".format(r.status_code))
+                        with requests.get(url, stream=True) as r:
+                            if r.status_code == 404:
+                                pass
+                            elif r.status_code == 200:
+                                s3_obj.put(Body=r.content)
+                                print("Saving data for station {} for {} {}".format(filename, i, year)) 
+                            else:
+                                errors['Station ID'].append(filename)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append(r.status_code)
+                                print("Error: {}".format(r.status_code))
 
-            except Exception as e:
-                print("Error: {}".format(e))
+                except Exception as e:
+                    print("Error: {}".format(e))
             
 
     ### Write errors to csv with respective networks
