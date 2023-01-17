@@ -1,5 +1,5 @@
 '''
-This function iterates through all networks and checks to see what stations have been successfully cleaned, 
+This script iterates through all networks and checks to see what stations have been successfully cleaned, 
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files are not cleaned, or if the errors occur during or after the cleaning process.
 
