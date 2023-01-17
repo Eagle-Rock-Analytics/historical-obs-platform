@@ -6,9 +6,6 @@ with relevant errors added to the corresponding stations if station files are no
 Note that because errors.csv are parsed, very old errors.csv may want to be removed manually from AWS or thresholded below 
 (removing those produced during code testing)
 
-To do:
-If stations have been cleaned but do not have data available, they are added manually to the station list.
-
 '''
 import boto3
 import pandas as pd
