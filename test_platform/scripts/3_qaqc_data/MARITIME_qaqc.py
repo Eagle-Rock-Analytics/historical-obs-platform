@@ -21,6 +21,8 @@ import xarray as xr
 import boto3
 from random import sample
 import s3fs
+import geopandas as gp
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 ## Import qaqc stage calc functions
@@ -41,7 +43,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 
 ## Read in data, and subset random sample for testing
-def get_cleaned_stations(cleandir, qaqcdir):
+def get_cleaned_stations(cleandir, qaqcdir, terrpath, marpath):
 
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
@@ -55,8 +57,7 @@ def get_cleaned_stations(cleandir, qaqcdir):
             files += [file]
 
         files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-        # files = [file for file in files if "error" not in file] # Remove error handling files.
-        # files = [file for file in files if "station" not in file] # Remove error handling files.
+        # files = [file for file in files if "error" not in file] # Remove error handling files
         print('Number of cleaned files for testing: ', len(files)) # testing
 
     except Exception as e:
@@ -66,47 +67,75 @@ def get_cleaned_stations(cleandir, qaqcdir):
         errors['Error'].append(e)
 
     else: # if files successfully read in
-        # for file in files: # full run
-        files = sample(files,1)
-        for file in files: # subset for testing
+        files = sample(files,3) # subset for testing
+        for file in files:
             print('Running QA/QC on: ', file) # testing
 
             try:
                 fs = s3fs.S3FileSystem()
-                aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
+                aws_url = "s3://wecc-historical-wx/"+file
 
-                with fs.open(aws_urls[0]) as fileObj:
+                with fs.open(aws_url) as fileObj:
                     ds = xr.open_dataset(fileObj, engine='h5netcdf')
                     file_to_qaqc = ds.to_dataframe()
                     print(file_to_qaqc.head()) # testing
 
-                    # qaqc_missing_latlon
-                    qaqc_latlon = qaqc_missing_latlon(file_to_qaqc) # eventually in calc_qaqc
+                    # qaqc_missing_latlon  # eventually in calc_qaqc?
+                    if file_to_qaqc['lat'].isnull().values.any() == True:
+                        print('{} has a missing latitude, skipping'.format(file)) # testing
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append('Missing latitude, skipping qa/qc.')
+                        continue
 
-                    # if file_to_qaqc['lat'].isnull().values.any() == True:
-                    #     print('{} has a missing latitude, skipping'.format(file))
-                    #     errors['File'].append(file)
-                    #     errors['Time'].append(end_api)
-                    #     errors['Error'].append('Missing latitude, skipping qa/qc.')
-                    #     continue
-                    #
-                    # if file_to_qaqc['lon'].isnull().values.any() == True:
-                    #     print('{} has a missing longitude, skipping'.format(file))
-                    #     errors['File'].append(file)
-                    #     errors['Time'].append(end_api)
-                    #     errors['Error'].append('Missing longitude, skipping qa/qc.')
-                    #     continue
+                    if file_to_qaqc['lon'].isnull().values.any() == True:
+                        print('{} has a missing longitude, skipping'.format(file)) # testing
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append('Missing longitude, skipping qa/qc.')
+                        continue
 
-                    # qaqc_within_wecc -- IN PROGRESS
-                    # qaqc_wecc = qaqc_within_wecc(file_to_qaqc) # eventually in calc_qaqc
 
-                    # qaqc_elev_check -- IN PROGRESS
-                    qaqc_elev = qaqc_elev_check(file_to_qaqc)
+                    # qaqc_within_wecc -- IN PROGRESS # eventually in calc_qaqc?
+                    t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly
+                    lat_to_check = file_to_qaqc['lat'].iloc[0]
+                    lon_to_check = file_to_qaqc['lon'].iloc[0]
+                    print(lat_to_check, lon_to_check) # testing
+
+                    # check if lat_to_check and lon_to_check are within wecc, drop if not
+                    if (lat_to_check < bbox.miny.values) or (lat_to_check > bbox.maxy.values):
+                        # print('Latitude out of range for WECC') # testing
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append('Latitude out of range for WECC')
+
+                    if (lon_to_check > bbox.maxx.values) or (lon_to_check < bbox.minx.values):
+                        # print('Longitude out of range for WECC') # testing
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append('Longitude out of range for WECC')
+
+
+                    # qaqc_elev_check -- IN PROGRESS # eventually in calc_qaqc?
+                    if file_to_qaqc['elevation'].isnull().values.any() == True:
+                        print('{} has a missing elevation, will be processed via DEM'.format(file))
+
+                    # check range of values for elevation
+                    # death valley is 282 feet (85.9 m) below sea level
+                    if file_to_qaqc['elevation'].values.any() < -86.0:
+                        print('Elevation out of range for WECC') # testing
+                        errors['File'].append(file)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append('Elevation out of range for WECC')
+
+                    # do we need a high end value? denali is ~6190 m
 
                     ds.close()
+
+
             except Exception as e:
                 print(e) # testing
-                errors['File'].append("Whole network")
+                errors['File'].append(file)
                 errors['Time'].append(end_api)
                 errors['Error'].append(e)
 
@@ -127,4 +156,4 @@ def get_cleaned_stations(cleandir, qaqcdir):
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths("NDBC")
     print(cleandir, qaqcdir) # testing
-    get_cleaned_stations(cleandir, qaqcdir)
+    get_cleaned_stations(cleandir, qaqcdir, wecc_terr, wecc_mar)
