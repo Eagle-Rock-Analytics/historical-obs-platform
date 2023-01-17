@@ -117,7 +117,7 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
     ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
     weccstations = weccstations.reindex(columns = [col for col in weccstations.columns if col != 'NOTE'] + ['NOTE'])
 
-    ## Splits dataframe into respective networks
+    ## Splits dataframe into respective networks - this is somewhat unnecessary
     maritime_network = weccstations[weccstations['NETWORK'] == 'MARITIME']
     ndbc_network = weccstations[weccstations['NETWORK'] == 'NDBC']
 
@@ -158,6 +158,9 @@ def get_maritime(stations, bucket_name, network, years = None):
 
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
     canadian_owners = list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"])
+
+    ## Targeted pull fix for "CM" owner, if needed in future
+    # cm_owner = list(stations.loc[stations['OWNER'] == 'CM']["STATION_ID"])
 
     for year in years:
         if year < str(datetime.now().year):
@@ -270,7 +273,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
             cross_year = 1 # Set flag to be true
 
     ## Identifies which stations are owned by Canadian Dept of Environment and Climate Change (not qaqc'd by NDBC)
-    canadian_owners = list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flags
+    canadian_owners = list(stations.loc[stations['OWNER'] == "C"]["STATION_ID"]) # Canadian flag
 
     for year in years:
         if year < str(datetime.now().year): # If not in current year
@@ -371,7 +374,6 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
                                 month_nom = 'c'
 
                         url = "https://www.ndbc.noaa.gov/data/stdmet/{}/{}{}{}.txt.gz".format(i, filename, month_nom, year)
-                        #print(url) # For testing
 
                         s3_obj = s3.Object(bucket_name, directory+"{}{}{}.txt.gz".format(filename, month_nom, year))
 
@@ -401,7 +403,7 @@ def get_maritime_update(stations, bucket_name, network, start_date = None, end_d
 ## ----------------------------------------------------------------------------------------------------------------------------
 # To download all data, run:
 if __name__ == "__main__":
-    network_to_run = "NDBC" # "MARITIME" or "NDBC"
+    network_to_run = "MARITIME" # "MARITIME" or "NDBC"
     stations = get_maritime_station_ids(wecc_terr, wecc_mar, directory_mar, directory_ndbc)
     get_maritime(stations, bucket_name, network_to_run, years = None)
 
