@@ -188,9 +188,6 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1)
     # Ignore dtype warning here, we resolve this manually below.
-    
-    # FOR TESTING ONLY - remove subset for full run
-    df = df.head(5000)
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
