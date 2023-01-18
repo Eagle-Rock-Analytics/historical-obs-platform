@@ -239,12 +239,12 @@ def clean_cimis(rawdir, cleandir):
                 ds = ds.assign_attrs(station_name = station_metadata['Name'].values[0]) 
 
                 # Sensor heights
-                ds = ds.assign_attrs(pyranometer_height_m = 2)
-                ds = ds.assign_attrs(wind_vane_height_m = 2)
-                ds = ds.assign_attrs(anemometer_height_m = 2)
-                ds = ds.assign_attrs(air_temperature_height_m = 1.5)
+                ds = ds.assign_attrs(pyranometer_height_m = 2.)
+                ds = ds.assign_attrs(wind_vane_height_m = 2.)
+                ds = ds.assign_attrs(anemometer_height_m = 2.)
+                ds = ds.assign_attrs(thermometer_height_m = 1.5)
                 ds = ds.assign_attrs(humidity_height_m = 1.5)
-                ds = ds.assign_attrs(rain_gauge_height_m = 1)
+                ds = ds.assign_attrs(rain_gauge_height_m = 1.)
 
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
@@ -476,8 +476,9 @@ def clean_cimis(rawdir, cleandir):
                 for key in ds.keys():
                     try:
                         if np.isnan(ds[key].values).all():
-                            print("Dropping {}".format(key))
-                            ds = ds.drop(key)
+                            if 'elevation' not in key: # Exclude elevation
+                                print("Dropping {}".format(key))
+                                ds = ds.drop(key)
                     except: # Add to handle errors for unsupported data types
                         next
 
@@ -512,8 +513,7 @@ def clean_cimis(rawdir, cleandir):
                 try:
                     filename = station_id+".nc" # Make file name
                     filepath = cleandir+filename # Write file path
-                    print(filepath) # For testing
-
+                    
                     # Write locally
                     ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
 

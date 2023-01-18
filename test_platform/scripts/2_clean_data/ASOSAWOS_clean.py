@@ -401,7 +401,7 @@ def clean_asosawos(rawdir, cleandir):
             if df.empty is False: # If there is data in the dataframe, convert to xarray object.
                 try:
                     # Drop any empty variables
-                    df = df.dropna(axis = 1, how = 'all')
+                    df = df.dropna(subset=df.columns.difference(['elevation']), axis = 1, how = 'all') # Drop any NA columns except for elevation
                     
                     # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
                     df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]                                             
@@ -434,7 +434,7 @@ def clean_asosawos(rawdir, cleandir):
 
                     # Sensor heights
                     
-                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    ds = ds.assign_attrs(thermometer_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     
                     if station_metadata['Anemometer_elev'].isnull().all():
                         ds = ds.assign_attrs(anemometer_height_m = np.nan)
@@ -681,11 +681,11 @@ def clean_asosawos(rawdir, cleandir):
                     ds = ds[new_index]
 
                     # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                    for var in ds.variables:
-                        try:
-                            print([var, float(ds[var].min()), float(ds[var].max())]) 
-                        except:
-                            next
+                    # for var in ds.variables:
+                    #     try:
+                    #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                    #     except:
+                    #         next
                     
                 except Exception as e: # If error in xarray reorganization
                     print(file, e)

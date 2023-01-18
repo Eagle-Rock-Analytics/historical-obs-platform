@@ -188,9 +188,6 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1)
     # Ignore dtype warning here, we resolve this manually below.
-    
-    # FOR TESTING ONLY - remove subset for full run
-    df = df.head(5000)
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -490,7 +487,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 # If sensor heights is completely NA, ignore.
                 if sensorheights.isnull().all().all():
                     ds = ds.assign_attrs(anemometer_height_m = np.nan)
-                    ds = ds.assign_attrs(air_temperature_height_m = np.nan)
+                    ds = ds.assign_attrs(thermometer_height_m = np.nan)
                     ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
                 else:
@@ -548,17 +545,18 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
                             # generate attribute names
                             for index, row in dates.iterrows():
-                                row['names'] = f'anemometer_height_m_{row.air_temp_1_start[0:10]}_{row.air_temp_1_end[0:10]}'
+                                row['names'] = f'thermometer_height_m_{row.air_temp_1_start[0:10]}_{row.air_temp_1_end[0:10]}'
                                 ds.attrs[row['names']] = float(row['air_temp_1_position'])
                         else:        
                             sensor_height = sensorheights.air_temp_1_position.dropna().unique() # Get all unique values from column.
-                            ds = ds.assign_attrs(air_temperature_height_m = float(sensor_height[0]))   
+                            ds = ds.assign_attrs(thermometer_height_m = float(sensor_height[0]))   
                     else:
-                        ds = ds.assign_attrs(air_temperature_height_m = np.nan)
+                        ds = ds.assign_attrs(thermometer_height_m = np.nan)
                     
                         
                     # Barometer elevation (convert from height)
                     if 'pressure_1_position' in sensorheights.columns and True in sensorheights.pressure_1_position.notnull().values: # If any value not null
+                        
                         if len(sensorheights.pressure_1_position)>1 and sensorheights.pressure_1_position.nunique() != 1: 
                             print(f"{station_id} has more than one pressure sensor height. Check these are saved as expected.") # Testing, to flag cases of this.
                             # If more than one anemometer sensor w/ diff heights
@@ -576,16 +574,28 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             dates = start_dates.merge(end_dates, on = 'pressure_1_position')
                             row['names'] = np.nan # Add names column
 
-                            # generate attribute names
-                            for index, row in dates.iterrows():
-                                row['names'] = f'anemometer_height_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}'
-                                ds.attrs[row['names']] = float(row['pressure_1_position'])
-                        
-                        else:
-                            sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
-                            barometer_elev = sensor_height[0]+float(ds['elevation'].values[0])
-                            ds = ds.assign_attrs(barometer_elevation_m = barometer_elev)
+                            if pd.notnull(ds['elevation'].values[0]):
+                                # generate attribute names
+                                for index, row in dates.iterrows():
+                                    row['names'] = f'barometer_elevation_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}'
+                                    ds.attrs[row['names']] = float(row['pressure_1_position'])+float(ds['elevation'].values[0])
+                            else:
+                                for index, row in dates.iterrows():
+                                    row['names'] = f'barometer_height_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}'
+                                    ds.attrs[row['names']] = float(row['pressure_1_position'])
+                                    ds = ds.assign_attrs(barometer_elevation_m = np.nan)
                             
+                        else:
+                            if pd.notnull(ds['elevation'].values[0]): # If station has elevation
+                                sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
+                                barometer_elev = sensor_height[0]+float(ds['elevation'].values[0])
+                                ds = ds.assign_attrs(barometer_elevation_m = barometer_elev)
+                            else: # if no station elevation, keep barometer height and record barometer elevation as NaN
+                                sensor_height = sensorheights.pressure_1_position.dropna().unique() # Get all unique values from column.
+                                ds = ds.assign_attrs(barometer_height_m = sensor_height[0])
+                                ds = ds.assign_attrs(barometer_elevation_m = np.nan)
+                        
+                                
                     else:
                         ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
@@ -1051,8 +1061,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 for key in ds.keys():
                     try:
                         if np.isnan(ds[key].values).all():
-                            print("Dropping {}".format(key))
-                            ds = ds.drop(key)
+                            if 'elevation' not in key: #Don't drop elevation if NaN
+                                print("Dropping {}".format(key))
+                                ds = ds.drop(key)
                     except: # Add to handle errors for unsupported data types
                         next
 
@@ -1068,7 +1079,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
         
-                print(ds) # For testing - remove for full run
 
             except Exception as e:
                 print(traceback.format_exc())
