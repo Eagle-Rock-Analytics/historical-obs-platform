@@ -188,7 +188,7 @@ def clean_qa(network):
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index = False)
     content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}.csv".format(network))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
 
 if __name__ == "__main__":
