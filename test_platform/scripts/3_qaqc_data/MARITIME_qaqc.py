@@ -96,7 +96,7 @@ def get_cleaned_stations(cleandir, qaqcdir, terrpath, marpath):
                         continue
 
 
-                    # qaqc_within_wecc -- IN PROGRESS # eventually in calc_qaqc?
+                    # qaqc_within_wecc # eventually in calc_qaqc?
                     t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly
                     lat_to_check = file_to_qaqc['lat'].iloc[0]
                     lon_to_check = file_to_qaqc['lon'].iloc[0]
