@@ -129,8 +129,7 @@ def clean_cimis(rawdir, cleandir):
 
     else: # If files read successfully, continue.
         # for station in stations.sample(5): # subset for testing
-        # for station in stations:
-        for station in ['6', '46']:
+        for station in stations:
             station_metadata = station_file.loc[station_file['Station Number']==float(station)]
             station_id = "CIMIS_"+str(station)
 
