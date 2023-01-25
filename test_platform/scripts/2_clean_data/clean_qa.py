@@ -203,9 +203,9 @@ def clean_qa(network):
         clean_qa('CDEC')
 
         # List of all stations for ease of use here:
-        # ASOSAWOS, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+        # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
         # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
         # NDBC, SCAN, SNOTEL
 
         # Note: OtherISD only runs as "otherisd"
-        # Note: CAHYDRO only runs as ""
+        # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
