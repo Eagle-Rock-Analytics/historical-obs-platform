@@ -199,8 +199,13 @@ def clean_qa(network):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
 
-if __name__ == "__main__":
-    clean_qa('CDEC')
+    if __name__ == "__main__":
+        clean_qa('CDEC')
 
-    # OtherISD: only runs as "otherisd"
-    # CAHYDRO: only runs as ""
+        # List of all stations for ease of use here:
+        # ASOSAWOS, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+        # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+        # NDBC, SCAN, SNOTEL
+
+        # Note: OtherISD only runs as "otherisd"
+        # Note: CAHYDRO only runs as ""
