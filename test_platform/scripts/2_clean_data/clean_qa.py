@@ -59,16 +59,21 @@ def get_cleaned_stations(network):
 
 # Function: Given a network name, return a pandas dataframe containing all errors reported for the network in the cleaning stage.
 def parse_error_csv(network):
+    err_files = []
     errordf = []
     errors_prefix = clean_wx+network+"/"+"errors"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix = errors_prefix):
-        obj = s3_cl.get_object(Bucket= bucket_name, Key= item.key)
-        errors = pd.read_csv(obj['Body'])
-        if errors.empty:# If file empty
-            continue
-        else:
-            errors = errors[['File', 'Time', 'Error']]
-            errordf.append(errors)
+        file = str(item.key)
+        err_files += [file]
+
+    # Grab only the lastest error file to read from
+    latest_err = [sorted(err_files)[0]]
+
+    obj = s3_cl.get_object(Bucket=bucket_name, Key=latest_err[0])
+    errors = pd.read_csv(obj['Body'])
+    if errors.empty == False:# If file is not empty
+        errors = errors[['File', 'Time', 'Error']]
+        errordf.append(errors)
 
     if not errordf: # If no errors in cleaning
         return pd.DataFrame()
@@ -199,13 +204,13 @@ def clean_qa(network):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
 
-    if __name__ == "__main__":
-        clean_qa('CDEC')
+if __name__ == "__main__":
+    clean_qa('CIMIS')
 
-        # List of all stations for ease of use here:
-        # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-        # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-        # NDBC, SCAN, SNOTEL
+    # List of all stations for ease of use here:
+    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+    # NDBC, SCAN, SNOTEL
 
-        # Note: OtherISD only runs as "otherisd"
-        # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
+    # Note: OtherISD only runs as "otherisd"
+    # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
