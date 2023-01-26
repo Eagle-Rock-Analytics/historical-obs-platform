@@ -133,10 +133,6 @@ def clean_scansnotel(rawdir, cleandir):
                         obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
                         df = pd.read_csv(BytesIO(obj['Body'].read()), low_memory=False) # here we can either set engine = 'python' (slower) to suppress dtype warning, or remove but ignore it - it gets fixed down the line either way.
 
-                        # # FOR TESTING ONLY
-                        # #df = df.sample(5000)
-                        # #df = df.head(10000)
-
                         # Fix any NA mixed types
                         df.replace("NaN", np.nan, inplace=True)
 
@@ -256,8 +252,8 @@ def clean_scansnotel(rawdir, cleandir):
                 ds = ds.assign_attrs(subnetwork = subnetwork)
 
                 # Other station IDs - only keep if not NA
-                if isinstance(station_metadata['actonId'], str):
-                    ds = ds.assign_attrs(actonId = station_metadata['actonId'])
+                # if isinstance(station_metadata['actonId'], str):
+                #     ds = ds.assign_attrs(actonId = station_metadata['actonId'])
                 if not np.isnan(station_metadata['huc']):
                     ds = ds.assign_attrs(huc = int(station_metadata['huc']))
                 if not np.isnan(station_metadata['hud']):
@@ -367,7 +363,7 @@ def clean_scansnotel(rawdir, cleandir):
                     ds['psl'].attrs['units'] = "Pa"
 
                     if 'PRES_flag' in ds.keys(): # If QA/QC exists.
-                        ds = ds.rename({'TOBS_flag': 'tas_qc'})
+                        ds = ds.rename({'PRES_flag': 'psl_qc'}) # this was previously set to TOBS_flag and tas_qc, in case this errors in the future
                         ds['psl_qc'].attrs['flag_values'] = "V S E"
                         ds['psl_qc'].attrs['flag_meanings'] =  "valid suspect edited"
                         ds['psl'].attrs['ancillary_variables'] = "psl_qc" # List other variables associated with variable (QA/QC)
@@ -635,7 +631,7 @@ def clean_scansnotel(rawdir, cleandir):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SCAN"
+    network = "SNOTEL"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)
