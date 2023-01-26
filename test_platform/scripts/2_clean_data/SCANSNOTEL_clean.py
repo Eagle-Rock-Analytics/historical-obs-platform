@@ -252,14 +252,16 @@ def clean_scansnotel(rawdir, cleandir):
                 ds = ds.assign_attrs(subnetwork = subnetwork)
 
                 # Other station IDs - only keep if not NA
-                # if isinstance(station_metadata['actonId'], str):
-                #     ds = ds.assign_attrs(actonId = station_metadata['actonId'])
                 if not np.isnan(station_metadata['huc']):
                     ds = ds.assign_attrs(huc = int(station_metadata['huc']))
                 if not np.isnan(station_metadata['hud']):
                     ds = ds.assign_attrs(hud = int(station_metadata['hud']))
                 if isinstance(station_metadata['shefId'], str):
                     ds = ds.assign_attrs(shefId = station_metadata['shefId'])
+
+                if network == "SCAN":
+                    if isinstance(station_metadata['actonId'], str):
+                        ds = ds.assign_attrs(actonId = station_metadata['actonId'])
 
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
@@ -631,7 +633,7 @@ def clean_scansnotel(rawdir, cleandir):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SNOTEL"
+    network = "SCAN"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)
