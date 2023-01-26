@@ -8,7 +8,7 @@ Approach:
 (4) Converts missing data to standard format
 (5) Tracks existing qa/qc flag for review
 (6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
-Inputs: Raw data for the network's stations, with each .dat.gz file representing a single day's data for a specified year.
+Inputs: Raw data for the network's stations, with each .dat.gz or .zip file representing a single day's data for a specified year.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
 
@@ -25,6 +25,7 @@ import gzip
 import requests
 from bs4 import BeautifulSoup
 import zipfile
+from cleaning_helpers import get_file_paths
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -49,14 +50,6 @@ try:
     os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
 except:
     pass
-
-
-## FUNCTION: Given a network name, return all relevant AWS filepaths for other functions.
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir
 
 
 ## FUNCTION: Generate list of station and instrument elevations
@@ -157,7 +150,7 @@ def clean_buoys(rawdir, cleandir, network):
                 stat_files = [k for k in files if station in k] # Gets list of files from the same station
 
                 if not stat_files: # If station has no files downloaded
-                    print('{} does not have any raw data downloaded to AWS at present. Several buoys do not record any meteorological observations.'.format(station_id))
+                    print('No raw data found for {} on AWS.'.format(station_id))
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
                     errors['Error'].append('No raw data found for this station on AWS.')
@@ -171,7 +164,7 @@ def clean_buoys(rawdir, cleandir, network):
                             obj = s3.Object(bucket_name, file)
                             with gzip.GzipFile(fileobj=obj.get()["Body"]) as file_to_parse:
                                 # modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
-                                df = pd.read_csv(file_to_parse, sep='\s+', low_memory=False)
+                                df = pd.read_csv(file_to_parse, sep='\s+', low_memory=False, na_values="MM")
 
                                 # older files are missing the minute column
                                 if {'mm'}.issubset(df.columns) == False:
@@ -292,7 +285,7 @@ def clean_buoys(rawdir, cleandir, network):
                     except Exception as e:
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append(e)
+                        errors['Error'].append('Error in pandas df set-up: {}'.format(e))
                         continue
 
                 # Format joined station file
@@ -339,7 +332,7 @@ def clean_buoys(rawdir, cleandir, network):
                 except Exception as e:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error in assigning lat-lon coords: {}'.format(e))
 
                 # Add variable: elevation
                 # Note: Datafiles do not have elevation information, grab from NDBC
@@ -363,7 +356,7 @@ def clean_buoys(rawdir, cleandir, network):
                 except Exception as e:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error in assigning elevation: {}'.format(e))
 
                 # Add sensor heights, grab from NDBC
                 # defaulting to nan, as we are assuming most stations will only have some of these sensor heights available
@@ -391,7 +384,7 @@ def clean_buoys(rawdir, cleandir, network):
                 except Exception as e:
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error in assigning sensor heights: {}'.format(e))
 
                 # Update dimension and coordinate attributes
                 ds['time'] = pd.to_datetime(ds['time'].values, utc=True)
@@ -512,7 +505,7 @@ def clean_buoys(rawdir, cleandir, network):
             except Exception as e:
                 errors['File'].append(file)
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append('Error in ds set-up: {}'.format(e))
                 continue
 
             # Write station file to netcdf format
@@ -520,7 +513,7 @@ def clean_buoys(rawdir, cleandir, network):
                 print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
                 errors['File'].append(station_id)
                 errors['Time'].append(end_api)
-                errors['Error'].append('Station does not report any valid meteorological data.')
+                errors['Error'].append('Station reports all nan meteorological data.')
                 continue
             else:
                 try:
@@ -534,14 +527,13 @@ def clean_buoys(rawdir, cleandir, network):
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
                     print('Saving {} with dims {}'.format(filename, ds.dims))
-                    print(ds) # Testing, but nice to have
                     ds.close() # Close dataframe
 
                 except Exception as e:
                     print(filename, e)
                     errors['File'].append(filename)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
                     continue
 
         # Save list of removed variables to AWS
@@ -553,7 +545,7 @@ def clean_buoys(rawdir, cleandir, network):
 
     # Write errors to csv
     finally:
-        print(errors) # Testing
+        # print(errors) # Testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -562,7 +554,7 @@ def clean_buoys(rawdir, cleandir, network):
 
 # Run functions
 if __name__ == "__main__":
-    network = "NDBC" # or "MARITIME"
+    network = "MARITIME" # or "MARITIME"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_buoys(rawdir, cleandir, network=network)
