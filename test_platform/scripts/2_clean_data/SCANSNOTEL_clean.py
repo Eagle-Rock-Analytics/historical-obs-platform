@@ -565,6 +565,9 @@ def clean_scansnotel(rawdir, cleandir):
                                 print("Dropping {}".format(key))
                                 ds = ds.drop(key)
                     except: # Add to handle errors for unsupported data types
+                        errors['File'].append(station_id)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.

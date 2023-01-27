@@ -109,7 +109,7 @@ def clean_otherisd(rawdir, cleandir):
         print(e)
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else:
         # Use ID to grab all files linked to station.

@@ -482,7 +482,10 @@ def clean_buoys(rawdir, cleandir, network):
                             print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
                             ds = ds.drop(key)
                             continue
-                    except: # Add to handle errors for unsupported data types
+                    except Exception as e: # Add to handle errors for unsupported data types
+                        errors['File'].append(station_id)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # removes elevation and quality code (canadian buoy only) if the only remaining variables (occurs at least once)

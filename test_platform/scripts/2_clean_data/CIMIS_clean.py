@@ -33,7 +33,7 @@ import random
 import zipfile
 import openpyxl
 from ftplib import FTP
-from cleaning_helpers import var_to_unique_list
+from cleaning_helpers import var_to_unique_list, get_file_paths
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
@@ -60,13 +60,6 @@ try:
 except:
     pass
 
-
-# Given a network name, return all relevant AWS filepaths for other functions.
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir
 
 
 # ## FUNCTION: Clean CIMIS data.
@@ -125,7 +118,7 @@ def clean_cimis(rawdir, cleandir):
         print(e)
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
         # for station in stations.sample(5): # subset for testing
@@ -192,12 +185,10 @@ def clean_cimis(rawdir, cleandir):
                                     continue
 
                 except Exception as e: # Handle exceptions thrown during individual file read in.
-                    print(e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append("Error in pandas df set-up: {}".format(e))
                     continue
-
 
             try:
                 file_count = len(dfs)
@@ -205,7 +196,6 @@ def clean_cimis(rawdir, cleandir):
 
                 # Drop any columns that only contain NAs.
                 df_stat = df_stat.dropna(axis = 1, how = 'all')
-
 
                 # Fix issue with "nan" and nan causing comparison errors
                 df_stat = df_stat.replace("nan", np.nan)
@@ -316,14 +306,6 @@ def clean_cimis(rawdir, cleandir):
                 ds['elevation'].attrs['comment'] = "Converted from feet to meters."
 
                 # Update variable attributes and do unit conversions
-
-                #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                # for var in list(ds.keys()):
-                #     try:
-                #         print([var, float(ds[var].min()), float(ds[var].max())])
-                #     except:
-                #         continue
-
 
                 #tas: air surface temperature (K)
                 if "Air Temperature (°C)" in ds.keys():
@@ -480,7 +462,10 @@ def clean_cimis(rawdir, cleandir):
                             if 'elevation' not in key: # Exclude elevation
                                 print("Dropping {}".format(key))
                                 ds = ds.drop(key)
-                    except: # Add to handle errors for unsupported data types
+                    except Exception as e: # Add to handle errors for unsupported data types
+                        errors['File'].append(station_id)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -499,7 +484,7 @@ def clean_cimis(rawdir, cleandir):
                 print(e)
                 errors['File'].append(station_id) # Save ID of station.
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append("Error in ds set-up: {}".format(e))
                 continue
 
             #Write station file to netcdf.
@@ -528,7 +513,7 @@ def clean_cimis(rawdir, cleandir):
                     print(e)
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
                     continue
 
         # # Save the list of removed variables to AWS
@@ -541,7 +526,7 @@ def clean_cimis(rawdir, cleandir):
 
     # Write errors.csv
     finally: # Always execute this.
-        print(errors)
+        # print(errors)
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -555,6 +540,8 @@ if __name__ == "__main__":
     print(rawdir, cleandir, qaqcdir)
     clean_cimis(rawdir, cleandir)
 
+
+#----------------------------------------------------------------------------------------------
     # # Testing:
     # import random # To get random subsample
     # import s3fs # To read in .nc files
