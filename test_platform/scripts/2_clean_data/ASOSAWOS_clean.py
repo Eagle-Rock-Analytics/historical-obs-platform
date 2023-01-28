@@ -154,8 +154,8 @@ def clean_asosawos(rawdir, cleandir):
 
     else:
         # Use ID to grab all files linked to station.
-        for id in stations: # full run
-        # for id in stations.sample(3): # For testing, pick 3 stations.
+        # for id in stations: # full run
+        for id in stations.sample(3): # For testing, pick 3 stations.
             subfiles = list(filter(lambda f: id in f, files))
             subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
             file_count = len(subfiles)
@@ -166,7 +166,6 @@ def clean_asosawos(rawdir, cleandir):
             station = "ASOSAWOS_"+id.replace("-", "")
             station_metadata = station_file.loc[station_file['ISD-ID']==id]
             print('Parsing: ', station)
-
 
             # Initialize list of dictionaries.
             data = {'station':[], 'time':[], 'lat':[], 'lon':[], 'elevation':[], 'qaqc_process':[], 'ps':[], 'ps_qc':[], 'ps_altimeter':[], 'ps_altimeter_qc':[], 'psl':[], 'psl_qc':[], 'tas':[], 'tas_qc':[], 'tdps':[], 'tdps_qc':[], 'pr':[], 'pr_qc':[], 'pr_duration':[], 'pr_depth_qc':[], 'hurs':[], 'hurs_qc':[], 'hurs_flag':[], 'hurs_duration':[], 'hurs_temp':[], 'hurs_temp_qc':[], 'hurs_temp_flag':[], 'rsds':[], 'rsds_duration':[], 'rsds_qc':[], 'rsds_flag':[], 'sfcWind':[], 'sfcWind_qc':[], 'sfcWind_dir':[], 'sfcWind_method':[], 'sfcWind_dir_qc':[]}
@@ -687,10 +686,7 @@ def clean_asosawos(rawdir, cleandir):
                                 print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
                                 ds = ds.drop(key)
                                 continue
-                        except Exception as e: # Add to handle errors for unsupported data types
-                            errors['File'].append(station_id)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
+                        except: # Add to handle errors for unsupported data types
                             next
 
                     # # Reorder variables
