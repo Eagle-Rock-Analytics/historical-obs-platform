@@ -103,14 +103,14 @@ def clean_scansnotel(rawdir, cleandir):
                 ids.append(id)
 
     except Exception as e: # If unable to read files from rawdir, break function.
-        print(e)
+        # print(e)
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        # for i in ids: # For each station (full run)
-        for i in random.sample(ids,5): # Subsample for testing errors
+        for i in ids: # For each station (full run)
+        # for i in random.sample(ids,5): # Subsample for testing errors
             df_stat = None # Initialize merged df.
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
@@ -118,9 +118,10 @@ def clean_scansnotel(rawdir, cleandir):
                 station_id = "{}_".format(network)+i.split(":")[0] # Save file ID, keeping STID from triplet.
 
                 if not stat_files: # If ID has no files downloaded
+                    print('No raw data found for {} on AWS.'.format(station_id))
                     errors['File'].append(station_id)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("No raw data found for station.")
+                    errors['Error'].append("No raw data found for station on AWS.")
                     continue # Skip ID.
 
                 # Get metadata attributes from station list.
@@ -154,7 +155,13 @@ def clean_scansnotel(rawdir, cleandir):
 
                             df[col] = np.where(df['time']==df[col], np.nan, df[col]) # Assign nan to any value identical to the time column.
 
-                        df = df.dropna(axis = 1, how = 'all')
+                        df = df.dropna(axis = 1, how = 'all') # if all columns are dropped, handled at last step, but could happen here too
+                        if df.empty(): # testing
+                            print('Station {} does not report any valid meteorological data - not cleaned.'.format(station_id))
+                            errors['File'].append(station_id)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Station reports all nan meteorological data.')
+                            continue
 
                         if len([col for col in df.columns if 'time' in col]) > 1: # If more than one time column remains,
                             print("Conflicting time values: {}".format(list([col for col in df.columns if 'time' in col]))) # print warning
@@ -182,7 +189,7 @@ def clean_scansnotel(rawdir, cleandir):
                                 df_stat = pd.concat([df_stat, df], axis = 0, ignore_index= True)
 
                     except Exception as e: # Exceptions thrown during individual file read in.
-                        print(e)
+                        # print(e)
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
                         errors['Error'].append('Error in pandas df set-up: {}'.format(e))
@@ -565,9 +572,6 @@ def clean_scansnotel(rawdir, cleandir):
                                 print("Dropping {}".format(key))
                                 ds = ds.drop(key)
                     except: # Add to handle errors for unsupported data types
-                        errors['File'].append(station_id)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -590,11 +594,11 @@ def clean_scansnotel(rawdir, cleandir):
                 continue
 
             #Write station file to netcdf.
-            if ds is None: # Should be caught in error handling above, but add in case.
-                print("{} not saved.".format(file))
-                errors['File'].append(file) # If stat_files is none, this will default to saving ID of station.
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+                print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
+                errors['File'].append(station_id)
                 errors['Time'].append(end_api)
-                errors['Error'].append("File has no data.")
+                errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
             else:
@@ -614,7 +618,7 @@ def clean_scansnotel(rawdir, cleandir):
                     continue
 
                 except Exception as e:
-                    print(e)
+                    # print(e)
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
                     errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
@@ -626,7 +630,7 @@ def clean_scansnotel(rawdir, cleandir):
 
     # Write errors.csv
     finally: # Always execute this.
-        print(errors)
+        # print(errors)
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -636,7 +640,7 @@ def clean_scansnotel(rawdir, cleandir):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SCAN"
+    network = "SNOTEL"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)

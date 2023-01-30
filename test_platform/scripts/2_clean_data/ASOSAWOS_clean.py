@@ -152,10 +152,9 @@ def clean_asosawos(rawdir, cleandir):
         errors['Time'].append(end_api)
         errors['Error'].append("Whole network error: {}".format(e))
 
-    else:
-        # Use ID to grab all files linked to station.
-        # for id in stations: # full run
-        for id in stations.sample(3): # For testing, pick 3 stations.
+    else: # Use ID to grab all files linked to station.
+        for id in stations: # full run
+        # for id in stations.sample(3): # For testing, pick 3 stations.
             subfiles = list(filter(lambda f: id in f, files))
             subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
             file_count = len(subfiles)

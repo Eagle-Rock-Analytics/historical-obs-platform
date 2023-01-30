@@ -139,8 +139,8 @@ def clean_buoys(rawdir, cleandir, network):
         errors['Error'].append(e)
 
     else: # If files read successfully, continue
-        # for station in stations: # Full run
-        for station in stations.sample(4): # SUBSET FOR TESTING
+        for station in stations: # Full run
+        # for station in stations.sample(4): # SUBSET FOR TESTING
             station_id = network+"_"+str(station)
             print('Parsing: ', station_id)
             station_metadata = station_file.loc[station_file['STATION_ID']==station]
@@ -483,9 +483,6 @@ def clean_buoys(rawdir, cleandir, network):
                             ds = ds.drop(key)
                             continue
                     except Exception as e: # Add to handle errors for unsupported data types
-                        errors['File'].append(station_id)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # removes elevation and quality code (canadian buoy only) if the only remaining variables (occurs at least once)
