@@ -121,14 +121,24 @@ def clean_cimis(rawdir, cleandir):
         errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        # for station in stations.sample(5): # subset for testing
         for station in stations:
+        # for station in stations.sample(5): # subset for testing
             station_metadata = station_file.loc[station_file['Station Number']==float(station)]
             station_id = "CIMIS_"+str(station)
 
-            dfs = []
-            for file in files: # For each zip file (annual or monthly)
-                try:
+            df_stat = None # Initialize merged df
+            try:
+                stat_files = [k for k in files if str(station) in k] # Gets list of files from the same station
+
+                if not stat_files: # If station has no files downloaded
+                    print('No raw data found for {} on AWS.'.format(station_id))
+                    errors['File'].append(station_id)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('No raw data found for this station on AWS.')
+                    continue # Skip this station
+
+                dfs = []
+                for file in stat_files: # For each zip file (annual or monthly)
                     fileyear = file.split("/")[-1]
                     fileyear = fileyear.replace("hourlyStns", "")
                     # Set default columns to be columns for pre-June 2014 data.
@@ -150,11 +160,12 @@ def clean_cimis(rawdir, cleandir):
                                 stationid = subfile.replace(".csv", '')
                                 stationid = int(stationid[-3:])
                                 if station == stationid:
-                                    df= pd.read_csv(zipf.open(subfile), names = columns, skipinitialspace= True, na_values = ["*", "--"]) # Read into pandas
+                                    df = pd.read_csv(zipf.open(subfile), names = columns, skipinitialspace = True, na_values = ["*", "--"]) # Read into pandas
                                     # Fix non-standard NAs and whitespace issues while reading in.
 
                                     # Reorder columns into new column order
                                     df = df.reindex(columns = newcols)
+                                    print(df.head())
 
                                     # Drop columns
                                     df = df.drop(columns = removecols, axis = 1)
@@ -181,14 +192,15 @@ def clean_cimis(rawdir, cleandir):
                                     df = df.drop(['Hour', 'Date', 'Hour (PST)'], axis = 1)
 
                                     dfs.append(df)
+
                                 else:
                                     continue
 
-                except Exception as e: # Handle exceptions thrown during individual file read in.
-                    errors['File'].append(file)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append("Error in pandas df set-up: {}".format(e))
-                    continue
+            except Exception as e: # Handle exceptions thrown during individual file read in.
+                errors['File'].append(file)
+                errors['Time'].append(end_api)
+                errors['Error'].append("Error in pandas df set-up: {}".format(e))
+                continue
 
             try:
                 file_count = len(dfs)
@@ -456,16 +468,21 @@ def clean_cimis(rawdir, cleandir):
                 #         next
 
                 # Quality control: if any variable is completely empty, drop it.
+                # drop any column that does not have any valid (non-nan data)
+                # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
                 for key in ds.keys():
                     try:
-                        if np.isnan(ds[key].values).all():
-                            if 'elevation' not in key: # Exclude elevation
-                                print("Dropping {}".format(key))
+                        if (key != 'elevation'):
+                            if np.isnan(ds[key].values).all():
+                                print("Dropping empty var: {}".format(key))
                                 ds = ds.drop(key)
+
+                        # only drop elevation if all other variables are also nans
+                        if (key == 'elevation') & (len(ds.keys())==1): # only elevation remains
+                            print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
+                            ds = ds.drop(key)
+                            continue
                     except Exception as e: # Add to handle errors for unsupported data types
-                        errors['File'].append(station_id)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -488,11 +505,11 @@ def clean_cimis(rawdir, cleandir):
                 continue
 
             #Write station file to netcdf.
-            if ds is None: # Should be caught in error handling above, but add in case.
-                print("{} not saved.".format(file))
-                errors['File'].append(file) # If stat_files is none, this will default to saving ID of station.
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+                print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
+                errors['File'].append(station_id)
                 errors['Time'].append(end_api)
-                errors['Error'].append("File has no data.")
+                errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
             else:
