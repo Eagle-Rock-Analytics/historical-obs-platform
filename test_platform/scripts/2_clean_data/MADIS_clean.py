@@ -178,7 +178,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
 
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-    df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1) # Ignore dtype warning here, we resolve this manually below.
+    df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -269,7 +269,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
     else: # If files read successfully, continue.
 
         for i in ids: # For each station (full run)
-        # for i in sample(ids, 10):
+        # for i in sample(ids, 3):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -281,7 +281,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         header = parse_madis_headers(file)
                         # If units are NaN, this signifies an empty dataframe. Write to errors, but do not clean station.
                         if isinstance(header['units'], float) and np.isnan(header['units']):
-                            print(file, "No data in file")
                             errors['File'].append(file)
                             errors['Time'].append(end_api)
                             errors['Error'].append("No data available for station. Cleaning stage skipped.")
@@ -295,13 +294,17 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         continue
 
                 if not stat_files: # If no files left in list
-                    continue
+                    print('No raw data found for {} on AWS.'.format(station_id))
+                    errors['File'].append(station_id)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('No raw data found for this station on AWS.')
+                    continue # Skip this station
 
                 # If more than one station, metadata should be identical. Test this.
                 if(all(a == headers[0] for a in headers[1:])):
                     headers = headers[0]
                 else: # If not, provide user input option to proceed.
-                    print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.")
+                    print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.".format(station_id))
                     for k in headers:
                         print("File {}:".format(i), headers[k])
                         resp = input("Which file's metadata would you like to use (0-n)?")
@@ -1045,9 +1048,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                                 print("Dropping {}".format(key))
                                 ds = ds.drop(key)
                     except Exception as e: # Add to handle errors for unsupported data types
-                        errors['File'].append(station_id)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append("Error in removing completely empty vairables: {}".format(e))
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -1072,8 +1072,11 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 continue # Move on to next station
 
             #Write station file to netcdf.
-            if ds is None: # Should be caught in error handling above, but add in case.
-                print("{} not saved.".format(file))
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+                print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
+                errors['File'].append(station_id)
+                errors['Time'].append(end_api)
+                errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
             else:
@@ -1141,7 +1144,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "CDEC"
+    network = "CAHYDRO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
@@ -1151,7 +1154,11 @@ if __name__ == "__main__":
 # List of MADIS network names
 # 'CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HNXWFO', 'HOLFUY', 'HPWREN',
 # 'LOXWFO', 'MAP', 'MTRWFO', 'NCAWOS', 'NOS-NWLON', 'NOS-PORTS',
-# 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD'
+# 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD', 'HADS'
+
+# Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
+# Update with timing estimate here? CWOP took a week of continuous running to download the data...
+
 
 #---------------------------------------------------------------------------------------------------------------
     # # # Testing:
