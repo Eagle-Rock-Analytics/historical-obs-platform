@@ -113,23 +113,26 @@ def clean_otherisd(rawdir, cleandir):
 
     else:
         # Use ID to grab all files linked to station.
-        for id in stations:
-        #for id in ['720619-99999', '722689-99999', '726664-94173']: # For testing, pick 3 stations.
+        for id in stations: # full clean
+        # for id in samples(stations,5): # For testing, pick 3 stations.
             subfiles = list(filter(lambda f: id in f, files))
             subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
             file_count = len(subfiles)
 
-            if bool(subfiles) is False: # If ID returns no files, go to next ID.
-                continue
-
             station = "OtherISD_"+id.replace("-", "")
             station_metadata = station_file.loc[station_file['ISD-ID']==id]
+
+            if bool(subfiles) is False: # If ID returns no files, go to next ID.
+                print('No raw data found for {} on AWS.'.format(station))
+                errors['File'].append(station)
+                errors['Time'].append(end_api)
+                errors['Error'].append('No raw data found for this station on AWS.')
+                continue
 
             # Initialize list of dictionaries.
             data = {'station':[], 'time':[], 'lat':[], 'lon':[], 'elevation':[], 'qaqc_process':[], 'ps':[], 'ps_qc':[], 'ps_altimeter':[], 'ps_altimeter_qc':[], 'psl':[], 'psl_qc':[], 'tas':[], 'tas_qc':[], 'tdps':[], 'tdps_qc':[], 'pr':[], 'pr_qc':[], 'pr_duration':[], 'pr_depth_qc':[], 'hurs':[], 'hurs_qc':[], 'hurs_flag':[], 'hurs_duration':[], 'hurs_temp':[], 'hurs_temp_qc':[], 'hurs_temp_flag':[], 'rsds':[], 'rsds_duration':[], 'rsds_qc':[], 'rsds_flag':[], 'sfcWind':[], 'sfcWind_qc':[], 'sfcWind_dir':[], 'sfcWind_method':[], 'sfcWind_dir_qc':[]}
 
-            for file in subfiles: # For each file
-                #print(file, df)
+            for file in subfiles:
                 obj = s3.Object(bucket_name,file)
                 try:
                     with gzip.GzipFile(fileobj=obj.get()["Body"]) as gzipped_csv_file:
@@ -139,16 +142,15 @@ def clean_otherisd(rawdir, cleandir):
                             # Initialize all variables and set to be NA by default.
                             string = row[0] # Unpack list.
 
-                            # Filter station by latitude and longitude. Only keep obvs in WECC.
+                            # Filter station by latitude and longitude. Only keep obs in WECC.
                             # POS 29-34: GEOPHYSICAL-POINT-OBSERVATION latitude coordinate
                             lat = float(string[28:34])/1000 # Unit: degree
                             # POS 35-41: GEOPHYSICAL-POINT-OBSERVATION longitude coordinate
                             lon = float(string[34:41])/1000 # Unit: degree
                             if lat > latmax or lat < latmin or lon > lonmax or lon < lonmin:
-                                # print("Station {} not in WECC".format([lat,lon]))
-                                errors['File'].append(file)
+                                errors['File'].append(station)
                                 errors['Time'].append(end_api)
-                                errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(lat, lon))
+                                errors['Error'].append("File not in WECC: {}".format(file)) # some years hav valid lat/lon, others do not
                                 break # Go to next file.
                             else:
                                 # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time (in UTC)
@@ -354,13 +356,10 @@ def clean_otherisd(rawdir, cleandir):
             df = pd.DataFrame.from_dict(data)
 
             if df.empty is True:
-                print("df {} not saved".format(file))
+                print("Station {} reports all nan meteorological data - not cleaned.".format(station))
 
             if df.empty is False: # If there is data in the dataframe, convert to xarray object.
                 try:
-                    # Drop any empty variables
-                    df = df.dropna(axis = 1, how = 'all')
-
                     # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
                     df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
 
@@ -617,7 +616,24 @@ def clean_otherisd(rawdir, cleandir):
                     # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
                     for key in ds.keys():
                         if 'qc' in key:
-                            ds[key] = ds[key].astype(str) # Coerce all values in key to string.
+                            ds[key] = ds[key].astype(str) # Coerce all values in key to string
+
+                    # drop any column that does not have any valid (non-nan data)
+                    # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
+                    for key in ds.keys():
+                        try:
+                            if (key != 'elevation'):
+                                if np.isnan(ds[key].values).all():
+                                    print("Dropping empty var: {}".format(key)) # could be deleted to cleanup terminal output?
+                                    ds = ds.drop(key)
+
+                            # only drop elevation if all other variables are also nans
+                            if (key == 'elevation') & (len(ds.keys())==1): # only elevation remains
+                                print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
+                                ds = ds.drop(key)
+                                continue
+                        except Exception as e: # Add to handle errors for unsupported data types
+                            next
 
                     # # Reorder variables
                     # In following order:
@@ -644,10 +660,10 @@ def clean_otherisd(rawdir, cleandir):
 
                 # Write station file to netcdf.
                 if ds is None: # Should be caught be error handling above, but add in case.
-                    print("ds {} not saved.".format(file))
+                    print("Station {} does not report any valid meteorological data - not cleaned.".format(file))
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("File has no data.")
+                    errors['Error'].append('Station reports all nan meteorological data.')
                     continue
 
                 else:
@@ -673,7 +689,7 @@ def clean_otherisd(rawdir, cleandir):
 
     #Write errors to csv
     finally:
-        print(errors) # For testing
+        # print(errors) # For testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
