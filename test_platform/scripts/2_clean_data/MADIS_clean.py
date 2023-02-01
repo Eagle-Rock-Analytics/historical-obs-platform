@@ -170,7 +170,6 @@ def parse_madis_headers(file):
 
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns,
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
-
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -262,7 +261,11 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         sensor_data = pd.read_csv(smart_open.smart_open(sensor_filepath))
 
     except Exception as e: # If unable to read files from cleandir, break function.
+<<<<<<< HEAD
         print("whole network error")
+=======
+        print("Whole network error.")
+>>>>>>> 1b3d8f3481f853298302463739d61f8c427b792e
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
         errors['Error'].append("Whole network error: {}".format(e))
@@ -1160,9 +1163,8 @@ if __name__ == "__main__":
 # Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
 # Update with timing estimate here? CWOP took a week of continuous running to download the data...
 
-
-#---------------------------------------------------------------------------------------------------------------
-    # # # Testing:
+# ---------------------------------------------------------------------------------------------------------
+### Testing
     # import random # To get random subsample
     # import s3fs # To read in .nc files
 
