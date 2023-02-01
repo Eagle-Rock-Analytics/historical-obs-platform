@@ -262,6 +262,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         sensor_data = pd.read_csv(smart_open.smart_open(sensor_filepath))
 
     except Exception as e: # If unable to read files from cleandir, break function.
+        print("whole network error")
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
         errors['Error'].append("Whole network error: {}".format(e))
@@ -1072,7 +1073,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 continue # Move on to next station
 
             #Write station file to netcdf.
-            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed
                 print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
                 errors['File'].append(station_id)
                 errors['Time'].append(end_api)
@@ -1144,7 +1145,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "CAHYDRO"
+    network = "SGXWFO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)

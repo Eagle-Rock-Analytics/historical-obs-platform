@@ -505,7 +505,7 @@ def clean_cimis(rawdir, cleandir):
                 continue
 
             #Write station file to netcdf.
-            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed
                 print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
                 errors['File'].append(station_id)
                 errors['Time'].append(end_api)
