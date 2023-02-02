@@ -268,8 +268,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
     else: # If files read successfully, continue.
 
-        for i in ids: # For each station (full run)
-        # for i in sample(ids, 3):
+        # for i in ids: # For each station (full run)
+        for i in sample(ids, 1):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -1062,7 +1062,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
 
-
             except Exception as e:
                 print(traceback.format_exc())
                 # print(e)
@@ -1085,12 +1084,13 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     filepath = cleandir+filename # Write file path
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Previously engine="h5netcdf" but was breaking on macOS
 
                     # Push file to AWS with correct file name.
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
                     print("Saving {} with dims {}".format(filename, ds.dims))
+
                     ds.close() # Close dataframe.
                 except Exception as e:
                     print(e)
@@ -1144,7 +1144,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SGXWFO"
+    network = "VCAPCD"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
