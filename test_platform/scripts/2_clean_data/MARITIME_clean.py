@@ -521,7 +521,7 @@ def clean_buoys(rawdir, cleandir, network):
                     filepath = cleandir + filename # Writes file path
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
                     # Push file to AWS with correct file name
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
