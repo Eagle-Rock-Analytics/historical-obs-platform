@@ -268,8 +268,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
     else: # If files read successfully, continue.
 
-        # for i in ids: # For each station (full run)
-        for i in sample(ids, 1):
+        for i in ids: # For each station (full run)
+        # for i in sample(ids, 1):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
