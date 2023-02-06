@@ -150,28 +150,26 @@ def clean_asosawos(rawdir, cleandir):
         print(e)
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
-    else:
-        # Use ID to grab all files linked to station.
-        # for id in stations: # full run 
-        for id in stations.sample(3): # For testing, pick 3 stations.
+    else: # Use ID to grab all files linked to station.
+        for id in stations: # full run
+        # for id in stations.sample(3): # For testing, pick 3 stations.
             subfiles = list(filter(lambda f: id in f, files))
             subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
             file_count = len(subfiles)
-            # print(subfiles) # For testing: to know which files are getting
 
             if bool(subfiles) is False: # If ID returns no files, go to next ID.
                 continue
 
             station = "ASOSAWOS_"+id.replace("-", "")
             station_metadata = station_file.loc[station_file['ISD-ID']==id]
+            print('Parsing: ', station)
 
             # Initialize list of dictionaries.
             data = {'station':[], 'time':[], 'lat':[], 'lon':[], 'elevation':[], 'qaqc_process':[], 'ps':[], 'ps_qc':[], 'ps_altimeter':[], 'ps_altimeter_qc':[], 'psl':[], 'psl_qc':[], 'tas':[], 'tas_qc':[], 'tdps':[], 'tdps_qc':[], 'pr':[], 'pr_qc':[], 'pr_duration':[], 'pr_depth_qc':[], 'hurs':[], 'hurs_qc':[], 'hurs_flag':[], 'hurs_duration':[], 'hurs_temp':[], 'hurs_temp_qc':[], 'hurs_temp_flag':[], 'rsds':[], 'rsds_duration':[], 'rsds_qc':[], 'rsds_flag':[], 'sfcWind':[], 'sfcWind_qc':[], 'sfcWind_dir':[], 'sfcWind_method':[], 'sfcWind_dir_qc':[]}
 
             for file in subfiles: # For each file
-                #print(file, df)
                 obj = s3.Object(bucket_name,file)
                 try:
                     with gzip.GzipFile(fileobj=obj.get()["Body"]) as gzipped_csv_file:
@@ -389,7 +387,7 @@ def clean_asosawos(rawdir, cleandir):
                     print(file, e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append("Error in pandas df set-up: {}".format(e))
 
             # Take all lists and convert to dataframe.
             # Remove any variables where all the data is nan.
@@ -706,11 +704,11 @@ def clean_asosawos(rawdir, cleandir):
                     #         next
 
                 except Exception as e: # If error in xarray reorganization
-                    print(file, e)
+                    # print(file, e)
                     traceback.print_exc()
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append("Error in ds set-up: {}".format(e))
 
 
                 # Write station file to netcdf.
@@ -728,7 +726,7 @@ def clean_asosawos(rawdir, cleandir):
                         print(filepath) # For testing
 
                         # Write locally
-                        ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                        ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
                         # Push file to AWS with correct file name.
                         s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
@@ -740,12 +738,12 @@ def clean_asosawos(rawdir, cleandir):
                         print(filename, e)
                         errors['File'].append(filename)
                         errors['Time'].append(end_api)
-                        errors['Error'].append(e)
+                        errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
                         continue
 
     #Write errors to csv
     finally:
-        print(errors) # For testing
+        # print(errors) # For testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -755,11 +753,13 @@ def clean_asosawos(rawdir, cleandir):
 # Run function
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("ASOSAWOS")
+    print(rawdir, cleandir, qaqcdir)
     merge_station_lists(key_asosawos, key_isd, cleandir)
     clean_asosawos(rawdir, cleandir)
 
 
-    # # # # Testing:
+#----------------------------------------------------------------------------------------------------
+    ## Testing:
     # import random # To get random subsample
     # import s3fs # To read in .nc files
 

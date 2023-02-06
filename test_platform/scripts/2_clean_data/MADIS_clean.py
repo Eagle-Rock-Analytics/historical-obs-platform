@@ -31,6 +31,7 @@ import smart_open
 import traceback
 import botocore
 from random import sample
+from cleaning_helpers import get_file_paths
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -65,13 +66,6 @@ except:
 
 # Get units
 unitstocheck = ['Pascals', '%', 'm/s', 'Celsius', 'QC_type', 'Degrees', 'Millimeters']
-
-# Given a network name, return all relevant AWS filepaths for other functions.
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir
 
 
 ## FUNCTION: Get MADIS QA/QC flag data and parse into csv.
@@ -176,9 +170,6 @@ def parse_madis_headers(file):
 
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns,
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
-
-    #print(headers) # For testing.
-
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -186,8 +177,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
 
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-    df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1)
-    # Ignore dtype warning here, we resolve this manually below.
+    df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -226,9 +216,6 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
                 'precip_accum_set_1', 'precip_accum_set_1_qc', 'precip_accum_five_minute_set_1', 'precip_accum_five_minute_set_1_qc']
 
     othercols = [col for col in df.columns if col not in coltokeep and col not in removedvars]
-    #print(removedvars)
-    #print(othercols)
-
     removedvars += othercols # Add any new columns from drop list to removedvars, to save later.
     df = df.drop(columns=[col for col in df if col not in coltokeep]) # Drop all columns not in coltokeep list.
 
@@ -274,15 +261,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         sensor_data = pd.read_csv(smart_open.smart_open(sensor_filepath))
 
     except Exception as e: # If unable to read files from cleandir, break function.
+        print("Whole network error.")
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
 
-        #for i in ids: # For each station (full run)
-        for i in sample(ids, 5):
-
+        for i in ids: # For each station (full run)
+        # for i in sample(ids, 1):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -294,7 +281,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         header = parse_madis_headers(file)
                         # If units are NaN, this signifies an empty dataframe. Write to errors, but do not clean station.
                         if isinstance(header['units'], float) and np.isnan(header['units']):
-                            print(file, "No data in file")
                             errors['File'].append(file)
                             errors['Time'].append(end_api)
                             errors['Error'].append("No data available for station. Cleaning stage skipped.")
@@ -304,17 +290,21 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     except Exception as e:
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append(e)
+                        errors['Error'].append("Error in appending parsed MADIS headers: {}".format(e))
                         continue
 
                 if not stat_files: # If no files left in list
-                    continue
+                    print('No raw data found for {} on AWS.'.format(station_id))
+                    errors['File'].append(station_id)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('No raw data found for this station on AWS.')
+                    continue # Skip this station
 
                 # If more than one station, metadata should be identical. Test this.
                 if(all(a == headers[0] for a in headers[1:])):
                     headers = headers[0]
                 else: # If not, provide user input option to proceed.
-                    print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.")
+                    print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.".format(station_id))
                     for k in headers:
                         print("File {}:".format(i), headers[k])
                         resp = input("Which file's metadata would you like to use (0-n)?")
@@ -333,12 +323,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 except Exception as e: # Note: error handling will be slightly coarse here bc of list comprehension.
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append("Error in parsing MADIS files to pandas dfs: {}".format(e))
 
             except Exception as e:
                 errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append("Error in stat_files set-up: {}".format(e))
                 continue
 
             try:
@@ -591,7 +581,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                                 ds = ds.assign_attrs(barometer_height_m = sensor_height[0])
                                 ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
-
                     else:
                         ds = ds.assign_attrs(barometer_elevation_m = np.nan)
 
@@ -631,7 +620,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 if "air_temp_set_1" in ds.keys():
                     ds['tas'] = calc_clean._unit_degC_to_K(ds['air_temp_set_1'])
                     ds = ds.drop("air_temp_set_1")
-
 
                     if "air_temp_set_1_qc" in ds.keys():
                         # Flag values are listed in this column and separated with ; when more than one is used for a given observation.
@@ -1052,7 +1040,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 # #Note: here we have tdps and hurs values of 0. This is what causes the "dividing by 0" errors, likely.
                 # Address in QA/QC stage (and recalc tdps if needed).
 
-
                 # Quality control: if any variable is completely empty, drop it.
                 for key in ds.keys():
                     try:
@@ -1060,7 +1047,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             if 'elevation' not in key: #Don't drop elevation if NaN
                                 print("Dropping {}".format(key))
                                 ds = ds.drop(key)
-                    except: # Add to handle errors for unsupported data types
+                    except Exception as e: # Add to handle errors for unsupported data types
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -1075,48 +1062,47 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
 
-
             except Exception as e:
                 print(traceback.format_exc())
-                print(e)
+                # print(e)
                 errors['File'].append(stat_files)
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append("Error in ds set-up: {}".format(e))
                 continue # Move on to next station
 
             #Write station file to netcdf.
-            if ds is None: # Should be caught in error handling above, but add in case.
-                print("{} not saved.".format(file))
+            if len(ds.keys())==0:   # skip station if the entire dataset will be empty because no data is observed
+                print("{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(station_id))
+                errors['File'].append(station_id)
+                errors['Time'].append(end_api)
+                errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
             else:
                 try:
                     filename = station_id+".nc" # Make file name
                     filepath = cleandir+filename # Write file path
-                    print(filepath)
-
-                    print(ds) # For testing
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Previously engine="h5netcdf" but was breaking on macOS
 
                     # Push file to AWS with correct file name.
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
                     print("Saving {} with dims {}".format(filename, ds.dims))
+
                     ds.close() # Close dataframe.
                 except Exception as e:
                     print(e)
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
+                    errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
                     continue
 
         # # Write the list of removed variables to csv for future reference. Keep these in one centralized "removedvars.csv" file that gets appended to
         # Read in existing removedvars.csv from AWS folder, if it already exists.
         # If removedvars.csv already in file list, save it to append to.
         key = cleandir+'removedvars.csv'
-        #removedvars += ["junk"] # For testing
         removedvars = pd.DataFrame(removedvars, columns = ["Variable"])
         try:
             test = s3.Bucket(bucket_name).Object(key).get()
@@ -1148,7 +1134,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
     # Write errors.csv
     finally: # Always execute this.
-        print(errors)
+        # print(errors)
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -1158,20 +1144,23 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    # MADIS Networks:
-    # 'CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HADS', 'HNXWFO', 'HOLFUY', 'HPWREN', 'LOXWFO',
-    # 'MAP', 'MTRWFO', 'NCAWOS', 'NOS-NWLON', 'NOS-PORTS', 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD'
-
-    network = "CAHYDRO"
+    network = "VCAPCD"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-
+    print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
     clean_madis(bucket_name, rawdir, cleandir, network)
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Testing
+# List of MADIS network names
+# 'CAHYDRO', 'CDEC', 'CNRFC', 'CRN', 'CWOP', 'HNXWFO', 'HOLFUY', 'HPWREN',
+# 'LOXWFO', 'MAP', 'MTRWFO', 'NCAWOS', 'NOS-NWLON', 'NOS-PORTS',
+# 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD', 'HADS'
 
+# Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
+# Update with timing estimate here? CWOP took a week of continuous running to download the data...
+
+# ---------------------------------------------------------------------------------------------------------
+### Testing
     # import random # To get random subsample
     # import s3fs # To read in .nc files
 
