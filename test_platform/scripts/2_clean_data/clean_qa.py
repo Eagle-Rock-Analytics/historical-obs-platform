@@ -64,28 +64,23 @@ def get_cleaned_stations(network):
 
 # Function: Given a network name, return a pandas dataframe containing all errors reported for the network in the cleaning stage.
 def parse_error_csv(network):
-    err_files = []
     errordf = []
     errors_prefix = clean_wx+network+"/"+"errors"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix = errors_prefix):
-        file = str(item.key)
-        err_files += [file]
-
-    # Grab only the lastest error file to read from
-    latest_err = [sorted(err_files)[0]]
-
-    obj = s3_cl.get_object(Bucket=bucket_name, Key=latest_err[0])
-    errors = pd.read_csv(obj['Body'])
-    if errors.empty == False:# If file is not empty
-        errors = errors[['File', 'Time', 'Error']]
-        errordf.append(errors)
-
+        obj = s3_cl.get_object(Bucket= bucket_name, Key= item.key)
+        errors = pd.read_csv(obj['Body'])
+        if errors.empty:# If file empty
+            continue
+        else:
+            errors = errors[['File', 'Time', 'Error']]
+            errordf.append(errors)
     if not errordf: # If no errors in cleaning
         return pd.DataFrame()
     else:
         errordf = pd.concat(errordf)
         errordf = errordf.drop_duplicates(subset = ['File', 'Error'])
         errordf = errordf[errordf.File != "Whole network"] # Drop any whole network errors
+
         return errordf
 
 # Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors.
@@ -174,7 +169,7 @@ def clean_qa(network):
             id = []
             id = [x for x in ids if x in row['File']]
             if id:
-                errors.loc[index, 'ID'] = network+"_"+id[0]
+                errors.loc[index, 'ID'] = network+"_"+id[-1]
 
 
         for index, row in stations.iterrows(): # For each station
