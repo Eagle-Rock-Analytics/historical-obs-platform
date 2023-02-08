@@ -122,25 +122,17 @@ def clean_cimis(rawdir, cleandir):
 
     else: # If files read successfully, continue.
         for station in stations:
-        # for station in stations.sample(5): # subset for testing
+        # for station in stations.sample(3): # subset for testing
             station_metadata = station_file.loc[station_file['Station Number']==float(station)]
             station_id = "CIMIS_"+str(station)
 
-            df_stat = None # Initialize merged df
-            try:
-                stat_files = [k for k in files if str(station) in k] # Gets list of files from the same station
-
-                if not stat_files: # If station has no files downloaded
-                    print('No raw data found for {} on AWS.'.format(station_id))
-                    errors['File'].append(station_id)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append('No raw data found for this station on AWS.')
-                    continue # Skip this station
-
-                dfs = []
-                for file in stat_files: # For each zip file (annual or monthly)
+            # df_stat = None # Initialize merged df
+            dfs = []
+            for file in files: # For each zip file (annual or monthly)
+                try:
                     fileyear = file.split("/")[-1]
                     fileyear = fileyear.replace("hourlyStns", "")
+
                     # Set default columns to be columns for pre-June 2014 data.
                     if fileyear[0:4].isnumeric():
                         if int(fileyear[0:4])>=2014: # If data from 2014 on
@@ -159,13 +151,19 @@ def clean_cimis(rawdir, cleandir):
                             for subfile in zipf.namelist(): # For each csv file in a zipfile
                                 stationid = subfile.replace(".csv", '')
                                 stationid = int(stationid[-3:])
-                                if station == stationid:
-                                    df = pd.read_csv(zipf.open(subfile), names = columns, skipinitialspace = True, na_values = ["*", "--"]) # Read into pandas
-                                    # Fix non-standard NAs and whitespace issues while reading in.
+                                if int(station) == stationid:
+                                    print('Parsing: {}'.format(station_id)) # Intentionally printing here to flag if passes read in
 
+                                    df = pd.read_csv(zipf.open(subfile), names = columns, skipinitialspace = True, na_values = ["*", "--", "#######"]) # Read into pandas
+
+                                    # Handle for data present but empty on AWS
+                                    if len(df.index) == 0:
+                                        continue
+
+                                    # Fix non-standard NAs and whitespace issues while reading in.
+                                    # print(df.head()) # for testing
                                     # Reorder columns into new column order
                                     df = df.reindex(columns = newcols)
-                                    print(df.head())
 
                                     # Drop columns
                                     df = df.drop(columns = removecols, axis = 1)
@@ -192,15 +190,22 @@ def clean_cimis(rawdir, cleandir):
                                     df = df.drop(['Hour', 'Date', 'Hour (PST)'], axis = 1)
 
                                     dfs.append(df)
+                                    print(dfs.shape)
+                                    if len(dfs.index) == 0:
+                                        print('No raw data found for {} on AWS.'.format(station_id))
+                                        errors['File'].append(station_id)
+                                        errors['Time'].append(end_api)
+                                        errors['Error'].append('No raw data found for this station on AWS.')
+                                        continue
 
-                                else:
+                                else: # if year csv file does not have data for station, move on to next year
                                     continue
 
-            except Exception as e: # Handle exceptions thrown during individual file read in.
-                errors['File'].append(file)
-                errors['Time'].append(end_api)
-                errors['Error'].append("Error in pandas df set-up: {}".format(e))
-                continue
+                except Exception as e: # Handle exceptions thrown during individual file read in.
+                    errors['File'].append(file)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("Error in pandas df set-up: {}".format(e))
+                    continue
 
             try:
                 file_count = len(dfs)
@@ -284,7 +289,6 @@ def clean_cimis(rawdir, cleandir):
                 elev = np.asarray([station_metadata['ELEV']]*len(ds['time']))
                 elev.shape = (1, len(ds['time']))
                 ds['elevation'] = (['station', 'time'], elev)
-
                 # Update dimension and coordinate attributes.
 
                 # Update attributes.
@@ -373,7 +377,6 @@ def clean_cimis(rawdir, cleandir):
 
                     ds['pr'].attrs['comment'] = "Accumulated precipitation."
 
-
                 # hurs: relative humidity (%)
                 if 'Relative Humidity (%)' in ds.keys(): # Already in %, no need to convert units.
                     ds = ds.rename({'Relative Humidity (%)': 'hurs'})
@@ -437,7 +440,7 @@ def clean_cimis(rawdir, cleandir):
                         ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc" # List other variables associated with variable (QA/QC)
 
                     ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
-
+                
 
                 # Other variables: rename to match format
 
@@ -459,7 +462,6 @@ def clean_cimis(rawdir, cleandir):
 
                     ds['pvp_derived'].attrs['comment'] = "Derived by CIMIS from relative humidity and air temperature measurements. Converted from kPa to Pa."
 
-
                 #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
                 # for var in ds.variables:
                 #     try:
@@ -468,7 +470,7 @@ def clean_cimis(rawdir, cleandir):
                 #         next
 
                 # Quality control: if any variable is completely empty, drop it.
-                # drop any column that does not have any valid (non-nan data)
+                # drop any column that does not have any valid (non-nan) data
                 # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
                 for key in ds.keys():
                     try:
