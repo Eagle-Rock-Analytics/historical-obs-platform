@@ -190,13 +190,6 @@ def clean_cimis(rawdir, cleandir):
                                     df = df.drop(['Hour', 'Date', 'Hour (PST)'], axis = 1)
 
                                     dfs.append(df)
-                                    print(dfs.shape)
-                                    if len(dfs.index) == 0:
-                                        print('No raw data found for {} on AWS.'.format(station_id))
-                                        errors['File'].append(station_id)
-                                        errors['Time'].append(end_api)
-                                        errors['Error'].append('No raw data found for this station on AWS.')
-                                        continue
 
                                 else: # if year csv file does not have data for station, move on to next year
                                     continue
@@ -209,6 +202,12 @@ def clean_cimis(rawdir, cleandir):
 
             try:
                 file_count = len(dfs)
+                if file_count == 0:
+                    print('No raw data found for {} on AWS.'.format(station_id))
+                    errors['File'].append(station_id)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('No raw data found for this station on AWS.')
+                    continue
                 df_stat = pd.concat(dfs)
 
                 # Drop any columns that only contain NAs.
