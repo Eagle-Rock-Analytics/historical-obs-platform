@@ -269,7 +269,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
     else: # If files read successfully, continue.
 
         for i in ids: # For each station (full run)
-        # for i in sample(ids, 1):
+        # for i in sample(ids, 3):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -287,10 +287,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             stat_files.remove(file) # Remove from file list
                             continue
                         headers.append(header)
+
                     except Exception as e:
+                        print("{} reports no meteorological data -- not cleaned.".format(station_id))
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append("Error in appending parsed MADIS headers: {}".format(e))
+                        errors['Error'].append("No data available for station. Cleaning stage skipped.")
                         continue
 
                 if not stat_files: # If no files left in list
@@ -1144,7 +1146,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "VCAPCD"
+    network = "RAWS"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
