@@ -275,6 +275,14 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
                 headers = []
                     # Iterate through files to clean. Each file represents a station's data.
+
+                if not stat_files: # If no files left in list
+                    print('No raw data found for {} on AWS.'.format(station_id))
+                    errors['File'].append(station_id)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('No raw data found for this station on AWS.')
+                    continue # Skip this station
+
                 for file in stat_files:
                     try:
                         skip = 0
@@ -294,13 +302,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         errors['Time'].append(end_api)
                         errors['Error'].append("No data available for station. Cleaning stage skipped.")
                         continue
-
-                if not stat_files: # If no files left in list
-                    print('No raw data found for {} on AWS.'.format(station_id))
-                    errors['File'].append(station_id)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append('No raw data found for this station on AWS.')
-                    continue # Skip this station
 
                 # If more than one station, metadata should be identical. Test this.
                 if(all(a == headers[0] for a in headers[1:])):
