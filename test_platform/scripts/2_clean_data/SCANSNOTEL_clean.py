@@ -110,7 +110,7 @@ def clean_scansnotel(rawdir, cleandir):
 
     else: # If files read successfully, continue.
         for i in ids: # For each station (full run)
-        # for i in random.sample(ids,5): # Subsample for testing errors
+        # for i in random.sample(ids,2): # Subsample for testing errors
             df_stat = None # Initialize merged df.
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
@@ -152,21 +152,14 @@ def clean_scansnotel(rawdir, cleandir):
                         timecols = [col for col in timecols if col != 'time'] # Remove 'time' column
 
                         for col in timecols:
-
                             df[col] = np.where(df['time']==df[col], np.nan, df[col]) # Assign nan to any value identical to the time column.
 
                         df = df.dropna(axis = 1, how = 'all') # if all columns are dropped, handled at last step, but could happen here too
-                        if df.empty(): # testing
-                            print('Station {} does not report any valid meteorological data - not cleaned.'.format(station_id))
-                            errors['File'].append(station_id)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Station reports all nan meteorological data.')
-                            continue
 
                         if len([col for col in df.columns if 'time' in col]) > 1: # If more than one time column remains,
                             print("Conflicting time values: {}".format(list([col for col in df.columns if 'time' in col]))) # print warning
                             exit() # And kill code.
-
+ 
                         # Fix time format issues caused by "Timeout" errors.
                         df['time'] = pd.to_datetime(df['time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
                         df = df[pd.notnull(df['time'])] # Remove any rows where time is missing.
@@ -189,7 +182,7 @@ def clean_scansnotel(rawdir, cleandir):
                                 df_stat = pd.concat([df_stat, df], axis = 0, ignore_index= True)
 
                     except Exception as e: # Exceptions thrown during individual file read in.
-                        # print(e)
+                        print('Error in pandas df set-up')
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
                         errors['Error'].append('Error in pandas df set-up: {}'.format(e))
@@ -565,13 +558,21 @@ def clean_scansnotel(rawdir, cleandir):
                     #     next
 
                 # Quality control: if any variable is completely empty, drop it.
+                # drop any column that does not have any valid (non-nan) data
+                # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
                 for key in ds.keys():
                     try:
-                        if np.isnan(ds[key].values).all():
-                            if 'elevation' not in key: # Exclude elevation
-                                print("Dropping {}".format(key))
+                        if (key != 'elevation'):
+                            if np.isnan(ds[key].values).all():
+                                print("Dropping empty var: {}".format(key))
                                 ds = ds.drop(key)
-                    except: # Add to handle errors for unsupported data types
+
+                        # only drop elevation if all other variables are also nans
+                        if (key == 'elevation') & (len(ds.keys())==1): # only elevation remains
+                            print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
+                            ds = ds.drop(key)
+                            continue
+                    except Exception as e: # Add to handle errors for unsupported data types
                         next
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
@@ -587,7 +588,7 @@ def clean_scansnotel(rawdir, cleandir):
                 ds = ds[new_index]
 
             except Exception as e:
-                print(e)
+                # print(e)
                 errors['File'].append(station_id) # If stat_files is none, this will default to saving ID of station.
                 errors['Time'].append(end_api)
                 errors['Error'].append('Error in ds set-up: {}'.format(e))
