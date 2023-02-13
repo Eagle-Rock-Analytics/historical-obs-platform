@@ -180,6 +180,93 @@ def get_madis_station_csv(token, ids, bucket_name, directory, start_date = None,
     networkname = networkname.replace("/", "")
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_{}_{}.csv".format(networkname, end_api))
 
+def get_madis_station_csv_update(token, ids, bucket_name, directory, start_date = None, end_date = None, **options):
+
+    # Set up error handling df.
+    errors = {'Station ID':[], 'Time':[], 'Error':[]}
+
+    # Set end time to be current time at beginning of download
+    if end_date is None:
+        end_api = datetime.now().strftime('%Y%m%d%H%M')
+    else:
+        end_api = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y%m%d%H%M')
+    
+    for index, id in ids.iterrows(): # For each station
+        # Set start date
+        if start_date is None:
+            if id["start"] == "NaN" or pd.isna(id['start']): # Adding error handling for NaN dates.
+                start_api = "198001010000" # If any of the stations in the chunk have a start time of NA, pull data from 01-01-1980 OH:OM and on.
+                # To check: all stations seen so far with NaN return empty data. If true universally, can skip these instead of saving.
+            else:
+                start_api = id["start"] # Otherwise, set start date to start date of station.
+                # If start_api starts prior to 1980, set manually to be 1980-01-01.
+                if start_api[0:4] < "1980": # If start year prior to 1980
+                    start_api = "198001010000"
+        else:
+            start_api = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y%m%d%H%M')
+
+        # If station file is 2_/3_ etc., get station name
+        if options.get("timeout") == True:
+            id['STID'] = id['STID'].split("_")[-1]
+
+        # Generate URL
+        # Note: decision here to use full flag suite of MesoWest and Synoptic data.
+        # See Data Checks section here for more information: https://developers.synopticdata.com/mesonet/v2/stations/timeseries/
+        url = "https://api.synopticdata.com/v2/stations/timeseries?token={}&stid={}&start={}&end={}&output=csv&qc=on&qc_remove_data=off&qc_flags=on&qc_checks=synopticlabs,mesowest".format(token, id['STID'], start_api, end_api)
+        
+        # Try to get station csv.
+        try:
+            # Set up filename, given parameters
+            filename = directory+"{}.csv".format(id["STID"])
+            if options.get("extension") is not None:
+                if options.get("timeout") == True:
+                    prefix = options.get("round")
+                    filename = directory+"{}_{}_{}.csv".format(prefix, id["STID"], options.get("extension"))
+                else:
+                    filename = directory+"{}_{}.csv".format(id["STID"], options.get("extension"))
+            elif options.get("timeout") == True:
+                prefix = options.get("round")
+                filename = directory+"{}_{}.csv".format(prefix, id["STID"])   
+
+            s3_obj = s3.Object(bucket_name, filename)
+
+            with requests.get(url, stream=True) as r:
+                if r.status_code == 200: # If API call returns a response
+                    if "RESPONSE_MESSAGE" in r.text: # If error response returned. Note that this is formatted differently depending on error type.
+                        # Get error message and clean.
+                        error_text = str(re.search("(RESPONSE_MESSAGE.*)",r.text).group(0)) # Get response message.
+                        error_text = re.sub("RESPONSE_MESSAGE.: ", "", error_text)
+                        error_text = re.sub(",.*", "", error_text)
+                        error_text = re.sub('"', '', error_text)
+
+                        # Append rows to dictionary
+                        errors['Station ID'].append(id['STID'])
+                        errors['Time'].append(end_api)
+                        errors['Error'].append(error_text)
+                        next
+                    else:
+                        s3_obj.put(Body=r.content)
+                        print("Saving data for station {}".format(id["STID"])) 
+
+                else:
+                    errors['Station ID'].append(id['STID'])
+                    errors['Time'].append(end_api)
+                    errors['Error'].append(r.status_code)
+                    print("Error: {}".format(r.status_code))
+
+        except Exception as e:
+            print("Error: {}".format(e))
+
+    # Write errors to csv for AWS
+    csv_buffer_err = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer_err)
+    content = csv_buffer_err.getvalue()
+    networkname = directory.replace("1_raw_wx/", "") # Get network name from directory name
+    networkname = networkname.replace("/", "")
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=directory+"errors_{}_{}.csv".format(networkname, end_api))
+
+
 # Token: Syntopic API token (stored in config.py)
 # Networks: expects a list of network names (e.g. ["CWOP", "RAWS"]). If not set, downloads all non-restricted network data.
 # Note here this will look for an exact word match in the shortnames (e.g. RAWS will not return NSRAWS but ASOS returns ASOS/AWOS and HF-ASOS)
@@ -233,6 +320,63 @@ def madis_pull(token, networks = None, pause = None):
         
         # Get station CSVs.
         get_madis_station_csv(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids) 
+
+
+# Token: Syntopic API token (stored in config.py)
+# Networks: expects a list of network names (e.g. ["CWOP", "RAWS"]). If not set, downloads all non-restricted network data.
+# Note here this will look for an exact word match in the shortnames (e.g. RAWS will not return NSRAWS but ASOS returns ASOS/AWOS and HF-ASOS)
+# Pause: Optional. If True, prompts user to indicate yes to continue before downloading large networks.
+## Automatically set to yes when networks is not specified.
+def madis_update(token, networks = None, pause = None, start_date = None, end_date = None):
+    
+    if networks is None: # If no networks provided, pull full list.
+        networkdf = get_network_metadata(token)
+        networkdf = networkdf[networkdf['TOTAL_RESTRICTED']==0] # Remove restricted networks.
+        networkdf = networkdf[['ID', 'SHORTNAME', 'REPORTING_STATIONS']] # Only keep ID, shortname, expected station #s.
+        pause = True # Set pause to be true (this will be a large runtime.)
+        
+    else:
+        networkdf = get_network_metadata(token)
+        mask = [any([re.search(r'\b' + kw + r'\b', r) for kw in networks]) for r in networkdf['SHORTNAME']]
+        networkdf = networkdf[mask]
+        resp = input("Networks to be downloaded:{}. Would you like to continue? (Y/N)".format(list(networkdf['SHORTNAME'])))
+        if resp == "N":
+            return
+        if resp == "Y":
+            pass
+        else:
+            print("Invalid response, exiting function.")
+            return
+
+    # By network, download data.
+    for index, row in networkdf.iterrows(): # For each network.
+        print("Downloading data for {} network".format(row['SHORTNAME']))
+        if pause: # Set up pause function for large networks.
+            if row['REPORTING_STATIONS']>=1000:
+                resp = input("Warning: This network contains {} stations. Are you ready to download it? (Y/N)".format(row['REPORTING_STATIONS']))
+                if resp == "N":
+                    print("Skipping to next network.")
+                    continue
+                if resp == "Y":
+                    pass
+                else:
+                    print("Invalid response. Skipping network.")
+        dirname = row['SHORTNAME'].replace(" ", "") # Get rid of spaces for AWS
+        dirname = dirname.replace("/", "-") # Get rid of slashes for AWS
+        directory = raw_path+dirname+"/" # Use name from synoptic to name folder
+        
+        # Except if the network is CWOP, then manually set to be CWOP.
+        if row['SHORTNAME'] == "APRSWXNET/CWOP":
+            dirname = "CWOP"
+            directory = raw_path+"CWOP/"
+            print(dirname, directory)
+        
+        # Get list of station IDs and start date.
+        ids = get_madis_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, networkid = row['ID'], bucket_name = bucket_name, directory = directory)
+        
+        # Get station CSVs.
+        extension = datetime.now().strftime('%Y-%m-%d')
+        get_madis_station_csv_update(token = config.token, bucket_name = bucket_name, directory = directory, ids = ids, start_date = start_date, end_date = end_date, extension = extension) 
 
 if __name__ == "__main__":    
     madis_pull(config.token)

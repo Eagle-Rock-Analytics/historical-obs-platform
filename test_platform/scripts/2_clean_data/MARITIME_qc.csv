@@ -1,0 +1,10 @@
+﻿Flag Value,Flag Meaning
+0,Blank - No quality control (QC) has been performed
+1,Good - QC has been performed: record appears correct
+3,Doubtful - QC has been performed: record appears doubtful
+4,Erroneous - QC has been perfromed: record appears erroneous
+5,Changes - The record has been changed as a result of QC
+6,Acceptable - QC has been performed: record seems inconsistent with other records
+7,Off Position - There is a problem with the buoy position or mooring. Data may still be useful.
+8,Reserved
+9,Reserved - indicates missing elements

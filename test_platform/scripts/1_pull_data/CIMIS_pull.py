@@ -61,7 +61,7 @@ def get_cimis_stations(directory):
     ftp_to_aws(ftp, 'readme (prior to June 2014)units.txt', '1_raw_wx/CIMIS/', rename = "ftpunits_pre2014.txt") # Get older units.
     return
 
-# Function: query ftp server for CIMIS data and download csv files.
+# Function: query ftp server for CIMIS data and download csv files. Use for full pull.
 # Run this one time to get all historical data or to update changed files for all years.
 # Inputs:
 # bucket_name: name of AWS bucket
@@ -175,6 +175,91 @@ def get_cimis_data_ftp(bucket_name, directory, years = None, get_all = True):
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
     s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cimis_{}.csv".format(end_api))
+
+
+# Function: query ftp server for CIMIS data and download csv files. Use to update data.
+# Inputs:
+# bucket_name: name of AWS bucket
+# directory: folder path within bucket
+# start_date: optional
+# end_date: optional
+def get_cimis_update_ftp(bucket_name, directory, start_date = None, end_date = None):
+
+    # Set up error handling
+    errors = {'File':[], 'Time':[], 'Error':[]}
+    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download
+
+    ## Login.
+    ## using ftplib
+    ftp = FTP('ftpcimis.water.ca.gov')
+    ftp.login() # user anonymous, password anonymous
+    ftp.cwd('pub2/')  # Change WD.
+    pwd = ftp.pwd() # Get present working directory
+
+    # Set up AWS to write to bucket.
+    s3 = boto3.client('s3')    
+
+    try:
+        # First all data not from current year through annual folder
+        ftp.cwd('annualMetric/')
+
+        filenames = ftp.nlst() # Get list of all file names in folder.
+        filenames = [i for i in filenames if i.endswith('.zip')]
+        filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop daily files.
+
+        if start_date is not None:
+            filenames = [str for str in filenames if int(str[-8:-4])>=int(start_date[0:4])] # Only keep filenames after start year
+
+        if end_date is not None:
+            filenames = [str for str in filenames if int(str[-8:-4])<=int(end_date[0:4])] # Only keep filenames after start year
+
+        #for filename in filenames:
+        #    ftp_to_aws(ftp, filename, directory)
+
+        # Now, repeat to download present year's data (housed in the 'hourly' folder)
+        pres_year = date.today().strftime("%Y")
+        
+        if (end_date is None) or (pres_year == end_date[0:4]): # If years includes present year or years not specified.
+            ftp.cwd(pwd)
+            ftp.cwd('monthlyMetric/')
+            
+            filenames = ftp.nlst() # Get list of all file names in folder.
+            filenames = [i for i in filenames if i.endswith('.zip')]
+            filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop daily files.
+            
+            # Filter months by start and end dates:
+            if start_date is not None and start_date[0:4] == pres_year:
+                if end_date is None:
+                    dates = pd.date_range(start_date[0:7],date.today(), freq='MS', inclusive = 'both').strftime("%b").tolist() # Get all months from start date to present
+                else:
+                    dates = pd.date_range(start_date[0:7],end_date[0:7], freq='MS', inclusive = 'both').strftime("%b").tolist() # Get all months from start to end date
+            elif end_date is not None: # Get all months from January up through end date
+                dates = pd.date_range(datetime(year = date.today().year, month = 1, day = 1),end_date[0:7], freq='MS', inclusive = 'both').strftime("%b").tolist()
+            elif end_date is None: # Get all months available
+                dates = pd.date_range(datetime(year = date.today().year, month = 1, day = 1),date.today(), freq='MS', inclusive = 'both').strftime("%b").tolist()
+
+            filenames = [file for file in filenames if any(date.lower() in file for date in dates)] 
+            
+            for filename in filenames:
+                ftp_to_aws(ftp, filename, directory)
+            
+
+    except Exception as e:
+        print("Error in downloading file {}: {}". format(filename, e))
+        errors['File'].append(filename)
+        errors['Time'].append(end_api)
+        errors['Error'].append(e)
+
+    ftp.quit() # This is the “polite” way to close a connection
+
+    #Write errors to csv
+    csv_buffer = StringIO()
+    errors = pd.DataFrame(errors)
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3.put_object(Bucket=bucket_name, Body=content,Key=directory+"errors_cimis_{}.csv".format(end_api))
+
+
 
 if __name__ == "__main__":
     # Run functions

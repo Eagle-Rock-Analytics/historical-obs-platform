@@ -14,7 +14,7 @@ and updating the station list to reflect station availability.
 # 3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations,
 and update station list to remove stations whose end date precedes the time period of analysis.
 
-# For time-based files (HADS, CIMIS), no method has been developed.
+# For time-based files (CIMIS), no method has been developed.
 # For mixed-system files (CW3E), no method has been developed.
 '''
 
@@ -50,7 +50,7 @@ def madis_retry_downloads(token, bucket_name, network):
         files += [file]
     files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
 
-    station_file = [file for file in files if "station" in file] # ID station file
+    station_file = [file for file in files if "stationlist" in file] # ID standard station file
     station_file = str(station_file[0])
     files = [file for file in files if "errors" not in file]
     files = [file for file in files if "station" not in file] # Remove error and station list files
@@ -397,7 +397,7 @@ def update_station_list(bucket_name, network):
     
     # Get station file and list of files
     station_file = [file for file in files if "stationlist" in file] # ID station file
-
+    
     if network in MADIS or network in SNTL:
         files = list(filter(lambda f: f.endswith(".csv"), files)) # Get list of file names
     
@@ -408,7 +408,7 @@ def update_station_list(bucket_name, network):
         station_file = [file for file in station_file if "ISD" in file] # Get the station list used to download files.
     
     station_file = str(station_file[0])
-
+    
     # Read in station file.
     test = s3.Bucket(bucket_name).Object(station_file).get()
     station_csv = pd.read_csv(test['Body'])
@@ -626,5 +626,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['VCAPCD'])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['HADS'])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
