@@ -1,4 +1,4 @@
-# Jan 27 2023, note this is the versioning that works for Beth, needs confirmation by all
+# Feb 13 2023, note this is the versioning that works for Beth, needs confirmation by all
 aioboto3==10.1.0
 aiobotocore==2.4.0
 beautifulsoup4==4.11.1
@@ -11,7 +11,7 @@ ftputil==5.0.4
 geopandas==0.11.1
 h5netcdf==1.0.2
 h5py==3.7.0
-maptlotlib==3.5.3
+matplotlib==3.5.3
 netCDF4==1.6.0
 openpyxl==3.0.10
 pandas==1.5.0
