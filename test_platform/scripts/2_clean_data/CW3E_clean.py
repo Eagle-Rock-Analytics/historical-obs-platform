@@ -103,6 +103,8 @@ def clean_cw3e(rawdir, cleandir):
         stations = [station.replace("C3", "") for station in stations]
         
         # Remove error, station files
+        format_files = [file for file in files if '_DataFormat.txt' in file] # only some stations have a data format file
+        readme_files = [file for file in files if '_README.txt' in file] # all valid stations have a readme file
         files = [file for file in files if 'README' not in file]
         files = [file for file in files if 'stationlist' not in file]
         files = [file for file in files if 'error' not in file]
@@ -114,12 +116,29 @@ def clean_cw3e(rawdir, cleandir):
         errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        for station in stations: # Full network clean
+        # for station in stations: # Full network clean
+        for station in ['BVS']:
         # for station in sample(stations, 1): # subset for testing
             print('Parsing: {}'.format(station))
             try:
+                # If station does not have a README file, automatically skip - there will be no data on AWS
+                read_stn = rawdir+station+"_README.txt"
+                if read_stn not in readme_files:
+                    print('No raw data found for {} on AWS.'.format(station))
+                    errors['File'].append(station)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No raw data found on AWS -- not cleaned")
+                    continue
+
+                # If station does not have a data format file, default to use BCC as it is a complete file, otherwise use station format file
+                # CW3E has consistent naming/order in DataFormat files, so safe to use for other stations
+                format_stn = rawdir+station+"_DataFormat.txt"
+                if format_stn not in format_files:
+                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"BCC_DataFormat.txt")
+                else:
+                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
+
                 # Get column names from .txt file
-                obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
                 dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace= True, names = ['No', "ColName"])    
                 colnames = dataformat['ColName'].tolist()[1:]
                 usecols = [col for col in colnames if col not in removecols]
@@ -161,7 +180,7 @@ def clean_cw3e(rawdir, cleandir):
                                         date_parser = date_parser, dtype={'Temperature (C)':'float64', 'Pressure (mb)':'float64', 'Solar Radiation (W/m^2)':'float64',
                                                                           'Relative Humidity (%)': 'float64', 'Precipitation (mm)': 'float64',
                                                                           'Scalar Wind Speed (m/s)':'float64', "Wind Direction (degrees)":'float64'})
-                    except OSError: # Except if year has no data
+                    except OSError as e: # Except if year has no data
                         errors['File'].append(station_id)
                         errors['Time'].append(end_api)
                         errors['Error'].append("Error in df set-up: {}".format(e))
@@ -404,7 +423,7 @@ def clean_cw3e(rawdir, cleandir):
                 print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                 errors['File'].append(station) # Save ID of station.
                 errors['Time'].append(end_api)
-                errors['Error'].append("Error in full clean set-up/GetObject set-up: {}".format(e))
+                errors['Error'].append("Error in full clean set-up/GetObject set-up for {0}: {1}".format(station, e))
                 continue
 
         # # Save the list of removed variables to AWS
