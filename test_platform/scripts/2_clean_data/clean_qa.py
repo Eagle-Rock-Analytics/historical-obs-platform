@@ -199,9 +199,9 @@ def clean_qa(network):
     else: # network is CW3E
         if 'Y' in stations['Cleaned'].values:
             if 'N' not in stations['Cleaned'].values:
-                print("Station list updated for cleaned {} stations. All stations cleaned: {} stations cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y']/4)))
+                print("Station list updated for cleaned {} stations. All stations cleaned: {} station-years cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y'])))
             else:
-                print("Station list updated for cleaned {} stations. {} stations cleaned, {} stations not cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y']/4), stations['Cleaned'].value_counts()['N']))
+                print("Station list updated for cleaned {} stations. {} station-years cleaned, {} station-years not cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y']), stations['Cleaned'].value_counts()['N']))
         else:
             print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
 
