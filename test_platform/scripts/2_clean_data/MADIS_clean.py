@@ -267,9 +267,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
+        ## Procedure for all networks, note if network is CWOP this will do a full clean of 7k+ stations in one run
+        # for i in ids: # For each station (full run)
+        # for i in sample(ids, 3): ## for testing
 
-        for i in ids: # For each station (full run)
-        # for i in sample(ids, 3):
+        ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
+        stns_by_firstletter = [id for id in ids if id.startswith("A")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
+        print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
+
+        for i in stns_by_firstletter:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -960,7 +966,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     ds['sfcWind'].attrs['long_name'] = "wind_speed"
                     ds['sfcWind'].attrs['standard_name'] = "wind_speed"
                     ds['sfcWind'].attrs['units'] = "m s-1"
-                    #ds['sfcWind'].attrs['comment'] = "Method of wind speed calculation varies within network, with 2-minute mean as CWOP sampling standard."
+                    ds['sfcWind'].attrs['comment'] = "Method of wind speed calculation varies within network, with 2-minute mean as CWOP sampling standard."
                     # (Method of calculation may vary and is unknown source by source.)
                     # See: https://weather.gladstonefamily.net/CWOP_Guide.pdf
                     # FLAG: HOW TO DEAL WITH SOURCE-unique sampling standards in MADIS_clean????
@@ -1147,7 +1153,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "RAWS"
+    network = "CWOP"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
@@ -1160,7 +1166,6 @@ if __name__ == "__main__":
 # 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD', 'HADS'
 
 # Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
-# Update with timing estimate here? CWOP took a week of continuous running to download the data...
 
 # ---------------------------------------------------------------------------------------------------------
 ### Testing
