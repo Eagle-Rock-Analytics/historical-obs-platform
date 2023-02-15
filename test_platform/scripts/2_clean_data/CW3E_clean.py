@@ -20,20 +20,18 @@ Data is available from 04/23/2021-11/18/2021. At this time this script does not 
 # Step 0: Environment set-up
 # Import libraries
 import os
-import xarray as xr
 from datetime import datetime
-import re
 import numpy as np
 import warnings
 warnings.filterwarnings(action = 'ignore', category = FutureWarning) # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
-from ftplib import FTP
-from cleaning_helpers import var_to_unique_list
+# from ftplib import FTP
+from cleaning_helpers import get_file_paths
 import dask.dataframe as dd
 from random import sample # For testing only
-import sys, traceback
+import traceback
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
@@ -59,14 +57,6 @@ try:
     os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
 except:
     pass
-
-
-# Given a network name, return all relevant AWS filepaths for other functions.
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir
 
               
 # ## FUNCTION: Clean CW3E data.
@@ -96,7 +86,7 @@ def clean_cw3e(rawdir, cleandir):
         'Soil Reflectometer Output Period (%) 15cm', 'Soil Reflectometer Output Period (%) 20cm',
         'Soil Reflectometer Output Period (%) 50cm', 'Soil Reflectometer Output Period (%) 100cm']
 
-    date_parser= lambda x,y,z: datetime.strptime(f"{x}.{y}.{z}", "%Y.%j.%H%M")
+    date_parser = lambda x,y,z: datetime.strptime(f"{x}.{y}.{z}", "%Y.%j.%H%M")
 
     try:
         # Get files
@@ -113,6 +103,8 @@ def clean_cw3e(rawdir, cleandir):
         stations = [station.replace("C3", "") for station in stations]
         
         # Remove error, station files
+        format_files = [file for file in files if '_DataFormat.txt' in file] # only some stations have a data format file
+        readme_files = [file for file in files if '_README.txt' in file] # all valid stations have a readme file
         files = [file for file in files if 'README' not in file]
         files = [file for file in files if 'stationlist' not in file]
         files = [file for file in files if 'error' not in file]
@@ -121,13 +113,32 @@ def clean_cw3e(rawdir, cleandir):
         print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        for station in sample(stations, 5): # subset for testing
+        # for station in stations: # Full network clean
+        for station in ['BVS']:
+        # for station in sample(stations, 1): # subset for testing
+            print('Parsing: {}'.format(station))
             try:
+                # If station does not have a README file, automatically skip - there will be no data on AWS
+                read_stn = rawdir+station+"_README.txt"
+                if read_stn not in readme_files:
+                    print('No raw data found for {} on AWS.'.format(station))
+                    errors['File'].append(station)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No raw data found on AWS -- not cleaned")
+                    continue
+
+                # If station does not have a data format file, default to use BCC as it is a complete file, otherwise use station format file
+                # CW3E has consistent naming/order in DataFormat files, so safe to use for other stations
+                format_stn = rawdir+station+"_DataFormat.txt"
+                if format_stn not in format_files:
+                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"BCC_DataFormat.txt")
+                else:
+                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
+
                 # Get column names from .txt file
-                obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
                 dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace= True, names = ['No', "ColName"])    
                 colnames = dataformat['ColName'].tolist()[1:]
                 usecols = [col for col in colnames if col not in removecols]
@@ -154,7 +165,6 @@ def clean_cw3e(rawdir, cleandir):
 
                 # Get number of files
                 station_files = [file for file in files if file.startswith('1_raw_wx/CW3E/{}'.format(station.lower()))]
-                #print(file_count)
 
                 # Get years - note this is hardcoded and should be updated for the update script.
                 years = ['19', '20', '21', '22']
@@ -165,12 +175,15 @@ def clean_cw3e(rawdir, cleandir):
                     
                     # Read in data.
                     try:
-                        df_stat = dd.read_csv('s3://wecc-historical-wx/1_raw_wx/CW3E/bcc{}*m'.format(year), names = colnames, na_values = [-99999], usecols = usecols, 
+                        df_stat = dd.read_csv('s3://wecc-historical-wx/1_raw_wx/CW3E/{}{}*m'.format(station.lower(), year), names = colnames, na_values = [-99999], usecols = usecols, 
                                         parse_dates = {'time': ['Year (end time of average)','Julian Day (end time of average)','HoursMinutes (end time of average)']},
                                         date_parser = date_parser, dtype={'Temperature (C)':'float64', 'Pressure (mb)':'float64', 'Solar Radiation (W/m^2)':'float64',
                                                                           'Relative Humidity (%)': 'float64', 'Precipitation (mm)': 'float64',
                                                                           'Scalar Wind Speed (m/s)':'float64', "Wind Direction (degrees)":'float64'})
-                    except OSError: # Except if year has no data
+                    except OSError as e: # Except if year has no data
+                        errors['File'].append(station_id)
+                        errors['Time'].append(end_api)
+                        errors['Error'].append("Error in df set-up: {}".format(e))
                         continue # Skip year.
                     
                     try:
@@ -278,13 +291,6 @@ def clean_cw3e(rawdir, cleandir):
 
                         # Update variable attributes and do unit conversions
                         
-                        #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                        # for var in list(ds.keys()):
-                        #     try:
-                        #         print([var, float(ds[var].min()), float(ds[var].max())])
-                        #     except:
-                        #         continue
-                        
                         #tas: air surface temperature (K)
                         if "Temperature (C)" in ds.keys():
                             ds['tas'] = calc_clean._unit_degC_to_K(ds['Temperature (C)'])
@@ -335,7 +341,6 @@ def clean_cw3e(rawdir, cleandir):
                             ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
                             ds['rsds'].attrs['units'] = "W m-2"
 
-
                         # sfcWind : wind speed (m/s)
                         if "Scalar Wind Speed (m/s)" in ds.keys(): # Data originally in mph.
                             ds = ds.rename({'Scalar Wind Speed (m/s)':"sfcWind"})
@@ -351,14 +356,12 @@ def clean_cw3e(rawdir, cleandir):
                             ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
                             ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
 
-
-
-                        #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                        for var in ds.variables:
-                            try:
-                                print([var, float(ds[var].min()), float(ds[var].max())]) 
-                            except:
-                                next
+                        # #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                        # for var in ds.variables:
+                        #     try:
+                        #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                        #     except:
+                        #         next
 
                         # Quality control: if any variable is completely empty, drop it.
                         for key in ds.keys():
@@ -377,7 +380,7 @@ def clean_cw3e(rawdir, cleandir):
                         new_index = actual_order + rest_of_vars
                         ds = ds[new_index]
 
-                        print(ds) # For testing.
+                        # print(ds) # For testing.
 
                         #Write station file to netcdf.
                         if ds is None: # Should be caught in error handling above, but add in case.
@@ -391,10 +394,10 @@ def clean_cw3e(rawdir, cleandir):
                             try:
                                 filename = station_id+"_"+year+".nc" # Make file name (stationID+year)
                                 filepath = cleandir+filename # Write file path
-                                print(filepath) # For testing
+                                # print(filepath) # For testing
 
                                 # Write locally
-                                ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                                ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
                                 # Push file to AWS with correct file name.
                                 s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
@@ -406,21 +409,21 @@ def clean_cw3e(rawdir, cleandir):
                                 print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                                 errors['File'].append(filename)
                                 errors['Time'].append(end_api)
-                                errors['Error'].append(e)
+                                errors['Error'].append("Error in saving ds as .nc file to AWS: {}".format(e))
                                 continue  
 
                     except Exception as e:
                         print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                         errors['File'].append(station+year) # Save ID of station.
                         errors['Time'].append(end_api)
-                        errors['Error'].append(e)
+                        errors['Error'].append("Error in ds set-up: {}".format(e))
                         continue
         
             except Exception as e:
                 print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                 errors['File'].append(station) # Save ID of station.
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append("Error in full clean set-up/GetObject set-up for {0}: {1}".format(station, e))
                 continue
 
         # # Save the list of removed variables to AWS
@@ -433,7 +436,7 @@ def clean_cw3e(rawdir, cleandir):
    
     # Write errors.csv
     finally: # Always execute this.
-        print(errors)
+        # print(errors) # testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -444,10 +447,13 @@ def clean_cw3e(rawdir, cleandir):
 # # Run functions
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CW3E")
-    #print(rawdir, cleandir, qaqcdir)
+    print(rawdir, cleandir, qaqcdir)
     clean_cw3e(rawdir, cleandir)
     
+
+# -------------------------------------------------------------------------------------------------------------
     # # Testing:
+    # import xarray as xr
     # import random # To get random subsample
     # import s3fs # To read in .nc files
     
@@ -482,7 +488,6 @@ if __name__ == "__main__":
     #     print(str(test['time'].max())) # Get end time
     #     test.close()
 
-    
     # # File 3:
     # # Test: Inspect vars and attributes
     # with fs.open(aws_urls[2]) as fileObj:
@@ -494,5 +499,3 @@ if __name__ == "__main__":
     #             continue
     #     print(test['time'])
     #     test.close()
-    
-    

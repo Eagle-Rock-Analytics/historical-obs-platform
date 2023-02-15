@@ -16,7 +16,7 @@ import boto3
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
-from datetime import datetime
+# from datetime import datetime
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -51,8 +51,13 @@ def get_cleaned_stations(network):
     df = {'ID':[], 'Time_Cleaned':[]}
     network_prefix = clean_wx+network+"/"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix+network+"_"):
-        clean_id = item.key.split("/")[-1].replace(".nc", "") # Get ID from file name
-        time_mod = item.last_modified
+        if network == 'CW3E': # cleaned CW3E data is stored as one file per year per station, handle separately
+            stn = item.key.split("_")[3]
+            clean_id = network + "_" + stn
+            time_mod = item.last_modified
+        else: # all other networks, one file per station
+            clean_id = item.key.split("/")[-1].replace(".nc", "") # Get ID from file name
+            time_mod = item.last_modified
         df['ID'].append(clean_id)
         df['Time_Cleaned'].append(time_mod)
     return pd.DataFrame(df)
@@ -183,13 +188,23 @@ def clean_qa(network):
                     stations.loc[index, 'Errors'] = value
 
     # Print summary
-    if 'Y' in stations['Cleaned'].values:
-        if 'N' not in stations['Cleaned'].values: # order is important here, if no "N" is present in a cleaned network, it will bark without this
-            print("station list updated for cleaned {} stations. All stations cleaned: {} stations cleaned.".format(network, stations['Cleaned'].value_counts()['Y']))
+    if network != 'CW3E':
+        if 'Y' in stations['Cleaned'].values:
+            if 'N' not in stations['Cleaned'].values: # order is important here, if no "N" is present in a cleaned network, it will bark without this
+                print("Station list updated for cleaned {} stations. All stations cleaned: {} stations cleaned.".format(network, stations['Cleaned'].value_counts()['Y']))
+            else:
+                print("Station list updated for cleaned {} stations. {} stations cleaned, {} stations not cleaned.".format(network, stations['Cleaned'].value_counts()['Y'], stations['Cleaned'].value_counts()['N']))
         else:
-            print("Station list updated for cleaned {} stations. {} stations cleaned, {} stations not cleaned.".format(network, stations['Cleaned'].value_counts()['Y'], stations['Cleaned'].value_counts()['N']))
-    else:
-        print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
+            print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
+    else: # network is CW3E
+        if 'Y' in stations['Cleaned'].values:
+            if 'N' not in stations['Cleaned'].values:
+                print("Station list updated for cleaned {} stations. All stations cleaned: {} station-years cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y'])))
+            else:
+                print("Station list updated for cleaned {} stations. {} station-years cleaned, {} station-years not cleaned.".format(network, int(stations['Cleaned'].value_counts()['Y']), stations['Cleaned'].value_counts()['N']))
+        else:
+            print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
+
 
     # Save station file to cleaned bucket
     print(stations) # For testing
@@ -200,7 +215,7 @@ def clean_qa(network):
 
 
 if __name__ == "__main__":
-    clean_qa('HADS')
+    clean_qa('CW3E')
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
