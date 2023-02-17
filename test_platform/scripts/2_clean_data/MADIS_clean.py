@@ -173,7 +173,7 @@ def parse_madis_headers(file):
 
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns,
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
-
+    # print(first_row)
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -182,11 +182,12 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
-
-    # # Handling for timeout errors
-    # if '"message": "Request could not complete. Timeout."}' in df.tail(1).values:
-    #     df = df.iloc[:-1, :] # Deletes row of data if timeout error message is present
-    #     print('parsing timeout file, please wait')
+    
+    # Handling for timeout errors
+    # If a timeout occurs, the last line of valid data is repeated in the next file and is skipped, but if that is the only line of data, script breaks
+    # Remove "status" error rows
+    df = df.loc[df["Station_ID"].str.contains("status")==False]
+    df = df.loc[df["Date_Time"].str.contains("message")==False]
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -231,9 +232,6 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # # Manually convert "None" to np.nan
     df.replace(to_replace="None", value=np.nan, inplace=True)
 
-    # Remove "status" error rows
-    df = df.loc[df["Station_ID"].str.contains("status")==False]
-
     return df
 
 def clean_madis(bucket_name, rawdir, cleandir, network):
@@ -251,7 +249,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
         end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
-
 
         # Set up list of variables to be removed
         removedvars = []
@@ -284,12 +281,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
         ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
         # not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "if not id.startswith(not_ABCDEFG)" below
-        stns_by_firstletter = [id for id in ids if id.startswith("G")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
+        stns_by_firstletter = [id for id in ids if id.startswith("F")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
         print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
 
-        # for i in stns_by_firstletter:
-        for i in ['AP905', 'AU735']:
+        for i in stns_by_firstletter:
             try:
+                print('Parsing: {}'.format(i))
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
                 headers = []
@@ -342,9 +339,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             continue
 
                 try:
-                    print('start of parsing')
                     dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
-                    print('dfs pass')
                 except Exception as e: # Note: error handling will be slightly coarse here bc of list comprehension.
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
@@ -359,11 +354,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
             try:
                 station_name = headers['station_name'] # Get station name
                 file_count = len(dfs)
-                print(file_count)
+                if file_count == 0:
+                    print('{} is having dfs appending issues, please check'.format(i)) # AP907 is one (timeout issue)
+                    errors['File'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('Dataframe appending issue, please check')
+                    continue
                 df_stat = pd.concat(dfs)
 
                 # Deal with units
-
                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
                 varstokeep = list(df_stat.columns)
                 units = units[units.column.isin(varstokeep)] # Only keep non-removed cols
