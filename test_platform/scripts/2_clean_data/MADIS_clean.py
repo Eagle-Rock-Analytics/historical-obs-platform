@@ -116,7 +116,7 @@ def parse_madis_headers(file):
 
         if "STATION:" in row: # Skip first row.
             station_id = row.partition(": ")[2].replace(" ", "").replace("\n", "")
-            #print(station_id) # For testing
+            # print(station_id) # For testing
             continue
         if "STATION NAME" in row:
             station_name = row.partition(": ")[2].replace("']", "").replace("\n", "")
@@ -129,7 +129,10 @@ def parse_madis_headers(file):
             longitude = float(row.partition(": ")[2].replace("']", ""))
             continue
         elif "ELEVATION" in row:
-            elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
+            if row.partition(": ")[2].replace("\n","") == "None":
+                elevation = np.nan
+            else:
+                elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
             continue
         elif "STATE" in row:
             state = row.partition(": ")[2].replace("']", "").replace("\n", "")
@@ -170,6 +173,7 @@ def parse_madis_headers(file):
 
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns,
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
+
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -178,6 +182,11 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
+
+    # # Handling for timeout errors
+    # if '"message": "Request could not complete. Timeout."}' in df.tail(1).values:
+    #     df = df.iloc[:-1, :] # Deletes row of data if timeout error message is present
+    #     print('parsing timeout file, please wait')
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -267,15 +276,19 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
+
+        dfs = [] # intialize empty df for appending
         ## Procedure for all networks, note if network is CWOP this will do a full clean of 7k+ stations in one run
         # for i in ids: # For each station (full run)
         # for i in sample(ids, 3): ## for testing
 
         ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
-        stns_by_firstletter = [id for id in ids if id.startswith("A")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
+        # not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "if not id.startswith(not_ABCDEFG)" below
+        stns_by_firstletter = [id for id in ids if id.startswith("G")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
         print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
 
-        for i in stns_by_firstletter:
+        # for i in stns_by_firstletter:
+        for i in ['AP905', 'AU735']:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -295,6 +308,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         header = parse_madis_headers(file)
                         # If units are NaN, this signifies an empty dataframe. Write to errors, but do not clean station.
                         if isinstance(header['units'], float) and np.isnan(header['units']):
+                            print("{} reports empty data file -- not cleaned.".format(station_id))
                             errors['File'].append(file)
                             errors['Time'].append(end_api)
                             errors['Error'].append("No data available for station. Cleaning stage skipped.")
@@ -303,10 +317,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         headers.append(header)
 
                     except Exception as e:
-                        print("{} reports no meteorological data -- not cleaned.".format(station_id))
+                        print("Error parsing MADIS headers, please check for {}.".format(station_id))
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append("No data available for station. Cleaning stage skipped.")
+                        errors['Error'].append("Error parsing MADIS headers.")
                         continue
 
                 # If more than one station, metadata should be identical. Test this.
@@ -328,7 +342,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                             continue
 
                 try:
+                    print('start of parsing')
                     dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
+                    print('dfs pass')
                 except Exception as e: # Note: error handling will be slightly coarse here bc of list comprehension.
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
@@ -343,6 +359,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
             try:
                 station_name = headers['station_name'] # Get station name
                 file_count = len(dfs)
+                print(file_count)
                 df_stat = pd.concat(dfs)
 
                 # Deal with units
@@ -370,6 +387,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         elif 'wind_gust_set_1' in b:
                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
                         elif 'heat_index_set_1' in b:
+                            df_stat[b] = df_stat[b].astype(float) # Coerce to float.
+                        elif 'wind_direction_set_1' in b:
                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
                         else:
                             print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
