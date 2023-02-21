@@ -281,7 +281,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         # for i in sample(ids, 3): ## for testing
 
         ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
-        # not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "[id for id in ids if not id.startswith(not_ABCDEFG)]" below
+        not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "[id for id in ids if not id.startswith(not_ABCDEFG)]" below
         stns_by_firstletter = [id for id in ids if id.startswith("A")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
         print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
 
