@@ -76,15 +76,27 @@ def clean_cw3e(rawdir, cleandir):
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
     timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
     
-    # # Specify columns to remove
-    removecols = ['Datalogger ID', 'Wind Direction Standard Deviation (degrees)', 'Vector Wind Speed (m/s)', 'Battery Voltage (volts)', 'Maximum Wind Speed (m/s)', 'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm',
-        'Soil Temperature (C) 15cm', 'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
-        'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
-        'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
-        'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm',
-        'Soil Reflectometer Output Period (%) 5cm', 'Soil Reflectometer Output Period (%) 10cm',
-        'Soil Reflectometer Output Period (%) 15cm', 'Soil Reflectometer Output Period (%) 20cm',
-        'Soil Reflectometer Output Period (%) 50cm', 'Soil Reflectometer Output Period (%) 100cm']
+    ## Specify columns to remove
+    removecols = ['Datalogger ID', 'Wind Direction Standard Deviation (degrees)', 'Vector Wind Speed (m/s)', 'Battery Voltage (volts)', 
+                  'Maximum Wind Speed (m/s)', 'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm',
+                  'Soil Temperature (C) 15cm', 'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
+                  'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
+                  'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
+                  'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm',
+                  'Soil Reflectometer Output Period (%) 5cm', 'Soil Reflectometer Output Period (%) 10cm',
+                  'Soil Reflectometer Output Period (%) 15cm', 'Soil Reflectometer Output Period (%) 20cm',
+                  'Soil Reflectometer Output Period (%) 50cm', 'Soil Reflectometer Output Period (%) 100cm']
+    
+    ## Specify columns to use if there is no DataFormat file
+    default_cols = ['Dataloger ID', 'Year (end time of average)', 'Julian Day (end time of average)', 'HoursMinutes (end time of average)', 
+                    'Pressure (mb)', 'Temperature (C)', 'Relative Humidity (%)', 'Scalar Wind Speed (m/s)', 'Vector Wind Speed (m/s)',
+                    'Wind Direction (degrees)', 'Wind Direction Standard Deviation (degrees)', 'Solar Radiation (W/m^2)',
+                    'Battery Voltage (volts)', 'Precipitation (mm)', 'Maximum Wind Speed (m/s)', 
+                    'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm', 'Soil Temperature (C) 15cm',
+                    'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
+                    'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
+                    'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
+                    'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm']
 
     date_parser = lambda x,y,z: datetime.strptime(f"{x}.{y}.{z}", "%Y.%j.%H%M")
 
@@ -117,8 +129,7 @@ def clean_cw3e(rawdir, cleandir):
 
     else: # If files read successfully, continue.
         # for station in stations: # Full network clean
-        for station in ['BVS']:
-        # for station in sample(stations, 1): # subset for testing
+        for station in ['DRW', 'CAT', 'FRC', 'POR']:
             print('Parsing: {}'.format(station))
             try:
                 # If station does not have a README file, automatically skip - there will be no data on AWS
@@ -130,17 +141,22 @@ def clean_cw3e(rawdir, cleandir):
                     errors['Error'].append("No raw data found on AWS -- not cleaned")
                     continue
 
-                # If station does not have a data format file, default to use BCC as it is a complete file, otherwise use station format file
-                # CW3E has consistent naming/order in DataFormat files, so safe to use for other stations
+                # Get column names from DataFormat.txt file if available, if not use default columns list
                 format_stn = rawdir+station+"_DataFormat.txt"
-                if format_stn not in format_files:
-                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"BCC_DataFormat.txt")
+                if station == "DLA":
+                    colnames = default_cols[:15]
+                elif station == "CAT":
+                    colnames = default_cols[:15]
+                elif station == "FRC":
+                    colnames = default_cols
+                elif station == "DRW":
+                    colnames = default_cols[:21]
+                elif station == "POR":
+                    colnames = default_cols[:15]
                 else:
                     obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
-
-                # Get column names from .txt file
-                dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace= True, names = ['No', "ColName"])    
-                colnames = dataformat['ColName'].tolist()[1:]
+                    dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace= True, names = ['No', "ColName"])    
+                    colnames = dataformat['ColName'].tolist()[1:]
                 usecols = [col for col in colnames if col not in removecols]
                 
                 # Get metadata from .txt file
