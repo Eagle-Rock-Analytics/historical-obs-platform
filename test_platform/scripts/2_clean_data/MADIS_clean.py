@@ -112,14 +112,15 @@ def parse_madis_headers(file):
         if index>10:
             return
         index += 1
-        row = (line.decode('utf-8'))
+
+        # row = (line.decode('utf-8'))
+        row = (line.decode(errors='ignore')) # fix for non-ASCII character, safe for all stations
 
         if "STATION:" in row: # Skip first row.
             station_id = row.partition(": ")[2].replace(" ", "").replace("\n", "")
-            # print(station_id) # For testing
             continue
-        if "STATION NAME" in row:
-            station_name = row.partition(": ")[2].replace("']", "").replace("\n", "")
+        elif "STATION NAME:" in row:
+            station_name = str(row.partition(": ")[2].replace("']", "").replace("\n", ""))
             station_name = station_name.replace(")", "")
             continue
         elif "LATITUDE" in row:
@@ -280,13 +281,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         # for i in sample(ids, 3): ## for testing
 
         ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
-        # not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "if not id.startswith(not_ABCDEFG)" below
-        stns_by_firstletter = [id for id in ids if id.startswith("F")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
+        # not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "[id for id in ids if not id.startswith(not_ABCDEFG)]" below
+        stns_by_firstletter = [id for id in ids if id.startswith("A")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
         print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
 
         for i in stns_by_firstletter:
             try:
-                print('Parsing: {}'.format(i))
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
                 headers = []
