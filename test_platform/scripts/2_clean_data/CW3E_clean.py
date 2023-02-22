@@ -128,8 +128,8 @@ def clean_cw3e(rawdir, cleandir):
         errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        # for station in stations: # Full network clean
-        for station in ['POR']:
+        for station in stations: # Full network clean
+        # for station in ['POR']:
             print('Parsing: {}'.format(station))
             try:
                 # If station does not have a README file, automatically skip - there will be no data on AWS
