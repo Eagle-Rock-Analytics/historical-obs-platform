@@ -302,7 +302,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                 ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
             print("CWOP batch cleaning for '{0}' stations: batch size of {1} stations".format(cwop_letter, len(ids)))
 
-        # ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
+        ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
 
         for i in ids:
             try:
