@@ -235,7 +235,23 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
 
     return df
 
-def clean_madis(bucket_name, rawdir, cleandir, network):
+def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
+    # Batch subsetting only for CWOP network
+    if network == "CWOP": # Print statement about procedure for CWOP subsetting
+        print('CWOP cleans by subsetting first letter of station name.')
+        resp = input('Please enter a single letter or "other" to clean: ')
+        if resp.isnumeric():
+            print("Please input an alpha characater to clean.")
+            return
+        if resp == 'other':
+            cwop_letter = 'other'
+            pass
+        if resp.isalpha() and len(resp) == 1:
+            cwop_letter = str(resp).upper()
+            pass
+    else:
+            pass
+
     try:
         files = []
         for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir):
@@ -276,16 +292,19 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
     else: # If files read successfully, continue.
 
         dfs = [] # intialize empty df for appending
-        ## Procedure for all networks, note if network is CWOP this will do a full clean of 7k+ stations in one run
-        # for i in ids: # For each station (full run)
-        # for i in sample(ids, 3): ## for testing
 
         ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
-        not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # for catch-all others, switch to "[id for id in ids if not id.startswith(not_ABCDEFG)]" below
-        stns_by_firstletter = [id for id in ids if id.startswith("A")] # manually modify letter here to be A-G and catch-all "not-ABCDEFG"
-        print('Manual batch cleaning: batch size of {} stations'.format(len(stns_by_firstletter)))
+        not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # catch-all single letter stations (K, L, M, P, S, T, U, W at present)
+        if network == "CWOP" and cwop_letter != None:
+            if cwop_letter != "other":
+                ids = [id for id in ids if id.startswith(str(cwop_letter))]
+            else: # cwop_letter == 'other'
+                ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
+            print("CWOP batch cleaning for '{0}' stations: batch size of {1} stations".format(cwop_letter, len(ids)))
 
-        for i in stns_by_firstletter:
+        # ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
+
+        for i in ids:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -1175,7 +1194,7 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
-    clean_madis(bucket_name, rawdir, cleandir, network)
+    clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None)
 
 
 # List of MADIS network names
