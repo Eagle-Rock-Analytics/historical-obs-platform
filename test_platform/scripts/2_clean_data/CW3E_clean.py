@@ -191,7 +191,6 @@ def clean_cw3e(rawdir, cleandir):
                                             date_parser = date_parser, dtype={'Temperature (C)':'float64', 'Pressure (mb)':'float64', 'Solar Radiation (W/m^2)':'float64',
                                                                             'Relative Humidity (%)': 'float64', 'Precipitation (mm)': 'float64',
                                                                             'Scalar Wind Speed (m/s)':'float64', "Wind Direction (degrees)":'float64'}, assume_missing=True)
-                            print('pass read in') # psuedo-testing statement to catch where issues reading in are
 
                         except OSError as e: # If year has data, but fails to read-in
                             errors['File'].append(station_id)
