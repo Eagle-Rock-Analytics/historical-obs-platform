@@ -236,21 +236,9 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     return df
 
 def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
-    # Batch subsetting only for CWOP network
-    if network == "CWOP": # Print statement about procedure for CWOP subsetting
-        print('CWOP cleans by subsetting first letter of station name.')
-        resp = input('Please enter a single letter or "other" to clean: ')
-        if resp.isnumeric():
-            print("Please input an alpha characater to clean.")
-            return
-        if resp == 'other':
-            cwop_letter = 'other'
-            pass
-        if resp.isalpha() and len(resp) == 1:
-            cwop_letter = str(resp).upper()
-            pass
-    else:
-            pass
+    # Ensuring that non-CWOP networks do not accidentally subset
+    if network != "CWOP":
+        cwop_letter = None
 
     try:
         files = []
@@ -293,14 +281,36 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
         dfs = [] # intialize empty df for appending
 
-        ## Procedure for manual grouping of data in CWOP to split up 7k+ stations by first letter
+        ## Procedure for grouping of data in CWOP to split up 7k+ stations by first letter
         not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # catch-all single letter stations (K, L, M, P, S, T, U, W at present)
         if network == "CWOP" and cwop_letter != None:
-            if cwop_letter != "other":
-                ids = [id for id in ids if id.startswith(str(cwop_letter))]
-            else: # cwop_letter == 'other'
+            if "other" in cwop_letter and len(cwop_letter) == 5: # cwop_letter = "other"
                 ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
-            print("CWOP batch cleaning for '{0}' stations: batch size of {1} stations".format(cwop_letter, len(ids)))
+
+            elif "other" in cwop_letter and len(cwop_letter) != 5:  # additional letters + other category called, ex: cwop_letter = "ABC + other"
+                letter_to_clean = cwop_letter.replace(" ", "")
+                letter_to_clean = letter_to_clean.replace("other", "") # so it doesn't clean "o t h e r"
+                letter_to_clean = letter_to_clean.replace("+", "")
+                letter_ids = tuple(letter_to_clean)
+                other_ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
+                letter_ids = [id for id in ids if id.startswith(letter_ids)]
+                ids = other_ids + letter_ids
+
+            if len(cwop_letter) == 1: # single letter cleaning, ex: cwop_letter = "A"
+                ids = [id for id in ids if id.startswith(str(cwop_letter))]
+
+            if "other" not in cwop_letter and len(cwop_letter) != 1: # more than one letter provided, but not other category, ex: cwop_letter = "ACD"
+                letter_ids = tuple(cwop_letter)
+                ids = [id for id in ids if id.startswith(letter_ids)]
+
+            print("CWOP batch cleaning for '{0}' stations: batch-size of {1} stations".format(cwop_letter, len(ids)))
+
+        elif network == "CWOP" and cwop_letter == None: # This a full network clean with no batch sub-setting, ex: cwop_letter = None
+            print("Warning: Setting cwop_letter = None is for an entire network clean of CWOP, estimated 1 week to complete.") # warninig, could delete
+            ids = ids 
+
+        else: # network should not be CWOP, and will complete full clean
+            ids = ids 
 
         ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
 
@@ -1194,7 +1204,7 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
-    clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None)
+    clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None) # if cwop_letter is not None, argument must be passed as a string
 
 
 # List of MADIS network names
