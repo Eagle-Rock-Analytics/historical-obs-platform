@@ -112,14 +112,15 @@ def parse_madis_headers(file):
         if index>10:
             return
         index += 1
-        row = (line.decode('utf-8'))
+
+        # row = (line.decode('utf-8'))
+        row = (line.decode(errors='ignore')) # fix for non-ASCII character, safe for all stations
 
         if "STATION:" in row: # Skip first row.
             station_id = row.partition(": ")[2].replace(" ", "").replace("\n", "")
-            #print(station_id) # For testing
             continue
-        if "STATION NAME" in row:
-            station_name = row.partition(": ")[2].replace("']", "").replace("\n", "")
+        elif "STATION NAME:" in row:
+            station_name = str(row.partition(": ")[2].replace("']", "").replace("\n", ""))
             station_name = station_name.replace(")", "")
             continue
         elif "LATITUDE" in row:
@@ -129,7 +130,10 @@ def parse_madis_headers(file):
             longitude = float(row.partition(": ")[2].replace("']", ""))
             continue
         elif "ELEVATION" in row:
-            elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
+            if row.partition(": ")[2].replace("\n","") == "None":
+                elevation = np.nan
+            else:
+                elevation = float(row.partition(": ")[2].replace("']", "")) # In feet.
             continue
         elif "STATE" in row:
             state = row.partition(": ")[2].replace("']", "").replace("\n", "")
@@ -170,6 +174,7 @@ def parse_madis_headers(file):
 
     headers = {'station_id':station_id, 'station_name':station_name, 'latitude':latitude, 'longitude':longitude, 'elevation':elevation, 'state':state, 'columns':columns,
                 'units': units, 'first_row': first_row, 'dup': dup, 'dup_col': dup_col}
+    # print(first_row)
     return headers
 
 # Function: take heads, read csv into pandas db and clean.
@@ -178,6 +183,12 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
     df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
+    
+    # Handling for timeout errors
+    # If a timeout occurs, the last line of valid data is repeated in the next file and is skipped, but if that is the only line of data, script breaks
+    # Remove "status" error rows
+    df = df.loc[df["Station_ID"].str.contains("status")==False]
+    df = df.loc[df["Date_Time"].str.contains("message")==False]
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -222,12 +233,13 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # # Manually convert "None" to np.nan
     df.replace(to_replace="None", value=np.nan, inplace=True)
 
-    # Remove "status" error rows
-    df = df.loc[df["Station_ID"].str.contains("status")==False]
-
     return df
 
-def clean_madis(bucket_name, rawdir, cleandir, network):
+def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
+    # Ensuring that non-CWOP networks do not accidentally subset
+    if network != "CWOP":
+        cwop_letter = None
+
     try:
         files = []
         for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir):
@@ -242,7 +254,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
         end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
-
 
         # Set up list of variables to be removed
         removedvars = []
@@ -268,8 +279,42 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
     else: # If files read successfully, continue.
 
-        for i in ids: # For each station (full run)
-        # for i in sample(ids, 3):
+        dfs = [] # intialize empty df for appending
+
+        ## Procedure for grouping of data in CWOP to split up 7k+ stations by first letter
+        not_ABCDEFG = ("A", "B", "C", "D", "E", "F", "G") # catch-all single letter stations (K, L, M, P, S, T, U, W at present)
+        if network == "CWOP" and cwop_letter != None:
+            if "other" in cwop_letter and len(cwop_letter) == 5: # cwop_letter = "other"
+                ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
+
+            elif "other" in cwop_letter and len(cwop_letter) != 5:  # additional letters + other category called, ex: cwop_letter = "ABC + other"
+                letter_to_clean = cwop_letter.replace(" ", "")
+                letter_to_clean = letter_to_clean.replace("other", "") # so it doesn't clean "o t h e r"
+                letter_to_clean = letter_to_clean.replace("+", "")
+                letter_ids = tuple(letter_to_clean)
+                other_ids = [id for id in ids if not id.startswith(not_ABCDEFG)]
+                letter_ids = [id for id in ids if id.startswith(letter_ids)]
+                ids = other_ids + letter_ids
+
+            if len(cwop_letter) == 1: # single letter cleaning, ex: cwop_letter = "A"
+                ids = [id for id in ids if id.startswith(str(cwop_letter))]
+
+            if "other" not in cwop_letter and len(cwop_letter) != 1: # more than one letter provided, but not other category, ex: cwop_letter = "ACD"
+                letter_ids = tuple(cwop_letter)
+                ids = [id for id in ids if id.startswith(letter_ids)]
+
+            print("CWOP batch cleaning for '{0}' stations: batch-size of {1} stations".format(cwop_letter, len(ids)))
+
+        elif network == "CWOP" and cwop_letter == None: # This a full network clean with no batch sub-setting, ex: cwop_letter = None
+            print("Warning: Setting cwop_letter = None is for an entire network clean of CWOP, estimated 1 week to complete.") # warninig, could delete
+            ids = ids 
+
+        else: # network should not be CWOP, and will complete full clean
+            ids = ids 
+
+        ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
+
+        for i in ids:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -289,6 +334,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         header = parse_madis_headers(file)
                         # If units are NaN, this signifies an empty dataframe. Write to errors, but do not clean station.
                         if isinstance(header['units'], float) and np.isnan(header['units']):
+                            print("{} reports empty data file -- not cleaned.".format(station_id))
                             errors['File'].append(file)
                             errors['Time'].append(end_api)
                             errors['Error'].append("No data available for station. Cleaning stage skipped.")
@@ -297,10 +343,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         headers.append(header)
 
                     except Exception as e:
-                        print("{} reports no meteorological data -- not cleaned.".format(station_id))
+                        print("Error parsing MADIS headers, please check for {}.".format(station_id))
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append("No data available for station. Cleaning stage skipped.")
+                        errors['Error'].append("Error parsing MADIS headers.")
                         continue
 
                 # If more than one station, metadata should be identical. Test this.
@@ -337,10 +383,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
             try:
                 station_name = headers['station_name'] # Get station name
                 file_count = len(dfs)
+                if file_count == 0:
+                    print('{} is having dfs appending issues, please check'.format(i)) # AP907 is one (timeout issue)
+                    errors['File'].append(i)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('Dataframe appending issue, please check')
+                    continue
                 df_stat = pd.concat(dfs)
 
                 # Deal with units
-
                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
                 varstokeep = list(df_stat.columns)
                 units = units[units.column.isin(varstokeep)] # Only keep non-removed cols
@@ -364,6 +415,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                         elif 'wind_gust_set_1' in b:
                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
                         elif 'heat_index_set_1' in b:
+                            df_stat[b] = df_stat[b].astype(float) # Coerce to float.
+                        elif 'wind_direction_set_1' in b:
                             df_stat[b] = df_stat[b].astype(float) # Coerce to float.
                         else:
                             print("Multitype error for column {} with data types {}. Please resolve".format(b, multitype)) # Code to flag novel exceptions, correct and add explicit handling above.
@@ -960,7 +1013,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
                     ds['sfcWind'].attrs['long_name'] = "wind_speed"
                     ds['sfcWind'].attrs['standard_name'] = "wind_speed"
                     ds['sfcWind'].attrs['units'] = "m s-1"
-                    #ds['sfcWind'].attrs['comment'] = "Method of wind speed calculation varies within network, with 2-minute mean as CWOP sampling standard."
+                    ds['sfcWind'].attrs['comment'] = "Method of wind speed calculation varies within network, with 2-minute mean as CWOP sampling standard."
                     # (Method of calculation may vary and is unknown source by source.)
                     # See: https://weather.gladstonefamily.net/CWOP_Guide.pdf
                     # FLAG: HOW TO DEAL WITH SOURCE-unique sampling standards in MADIS_clean????
@@ -1147,11 +1200,11 @@ def clean_madis(bucket_name, rawdir, cleandir, network):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "RAWS"
+    network = "CWOP"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
-    clean_madis(bucket_name, rawdir, cleandir, network)
+    clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None) # if cwop_letter is not None, argument must be passed as a string
 
 
 # List of MADIS network names
@@ -1160,7 +1213,6 @@ if __name__ == "__main__":
 # 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD', 'HADS'
 
 # Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
-# Update with timing estimate here? CWOP took a week of continuous running to download the data...
 
 # ---------------------------------------------------------------------------------------------------------
 ### Testing
