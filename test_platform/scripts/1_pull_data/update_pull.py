@@ -212,14 +212,25 @@ def update_ndbc(n, last_time_mod = None):
 # Update script: MADIS
 def update_madis(n, network, last_time_mod = None):
     directory = f'1_raw_wx/{network}/'
-    if last_time_mod is None:
-        last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.csv')
+    if network == "CAHYDRO":
+        if last_time_mod is None:
+            last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.csv')
     
-    if last_time_mod < download_date:
-        print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
-        madis_update(token= config.token, networks = [network], pause = None, start_date = str(last_time_mod), end_date = str(download_date))
-    else:
-        print(f"{network} station files up to date.")
+        if last_time_mod < download_date:
+            print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+            madis_update(token= config.token, networks = ["CA HYDRO"], pause = None, start_date = str(last_time_mod), end_date = str(download_date))
+        else:
+            print(f"{network} station files up to date.")
+
+    else: # all other MADIS networks
+        if last_time_mod is None:
+            last_time_mod = get_last_date(bucket_name, folder = directory, n = int(n[network]), file_ext = '.csv')
+        
+        if last_time_mod < download_date:
+            print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
+            madis_update(token= config.token, networks = [network], pause = None, start_date = str(last_time_mod), end_date = str(download_date))
+        else:
+            print(f"{network} station files up to date.")
 
 
 if __name__ == "__main__":
@@ -234,4 +245,4 @@ if __name__ == "__main__":
     #update_cw3e(n)
     #update_maritime(n)
     #update_ndbc(n)
-    #update_madis(n, network = 'VCAPCD')
+    update_madis(n, network = 'CAHYDRO')
