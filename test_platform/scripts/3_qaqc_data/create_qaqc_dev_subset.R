@@ -96,3 +96,15 @@ bio14 <- ggplot(stns_subset, aes(x = wc2.1_30s_bio_14)) +
   geom_point(data = stns_final, aes(x = wc2.1_30s_bio_14, y = 0), col = 'skyblue', alpha = 0.5)
 
 cowplot::plot_grid(elev, bio5, bio6, bio13, bio14, nrow = 3)
+
+## Write df with final station set
+coords <- st_coordinates(stns_final) %>%
+  data.frame() %>%
+  rename('longitude' = X, 'latitude' = Y)
+
+stns_to_write <- stns_final %>%
+  st_set_geometry(NULL) %>%
+  dplyr::select(name, elevation, network) %>%
+  bind_cols(coords)
+
+write.csv(stns_to_write, "test_platform/scripts/3_qaqc_data/qaqc_training_station_list.csv", row.names = F)
