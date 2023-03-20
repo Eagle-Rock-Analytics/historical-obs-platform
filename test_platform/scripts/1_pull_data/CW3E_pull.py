@@ -297,7 +297,10 @@ if __name__ == "__main__":
     # To get station list, run:
     get_cw3e_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = "1_raw_wx/CW3E/")
     # To download all data, run:
-    # get_cw3e(bucket_name, directory)
+    get_cw3e(bucket_name, directory)
+    
+    # To download updated data, run:
+    # get_cw3e_update(bucket_name, directory)
 
     #-----------------------------------------------------------------------------------------------------------------------------------------
     # Example uses
@@ -305,6 +308,6 @@ if __name__ == "__main__":
     # ge_cw3e(bucket_name, directory, station=["PVN"])
 
     # Specific station and start date/end date in update pull
-    get_cw3e_update(bucket_name, directory, station=["FRC", "WDG"], start_date="2021-01-24", end_date="2021-01-26")
+    # get_cw3e_update(bucket_name, directory, station=["FRC", "WDG"], start_date="2021-01-24", end_date="2021-01-26")
 
     
