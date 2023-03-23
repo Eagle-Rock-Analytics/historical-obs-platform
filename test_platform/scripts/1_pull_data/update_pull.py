@@ -49,10 +49,9 @@ def get_last_date(bucket_name, folder, file_ext = None):
             reverse=True) if not any(x in obj.key for x in ('errors', 'station'))]
     
     # Get most recent and nth most recent time
-    last_time_modified_list = [x[0][1] for x in files] # Get most recent time
-    last_time_modified = max(last_time_modified_list).date() # most recent date of data pull from stations that require an updated data
-    
-    return last_time_modified
+    last_time_modified_list = [x[1] for x in files] # Get most recent time
+    last_time_modified = max(last_time_modified_list) # most recent date of data pull from stations that require an updated data
+    return last_time_modified.date()
         
 
 # Update script: SCAN
@@ -223,7 +222,7 @@ if __name__ == "__main__":
     # update_SNOTEL(last_time_mod)
     # update_otherisd(last_time_mod)
     # update_asosawos(last_time_mod)
-    # update_cimis(last_time_mod)
+    update_cimis(last_time_mod)
     # update_hads(last_time_mod)
     # update_cw3e(last_time_mod)
     # update_maritime(last_time_mod)
