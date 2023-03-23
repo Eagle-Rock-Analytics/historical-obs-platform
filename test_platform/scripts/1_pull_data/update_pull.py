@@ -82,6 +82,7 @@ def update_SNOTEL(last_time_mod = None):
 
 # Update script: OtherISD
 # As currently written, this will overwrite all files for the current year.
+# Timeout may occasionaly occur on API end, but resolves upon another attempt after waiting a short amount of time (~hours)
 def update_otherisd(last_time_mod = None):
     network = "OtherISD"
     directory = f'1_raw_wx/{network}/'
@@ -143,7 +144,6 @@ def update_hads(last_time_mod = None):
 # The LBH station file will always be redownloaded completely. 
 # At this point, this station gets dropped during the cleaning phase, so this should not affect anything.
 # Massive number of files will make this update script slower than the others.
-# datetime(year, month, day).date()
 def update_cw3e(last_time_mod = None):
     network = "CW3E"
     directory = f'1_raw_wx/{network}/'
@@ -158,7 +158,9 @@ def update_cw3e(last_time_mod = None):
         print(f"{network} station files up to date.")
 
 # Update script: MARITIME
-# Update delay by 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+# Update delay by (minimum of) 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+# Note: NDBC archive has a different file extenstion for preliminary data that is not updated until the full month has passed the preliminary period.
+# Update/automation will therefore need to restrict to only pulling complete months, which may be beyond 45 days
 def update_maritime(last_time_mod = None):
     network = "MARITIME"
     directory = f'1_raw_wx/{network}/'
@@ -174,7 +176,9 @@ def update_maritime(last_time_mod = None):
         print(f"{network} station files up to date.")
 
 # Update script: MARITIME
-# Update delay by 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+# Update delay by (minimum of) 45 days. This means 2022 data isn't available in yearly format until ~ Feb 15 2022, e.g.
+# Note: NDBC archive has a different file extenstion for preliminary data that is not updated until the full month has passed the preliminary period.
+# Update/automation will therefore need to restrict to only pulling complete months, which may be beyond 45 days
 def update_ndbc(last_time_mod = None):
     network = "NDBC"
     directory = f'1_raw_wx/{network}/'
