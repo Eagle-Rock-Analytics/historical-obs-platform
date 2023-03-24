@@ -207,18 +207,18 @@ def get_cimis_update_ftp(bucket_name, directory, start_date = None, end_date = N
         filenames = [i for i in filenames if i.endswith('.zip')]
         filenames = [i for i in filenames if i.startswith('hourly')] # Only keep hourly data, drop daily files.
 
-        if start_date is not None:
-            filenames = [str for str in filenames if int(str[-8:-4])>=int(start_date[0:4])] # Only keep filenames after start year
-
-        if end_date is not None:
-            filenames = [str for str in filenames if int(str[-8:-4])<=int(end_date[0:4])] # Only keep filenames after start year
-
-        #for filename in filenames:
-        #    ftp_to_aws(ftp, filename, directory)
-
-        # Now, repeat to download present year's data (housed in the 'hourly' folder)
         pres_year = date.today().strftime("%Y")
-        
+
+        if pres_year != (start_date[0:4]): # If years includes previous years
+            if start_date is not None:
+                filenames = [str for str in filenames if int(str[-8:-4])>=int(start_date[0:4])] # Only keep filenames after start year
+
+            if end_date is not None:
+                filenames = [str for str in filenames if int(str[-8:-4])<=int(end_date[0:4])] # Only keep filenames after start year
+
+            for filename in filenames:
+               ftp_to_aws(ftp, filename, directory)
+
         if (end_date is None) or (pres_year == end_date[0:4]): # If years includes present year or years not specified.
             ftp.cwd(pwd)
             ftp.cwd('monthlyMetric/')
