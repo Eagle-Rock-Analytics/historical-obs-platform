@@ -44,7 +44,6 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 ## Read in data, and subset random sample for testing
 def get_cleaned_stations(cleandir, qaqcdir, terrpath, marpath):
-
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv
@@ -67,7 +66,7 @@ def get_cleaned_stations(cleandir, qaqcdir, terrpath, marpath):
         errors['Error'].append(e)
 
     else: # if files successfully read in
-        files = sample(files,3) # subset for testing
+        files = sample(files,5) # subset for testing
         for file in files:
             print('Running QA/QC on: ', file) # testing
 
@@ -80,56 +79,38 @@ def get_cleaned_stations(cleandir, qaqcdir, terrpath, marpath):
                     file_to_qaqc = ds.to_dataframe()
                     print(file_to_qaqc.head()) # testing
 
-                    # qaqc_missing_latlon  # eventually in calc_qaqc?
-                    if file_to_qaqc['lat'].isnull().values.any() == True:
-                        print('{} has a missing latitude, skipping'.format(file)) # testing
+                    file_to_qaqc = qaqc_missing_latlon(file_to_qaqc)
+                    if file_to_qaqc.empty == True:
+                        print('{} has a missing lat-lon, skipping'.format(file)) # testing
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append('Missing latitude, skipping qa/qc.')
-                        continue
+                        errors['Error'].append('Missing lat or lon, skipping qa/qc.')
+                        continue # skipping station
+                    # else:
+                    #     print("pass: lat lon present") # testing, will delete
 
-                    if file_to_qaqc['lon'].isnull().values.any() == True:
-                        print('{} has a missing longitude, skipping'.format(file)) # testing
+                    file_to_qaqc = qaqc_within_wecc(file_to_qaqc)
+                    if file_to_qaqc.empty == True:
+                        print('{} lat-lon is out of range for WECC, skipping'.format(file)) # testing
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append('Missing longitude, skipping qa/qc.')
-                        continue
+                        errors['Error'].append('Latitude or Longitude out of range for WECC, skipping qa/qc')
+                        continue # skipping station
+                    # else:
+                    #     print("pass: within wecc") # testiing, will delete
 
-
-                    # qaqc_within_wecc # eventually in calc_qaqc?
-                    t, m, bbox = get_wecc_poly(terrpath, marpath) # Call get_wecc_poly
-                    lat_to_check = file_to_qaqc['lat'].iloc[0]
-                    lon_to_check = file_to_qaqc['lon'].iloc[0]
-                    print(lat_to_check, lon_to_check) # testing
-
-                    # check if lat_to_check and lon_to_check are within wecc, drop if not
-                    if (lat_to_check < bbox.miny.values) or (lat_to_check > bbox.maxy.values):
-                        # print('Latitude out of range for WECC') # testing
+                    file_to_qaqc = qaqc_elev_check(file_to_qaqc)
+                    if file_to_qaqc.empty == True:
+                        print('{} elevation out of range for WECC, skipping'.format(file)) # testing
                         errors['File'].append(file)
                         errors['Time'].append(end_api)
-                        errors['Error'].append('Latitude out of range for WECC')
-
-                    if (lon_to_check > bbox.maxx.values) or (lon_to_check < bbox.minx.values):
-                        # print('Longitude out of range for WECC') # testing
-                        errors['File'].append(file)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append('Longitude out of range for WECC')
+                        errors['Error'].append('Elevation out of range for WECC, skippinig qa/qc')
+                        continue # skipping station
+                    # else:
+                    #     print("pass: elevation in range, but no infilling") # testing, will delete
 
 
-                    # qaqc_elev_check -- IN PROGRESS # eventually in calc_qaqc?
-                    if file_to_qaqc['elevation'].isnull().values.any() == True:
-                        print('{} has a missing elevation, will be processed via DEM'.format(file))
-
-                    # check range of values for elevation
-                    # death valley is 282 feet (85.9 m) below sea level
-                    if file_to_qaqc['elevation'].values.any() < -86.0:
-                        print('Elevation out of range for WECC') # testing
-                        errors['File'].append(file)
-                        errors['Time'].append(end_api)
-                        errors['Error'].append('Elevation out of range for WECC')
-
-                    # do we need a high end value? denali is ~6190 m
-
+                    print("{} passes qa/qc round 1".format(file)) # testing
                     ds.close()
 
 

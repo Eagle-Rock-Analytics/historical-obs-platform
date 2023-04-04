@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import boto3
-import s3fs
 import geopandas as gp
 
 
@@ -48,35 +47,85 @@ def get_wecc_poly(terrpath, marpath):
 #----------------------------------------------------------------------
 ## Part 1 functions (whole station/network)
 ## missing spatial coords (lat-lon)
-def qaqc_missing_latlon(df):
+def qaqc_missing_latlon(file_to_qaqc):
     """
     Checks if latitude and longitude is missing for a station.
     If missing, station is flagged to not proceed through QA/QC.
     """
 
+    # latitude
+    if file_to_qaqc['lat'].isnull().values.any() == True:
+        file_to_qaqc = None
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    # longitude
+    if file_to_qaqc['lon'].isnull().values.any() == True:
+        file_to_qaqc = None
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    return file_to_qaqc
+
+
 ## in bounds of WECC
-def qaqc_within_wecc(df):
+def qaqc_within_wecc(file_to_qaqc):
     """
     Checks if station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
     """
 
-## missing/out of range elevation
-# will involve DEM
-def qaqc_elev_check(df):
+    t, m, bbox = get_wecc_poly(wecc_terr, wecc_mar) # Call get_wecc_poly
+    lat_to_check = file_to_qaqc['lat'].iloc[0]
+    lon_to_check = file_to_qaqc['lon'].iloc[0]
+
+    # latitude
+    if (lat_to_check < bbox.miny.values) or (lat_to_check > bbox.maxy.values):
+        file_to_qaqc = None
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    # longitude
+    if (lon_to_check > bbox.maxx.values) or (lon_to_check < bbox.minx.values):
+        file_to_qaqc = None
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    return file_to_qaqc
+
+
+def qaqc_elev_check(file_to_qaqc):
     """
     Checks if elevation is outside of range of reasonable values for WECC region.
     If elevation is NA/missing, fill in elevation from DEM.
     """
-    # Step 1: identify range of reasonable values
-    # Step 2: DEM
-    # Step 3: missing elevation check
+
+    # death valley is 282 feet (85.9 m) below sea level
+    # do we need a high end value? denali is ~6190 m
+
+    # If value is present but outside of reasonable value range
+    if file_to_qaqc['elevation'].values.any() < -86.0:
+        file_to_qaqc = None
+
+    # In-fill if value is missing
+    # elif file_to_qaqc['elevation'].isnull().values.any() == True: # requires DEM infilling
+    # try:
+        # dem = rio.open(dem)
+        # dem_array = dem.read(1).astype('float64')
+        # make sure to round off lat-lon values so they are not improbably precise for our needs
+
+    # Elevation value is present and within reasonable value range
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    return file_to_qaqc
+
 
 
 #----------------------------------------------------------------------
 ## Part 2 functions
 ## Time conversions
-## Need function to calculate sub-hourly to hourly
+## Need function to calculate sub-hourly to hourly -- later on?
 
 
 #----------------------------------------------------------------------
