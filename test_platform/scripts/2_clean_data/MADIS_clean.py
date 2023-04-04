@@ -312,8 +312,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
         else: # network should not be CWOP, and will complete full clean
             ids = ids 
 
-        ids = sample(ids, 3) # testing, to be removed once batch-cleaning process approved
-
         for i in ids:
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
