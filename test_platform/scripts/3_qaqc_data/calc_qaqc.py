@@ -55,13 +55,13 @@ def qaqc_missing_latlon(file_to_qaqc):
 
     # latitude
     if file_to_qaqc['lat'].isnull().values.any() == True:
-        file_to_qaqc = None
+        file_to_qaqc = None # returns empty df to flag that it does not pass
     else:
         file_to_qaqc = file_to_qaqc
 
     # longitude
     if file_to_qaqc['lon'].isnull().values.any() == True:
-        file_to_qaqc = None
+        file_to_qaqc = None # returns empty df to flag that it does not pass
     else:
         file_to_qaqc = file_to_qaqc
 
@@ -81,13 +81,13 @@ def qaqc_within_wecc(file_to_qaqc):
 
     # latitude
     if (lat_to_check < bbox.miny.values) or (lat_to_check > bbox.maxy.values):
-        file_to_qaqc = None
+        file_to_qaqc = None # returns empty df to flag that it does not pass
     else:
         file_to_qaqc = file_to_qaqc
 
     # longitude
     if (lon_to_check > bbox.maxx.values) or (lon_to_check < bbox.minx.values):
-        file_to_qaqc = None
+        file_to_qaqc = None # returns empty df to flag that it does not pass
     else:
         file_to_qaqc = file_to_qaqc
 
@@ -105,7 +105,7 @@ def qaqc_elev_check(file_to_qaqc):
 
     # If value is present but outside of reasonable value range
     if file_to_qaqc['elevation'].values.any() < -86.0:
-        file_to_qaqc = None
+        file_to_qaqc = None # returns empty df to flag that it does not pass
 
     # In-fill if value is missing
     # elif file_to_qaqc['elevation'].isnull().values.any() == True: # requires DEM infilling
