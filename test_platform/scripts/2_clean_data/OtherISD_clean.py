@@ -63,7 +63,7 @@ except:
     pass
 
 ## FUNCTION: Clean 'OtherISD' data.
-# Input: 
+# Input:
 # homedir: path to git repository.
 # workdir: path to where raw data is saved as .gz files, with each file representing a station's records for 1 year.
 # savedir: path to where cleaned files should be saved.
@@ -76,30 +76,30 @@ def clean_otherisd(rawdir, cleandir):
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
     timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
-    
+
     try:
         # Get files
         files = []
-        for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir): 
+        for item in s3.Bucket(bucket_name).objects.filter(Prefix = rawdir):
             file = str(item.key)
             files += [file]
 
         # Set up lat/lon bounds for filtering data
         try:
             t, m, bbox = calc_clean.get_wecc_poly(wecc_terr, wecc_mar)
-            lonmin, lonmax = float(bbox['minx']), float(bbox['maxx']) 
-            latmin, latmax = float(bbox['miny']), float(bbox['maxy']) 
+            lonmin, lonmax = float(bbox['minx']), float(bbox['maxx'])
+            latmin, latmax = float(bbox['miny']), float(bbox['maxy'])
         except: # If geospatial call fails, hardcode.
             lonmin, lonmax = -139.047795, -102.03721
             latmin, latmax = 30.142739, 60.003861
 
-        
+
         # Get station file and read in metadata.
         station_file = [file for file in files if 'stationlist'in file]
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
-        station_file = pd.read_csv(BytesIO(obj['Body'].read()))  
+        station_file = pd.read_csv(BytesIO(obj['Body'].read()))
         stations = station_file['ISD-ID'].dropna().astype(str)
-        
+
         # Remove error, station files
         files = [file for file in files if '.gz' in file]
         files = [file for file in files if 'stationlist' not in file]
@@ -109,56 +109,57 @@ def clean_otherisd(rawdir, cleandir):
         print(e)
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else:
         # Use ID to grab all files linked to station.
-        for id in stations:
-        #for id in ['720619-99999', '722689-99999', '726664-94173']: # For testing, pick 3 stations.
+        for id in stations: # full clean
+        # for id in samples(stations,5): # For testing, pick 3 stations.
             subfiles = list(filter(lambda f: id in f, files))
             subfiles = sorted(subfiles) # Sort files by year in order to concatenate in correct order.
             file_count = len(subfiles)
-            #print(subfiles) # For testing: to know which files are getting 
-            
-            if bool(subfiles) is False: # If ID returns no files, go to next ID.
-                continue
 
             station = "OtherISD_"+id.replace("-", "")
             station_metadata = station_file.loc[station_file['ISD-ID']==id]
-            
+
+            if bool(subfiles) is False: # If ID returns no files, go to next ID.
+                print('No raw data found for {} on AWS.'.format(station))
+                errors['File'].append(station)
+                errors['Time'].append(end_api)
+                errors['Error'].append('No raw data found for this station on AWS.')
+                continue
+
             # Initialize list of dictionaries.
             data = {'station':[], 'time':[], 'lat':[], 'lon':[], 'elevation':[], 'qaqc_process':[], 'ps':[], 'ps_qc':[], 'ps_altimeter':[], 'ps_altimeter_qc':[], 'psl':[], 'psl_qc':[], 'tas':[], 'tas_qc':[], 'tdps':[], 'tdps_qc':[], 'pr':[], 'pr_qc':[], 'pr_duration':[], 'pr_depth_qc':[], 'hurs':[], 'hurs_qc':[], 'hurs_flag':[], 'hurs_duration':[], 'hurs_temp':[], 'hurs_temp_qc':[], 'hurs_temp_flag':[], 'rsds':[], 'rsds_duration':[], 'rsds_qc':[], 'rsds_flag':[], 'sfcWind':[], 'sfcWind_qc':[], 'sfcWind_dir':[], 'sfcWind_method':[], 'sfcWind_dir_qc':[]}
-            
-            for file in subfiles: # For each file
-                #print(file, df)
+
+            for file in subfiles:
                 obj = s3.Object(bucket_name,file)
                 try:
                     with gzip.GzipFile(fileobj=obj.get()["Body"]) as gzipped_csv_file:
                         csv_reader = csv.reader(StringIO(gzipped_csv_file.read().decode()))
                         for row in csv_reader: # Each row is a record
-                            
+
                             # Initialize all variables and set to be NA by default.
                             string = row[0] # Unpack list.
-                            
-                            # Filter station by latitude and longitude. Only keep obvs in WECC.
+
+                            # Filter station by latitude and longitude. Only keep obs in WECC.
                             # POS 29-34: GEOPHYSICAL-POINT-OBSERVATION latitude coordinate
                             lat = float(string[28:34])/1000 # Unit: degree
                             # POS 35-41: GEOPHYSICAL-POINT-OBSERVATION longitude coordinate
                             lon = float(string[34:41])/1000 # Unit: degree
                             if lat > latmax or lat < latmin or lon > lonmax or lon < lonmin:
-                                print("Station {} not in WECC".format([lat,lon]))
-                                errors['File'].append(file)
+                                errors['File'].append(station)
                                 errors['Time'].append(end_api)
-                                errors['Error'].append("File not in WECC. Lat: {} Lon: {}".format(lat, lon))
+                                errors['Error'].append("File not in WECC: {}".format(file)) # some years hav valid lat/lon, others do not
                                 break # Go to next file.
                             else:
                                 # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time (in UTC)
                                 time = datetime.strptime(string[15:27], '%Y%m%d%H%M')
-                                
+
                                 # POS 47-51: GEOPHYSICAL-POINT-OBSERVATION elevation dimension
                                 elevation = float(string[46:51])
                                 # POS 57-60: METEOROLOGICAL-POINT-OBSERVATION quality control process name
-                                qaqc_process = string[56:60] 
+                                qaqc_process = string[56:60]
                                 #V01 = No A or M Quality Control applied
                                 #V02 = Automated Quality Control
                                 #V03 = subjected to Quality Control
@@ -198,9 +199,9 @@ def clean_otherisd(rawdir, cleandir):
 
                                 #POS 105-105: ATMOSPHERIC-PRESSURE-OBSERVATION sea level pressure quality code
                                 psl_qc = string[104]
-                                
+
                                 # Additional data - begins with ADD
-                                
+
                                 # Liquid precipitation - begins with AA[1-4]
 
                                 # Figure out length of precip. string.
@@ -213,7 +214,7 @@ def clean_otherisd(rawdir, cleandir):
                                     pr = float(precip[2:6])/10 # In mm
                                     pr_depth_qc = int(precip[6:7]) # QA for precipitation depth
                                     pr_qc = precip[7:8] # QA for precipitation data.
-                                    
+
                                     # Take first measurement as primary, unless missing.
                                     if float(precip[2:6]) == 9999: # If precip depth of first report is missing.
                                         precip = re.search("(?<=AA1|AA2|AA3|AA4)[\da-zA-Z]{16}", string)
@@ -238,12 +239,12 @@ def clean_otherisd(rawdir, cleandir):
                                     pr_depth_qc = np.nan
 
                                 # Relative humidity - shouldn't be in this dataset, but capture if it is.
-                                
-                                hurs_string = re.search("(?<=CH1|CH2)[\da-zA-Z]{15}", string) #Section starts with CH 
-                                
+
+                                hurs_string = re.search("(?<=CH1|CH2)[\da-zA-Z]{15}", string) #Section starts with CH
+
                                 if hurs_string is not None: # If hurs data exists
                                     hurs_string = hurs_string.group() # Access string from match.
-                                    
+
                                     hurs_duration = int(hurs_string[0:2]) # Minutes
                                     hurs_temp = int(hurs_string[2:7])/10 # In deg. C
                                     hurs_temp_qc = hurs_string[7]
@@ -260,14 +261,14 @@ def clean_otherisd(rawdir, cleandir):
                                     hurs_temp = np.nan
                                     hurs_temp_qc = np.nan
                                     hurs_temp_flag = np.nan
-                                
+
                                 # Solar radiation - "global irradiance" in our dataset.
                                 # Not keeping "direct beam irradiance", "diffuse irradiance" which are also provided in same string.
-                                rsds_string = re.search("(?<=GM1)[\da-zA-Z]{11}", string) #Section starts with CH 
-                                
+                                rsds_string = re.search("(?<=GM1)[\da-zA-Z]{11}", string) #Section starts with CH
+
                                 if rsds_string is not None: # If rsds data exists
                                     rsds_string = rsds_string.group() # Access string from match.
-                                    
+
                                     rsds_duration = float(rsds_string[0:4]) # Time period over which solar radiation integrated, in minutes
                                     rsds = float(rsds_string[4:8]) # In w/m2
                                     rsds_flag = rsds_string[8:10]
@@ -280,8 +281,8 @@ def clean_otherisd(rawdir, cleandir):
                                     rsds_flag = np.nan
 
                                 # Station pressure
-                                ps_string = re.search("(?<=MA1)[\da-zA-Z]{12}", string) #Section starts with CH 
-                                
+                                ps_string = re.search("(?<=MA1)[\da-zA-Z]{12}", string) #Section starts with CH
+
                                 if ps_string is not None: # If pressure exists
                                     ps_string = ps_string.group() # Access string from match.
                                     ps_altimeter = float(ps_string[0:5])/10 # HPa
@@ -331,40 +332,37 @@ def clean_otherisd(rawdir, cleandir):
                                         sfcWind = np.nan
                                 except Exception as e:
                                     print(e) # Could add more robust error handling here if desired, but should not be necessary.
-                                
+
                                 # For each row of data, append data to list.
-                                columns = ['station', 'time', 'lat', 'lon', 'elevation', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_qc', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc'] 
+                                columns = ['station', 'time', 'lat', 'lon', 'elevation', 'qaqc_process', 'ps', 'ps_qc', 'ps_altimeter', 'ps_altimeter_qc', 'psl', 'psl_qc', 'tas', 'tas_qc', 'tdps', 'tdps_qc', 'pr', 'pr_qc', 'pr_duration', 'pr_depth_qc', 'hurs', 'hurs_qc', 'hurs_flag', 'hurs_duration', 'hurs_temp', 'hurs_temp_qc', 'hurs_temp_flag', 'rsds', 'rsds_duration', 'rsds_qc', 'rsds_flag', 'sfcWind', 'sfcWind_qc', 'sfcWind_dir', 'sfcWind_method', 'sfcWind_dir_qc']
                                 variables = [station, time, lat, lon, elevation, qaqc_process, ps, ps_qc, ps_altimeter, ps_altimeter_qc, psl, psl_qc, tas, tas_qc, tdps, tdps_qc, pr, pr_qc, pr_duration, pr_depth_qc, hurs, hurs_qc, hurs_flag, hurs_duration, hurs_temp, hurs_temp_qc, hurs_temp_flag, rsds, rsds_duration, rsds_qc, rsds_flag, sfcWind, sfcWind_qc, sfcWind_dir, sfcWind_method, sfcWind_dir_qc]
-                                
+
                                 for i,j in zip(columns, variables):
                                     data[i].append(j)
 
                                 # For testing: progress update. Print status update every 1k rows.
                                 # If station reports every 10 min, expect up to 50k observations per year.
                                 if len(data)%1000==0:
-                                    print("{} observations parsed.".format(len(data)))          
-                                
+                                    print("{} observations parsed.".format(len(data)))
+
                 except Exception as e:
                     print(file, e)
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
-            
+                    errors['Error'].append('Error in pandas df set-up: {}'.format(e))
+
             # Take all lists and convert to dataframe.
             # Remove any variables where all the data is nan.
-            df = pd.DataFrame.from_dict(data)   
-                                
+            df = pd.DataFrame.from_dict(data)
+
             if df.empty is True:
-                print("df {} not saved".format(file))
+                print("Station {} reports all nan meteorological data - not cleaned.".format(station))
 
             if df.empty is False: # If there is data in the dataframe, convert to xarray object.
                 try:
-                    # Drop any empty variables
-                    df = df.dropna(axis = 1, how = 'all')
-                    
                     # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
-                    df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]                                             
-            
+                    df = df.loc[(df['time']<'2022-09-01') & (df['time']>'1979-12-31')]
+
                     ds = df.to_xarray()
 
                     # Update global attributes
@@ -376,10 +374,10 @@ def clean_otherisd(rawdir, cleandir):
                     ds = ds.assign_attrs(license = "")
                     ds = ds.assign_attrs(citation = "")
                     ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-                    
+
                     # Add station metadata
                     # Station name
-                    ds = ds.assign_attrs(station_name = station_metadata['STATION NAME'].values[0]) 
+                    ds = ds.assign_attrs(station_name = station_metadata['STATION NAME'].values[0])
 
                     # Other station IDs - only add if not NA
                     ids = ['USAF', 'WBAN', 'ICAO']
@@ -388,10 +386,10 @@ def clean_otherisd(rawdir, cleandir):
                             ds.attrs[i] = station_metadata[i].values[0]
 
                     # # Sensor heights
-                    ds = ds.assign_attrs(air_temperature_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
+                    ds = ds.assign_attrs(thermometer_height_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
                     ds = ds.assign_attrs(anemometer_height_m = 1.5) # As per p. 99 of ISD manual.
                     ds = ds.assign_attrs(barometer_elev_m = np.nan) # Could be cross referenced with HOMR data, but currently unknown.
-                    
+
                     ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
                     # Update dimensions and coordinates
@@ -402,7 +400,7 @@ def clean_otherisd(rawdir, cleandir):
                     ds = ds.expand_dims("id") # Add station as index.
                     ds = ds.drop_vars(("station", "index")) # Drop station variable and index coordinate.
                     ds = ds.rename({'id': 'station'}) # Rename id to station.
-                    
+
                     # Add coordinates: lat and longitude.
                     ds = ds.set_coords(("lat", "lon"))
 
@@ -412,43 +410,43 @@ def clean_otherisd(rawdir, cleandir):
                     ds['time'].attrs['long_name'] = "time"
                     ds['time'].attrs['standard_name'] = "time"
                     ds['time'].attrs['comment'] = "In UTC."
-                    
+
                     # Station ID
                     ds['station'].attrs['long_name'] = "station_id"
                     ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
-                    
+
                     # lat
                     ds['lat'].attrs['long_name'] = "latitude"
                     ds['lat'].attrs['standard_name'] = "latitude"
                     ds['lat'].attrs['units'] = "degrees_north"
-                    
+
                     # Longitude
                     ds['lon'].attrs['long_name'] = "longitude"
                     ds['lon'].attrs['standard_name'] = "longitude"
                     ds['lon'].attrs['units'] = "degrees_east"
-                    
+
                     # Elevation
                     ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
                     ds['elevation'].attrs['long_name'] = "station_elevation"
                     ds['elevation'].attrs['units'] = "meter"
                     ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
-                    
+
                     # Update variable attributes and do unit conversions
 
                     # tas: air surface temperature (K)
                     if "tas" in ds.keys():
                         ds['tas'] = calc_clean._unit_degC_to_K(ds['tas'])
-                        
+
                         ds['tas'].attrs['long_name'] = "air_temperature"
                         ds['tas'].attrs['standard_name'] = "air_temperature"
                         ds['tas'].attrs['units'] = "degree_Kelvin"
                         ds['tas'].attrs['ancillary_variables'] = "tas_qc" # List other variables associated with variable (QA/QC)
                         ds['tas'].attrs['comment'] = "Converted from Celsius."
-                        
+
                     if "tas_qc" in ds.keys():
                         ds['tas_qc'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 9 A C I M P R U"
                         ds['tas_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
+
                     # ps: surface air pressure (Pa)
                     if 'ps' in ds.keys():
                         ds['ps'] = calc_clean._unit_pres_hpa_to_pa(ds['ps'])
@@ -465,14 +463,14 @@ def clean_otherisd(rawdir, cleandir):
                         if "ps_qc" in ds.keys():
                             ds['ps_qc'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 M 9"
                             ds['ps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                
+
                         if "ps_altimeter" in ds.keys():
                             ds['ps_altimeter'] = calc_clean._unit_pres_hpa_to_pa(ds['ps_altimeter'])
                             ds['ps_altimeter'].attrs['long_name'] = "altimeter_setting"
                             ds['ps_altimeter'].attrs['units'] = "Pa"
                             ds['ps_altimeter'].attrs['ancillary_variables'] = "ps ps_qc ps_altimeter ps_altimeter_qc" # List other variables associated with variable (QA/QC)
                             ds['ps_altimeter'].attrs['comment'] = "Converted from hPa to Pa. The pressure value to which an aircraft altimeter is set so that it will indicate the altitude relative to mean sea level of an aircraft on the ground at the location for which the value was determined." # Description of variable meaning, as not CF-standard.
-                        
+
                         if "ps_altimeter_qc" in ds.keys():
                             ds['ps_altimeter_qc'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 M 9"
                             ds['ps_altimeter_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
@@ -491,19 +489,19 @@ def clean_otherisd(rawdir, cleandir):
                     # tdps always provided by ISD reports, so no need to calculate here.
                     if "tdps" in ds.keys(): # If variable already exists, rename.
                         ds['tdps'] = calc_clean._unit_degC_to_K(ds['tdps'])
-                        
+
                         ds['tdps'].attrs['long_name'] = "dew_point_temperature"
                         ds['tdps'].attrs['standard_name'] = "dew_point_temperature"
                         ds['tdps'].attrs['units'] = "degree_Kelvin"
                         ds['tdps'].attrs['ancillary_variables'] = "tdps_qc" # List other variables associated with variable (QA/QC)
                         ds['tdps'].attrs['comment'] = "Converted from Celsius."
-                        
+
                     if 'tdps_qc' in ds.keys():
                         ds['tdps_qc'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 9 A C I M P R U"
                         ds['tdps_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
 
-                    # pr: precipitation (Flag for discussion about CF compliance and units) 
+
+                    # pr: precipitation (Flag for discussion about CF compliance and units)
                     if 'pr' in ds.keys():
                         # Note leave final conversion here to next stage.
                         ds['pr'].attrs['long_name'] = "precipitation_accumuation"
@@ -520,36 +518,36 @@ def clean_otherisd(rawdir, cleandir):
                         ds['pr_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
                         ds['pr_depth_qc'].attrs['flag_values'] = "1 2 3 4 5 6 7 8 E I J 9"
                         ds['pr_depth_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                    
+
                     # hurs: relative humidity
                     if 'hurs' in ds.keys():
                         ds['hurs'].attrs['long_name'] = "average_relative_humidity"
-                        ds['hurs'].attrs['standard_name'] = "relative_humidity" 
-                        ds['hurs'].attrs['units'] = "percent" 
+                        ds['hurs'].attrs['standard_name'] = "relative_humidity"
+                        ds['hurs'].attrs['units'] = "percent"
                         ds['hurs'].attrs['ancillary_variables'] = "hurs_qc hurs_flag hurs_duration hurs_temp hurs_temp_qc hurs_temp_flag" # List other variables associated with variable (QA/QC)
 
                         ds['hurs_duration'].attrs['long_name'] = "relative_humidity_duration"
-                        ds['hurs_duration'].attrs['units'] = "minutes" 
+                        ds['hurs_duration'].attrs['units'] = "minutes"
                         ds['hurs_duration'].attrs['ancillary_variables'] = "hurs hurs_qc hurs_flag hurs_temp hurs_temp_qc hurs_temp_flag" # List other variables associated with variable (QA/QC)
 
                         ds['hurs_temp'].attrs['long_name'] = "average_air_temperature_at_hurs_instrument"
-                        ds['hurs_temp'].attrs['units'] = "degree_celsius" 
+                        ds['hurs_temp'].attrs['units'] = "degree_celsius"
                         ds['hurs_temp'].attrs['ancillary_variables'] = "hurs hurs_qc hurs_flag hurs_temp hurs_temp_qc hurs_temp_flag" # List other variables associated with variable (QA/QC)
-                    
-                    
+
+
                     if 'hurs_qc' in ds.keys():
                         ds['hurs_qc'].attrs['flag_values'] = "1 3 9"
                         ds['hurs_qc'].attrs['flag_meanings'] =  "passed_all_qc_checks failed_all_qc_checks missing"
-                        
+
                         ds['hurs_flag'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 8 9"
                         ds['hurs_flag'].attrs['flag_meanings'] =  "See QA/QC csv for network."
 
                         ds['hurs_temp_qc'].attrs['flag_values'] = "1 3 9"
                         ds['hurs_temp_qc'].attrs['flag_meanings'] =  "passed_all_qc_checks failed_all_qc_checks missing"
-                        
+
                         ds['hurs_temp_flag'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 8 9"
                         ds['hurs_temp_flag'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
+
                     # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
                     if 'rsds' in ds.keys():
                         ds['rsds'].attrs['long_name'] = "solar_radiation"
@@ -566,11 +564,11 @@ def clean_otherisd(rawdir, cleandir):
                         if 'rsds_qc' in ds.keys():
                             ds['rsds_qc'].attrs['flag_values'] = "0 1 2 3 9"
                             ds['rsds_qc'].attrs['flag_meanings'] =  "See QA/QC csv for network."
-                        
+
                             ds['rsds_flag'].attrs['flag_values'] = "00 01 02 03 04 05 06 07 08 09 10-93 94-97 98 99"
                             ds['rsds_flag'].attrs['flag_meanings'] =  "See QA/QC csv for network."
 
-                    
+
                     # sfcWind : wind speed (m/s) (Method of calculation may vary, standardize during hourly merge or QA/QC process.)
                     if "sfcWind" in ds.keys(): # No conversions needed, do not add raw column.
                         ds['sfcWind'].attrs['long_name'] = "wind_speed"
@@ -582,11 +580,11 @@ def clean_otherisd(rawdir, cleandir):
                     if 'sfcWind_method' in ds.keys():
                         ds['sfcWind_method'].attrs['long_name'] = "wind_speed_calculation_method"
                         ds['sfcWind_method'].attrs['flag_values'] = "A B C H N R Q T V 9"
-                        ds['sfcWind_method'].attrs['flag_meanings'] = "abridged_beaufort beaufort calm 5-minute_average normal 60-minute_average squall 180-minute_average variable missing" 
+                        ds['sfcWind_method'].attrs['flag_meanings'] = "abridged_beaufort beaufort calm 5-minute_average normal 60-minute_average squall 180-minute_average variable missing"
 
                     if 'sfcWind_qc' in ds.keys():
                         ds['sfcWind_method'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 9"
-                        ds['sfcWind_method'].attrs['flag_meanings'] = "See QA/QC csv for network." 
+                        ds['sfcWind_method'].attrs['flag_meanings'] = "See QA/QC csv for network."
 
 
                     # sfcWind_dir: wind direction
@@ -595,25 +593,47 @@ def clean_otherisd(rawdir, cleandir):
                         ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
                         ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
                         ds['sfcWind_dir'].attrs['ancillary_variables'] = "sfcWind_dir_qc" # List other variables associated with variable (QA/QC)
-                        
+
                     if 'sfcWind_dir_qc' in ds.keys():
                         ds['sfcWind_dir_qc'].attrs['flag_values'] = "0 1 2 3 4 5 6 7 9"
-                        ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "See QA/QC csv for network." 
+                        ds['sfcWind_dir_qc'].attrs['flag_meanings'] = "See QA/QC csv for network."
 
 
                     # Update attributes for any non-standard variables
-                    
+
                     #QAQC process
                     if "qaqc_process" in ds.keys():
                         ds['qaqc_process'].attrs['long_name'] = "qaqc_process_type"
                         ds['qaqc_process'].attrs['flag_values'] = "V01 V02 V03"
-                        ds['qaqc_process'].attrs['flag_meanings'] = "no_qaqc automated_qaqc subjected_to_qaqc" 
+                        ds['qaqc_process'].attrs['flag_meanings'] = "no_qaqc automated_qaqc subjected_to_qaqc"
 
                     # Data source
                     if "data_source" in ds.keys():
                         ds['data_source'].attrs['long_name'] = "source_of_data"
                         ds['data_source'].attrs['flag_values'] = "1 2 3 4 5 6 7 8 A B C D E F G H I J K L M N O 9"
-                        ds['data_source'].attrs['flag_meanings'] = "See QA/QC csv for network." 
+                        ds['data_source'].attrs['flag_meanings'] = "See QA/QC csv for network."
+
+                    # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
+                    for key in ds.keys():
+                        if 'qc' in key:
+                            ds[key] = ds[key].astype(str) # Coerce all values in key to string
+
+                    # drop any column that does not have any valid (non-nan data)
+                    # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
+                    for key in ds.keys():
+                        try:
+                            if (key != 'elevation'):
+                                if np.isnan(ds[key].values).all():
+                                    print("Dropping empty var: {}".format(key)) # could be deleted to cleanup terminal output?
+                                    ds = ds.drop(key)
+
+                            # only drop elevation if all other variables are also nans
+                            if (key == 'elevation') & (len(ds.keys())==1): # only elevation remains
+                                print("Dropping empty var: {}".format(key)) # slightly unnecessary since the entire dataset will be empty too
+                                ds = ds.drop(key)
+                                continue
+                        except Exception as e: # Add to handle errors for unsupported data types
+                            next
 
                     # # Reorder variables
                     # In following order:
@@ -624,37 +644,35 @@ def clean_otherisd(rawdir, cleandir):
                     ds = ds[new_index]
 
                     # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                    for var in ds.variables:
-                        try:
-                            print([var, float(ds[var].min()), float(ds[var].max())]) 
-                        except:
-                            next
-                    
+                    # for var in ds.variables:
+                    #     try:
+                    #         print([var, float(ds[var].min()), float(ds[var].max())])
+                    #     except:
+                    #         next
+
                 except Exception as e: # If error in xarray reorganization
                     print(file, e)
                     traceback.print_exc()
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
-                    errors['Error'].append(e)
-                        
+                    errors['Error'].append('Error in ds set-up: {}'.format(e))
+
 
                 # Write station file to netcdf.
                 if ds is None: # Should be caught be error handling above, but add in case.
-                    print("ds {} not saved.".format(file))
+                    print("Station {} does not report any valid meteorological data - not cleaned.".format(file))
                     errors['File'].append(file)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("File has no data.")
+                    errors['Error'].append('Station reports all nan meteorological data.')
                     continue
-                
+
                 else:
                     try:
-                        print(ds)
                         filename = station+".nc" # Make file name
                         filepath = cleandir+filename # Write file path
-                        print(filepath) # For testing
 
                         # Write locally
-                        ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
+                        ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
                         # Push file to AWS with correct file name.
                         s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
@@ -666,12 +684,12 @@ def clean_otherisd(rawdir, cleandir):
                         print(filename, e)
                         errors['File'].append(filename)
                         errors['Time'].append(end_api)
-                        errors['Error'].append(e)
-                        continue            
+                        errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
+                        continue
 
     #Write errors to csv
     finally:
-        print(errors) # For testing
+        # print(errors) # For testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -681,17 +699,17 @@ def clean_otherisd(rawdir, cleandir):
 # Run function
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("OtherISD")
+    print(rawdir, cleandir, qaqcdir)
     clean_otherisd(rawdir, cleandir)
-    print(cleandir)
 
-
-    # # # # Testing:
+#-----------------------------------------------------------------------------------------------------
+    ## Testing:
     # import random # To get random subsample
     # import s3fs # To read in .nc files
-    
+
     # # # ## Import file.
     # files = []
-    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir): 
+    # for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
     #     file = str(item.key)
     #     files += [file]
 
@@ -703,7 +721,7 @@ if __name__ == "__main__":
     # # File 1:
     # fs = s3fs.S3FileSystem()
     # aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-    
+
     # with fs.open(aws_urls[0]) as fileObj:
     #     test = xr.open_dataset(fileObj)
     #     print(test)
@@ -711,7 +729,7 @@ if __name__ == "__main__":
     #         print(var)
     #         print(test[var])
     #     test.close()
-        
+
     # # File 2:
     # # Test: multi-year merges work as expected.
     # with fs.open(aws_urls[1]) as fileObj:
@@ -720,16 +738,14 @@ if __name__ == "__main__":
     #     print(str(test['time'].max())) # Get end time
     #     test.close()
 
-    
+
     # # File 3:
     # # Test: Inspect vars and attributes
     # with fs.open(aws_urls[2]) as fileObj:
     #     test = xr.open_dataset(fileObj, engine='h5netcdf')
-    #     for var in test.variables: 
+    #     for var in test.variables:
     #         try:
-    #             print([var, float(test[var].min()), float(test[var].max())]) 
+    #             print([var, float(test[var].min()), float(test[var].max())])
     #         except:
     #             continue
     #     test.close()
-    
-    

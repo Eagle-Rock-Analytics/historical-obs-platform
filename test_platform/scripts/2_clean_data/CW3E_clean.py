@@ -20,20 +20,18 @@ Data is available from 04/23/2021-11/18/2021. At this time this script does not 
 # Step 0: Environment set-up
 # Import libraries
 import os
-import xarray as xr
 from datetime import datetime
-import re
 import numpy as np
 import warnings
 warnings.filterwarnings(action = 'ignore', category = FutureWarning) # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
-from ftplib import FTP
-from cleaning_helpers import var_to_unique_list
+# from ftplib import FTP
+from cleaning_helpers import get_file_paths
 import dask.dataframe as dd
 from random import sample # For testing only
-import sys, traceback
+import traceback
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
@@ -60,14 +58,6 @@ try:
 except:
     pass
 
-
-# Given a network name, return all relevant AWS filepaths for other functions.
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir
-
               
 # ## FUNCTION: Clean CW3E data.
 # # Input: 
@@ -86,17 +76,29 @@ def clean_cw3e(rawdir, cleandir):
     end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
     timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
     
-    # # Specify columns to remove
-    removecols = ['Datalogger ID', 'Wind Direction Standard Deviation (degrees)', 'Vector Wind Speed (m/s)', 'Battery Voltage (volts)', 'Maximum Wind Speed (m/s)', 'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm',
-        'Soil Temperature (C) 15cm', 'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
-        'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
-        'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
-        'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm',
-        'Soil Reflectometer Output Period (%) 5cm', 'Soil Reflectometer Output Period (%) 10cm',
-        'Soil Reflectometer Output Period (%) 15cm', 'Soil Reflectometer Output Period (%) 20cm',
-        'Soil Reflectometer Output Period (%) 50cm', 'Soil Reflectometer Output Period (%) 100cm']
+    ## Specify columns to remove
+    removecols = ['Datalogger ID', 'Wind Direction Standard Deviation (degrees)', 'Vector Wind Speed (m/s)', 'Battery Voltage (volts)', 
+                  'Maximum Wind Speed (m/s)', 'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm',
+                  'Soil Temperature (C) 15cm', 'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
+                  'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
+                  'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
+                  'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm',
+                  'Soil Reflectometer Output Period (%) 5cm', 'Soil Reflectometer Output Period (%) 10cm',
+                  'Soil Reflectometer Output Period (%) 15cm', 'Soil Reflectometer Output Period (%) 20cm',
+                  'Soil Reflectometer Output Period (%) 50cm', 'Soil Reflectometer Output Period (%) 100cm']
+    
+    ## Specify columns to use if there is no DataFormat file
+    default_cols = ['Dataloger ID', 'Year (end time of average)', 'Julian Day (end time of average)', 'HoursMinutes (end time of average)', 
+                    'Pressure (mb)', 'Temperature (C)', 'Relative Humidity (%)', 'Scalar Wind Speed (m/s)', 'Vector Wind Speed (m/s)',
+                    'Wind Direction (degrees)', 'Wind Direction Standard Deviation (degrees)', 'Solar Radiation (W/m^2)',
+                    'Battery Voltage (volts)', 'Precipitation (mm)', 'Maximum Wind Speed (m/s)', 
+                    'Soil Temperature (C) 5cm', 'Soil Temperature (C) 10cm', 'Soil Temperature (C) 15cm',
+                    'Soil Temperature (C) 20cm', 'Soil Temperature (C) 50cm', 'Soil Temperature (C) 100cm',
+                    'Soil Reflectometer Output Period (usec) 5cm', 'Soil Reflectometer Output Period (usec) 10cm',
+                    'Soil Reflectometer Output Period (usec) 15cm', 'Soil Reflectometer Output Period (usec) 20cm',
+                    'Soil Reflectometer Output Period (usec) 50cm', 'Soil Reflectometer Output Period (usec) 100cm']
 
-    date_parser= lambda x,y,z: datetime.strptime(f"{x}.{y}.{z}", "%Y.%j.%H%M")
+    date_parser = lambda x,y,z: datetime.strptime(f"{x}.{y}.{z}", "%Y.%j.%H%M")
 
     try:
         # Get files
@@ -113,6 +115,8 @@ def clean_cw3e(rawdir, cleandir):
         stations = [station.replace("C3", "") for station in stations]
         
         # Remove error, station files
+        format_files = [file for file in files if '_DataFormat.txt' in file] # only some stations have a data format file
+        readme_files = [file for file in files if '_README.txt' in file] # all valid stations have a readme file
         files = [file for file in files if 'README' not in file]
         files = [file for file in files if 'stationlist' not in file]
         files = [file for file in files if 'error' not in file]
@@ -121,16 +125,21 @@ def clean_cw3e(rawdir, cleandir):
         print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
         errors['File'].append("Whole network")
         errors['Time'].append(end_api)
-        errors['Error'].append(e)
+        errors['Error'].append("Whole network error: {}".format(e))
 
     else: # If files read successfully, continue.
-        for station in sample(stations, 5): # subset for testing
+        for station in stations: # Full network clean
+        # for station in ['POR']:
+            print('Parsing: {}'.format(station))
             try:
-                # Get column names from .txt file
-                obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
-                dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace= True, names = ['No', "ColName"])    
-                colnames = dataformat['ColName'].tolist()[1:]
-                usecols = [col for col in colnames if col not in removecols]
+                # If station does not have a README file, automatically skip - there will be no data on AWS
+                read_stn = rawdir+station+"_README.txt"
+                if read_stn not in readme_files:
+                    print('No raw data found for {} on AWS.'.format(station))
+                    errors['File'].append(station)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No raw data found on AWS -- not cleaned")
+                    continue
                 
                 # Get metadata from .txt file
                 obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_README.txt".format(station))
@@ -147,14 +156,21 @@ def clean_cw3e(rawdir, cleandir):
                             elif 'f' in elevval:
                                 elevval = float(elevval.replace("f", ""))
                                 elevval = calc_clean._unit_elev_ft_to_m(elevval)
-                            
+
+                # Get column names from DataFormat.txt file if available, if not use default columns list
+                if station == "DLA" or station == "CAT" or station == "FRC":
+                    colnames = default_cols
+                else:
+                    obj = s3_cl.get_object(Bucket=bucket_name, Key=rawdir+"{}_DataFormat.txt".format(station))
+                    dataformat = pd.read_csv(BytesIO(obj['Body'].read()), sep = ":", skipinitialspace = True, names = ['No', "ColName"])    
+                    colnames = dataformat['ColName'].tolist()[1:]
+                                                
                 # Station full name is not in README so we pull it in from MADIS metadata.
                 station_metadata = station_file.loc[station_file['STID'].str.replace("C3", "")==station]
                 station_id = "CW3E_"+str(station)
 
-                # Get number of files
+                # Get files per station
                 station_files = [file for file in files if file.startswith('1_raw_wx/CW3E/{}'.format(station.lower()))]
-                #print(file_count)
 
                 # Get years - note this is hardcoded and should be updated for the update script.
                 years = ['19', '20', '21', '22']
@@ -162,264 +178,275 @@ def clean_cw3e(rawdir, cleandir):
                 for year in years:
                     year_files = [file for file in station_files if year==file[-9:-7]] # Get files for station for year.
                     file_count = len(year_files)
-                    
-                    # Read in data.
-                    try:
-                        df_stat = dd.read_csv('s3://wecc-historical-wx/1_raw_wx/CW3E/bcc{}*m'.format(year), names = colnames, na_values = [-99999], usecols = usecols, 
-                                        parse_dates = {'time': ['Year (end time of average)','Julian Day (end time of average)','HoursMinutes (end time of average)']},
-                                        date_parser = date_parser, dtype={'Temperature (C)':'float64', 'Pressure (mb)':'float64', 'Solar Radiation (W/m^2)':'float64',
-                                                                          'Relative Humidity (%)': 'float64', 'Precipitation (mm)': 'float64',
-                                                                          'Scalar Wind Speed (m/s)':'float64', "Wind Direction (degrees)":'float64'})
-                    except OSError: # Except if year has no data
-                        continue # Skip year.
-                    
-                    try:
-                        # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
-                        df_stat = df_stat.loc[(df_stat['time']<'2022-09-01') & (df_stat['time']>'1979-12-31')]
 
-                        df_stat = df_stat.compute()
-
-                        # Drop any columns that only contain NAs.
-                        df_stat = df_stat.dropna(axis = 1, how = 'all')
-
-                        # Sort by time and remove any overlapping timestamps.
-                        df_stat = df_stat.sort_values(by = "time")
-                        df_stat = df_stat.drop_duplicates()
-                        
-                        ds = df_stat.to_xarray()
-
-                        # Update global attributes
-                        ds = ds.assign_attrs(title = "{} cleaned".format(network))
-                        ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
-                        ds = ds.assign_attrs(source = "")
-                        ds = ds.assign_attrs(history = "CW3E_clean.py script run on {} UTC".format(timestamp))
-                        ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
-                        ds = ds.assign_attrs(license = "")
-                        ds = ds.assign_attrs(citation = "")
-                        ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-                        
-                        # Add station metadata
-                        # Station name
-                        ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0]) 
-
-                        # Sensor heights - TO DO: Waiting on CW3E response.
-                        ds = ds.assign_attrs(barometer_elev_m = np.nan)
-                        ds = ds.assign_attrs(pyranometer_height_m = np.nan)
-                        ds = ds.assign_attrs(wind_vane_height_m = np.nan)
-                        ds = ds.assign_attrs(anemometer_height_m = np.nan)
-                        ds = ds.assign_attrs(air_temperature_height_m = np.nan)
-                        ds = ds.assign_attrs(humidity_height_m = np.nan)
-                        ds = ds.assign_attrs(rain_gauge_height_m = np.nan)
-
-                        ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
-
-                        # Add dimensions: station ID and time.
-                        ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time.
-                        ds = ds.assign_coords(id = str(station_id))
-                        ds = ds.expand_dims("id") # Add station_id as index.
-                        ds = ds.drop_vars(("index")) # Drop station_id variable and index coordinate.
-                        ds = ds.rename({'id': 'station'}) # Rename id to station_id.
-                        
-                        # Update dimensions and coordinates
-
-                        # Add coordinates: latitude and longitude.
-                        lat = np.asarray([latval]*len(ds['time']))
-                        lat.shape = (1, len(ds['time']))
-
-                        lon = np.asarray([lonval]*len(ds['time']))
-                        lon.shape = (1, len(ds['time']))
-
-                        # reassign lat and lon as coordinates
-                        ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
-                            
-                        # If any observation is missing lat or lon coordinates, drop these observations.
-                        if np.count_nonzero(np.isnan(ds['lat'])) != 0:
-                            #print("Dropping missing lat values") # For testing.
-                            ds = ds.where(~np.isnan(ds['lat']))
-                        
-                        if np.count_nonzero(np.isnan(ds['lon'])) != 0:
-                            #print("Dropping missing lon values") # For testing.
-                            ds = ds.where(~np.isnan(ds['lon']))
-
-                        # Add variable: elevation (in meters)
-                        elev = np.asarray([elevval]*len(ds['time']))
-                        elev.shape = (1, len(ds['time']))
-                        ds['elevation'] = (['station', 'time'], elev)
-
-                        # Update dimension and coordinate attributes.
-                    
-                        # Update attributes.
-                        ds['time'] = pd.to_datetime(ds['time']) # Remove timezone data from string (to match other networks)
-                        ds['time'] = pd.to_datetime(ds['time'], unit = 'ns')
-                        ds['time'].attrs['long_name'] = "time"
-                        ds['time'].attrs['standard_name'] = "time"
-                        ds['time'].attrs['comment'] = "Converted from PST to UTC."
-                        
-                        # Station ID
-                        ds['station'].attrs['long_name'] = "station_id"
-                        ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
-                        
-                        # Latitude
-                        ds['lat'].attrs['long_name'] = "latitude"
-                        ds['lat'].attrs['standard_name'] = "latitude"
-                        ds['lat'].attrs['units'] = "degrees_north"
-                        
-                        # Longitude
-                        ds['lon'].attrs['long_name'] = "longitude"
-                        ds['lon'].attrs['standard_name'] = "longitude"
-                        ds['lon'].attrs['units'] = "degrees_east"
-                        
-                        # Elevation
-                        # Convert from feet to meters.
-                        ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
-                        ds['elevation'].attrs['long_name'] = "station_elevation"
-                        ds['elevation'].attrs['units'] = "meters"
-                        ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
-
-                        # Update variable attributes and do unit conversions
-                        
-                        #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                        # for var in list(ds.keys()):
-                        #     try:
-                        #         print([var, float(ds[var].min()), float(ds[var].max())])
-                        #     except:
-                        #         continue
-                        
-                        #tas: air surface temperature (K)
-                        if "Temperature (C)" in ds.keys():
-                            ds['tas'] = calc_clean._unit_degC_to_K(ds['Temperature (C)'])
-                            ds = ds.drop("Temperature (C)")
-
-                            ds['tas'].attrs['long_name'] = "air_temperature"
-                            ds['tas'].attrs['standard_name'] = "air_temperature"
-                            ds['tas'].attrs['units'] = "degree_Kelvin"
-                            ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
-
-                        # ps: surface air pressure (Pa)
-                        if 'Pressure (mb)' in ds.keys(): # If barometric pressure available
-                            # Convert from inHg to PA
-                            ds['psl'] = calc_clean._unit_pres_hpa_to_pa(ds['Pressure (mb)']) # Identical conversion.
-                            ds = ds.drop("Pressure (mb)")
-
-                            # Set attributes
-                            ds['psl'].attrs['long_name'] = "station_air_pressure"
-                            ds['psl'].attrs['standard_name'] = "air_pressure"
-                            ds['psl'].attrs['units'] = "Pa"
-                            ds['psl'].attrs['comment'] = "Converted from mb."
-
-                        # tdps: dew point temperature (K)
-                        # Not available in this dataset.
-
-                        # pr: precipitation
-                        if "Precipitation (mm)" in ds.keys():
-                            ds = ds.rename({"Precipitation (mm)":"pr"})
-                            ds['pr'].attrs['long_name'] = "precipitation_accumulation"
-                            ds['pr'].attrs['units'] = "mm/2 minutes"
-                            ds['pr'].attrs['comment'] = "Accumulated precipitation."
-
-                        # hurs: relative humidity (%)
-                        if 'Relative Humidity (%)' in ds.keys(): # Already in %, no need to convert units.
-                            ds = ds.rename({'Relative Humidity (%)': 'hurs'})
-                            # Set attributes
-                            ds['hurs'].attrs['long_name'] = "relative_humidity"
-                            ds['hurs'].attrs['standard_name'] = "relative_humidity" 
-                            ds['hurs'].attrs['units'] = "percent" 
-
-                        #rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
-                        if 'Solar Radiation (W/m^2)' in ds.keys(): # Already in w/m2, no need to convert units.
-                            # If column exists, rename.
-                            ds = ds.rename({'Solar Radiation (W/m^2)': 'rsds'})
-                            
-                            # Set attributes
-                            ds['rsds'].attrs['long_name'] = "solar_radiation"
-                            ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
-                            ds['rsds'].attrs['units'] = "W m-2"
-
-
-                        # sfcWind : wind speed (m/s)
-                        if "Scalar Wind Speed (m/s)" in ds.keys(): # Data originally in mph.
-                            ds = ds.rename({'Scalar Wind Speed (m/s)':"sfcWind"})
-                            ds['sfcWind'].attrs['long_name'] = "wind_speed"
-                            ds['sfcWind'].attrs['standard_name'] = "wind_speed"
-                            ds['sfcWind'].attrs['units'] = "m s-1"
-
-                        # sfcWind_dir: wind direction
-                        if "Wind Direction (degrees)" in ds.keys(): # No conversions needed, do not make raw column.
-                            ds = ds.rename({'Wind Direction (degrees)': 'sfcWind_dir'})
-                            ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
-                            ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
-                            ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
-                            ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
-
-
-
-                        #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                        for var in ds.variables:
-                            try:
-                                print([var, float(ds[var].min()), float(ds[var].max())]) 
-                            except:
-                                next
-
-                        # Quality control: if any variable is completely empty, drop it.
-                        for key in ds.keys():
-                            try:
-                                if np.isnan(ds[key].values).all():
-                                    print("Dropping {}".format(key))
-                                    ds = ds.drop(key)
-                            except: # Add to handle errors for unsupported data types
-                                next
-
-                        # Reorder variables
-                        desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
-                        actual_order = [i for i in desired_order if i in list(ds.keys())]
-                        rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
-                        new_index = actual_order + rest_of_vars
-                        ds = ds[new_index]
-
-                        print(ds) # For testing.
-
-                        #Write station file to netcdf.
-                        if ds is None: # Should be caught in error handling above, but add in case.
-                            print("{} not saved.".format(station+year))
-                            errors['File'].append(station+year)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append("File has no data.")
-                            continue
-                        
-                        else:
-                            try:
-                                filename = station_id+"_"+year+".nc" # Make file name (stationID+year)
-                                filepath = cleandir+filename # Write file path
-                                print(filepath) # For testing
-
-                                # Write locally
-                                ds.to_netcdf(path = 'temp/temp.nc', engine = 'h5netcdf') # Save station file.
-
-                                # Push file to AWS with correct file name.
-                                s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
-
-                                print("Saving {} with dims {}".format(filename, ds.dims))
-                                ds.close() # Close dataframe.
-                                
-                            except Exception as e:
-                                print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
-                                errors['File'].append(filename)
-                                errors['Time'].append(end_api)
-                                errors['Error'].append(e)
-                                continue  
-
-                    except Exception as e:
-                        print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
-                        errors['File'].append(station+year) # Save ID of station.
-                        errors['Time'].append(end_api)
-                        errors['Error'].append(e)
+                    if file_count == 0:
+                        print('{0} does not have data for 20{1}, moving to next available year of data.'.format(station, year))
                         continue
+                    else:
+                        # Read in data.
+                        try:
+                            print('{0} has {1} files for 20{2}, cleaning in progress...'.format(station, file_count, year))
+                            df_stat = dd.read_csv('s3://wecc-historical-wx/1_raw_wx/CW3E/{}{}*m'.format(station.lower(), year), names = colnames, na_values = [-99999],
+                                            parse_dates = {'time': ['Year (end time of average)','Julian Day (end time of average)','HoursMinutes (end time of average)']},
+                                            date_parser = date_parser, dtype={'Temperature (C)':'float64', 'Pressure (mb)':'float64', 'Solar Radiation (W/m^2)':'float64',
+                                                                            'Relative Humidity (%)': 'float64', 'Precipitation (mm)': 'float64',
+                                                                            'Scalar Wind Speed (m/s)':'float64', "Wind Direction (degrees)":'float64'}, assume_missing=True)
+
+                        except OSError as e: # If year has data, but fails to read-in
+                            errors['File'].append(station_id)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("Error in df set-up: {}".format(e))
+                            continue # Skip year.
+                    
+                        try:                            
+                            # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+                            df_stat = df_stat.loc[(df_stat['time']<'2022-09-01') & (df_stat['time']>'1979-12-31')]
+
+                            df_stat = df_stat.compute()
+
+                            # Drop any columns that only contain NAs.
+                            df_stat = df_stat.dropna(axis = 1, how = 'all')
+
+                            # Drop unnecessary columns
+                            try:
+                                cols_to_keep = [col for col in df_stat.columns if col not in removecols]
+                                df_stat = df_stat[df_stat.columns.intersection(cols_to_keep)]   
+                            except Exception as e:
+                                print('Dropping unnecessary column error for {} -- check.'.format(station))
+                                errors['File'].append(station)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append("Unnecessary column drop error.")
+                                continue
+
+                            # Sort by time and remove any overlapping timestamps.
+                            df_stat = df_stat.sort_values(by = "time")
+                            df_stat = df_stat.drop_duplicates()
+                            
+                            ds = df_stat.to_xarray()
+
+                            # Update global attributes
+                            ds = ds.assign_attrs(title = "{} cleaned".format(network))
+                            ds = ds.assign_attrs(institution = "Eagle Rock Analytics / Cal Adapt")
+                            ds = ds.assign_attrs(source = "")
+                            ds = ds.assign_attrs(history = "CW3E_clean.py script run on {} UTC".format(timestamp))
+                            ds = ds.assign_attrs(comment = "Intermediate data product: may not have been subject to any cleaning or QA/QC processing")
+                            ds = ds.assign_attrs(license = "")
+                            ds = ds.assign_attrs(citation = "")
+                            ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
+                            
+                            # Add station metadata
+                            # Station name
+                            ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0]) 
+
+                            # Sensor heights - Final confirmation is still waiting on CW3E response.
+                            ds = ds.assign_attrs(barometer_elev_m = np.nan)
+                            ds = ds.assign_attrs(pyranometer_height_m = np.nan)
+                            ds = ds.assign_attrs(wind_vane_height_m = np.nan)
+                            ds = ds.assign_attrs(anemometer_height_m = np.nan)
+                            ds = ds.assign_attrs(thermometer_height_m = np.nan)
+                            ds = ds.assign_attrs(humidity_height_m = np.nan)
+                            ds = ds.assign_attrs(rain_gauge_height_m = np.nan)
+
+                            ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
+
+                            # Add dimensions: station ID and time.
+                            ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time.
+                            ds = ds.assign_coords(id = str(station_id))
+                            ds = ds.expand_dims("id") # Add station_id as index.
+                            ds = ds.drop_vars(("index")) # Drop station_id variable and index coordinate.
+                            ds = ds.rename({'id': 'station'}) # Rename id to station_id.
+                            
+                            # Update dimensions and coordinates
+
+                            # Add coordinates: latitude and longitude.
+                            lat = np.asarray([latval]*len(ds['time']))
+                            lat.shape = (1, len(ds['time']))
+
+                            lon = np.asarray([lonval]*len(ds['time']))
+                            lon.shape = (1, len(ds['time']))
+
+                            # reassign lat and lon as coordinates
+                            ds = ds.assign_coords(lat = (["station","time"],lat), lon = (["station","time"], lon))
+                                
+                            # If any observation is missing lat or lon coordinates, drop these observations.
+                            if np.count_nonzero(np.isnan(ds['lat'])) != 0:
+                                #print("Dropping missing lat values") # For testing.
+                                ds = ds.where(~np.isnan(ds['lat']))
+                            
+                            if np.count_nonzero(np.isnan(ds['lon'])) != 0:
+                                #print("Dropping missing lon values") # For testing.
+                                ds = ds.where(~np.isnan(ds['lon']))
+
+                            # Add variable: elevation (in meters)
+                            elev = np.asarray([elevval]*len(ds['time']))
+                            elev.shape = (1, len(ds['time']))
+                            ds['elevation'] = (['station', 'time'], elev)
+
+                            # Update dimension and coordinate attributes.
+                        
+                            # Update attributes.
+                            ds['time'] = pd.to_datetime(ds['time']) # Remove timezone data from string (to match other networks)
+                            ds['time'] = pd.to_datetime(ds['time'], unit = 'ns')
+                            ds['time'].attrs['long_name'] = "time"
+                            ds['time'].attrs['standard_name'] = "time"
+                            ds['time'].attrs['comment'] = "Converted from PST to UTC."
+                            
+                            # Station ID
+                            ds['station'].attrs['long_name'] = "station_id"
+                            ds['station'].attrs['comment'] = "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network."
+                            
+                            # Latitude
+                            ds['lat'].attrs['long_name'] = "latitude"
+                            ds['lat'].attrs['standard_name'] = "latitude"
+                            ds['lat'].attrs['units'] = "degrees_north"
+                            
+                            # Longitude
+                            ds['lon'].attrs['long_name'] = "longitude"
+                            ds['lon'].attrs['standard_name'] = "longitude"
+                            ds['lon'].attrs['units'] = "degrees_east"
+                            
+                            # Elevation
+                            # Convert from feet to meters.
+                            ds['elevation'].attrs['standard_name'] = "height_above_mean_sea_level"
+                            ds['elevation'].attrs['long_name'] = "station_elevation"
+                            ds['elevation'].attrs['units'] = "meters"
+                            ds['elevation'].attrs['positive'] = "up" # Define which direction is positive
+
+                            # Update variable attributes and do unit conversions
+                            
+                            #tas: air surface temperature (K)
+                            if "Temperature (C)" in ds.keys():
+                                ds['tas'] = calc_clean._unit_degC_to_K(ds['Temperature (C)'])
+                                ds = ds.drop("Temperature (C)")
+
+                                ds['tas'].attrs['long_name'] = "air_temperature"
+                                ds['tas'].attrs['standard_name'] = "air_temperature"
+                                ds['tas'].attrs['units'] = "degree_Kelvin"
+                                ds['tas'].attrs['comment'] = "Converted from Celsius to Kelvin."
+
+                            # ps: surface air pressure (Pa)
+                            if 'Pressure (mb)' in ds.keys(): # If barometric pressure available
+                                # Convert from inHg to PA
+                                ds['psl'] = calc_clean._unit_pres_hpa_to_pa(ds['Pressure (mb)']) # Identical conversion.
+                                ds = ds.drop("Pressure (mb)")
+
+                                # Set attributes
+                                ds['psl'].attrs['long_name'] = "station_air_pressure"
+                                ds['psl'].attrs['standard_name'] = "air_pressure"
+                                ds['psl'].attrs['units'] = "Pa"
+                                ds['psl'].attrs['comment'] = "Converted from mb."
+
+                            # tdps: dew point temperature (K)
+                            # Not available in this dataset.
+
+                            # pr: precipitation
+                            if "Precipitation (mm)" in ds.keys():
+                                ds = ds.rename({"Precipitation (mm)":"pr"})
+                                ds['pr'].attrs['long_name'] = "precipitation_accumulation"
+                                ds['pr'].attrs['units'] = "mm/2 minutes"
+                                ds['pr'].attrs['comment'] = "Accumulated precipitation."
+
+                            # hurs: relative humidity (%)
+                            if 'Relative Humidity (%)' in ds.keys(): # Already in %, no need to convert units.
+                                ds = ds.rename({'Relative Humidity (%)': 'hurs'})
+                                # Set attributes
+                                ds['hurs'].attrs['long_name'] = "relative_humidity"
+                                ds['hurs'].attrs['standard_name'] = "relative_humidity" 
+                                ds['hurs'].attrs['units'] = "percent" 
+
+                            #rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
+                            if 'Solar Radiation (W/m^2)' in ds.keys(): # Already in w/m2, no need to convert units.
+                                # If column exists, rename.
+                                ds = ds.rename({'Solar Radiation (W/m^2)': 'rsds'})
+                                
+                                # Set attributes
+                                ds['rsds'].attrs['long_name'] = "solar_radiation"
+                                ds['rsds'].attrs['standard_name'] = "surface_downwelling_shortwave_flux_in_air"
+                                ds['rsds'].attrs['units'] = "W m-2"
+
+                            # sfcWind : wind speed (m/s)
+                            if "Scalar Wind Speed (m/s)" in ds.keys(): # Data originally in mph.
+                                ds = ds.rename({'Scalar Wind Speed (m/s)':"sfcWind"})
+                                ds['sfcWind'].attrs['long_name'] = "wind_speed"
+                                ds['sfcWind'].attrs['standard_name'] = "wind_speed"
+                                ds['sfcWind'].attrs['units'] = "m s-1"
+
+                            # sfcWind_dir: wind direction
+                            if "Wind Direction (degrees)" in ds.keys(): # No conversions needed, do not make raw column.
+                                ds = ds.rename({'Wind Direction (degrees)': 'sfcWind_dir'})
+                                ds['sfcWind_dir'].attrs['long_name'] = "wind_direction"
+                                ds['sfcWind_dir'].attrs['standard_name'] = "wind_from_direction"
+                                ds['sfcWind_dir'].attrs['units'] = "degrees_clockwise_from_north"
+                                ds['sfcWind_dir'].attrs['comment'] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
+
+                            # #Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
+                            # for var in ds.variables:
+                            #     try:
+                            #         print([var, float(ds[var].min()), float(ds[var].max())]) 
+                            #     except:
+                            #         next
+
+                            # Quality control: if any variable is completely empty, drop it.
+                            for key in ds.keys():
+                                try:
+                                    if np.isnan(ds[key].values).all():
+                                        if 'elevation' not in key: # Exclude elevation
+                                            print("Dropping {}".format(key))
+                                            ds = ds.drop(key)
+                                except: # Add to handle errors for unsupported data types
+                                    next
+
+                            # Reorder variables
+                            desired_order = ['ps', 'tas', 'tdps', 'pr', 'hurs', 'rsds', 'sfcWind', 'sfcWind_dir']
+                            actual_order = [i for i in desired_order if i in list(ds.keys())]
+                            rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order] # Retain rest of variables at the bottom.
+                            new_index = actual_order + rest_of_vars
+                            ds = ds[new_index]
+
+                            # print(ds) # For testing.
+
+                            #Write station file to netcdf.
+                            if ds is None: # Should be caught in error handling above, but add in case.
+                                print("{} not saved.".format(station+year))
+                                errors['File'].append(station+year)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append("File has no data.")
+                                continue
+                            
+                            else:
+                                try:
+                                    filename = station_id+"_"+year+".nc" # Make file name (stationID+year)
+                                    filepath = cleandir+filename # Write file path
+                                    # print(filepath) # For testing
+
+                                    # Write locally
+                                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
+
+                                    # Push file to AWS with correct file name.
+                                    s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
+
+                                    print("Saving {} with dims {}".format(filename, ds.dims))
+                                    ds.close() # Close dataframe.
+                                    
+                                except Exception as e:
+                                    print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
+                                    errors['File'].append(filename)
+                                    errors['Time'].append(end_api)
+                                    errors['Error'].append("Error in saving ds as .nc file to AWS: {}".format(e))
+                                    continue  
+
+                        except Exception as e:
+                            print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
+                            errors['File'].append(station+year) # Save ID of station.
+                            errors['Time'].append(end_api)
+                            errors['Error'].append("Error in ds set-up: {}".format(e))
+                            continue
         
             except Exception as e:
                 print("Error: " + e.args[0] + ". Code line: " + str(traceback.extract_stack()[-1][1]))
                 errors['File'].append(station) # Save ID of station.
                 errors['Time'].append(end_api)
-                errors['Error'].append(e)
+                errors['Error'].append("Error in full clean set-up/GetObject set-up for {0}: {1}".format(station, e))
                 continue
 
         # # Save the list of removed variables to AWS
@@ -432,7 +459,7 @@ def clean_cw3e(rawdir, cleandir):
    
     # Write errors.csv
     finally: # Always execute this.
-        print(errors)
+        # print(errors) # testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -443,10 +470,13 @@ def clean_cw3e(rawdir, cleandir):
 # # Run functions
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CW3E")
-    #print(rawdir, cleandir, qaqcdir)
+    print(rawdir, cleandir, qaqcdir)
     clean_cw3e(rawdir, cleandir)
     
+
+# -------------------------------------------------------------------------------------------------------------
     # # Testing:
+    # import xarray as xr
     # import random # To get random subsample
     # import s3fs # To read in .nc files
     
@@ -481,7 +511,6 @@ if __name__ == "__main__":
     #     print(str(test['time'].max())) # Get end time
     #     test.close()
 
-    
     # # File 3:
     # # Test: Inspect vars and attributes
     # with fs.open(aws_urls[2]) as fileObj:
@@ -493,5 +522,3 @@ if __name__ == "__main__":
     #             continue
     #     print(test['time'])
     #     test.close()
-    
-    
