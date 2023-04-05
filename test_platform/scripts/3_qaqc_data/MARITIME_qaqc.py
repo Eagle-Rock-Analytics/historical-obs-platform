@@ -47,6 +47,46 @@ bucket_name = "wecc-historical-wx"
 # wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 
+# NDBC and MARITIME only
+def spurious_buoy_check(station, ds):
+    """
+    Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
+    If station reports data past disestablishment date, data records are flagged as suspect.
+    If station reports data during buoy dates, data records are flagged as suspect.
+    """
+    ndbc_buoys_to_check = ['NDBC_46404', 'NDBC_46023', 'NDBC_46041', 'NDBC_46044', 'NDBC_46290', 'NDBC_46030', 'NDBC_46045',
+                           'NDBC_46051', 'NDBC_46062', 'NDBC_46063', 'NDBC_46093', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220',
+                           'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
+    mar_buoys_to_check = ['MARITIME_LPOI1', 'MARITIME_CARO3', 'MARITIME_DMNO3', 'MARITIME_PTAC1', 'MARITIME_TTIW1', 'MARITIME_PTWW1',
+                          'MARITIME_MTYC1', 'MARITIME_MEYC1', 'MARITIME_SMOC1', 'MARITIME_ICAC1']
+
+    if station in ndbc_buoys_to_check or station in mar_buoys_to_check:
+        print('{0} is flagged as spurious, checking for coverage'.format(station))
+
+        # buoys with "data" past their disestablishment dates
+        if station == 'NDBC_46023': # disestablished 9/8/2010
+
+        if station == "NDBC_46045": # disestablished 11/1997
+            
+        if station == "NDBC_46051": # disestablished 4/1996
+
+        if station == "MARITIME_PTAC1": # data currently avaialble 1984-2012, but disestablished 2/9/2022
+            # only flag if new data is added after 2012
+
+        if station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
+            # only wind vars need flag
+
+        if station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
+            # modify attribute/naming with note
+
+        if station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was potentially renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
+            # modify attribute/naming with note
+
+
+    else: # station is not spurious, move on
+        exit()
+
+
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
 def whole_station_qaqc(network, cleandir, qaqcdir):
 
@@ -185,5 +225,6 @@ if __name__ == "__main__":
 
 # To do:
 # flag as attribute?  only files that pass get saved?
+# output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
 # delete testing notes
