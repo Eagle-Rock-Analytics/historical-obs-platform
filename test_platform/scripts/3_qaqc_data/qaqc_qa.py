@@ -130,7 +130,7 @@ def qaqc_qa(network):
                     continue
                 else:
                     if not pd.isnull(row['Time_QAQC']): # If file cleaned
-                        error_sta = error_sta.loc[(error_sta.Time>= row['Time_QAQC'])|(error_sta.Time.isna()), :] # Only keep errors from cleaning at or after time of clean
+                        error_sta = error_sta.loc[(error_sta.Time>= row['Time_QAQC'])|(error_sta.Time.isna()), :] # Only keep errors from qaqc at or after time of qaqc
 
                     if len(error_sta)==1:
                         stations.loc[index, 'Errors_QAQC'] = error_sta['Error'].values[0]
@@ -144,7 +144,7 @@ def qaqc_qa(network):
             if 'N' not in stations['QAQC'].values: # order is important here, if no "N" is present in a qa/qc'd network, it will bark without this
                 print("Station list updated for {} stations that pass QA/QC. All stations pass: {} stations.".format(network, stations['QAQC'].value_counts()['Y']))
             else:
-                print("Station list updated for {} stations that pass QA/QC. {} stations passed QA/QC, {} stations failed QA/QC.".format(network, stations['QAQC'].value_counts()['Y'], stations['QAQC'].value_counts()['N']))
+                print("Station list updated for {} stations that pass QA/QC. {} stations passed QA/QC, {} stations were not QA/QC.".format(network, stations['QAQC'].value_counts()['Y'], stations['QAQC'].value_counts()['N']))
         else:
             print("Station list updated for {} stations. No stations successfully pass QA/QC. {} stations do not yet pass QA/QC.".format(network, stations['QAQC'].value_counts()['N']))
 
@@ -153,7 +153,7 @@ def qaqc_qa(network):
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index = False)
     content = new_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqc_wx+network+"/stationlist_{}_qaqc.csv".format(network))
 
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------

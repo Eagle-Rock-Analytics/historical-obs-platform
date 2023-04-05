@@ -4,12 +4,10 @@ for the Historical Observations Platform.
 """
 
 ## Import Libraries
-from datetime import datetime
-import numpy as np
-import pandas as pd
-import xarray as xr
 import boto3
 import geopandas as gp
+import numpy as np
+import pandas as pd
 
 
 ## Set AWS credentials
@@ -81,13 +79,37 @@ def qaqc_within_wecc(file_to_qaqc):
 
     # latitude
     if (lat_to_check < bbox.miny.values) or (lat_to_check > bbox.maxy.values):
-        file_to_qaqc = None # returns empty df to flag that it does not pass
+        file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
     else:
         file_to_qaqc = file_to_qaqc
 
     # longitude
     if (lon_to_check > bbox.maxx.values) or (lon_to_check < bbox.minx.values):
-        file_to_qaqc = None # returns empty df to flag that it does not pass
+        file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+    else:
+        file_to_qaqc = file_to_qaqc
+
+    return file_to_qaqc
+
+
+def qaqc_elev_demfill(file_to_qaqc):
+    """
+    Checks if elevation is NA/missing. If missing, fill in elevation from DEM.
+    """
+
+    # elevation is nan
+    if file_to_qaqc['elevation'].isnull().values.any() == True:
+        file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+
+        # In-fill if value is missing
+        # try:
+            # dem = rio.open(dem)
+            # dem_array = dem.read(1).astype('float64')
+            # make sure to round off lat-lon values so they are not improbably precise for our needs
+
+        # except:
+            # file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+
     else:
         file_to_qaqc = file_to_qaqc
 
@@ -96,30 +118,21 @@ def qaqc_within_wecc(file_to_qaqc):
 
 def qaqc_elev_check(file_to_qaqc):
     """
-    Checks if elevation is outside of range of reasonable values for WECC region.
-    If elevation is NA/missing, fill in elevation from DEM.
+    Checks if valid elevation value is outside of range of reasonable values for WECC region.
+    If outside range, station is flagged to not proceed through QA/QC.
     """
 
     # death valley is 282 feet (85.9 m) below sea level
-    # do we need a high end value? denali is ~6190 m
-
+    # denali is ~6190 m
     # If value is present but outside of reasonable value range
-    if file_to_qaqc['elevation'].values.any() < -86.0:
-        file_to_qaqc = None # returns empty df to flag that it does not pass
-
-    # In-fill if value is missing
-    # elif file_to_qaqc['elevation'].isnull().values.any() == True: # requires DEM infilling
-    # try:
-        # dem = rio.open(dem)
-        # dem_array = dem.read(1).astype('float64')
-        # make sure to round off lat-lon values so they are not improbably precise for our needs
+    if (file_to_qaqc['elevation'].values.any() < -86.0) or (file_to_qaqc['elevation'].values.any() > 6200.0):
+        file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
 
     # Elevation value is present and within reasonable value range
     else:
         file_to_qaqc = file_to_qaqc
 
     return file_to_qaqc
-
 
 
 #----------------------------------------------------------------------
