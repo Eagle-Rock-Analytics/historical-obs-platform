@@ -144,11 +144,24 @@ def get_cw3e(bucket_name, directory, station = None):
                     days = ftp.nlst()
                     days = [x for x in days if len(x) <= 3] # Filter out other files in folder
                     for l in days:
-                        ftp.cwd(l)
-                        files = ftp.nlst()
-                        for file in files:
-                            ftp_to_aws(ftp, file, directory)
-                        ftp.cwd("../") # go back up one level
+                        try:
+                            ftp.cwd(l)
+                            files = ftp.nlst()
+                            for file in files:
+                                ftp_to_aws(ftp, file, directory)
+                            ftp.cwd("../") # go back up one level
+
+                        except:
+                            try: # attempt to pull the file itself, rename according to CW3E naming convention
+                                ftp_to_aws(ftp, l, directory, rename="{0}{1}{2}.23m".format(i.lower(), k[-2:], l)) # setting to .23m as default here
+                            except Exception as e: # if the file cannot be saved to AWS, just skip and move onto next connection
+                                print("File for {0} day in {1} for {2} cannot be retrieved, please check with CW3E FTP server".format(l, k, i)) # Useful if this occurs for other files
+                                errors['File'].append(i)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append("Error in pulling non-directory file: {}".format(e))
+                                continue
+                            continue
+
                     # Return to working directory
                     ftp.cwd("../") # Go back up one level
                         
@@ -240,13 +253,27 @@ def get_cw3e_update(bucket_name, directory, station = None, start_date = None, e
                         ftp.cwd(k+"/")
                         days = ftp.nlst()
                         days = [x for x in days if len(x) <= 3] # Filter out other files in folder
+
                         for l in days:
                             if int(l) in days_to_download:
-                                ftp.cwd(l)
-                                files = ftp.nlst()
-                                for file in files:
-                                    ftp_to_aws(ftp, file, directory)
-                                ftp.cwd("../") # go back up one level
+                                try:
+                                    ftp.cwd(l)
+                                    files = ftp.nlst()
+                                    for file in files:
+                                        ftp_to_aws(ftp, file, directory)
+                                    ftp.cwd("../") # go back up one level
+
+                                except:
+                                    try: # attempt to pull the file itself, rename according to CW3E naming convention
+                                        ftp_to_aws(ftp, l, directory, rename="{0}{1}{2}.23m".format(i.lower(), k[-2:], l)) # setting to .23m as default here
+                                    except Exception as e: # if the file cannot be saved to AWS, just skip and move onto next connection
+                                        print("File for {0} day in {1} for {2} cannot be retrieved, please check with CW3E FTP server".format(l, k, i)) # Useful if this occurs for other files
+                                        errors['File'].append(i)
+                                        errors['Time'].append(end_api)
+                                        errors['Error'].append("Error in pulling non-directory file: {}".format(e))
+                                        continue
+                                    continue
+
                         # Return to working directory
                         ftp.cwd("../") # Go back up one level
                             
@@ -271,4 +298,16 @@ if __name__ == "__main__":
     get_cw3e_metadata(token = config.token, terrpath = wecc_terr, marpath = wecc_mar, bucket_name = bucket_name, directory = "1_raw_wx/CW3E/")
     # To download all data, run:
     get_cw3e(bucket_name, directory)
+    
+    # To download updated data, run:
+    # get_cw3e_update(bucket_name, directory)
+
+    #-----------------------------------------------------------------------------------------------------------------------------------------
+    # Example uses
+    # Specific station in all data download
+    # ge_cw3e(bucket_name, directory, station=["PVN"])
+
+    # Specific station and start date/end date in update pull
+    # get_cw3e_update(bucket_name, directory, station=["FRC", "WDG"], start_date="2021-01-24", end_date="2021-01-26")
+
     
