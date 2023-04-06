@@ -98,7 +98,7 @@ def qaqc_elev_demfill(file_to_qaqc):
     """
 
     # elevation is nan
-    if file_to_qaqc['elevation'].insull().values.any() == True:
+    if file_to_qaqc['elevation'].insull().any() == True:
 
         if file_to_qaqc['elevation'].isnull().values.all() == True: # all elevation values are reported as nan (some ndbc/maritime)
             # try:  # In-fill if value is missing
@@ -113,6 +113,8 @@ def qaqc_elev_demfill(file_to_qaqc):
 
         # else: 
         #     print('test') # some stations have a single nan reported (some otherisd)
+        #     identify which rows/timestamps have a missing elevation value
+        #     infill from dem
 
     else:
         file_to_qaqc = file_to_qaqc
@@ -137,28 +139,6 @@ def qaqc_elev_check(file_to_qaqc):
         file_to_qaqc = file_to_qaqc
 
     return file_to_qaqc
-
-
-# NDBC and MARITIME only
-def spurious_buoy_check(network, station, file_to_qaqc):
-    """
-    Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
-    If station reports data past disestablishment date, data records are flagged as suspect.
-    If station reports data during buoy dates, data records are flagged as suspect.
-    """
-    buoy_networks = ['NDBC', 'MARITIME']
-    ndbc_buoys_to_check = ['NDBC_46404', 'NDBC_46023', 'NDBC_46041', 'NDBC_46044', 'NDBC_46290', 'NDBC_46030', 'NDBC_46045',
-                           'NDBC_46051', 'NDBC_46062', 'NDBC_46063', 'NDBC_46093', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220',
-                           'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
-    mar_buoys_to_check = ['MARITIME_LPOI1', 'MARITIME_CARO3', 'MARITIME_DMNO3', 'MARITIME_PTAC1', 'MARITIME_TTIW1', 'MARITIME_PTWW1',
-                          'MARITIME_MTYC1', 'MARITIME_MEYC1', 'MARITIME_SMOC1', 'MARITIME_ICAC1']
-
-    if not in buoy_networks:
-        exit()
-    
-    else:
-        if station in ndbc_buoys_to_check or station in mar_buoys_to_check:
-            print('{0} is flagged as spurious, checking for coverage'.format(station))
 
 
 

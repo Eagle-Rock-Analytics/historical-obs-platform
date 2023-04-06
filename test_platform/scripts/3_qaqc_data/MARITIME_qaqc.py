@@ -61,26 +61,31 @@ def spurious_buoy_check(station, ds):
                           'MARITIME_MTYC1', 'MARITIME_MEYC1', 'MARITIME_SMOC1', 'MARITIME_ICAC1']
 
     if station in ndbc_buoys_to_check or station in mar_buoys_to_check:
-        print('{0} is flagged as spurious, checking for coverage'.format(station))
+        print('{0} is flagged as spurious, checking for coverage data'.format(station))
 
         # buoys with "data" past their disestablishment dates
         if station == 'NDBC_46023': # disestablished 9/8/2010
-
+            # flag timestamps all vars after 9/8/2010
+            
         if station == "NDBC_46045": # disestablished 11/1997
+            # flag timestamps all vars after 11/1997
             
         if station == "NDBC_46051": # disestablished 4/1996
+            # flag timestamps all vars after 4/1996
 
-        if station == "MARITIME_PTAC1": # data currently avaialble 1984-2012, but disestablished 2/9/2022
-            # only flag if new data is added after 2012
+        if station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
+            # only flag if new data is added after 2022
 
         if station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
-            # only wind vars need flag
+            # only wind vars need flag during "day" hours (6am - 8pm? or flag all hours)
 
         if station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
             # modify attribute/naming with note
+            # this will get flagged in station proximity tests
 
-        if station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was potentially renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
+        if station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
             # modify attribute/naming with note
+            # this will get flagged in station proximity tests
 
 
     else: # station is not spurious, move on
@@ -136,11 +141,20 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj, engine='h5netcdf') # FLAG CHECK THE ENGINE HERE
+                        ds = xr.open_dataset(fileObj, engine='h5netcdf') # CHECK THE ENGINE HERE
                         stn_to_qaqc = ds.to_dataframe()
                         print(stn_to_qaqc.head()) # testing
 
-                        ## Lat-lon
+                        ## Add qc_flag variable for all variables, including elevation
+                        exclude_qaqc = ["time", "station", "lat", "lon"] # lat and lon have a different qc check
+                        qc_vars = []
+                        for var in ds.variables:
+                            if var not in exclude_qaqc:
+                                qa_var = var + "_qc"
+                                qc_vars.append(qa_var)
+                                ds[qa_var] = xr.full_like(ds[var], np.nan)
+
+                        ## Lat-lon -- does not proceed through qaqc if fails
                         stn_to_qaqc = qaqc_missing_latlon(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{} has a missing lat-lon, skipping'.format(station)) # testing
@@ -149,7 +163,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Missing lat or lon, skipping qa/qc.')
                             continue # skipping station
 
-                        ## Within WECC
+                        ## Within WECC -- does not proceed through qaqc if fails
                         stn_to_qaqc = qaqc_within_wecc(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{} lat-lon is out of range for WECC, skipping'.format(station)) # testing
@@ -162,7 +176,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
                             print('This station reports a NaN for elevation, infilling from DEM')
-                            continue
+                            if stn_to_qaqc["elevation"].isnull().all() == True:
+                                stn_to_qaqc['elevation_qc'] = stn_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
+                            # continue
 
                         stn_to_qaqc = qaqc_elev_check(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -225,6 +241,7 @@ if __name__ == "__main__":
 
 # To do:
 # flag as attribute?  only files that pass get saved?
+# add flag variable, reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
 # delete testing notes
