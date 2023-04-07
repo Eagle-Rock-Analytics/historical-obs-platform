@@ -12,7 +12,7 @@ Outputs: QA/QC-processed data for an individual network, priority variables, all
 # Step 0: Environment set-up
 # Import libraries
 import os
-from datetime import datetime
+import datetime
 # import numpy as np
 import pandas as pd
 import xarray as xr
@@ -48,48 +48,80 @@ bucket_name = "wecc-historical-wx"
 
 
 # NDBC and MARITIME only
-def spurious_buoy_check(station, ds):
+def spurious_buoy_check(station, df, qc_vars):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
     If station reports data during buoy dates, data records are flagged as suspect.
     """
-    ndbc_buoys_to_check = ['NDBC_46404', 'NDBC_46023', 'NDBC_46041', 'NDBC_46044', 'NDBC_46290', 'NDBC_46030', 'NDBC_46045',
-                           'NDBC_46051', 'NDBC_46062', 'NDBC_46063', 'NDBC_46093', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220',
-                           'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
-    mar_buoys_to_check = ['MARITIME_LPOI1', 'MARITIME_CARO3', 'MARITIME_DMNO3', 'MARITIME_PTAC1', 'MARITIME_TTIW1', 'MARITIME_PTWW1',
-                          'MARITIME_MTYC1', 'MARITIME_MEYC1', 'MARITIME_SMOC1', 'MARITIME_ICAC1']
+    known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
+                    'MARITIME_SMOC1', 'MARITIME_ICAC1']
+    potential_issues = ['NDBC_46290', 'NDBC_46404', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220', 'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 
+                        'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
 
-    if station in ndbc_buoys_to_check or station in mar_buoys_to_check:
-        print('{0} is flagged as spurious, checking for coverage data'.format(station))
+    if station in known_issues:
+        print('{0} is flagged as suspect, checking data coverage'.format(station))
 
         # buoys with "data" past their disestablishment dates
         if station == 'NDBC_46023': # disestablished 9/8/2010
-            # flag timestamps all vars after 9/8/2010
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(2010, 9, 9)) == True:
+                        df.loc[df.index[i], j] = "DS" # DISESTABLISHMENT FLAG?
+                        # df.loc[df.index[i], 'ps_qc'] = "DS" # format
             
-        if station == "NDBC_46045": # disestablished 11/1997
-            # flag timestamps all vars after 11/1997
-            
-        if station == "NDBC_46051": # disestablished 4/1996
-            # flag timestamps all vars after 4/1996
+        elif station == "NDBC_46045": # disestablished 11/1997
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(1997, 12, 1)) == True:
+                        df.loc[df.index[i], j] = "DS"
 
-        if station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
-            # only flag if new data is added after 2022
+        elif station == "NDBC_46051": # disestablished 4/1996
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(1996, 5, 1)) == True:
+                        df.loc[df.index[i], j] = "DS"
 
-        if station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
+        elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
+            # only flag if new data is added after 2022 in a new data pull
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(2022, 2, 9)) == True:
+                        df.loc[df.index[i], j] = "DS"
+
+        # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
+        elif station == "NDBC_46044":
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1] >= datetime.datetime(2015, 5, 2, 10, 40, 0)) and (df.index[i][-1] <= datetime.datetime(2015, 5, 3, 15, 50, 0)):
+                        df.loc[df.index[i], j] = "AD" # ADRIFT FLAG?
+
+        # other known issues
+        elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours (6am - 8pm? or flag all hours)
+            for i in range(df.shape[0]):
+                if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
+                    df.loc[df.index[i], "sfcWind_qc"] = "SUS" # SUSPECT FLAG?
+                    df.loc[df.index[i], "sfcWind_dir_qc"] = "SUS"
 
-        if station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
-            # modify attribute/naming with note
-            # this will get flagged in station proximity tests
+        # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
+        #     # modify attribute/naming with note
+        #     # this will get flagged in station proximity tests
 
-        if station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
-            # modify attribute/naming with note
-            # this will get flagged in station proximity tests
+        # elif station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
+        #     # modify attribute/naming with note
+        #     # this will get flagged in station proximity tests
 
+        return df
 
-    else: # station is not spurious, move on
-        exit()
+    elif station in potential_issues: 
+        # other stations have partial coverage of their full data records as well as disestablishment dates
+        # if new data is added in the future, needs a manual check and added to known issue list if requires handling
+        # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
+        print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
+
+    else: # station is not suspicious, move on
+        return df
 
 
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
@@ -97,8 +129,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
-    end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv
-    timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
+    end_api = datetime.datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv
+    timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
 
     try:
         files = [] # Get files
@@ -123,7 +155,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
+        # for station in stations.sample(5): # TESTING SUBSET
+        for station in ["46023", "46044", "46045", "46051"]:
             station = network + "_" + station
             file_name = cleandir+station+".nc"
 
@@ -145,19 +178,19 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         stn_to_qaqc = ds.to_dataframe()
                         print(stn_to_qaqc.head()) # testing
 
-                        ## Add qc_flag variable for all variables, including elevation
+                        ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
                         exclude_qaqc = ["time", "station", "lat", "lon"] # lat and lon have a different qc check
-                        qc_vars = []
+                        qc_vars = [] # qc_variable for each data variable, will vary station to station
                         for var in ds.variables:
                             if var not in exclude_qaqc:
-                                qa_var = var + "_qc"
+                                qa_var = var + "_qc" # variable/column label
                                 qc_vars.append(qa_var)
-                                ds[qa_var] = xr.full_like(ds[var], np.nan)
+                                ds[qa_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
 
                         ## Lat-lon -- does not proceed through qaqc if fails
                         stn_to_qaqc = qaqc_missing_latlon(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
-                            print('{} has a missing lat-lon, skipping'.format(station)) # testing
+                            print('{0} has a missing lat-lon, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Missing lat or lon, skipping qa/qc.')
@@ -166,26 +199,37 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         ## Within WECC -- does not proceed through qaqc if fails
                         stn_to_qaqc = qaqc_within_wecc(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
-                            print('{} lat-lon is out of range for WECC, skipping'.format(station)) # testing
+                            print('{0} lat-lon is out of range for WECC, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Latitude or Longitude out of range for WECC, skipping qa/qc')
                             continue # skipping station
 
                         ## Elevation
-                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
-                        if len(stn_to_qaqc.index) == 0:
-                            print('This station reports a NaN for elevation, infilling from DEM')
-                            if stn_to_qaqc["elevation"].isnull().all() == True:
-                                stn_to_qaqc['elevation_qc'] = stn_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
-                            # continue
+                        # stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
+                        # if len(stn_to_qaqc.index) == 0:
+                        #     print('This station reports a NaN for elevation, infilling from DEM')
+                        #     if stn_to_qaqc["elevation"].isnull().all() == True:
+                        #         stn_to_qaqc['elevation_qc'] = stn_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
+                        #     # continue
 
-                        stn_to_qaqc = qaqc_elev_check(stn_to_qaqc)
-                        if len(stn_to_qaqc.index) == 0:
-                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                        # stn_to_qaqc = qaqc_elev_check(stn_to_qaqc)
+                        # if len(stn_to_qaqc.index) == 0:
+                        #     print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                        #     errors['File'].append(station)
+                        #     errors['Time'].append(end_api)
+                        #     errors['Error'].append('Elevation out of range for WECC, skippinig qa/qc')
+                        #     continue # skipping station
+
+                        ## Buoys with known issues with specific qaqc flags
+                        qc_vars.remove("elevation_qc") # remove elevation_qc var from remainder of analyses so it does not also get flagged
+                        try:
+                            stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, qc_vars)
+                        except Exception as e:
+                            print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Elevation out of range for WECC, skippinig qa/qc')
+                            errors['Error'].append('Error in spurious_buoy_check, skipping qa/qc: {0}'.format(e))
                             continue # skipping station
 
                 except Exception as e:
@@ -194,12 +238,22 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                     errors['Time'].append(end_api)
                     errors['Error'].append("Cannot read files in from AWS: {}".format(e))
                         
+
+
+                # last step is to reassign df back to xarray object
                 print("{} passes qa/qc round 1".format(station)) # testing
+
+                # Sort by time and remove any overlapping timesteps
+                stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
+                stn_to_qaqc = stn_to_qaqc.drop_duplicates()
+                ds = stn_to_qaqc.to_xarray()
+
                 # Update global attributes
                 ds = ds.assign_attrs(title = network+" quality controlled")
                 ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
                 ds = ds.assign_attrs(comment = 'Intermediate data product: may not have been subject to any cleaning or QA/QC processing.') # do we modify this now?
 
+                ## Do i need to reassign attributes from cleaning stage here?
 
                 # Write station file to netcdf format
                 try:
