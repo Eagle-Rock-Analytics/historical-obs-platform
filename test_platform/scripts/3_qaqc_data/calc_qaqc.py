@@ -98,9 +98,9 @@ def qaqc_elev_demfill(file_to_qaqc):
     """
 
     # elevation is nan
-    if file_to_qaqc['elevation'].insull().any() == True:
-
+    if file_to_qaqc['elevation'].isnull().any() == True: 
         if file_to_qaqc['elevation'].isnull().values.all() == True: # all elevation values are reported as nan (some ndbc/maritime)
+            file_to_qaqc['elevation_qc'] = file_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
             # try:  # In-fill if value is missing
                 # dem = rio.open(dem)
                 # dem_array = dem.read(1).astype('float64')
@@ -108,8 +108,9 @@ def qaqc_elev_demfill(file_to_qaqc):
 
             # except:
                 # file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
-
-            file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+            print('This station reports a NaN for elevation, infilling from DEM -- in progress')
+            file_to_qaqc = file_to_qaqc
+            # file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
 
         # else: 
         #     print('test') # some stations have a single nan reported (some otherisd)
@@ -122,7 +123,7 @@ def qaqc_elev_demfill(file_to_qaqc):
     return file_to_qaqc
 
 
-def qaqc_elev_check(file_to_qaqc):
+def qaqc_elev_range(file_to_qaqc):
     """
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
@@ -130,6 +131,7 @@ def qaqc_elev_check(file_to_qaqc):
 
     # death valley is 282 feet (85.9 m) below sea level
     # denali is ~6190 m
+
     # If value is present but outside of reasonable value range
     if (file_to_qaqc['elevation'].values.any() < -86.0) or (file_to_qaqc['elevation'].values.any() > 6200.0):
         file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass

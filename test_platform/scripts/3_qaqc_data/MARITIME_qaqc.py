@@ -17,7 +17,6 @@ import datetime
 import pandas as pd
 import xarray as xr
 import boto3
-# from random import sample
 import s3fs
 from io import BytesIO, StringIO
 
@@ -43,8 +42,6 @@ s3_cl = boto3.client('s3') # for lower-level processes
 
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-# wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-# wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 
 # NDBC and MARITIME only
@@ -54,13 +51,13 @@ def spurious_buoy_check(station, df, qc_vars):
     If station reports data past disestablishment date, data records are flagged as suspect.
     If station reports data during buoy dates, data records are flagged as suspect.
     """
-    known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
+    known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'NDBC_46044', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
                     'MARITIME_SMOC1', 'MARITIME_ICAC1']
     potential_issues = ['NDBC_46290', 'NDBC_46404', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220', 'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 
                         'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
-
+                        
     if station in known_issues:
-        print('{0} is flagged as suspect, checking data coverage'.format(station))
+        print('{0} is flagged as suspect, checking data coverage'.format(station)) # testing
 
         # buoys with "data" past their disestablishment dates
         if station == 'NDBC_46023': # disestablished 9/8/2010
@@ -111,7 +108,6 @@ def spurious_buoy_check(station, df, qc_vars):
         # elif station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
         #     # modify attribute/naming with note
         #     # this will get flagged in station proximity tests
-
         return df
 
     elif station in potential_issues: 
@@ -119,6 +115,7 @@ def spurious_buoy_check(station, df, qc_vars):
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
+        # complete this...
 
     else: # station is not suspicious, move on
         return df
@@ -145,7 +142,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         stations = station_file['STATION_ID'].dropna()
 
         files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
-        print('Number of cleaned files for testing: ', len(files)) # testing
 
     except Exception as e:
         print(e) # testing
@@ -155,8 +151,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        # for station in stations.sample(5): # TESTING SUBSET
-        for station in ["46023", "46044", "46045", "46051"]:
+        for station in stations.sample(5): # TESTING SUBSET
+        # for station in ["46023", "46044", "46045", "46051"]: # known issues, 3 have nan elevations = good for testing
             station = network + "_" + station
             file_name = cleandir+station+".nc"
 
@@ -175,106 +171,111 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                     with fs.open(aws_url) as fileObj:
                         ds = xr.open_dataset(fileObj, engine='h5netcdf') # CHECK THE ENGINE HERE
-                        stn_to_qaqc = ds.to_dataframe()
-                        print(stn_to_qaqc.head()) # testing
 
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
-                        exclude_qaqc = ["time", "station", "lat", "lon"] # lat and lon have a different qc check
+                        exclude_qaqc = ["time", "station", "lat", "lon", "q_code"] # lat and lon have a different qc check
                         qc_vars = [] # qc_variable for each data variable, will vary station to station
                         for var in ds.variables:
                             if var not in exclude_qaqc:
                                 qa_var = var + "_qc" # variable/column label
                                 qc_vars.append(qa_var)
                                 ds[qa_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
+                                                
+                        stn_to_qaqc = ds.to_dataframe()
 
-                        ## Lat-lon -- does not proceed through qaqc if fails
+                        ## QAQC Functions
+                        ## Lat-lon -- does not proceed through qaqc if failure
                         stn_to_qaqc = qaqc_missing_latlon(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{0} has a missing lat-lon, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Missing lat or lon, skipping qa/qc.')
+                            errors['Error'].append('Failure on qaqc_missing_latlon')
                             continue # skipping station
+                        print('pass qaqc_missing_latlon') #testing
 
-                        ## Within WECC -- does not proceed through qaqc if fails
+                        ## Within WECC -- does not proceed through qaqc if failure
                         stn_to_qaqc = qaqc_within_wecc(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{0} lat-lon is out of range for WECC, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Latitude or Longitude out of range for WECC, skipping qa/qc')
+                            errors['Error'].append('Failure on qaqc_within_wecc')
                             continue # skipping station
+                        print('pass qaqc_within_wecc') #testing
 
-                        ## Elevation
-                        # stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
-                        # if len(stn_to_qaqc.index) == 0:
-                        #     print('This station reports a NaN for elevation, infilling from DEM')
-                        #     if stn_to_qaqc["elevation"].isnull().all() == True:
-                        #         stn_to_qaqc['elevation_qc'] = stn_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
-                        #     # continue
-
-                        # stn_to_qaqc = qaqc_elev_check(stn_to_qaqc)
-                        # if len(stn_to_qaqc.index) == 0:
-                        #     print('{} elevation out of range for WECC, skipping'.format(station)) # testing
-                        #     errors['File'].append(station)
-                        #     errors['Time'].append(end_api)
-                        #     errors['Error'].append('Elevation out of range for WECC, skippinig qa/qc')
-                        #     continue # skipping station
 
                         ## Buoys with known issues with specific qaqc flags
-                        qc_vars.remove("elevation_qc") # remove elevation_qc var from remainder of analyses so it does not also get flagged
+                        qc_vars.remove("elevation_qc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
                         try:
                             stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, qc_vars)
+
                         except Exception as e:
                             print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Error in spurious_buoy_check, skipping qa/qc: {0}'.format(e))
-                            continue # skipping station
+                            errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
+                            # continue # skipping station
+                        print('pass spurious_buoy_check') #testing
+
+
+                        ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
+                        if len(stn_to_qaqc.index) == 0:
+                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_elev_range')
+                        print('pass qaqc_elev_range') # testing
+
+                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
+                        if len(stn_to_qaqc.index) == 0:
+                            print('DEM in-filling failure message here - in progress')
+                            # continue
+
+                        print(stn_to_qaqc)
+
 
                 except Exception as e:
-                    print(e) # testing
+                    # print(e) # testing
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("Cannot read files in from AWS: {}".format(e))
+                    errors['Error'].append("Cannot read files in from AWS: {0}".format(e))
                         
 
 
                 # last step is to reassign df back to xarray object
-                print("{} passes qa/qc round 1".format(station)) # testing
-
                 # Sort by time and remove any overlapping timesteps
-                stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
-                stn_to_qaqc = stn_to_qaqc.drop_duplicates()
-                ds = stn_to_qaqc.to_xarray()
+                # stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
+                # stn_to_qaqc = stn_to_qaqc.drop_duplicates()
+                # ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
                 ds = ds.assign_attrs(title = network+" quality controlled")
                 ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
                 ds = ds.assign_attrs(comment = 'Intermediate data product: may not have been subject to any cleaning or QA/QC processing.') # do we modify this now?
+                ## need to reassign attributes from cleaning stage here? -- check
 
-                ## Do i need to reassign attributes from cleaning stage here?
+                # # Write station file to netcdf format
+                # try:
+                #     filename = station + ".nc" # Make file name
+                #     filepath = qaqcdir + filename # Writes file path
 
-                # Write station file to netcdf format
-                try:
-                    filename = station + ".nc" # Make file name
-                    filepath = qaqcdir + filename # Writes file path
+                #     # Write locally
+                #     ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
-                    # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
+                #     # Push file to AWS with correct file name
+                #     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
-                    # Push file to AWS with correct file name
-                    s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
+                #     print('Saving {} with dims {}'.format(filename, ds.dims))
+                #     ds.close() # Close dataframe
 
-                    print('Saving {} with dims {}'.format(filename, ds.dims))
-                    ds.close() # Close dataframe
-
-                except Exception as e:
-                    print(filename, e)
-                    errors['File'].append(filename)
-                    errors['Time'].append(end_api)
-                    errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
-                    continue
+                # except Exception as e:
+                #     print(filename, e)
+                #     errors['File'].append(filename)
+                #     errors['Time'].append(end_api)
+                #     errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
+                #     continue
 
     # Write errors to csv
     finally:
@@ -290,7 +291,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 if __name__ == "__main__":
     network = "NDBC"
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    print(cleandir, qaqcdir) # testing
     whole_station_qaqc(network, cleandir, qaqcdir)
 
 # To do:
