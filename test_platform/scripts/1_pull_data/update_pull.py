@@ -13,7 +13,7 @@ from CIMIS_pull import get_cimis_update_ftp
 from HADS_pull import get_hads_update
 from MARITIME_pull import get_maritime_update, get_maritime_station_ids
 from MADIS_pull import madis_update
-from pull_qa import retry_downloads
+from stnlist_update_pull import retry_downloads
 import boto3
 import config
 import pandas as pd
