@@ -253,7 +253,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 # Update global attributes
                 ds = ds.assign_attrs(title = network+" quality controlled")
                 ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
-                ds = ds.assign_attrs(comment = 'Intermediate data product: may not have been subject to any cleaning or QA/QC processing.') # do we modify this now?
+                ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
                 ## need to reassign attributes from cleaning stage here? -- check
 
                 # # Write station file to netcdf format
