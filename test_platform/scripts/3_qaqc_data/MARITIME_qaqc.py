@@ -95,11 +95,11 @@ def spurious_buoy_check(station, df, qc_vars):
 
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
-            # only wind vars need flag during "day" hours (6am - 8pm? or flag all hours)
+            # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             for i in range(df.shape[0]):
                 if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
-                    df.loc[df.index[i], "sfcWind_qc"] = "SUS" # SUSPECT FLAG?
-                    df.loc[df.index[i], "sfcWind_dir_qc"] = "SUS"
+                    df.loc[df.index[i], "sfcWind_qc"] = "1" 
+                    df.loc[df.index[i], "sfcWind_dir_qc"] = "1"
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
