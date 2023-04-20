@@ -8,6 +8,8 @@ import boto3
 import geopandas as gp
 import numpy as np
 import pandas as pd
+import requests
+import urllib
 
 
 ## Set AWS credentials
@@ -44,6 +46,7 @@ def get_wecc_poly(terrpath, marpath):
 
 #----------------------------------------------------------------------
 ## Part 1 functions (whole station/network)
+
 ## missing spatial coords (lat-lon)
 def qaqc_missing_latlon(file_to_qaqc):
     """
@@ -64,7 +67,6 @@ def qaqc_missing_latlon(file_to_qaqc):
         file_to_qaqc = file_to_qaqc
 
     return file_to_qaqc
-
 
 ## in bounds of WECC
 def qaqc_within_wecc(file_to_qaqc):
@@ -92,30 +94,69 @@ def qaqc_within_wecc(file_to_qaqc):
     return file_to_qaqc
 
 ## elevation
+def _grab_dem_elev_m(file_to_qaqc):
+    """
+    Modified from: https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
+    """
+    # for USGS EPQS, lat lon must be in decimal degrees (which it is after cleaning)
+    lat_to_check = file_to_qaqc['lat'].iloc[0]
+    lon_to_check = file_to_qaqc['lon'].iloc[0]
+
+    # USGS Elevation Point Query Service
+    url = r'https://epqs.nationalmap.gov/v1/json?'
+
+    # define rest query params
+    params = {
+        'output': 'json',
+        'x': lon_to_check,
+        'y': lat_to_check,
+        'units': 'Meters'
+    }
+
+    # format query string and return value
+    result = requests.get((url + urllib.parse.urlencode(params)))
+    dem_elev_long = float(result.json()['value'])
+    dem_elev_short = '{:.2f}'.format(dem_elev_long) # make sure to round off lat-lon values so they are not improbably precise for our needs
+
+    return dem_elev_short
+
+
 def qaqc_elev_demfill(file_to_qaqc):
     """
     Checks if elevation is NA/missing. If missing, fill in elevation from DEM.
+    Some stations have all nan elevation values (e.g., NDBC, MARITIME)
+    Some stations have single/few but not all nan elevation values (e.g., otherisd)
     """
 
-    # elevation is nan
+    # first check to see if any elev value is missing
     if file_to_qaqc['elevation'].isnull().any() == True: 
+        print('This station reports a NaN for elevation, infilling from DEM')
+
         if file_to_qaqc['elevation'].isnull().values.all() == True: # all elevation values are reported as nan (some ndbc/maritime)
-            file_to_qaqc['elevation_qc'] = file_to_qaqc["elevation_qc"].fillna("E")   ## FLAG FOR DEM FILLED VALUE
-            # try:  # In-fill if value is missing
-                # dem = rio.open(dem)
-                # dem_array = dem.read(1).astype('float64')
-                # make sure to round off lat-lon values so they are not improbably precise for our needs
+            file_to_qaqc['elevation_qc'] = file_to_qaqc["elevation_qc"].fillna("2")   ## QC FLAG FOR DEM FILLED VALUE
+            try:  # In-fill if value is missing
+               dem_elev_value = _grab_dem_elev_m(file_to_qaqc)
+               file_to_qaqc['elevation'] = file_to_qaqc['elevation'].fillna(dem_elev_value) # infill dem value
 
-            # except:
-                # file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
-            print('This station reports a NaN for elevation, infilling from DEM -- in progress')
-            file_to_qaqc = file_to_qaqc
-            # file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+            except: # elevation cannot be obtained from DEM
+                file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
 
-        # else: 
-        #     print('test') # some stations have a single nan reported (some otherisd)
-        #     identify which rows/timestamps have a missing elevation value
-        #     infill from dem
+        else: # some stations have a single/few nan reported (some otherisd stations) -- come back to in other network testing (use clean_master_station_list!)
+            print('this station has a missing elevation, but not all -- in progress') # dummy flag message to note which stations this occurs for focused testing
+            dem_elev_value = _grab_dem_elev_m(file_to_qaqc)
+            print(dem_elev_value) # testing
+            try:
+                ## THIS NEEDS TO BE TESTED AND CONFIRMED
+                for i in range(file_to_qaqc.shape[0]):       
+                    if file_to_qaqc['elevation'] == np.nan: #  identify which rows/timestamps have a missing elevation value
+                        file_to_qaqc.loc[file_to_qaqc.index[i], 'elevation'] = dem_elev_value
+
+                        ## notes:
+                        ## need to assess what the values before and after the infilled value are and confirm that they match + sig figs
+                        ## can alternatively, grab those values instead for consistency, rather than infilling
+            
+            except:
+                file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
 
     else:
         file_to_qaqc = file_to_qaqc
