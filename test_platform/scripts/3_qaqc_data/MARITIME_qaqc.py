@@ -139,7 +139,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         station_file = [file for file in files if 'stationlist_' in file]
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj['Body'].read()))
-        stations = station_file['STATION_ID'].dropna()
+        stations = station_file['ERA-ID'].dropna()
 
         files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
 
@@ -153,7 +153,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         # for station in stations: # full run
         for station in stations.sample(5): # TESTING SUBSET
         # for station in ["46023", "46044", "46045", "46051"]: # known issues, 3 have nan elevations = good for testing
-            station = network + "_" + station
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -230,8 +229,11 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                         stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
-                            print('DEM in-filling failure message here - in progress')
-                            # continue
+                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
+                            continue # skipping
 
                         print(stn_to_qaqc)
 
