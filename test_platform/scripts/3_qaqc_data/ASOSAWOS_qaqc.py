@@ -75,7 +75,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
     else: # if files successfully read in
         # for station in stations: # full run
         # for station in stations.sample(5): # TESTING SUBSET
-        for station in ['ASOSAWOS_72366303012', 'ASOSAWOS_72479723176']: # first station has "bad" elevation value -- is this a qc flag
+        for station in ['ASOSAWOS_72479723176']: #  station has a single "bad" elevation value!!
+
+            ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
 
             file_name = cleandir+station+".nc"
 

@@ -121,16 +121,18 @@ def _grab_dem_elev_m(file_to_qaqc):
     return dem_elev_short
 
 
-def qaqc_elev_demfill(file_to_qaqc):
+def qaqc_elev_infill(file_to_qaqc):
     """
-    Checks if elevation is NA/missing. If missing, fill in elevation from DEM.
+    Checks if elevation is NA/missing. If missing, fill in elevation from either DEM or station.
     Some stations have all nan elevation values (e.g., NDBC, MARITIME)
-    Some stations have single/few but not all nan elevation values (e.g., otherisd)
+    Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
 
     # first check to see if any elev value is missing
     if file_to_qaqc['elevation'].isnull().any() == True: 
         print('This station reports a NaN for elevation, infilling from DEM')
+
+        # might be better to check for consistency first -- COME TO THIS FIRST
 
         if file_to_qaqc['elevation'].isnull().values.all() == True: # all elevation values are reported as nan (some ndbc/maritime)
             file_to_qaqc['elevation_qc'] = file_to_qaqc["elevation_qc"].fillna("2")   ## QC FLAG FOR DEM FILLED VALUE
@@ -141,7 +143,21 @@ def qaqc_elev_demfill(file_to_qaqc):
             except: # elevation cannot be obtained from DEM
                 file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
 
-        else: # some stations have a single/few nan reported (some otherisd stations) -- come back to in other network testing (use clean_master_station_list!)
+
+        else: # some stations have a single/few nan reported (some otherisd/asosawos stations)
+            ## process:
+            ## does elevation value change over time?
+                ## if elev changes over time, and lat/lon also change (station has moved)
+                    ## infill missing values from DEM
+                ## if elev changes over time, but lat and lon do not (station has not moved)
+                    ## infill missing values from station value
+
+            ## consistency check
+                ## if elevation value is significantly different than "normal"
+                    ## changes between 0 and 1500m (example), but not nan
+                        ## check lat lon value from DEM
+                            ## if DEM does not report 0 elevation, replace 0 values with station value
+
             print('this station has a missing elevation, but not all -- in progress') # dummy flag message to note which stations this occurs for focused testing
             dem_elev_value = _grab_dem_elev_m(file_to_qaqc)
             print(dem_elev_value) # testing
@@ -154,6 +170,9 @@ def qaqc_elev_demfill(file_to_qaqc):
                         ## notes:
                         ## need to assess what the values before and after the infilled value are and confirm that they match + sig figs
                         ## can alternatively, grab those values instead for consistency, rather than infilling
+
+
+
             
             except:
                 file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass

@@ -1,3 +1,4 @@
 ﻿Flag_value,Flag_meaning
 1,Suspect
-2,Elevation infilled from DEM
+2,Elevation infilled from DEM (USGS 3DEP)
+3,Elevation infilled from station
