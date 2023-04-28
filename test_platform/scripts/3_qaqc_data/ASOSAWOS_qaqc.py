@@ -98,14 +98,19 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         ds = xr.open_dataset(fileObj, engine='h5netcdf') # CHECK THE ENGINE HERE
 
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
-                        exclude_qaqc = ["time", "station", "lat", "lon", "q_code"] # lat and lon have a different qc check
-                        qc_vars = [] # qc_variable for each data variable, will vary station to station
+                        exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
+                        raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
+
                         for var in ds.variables:
-                            if var not in exclude_qaqc:
-                                qa_var = var + "_qc" # variable/column label
-                                qc_vars.append(qa_var)
-                                ds[qa_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
-                                                
+                             if '_qc' in var:
+                                  raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
+
+                        for var in ds.variables:
+                            if var not in exclude_qaqc and var not in raw_qc_vars:
+                                qc_var = var + "_qc" # variable/column label
+                                # qc_vars.append(qa_var)
+                                ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
+                                                   
                         stn_to_qaqc = ds.to_dataframe()
 
                         ## QAQC Functions

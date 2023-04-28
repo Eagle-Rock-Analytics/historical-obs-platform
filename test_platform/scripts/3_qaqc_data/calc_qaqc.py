@@ -94,15 +94,12 @@ def qaqc_within_wecc(file_to_qaqc):
     return file_to_qaqc
 
 ## elevation
-def _grab_dem_elev_m(file_to_qaqc):
+def _grab_dem_elev_m(lat_to_check, lon_to_check):
     """
+    Pulls elevation value from the USGS Elevation Point Query Service, lat lon must be in decimal degrees (which it is after cleaning)
     Modified from: https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
     """
-    # for USGS EPQS, lat lon must be in decimal degrees (which it is after cleaning)
-    lat_to_check = file_to_qaqc['lat'].iloc[0]
-    lon_to_check = file_to_qaqc['lon'].iloc[0]
 
-    # USGS Elevation Point Query Service
     url = r'https://epqs.nationalmap.gov/v1/json?'
 
     # define rest query params
@@ -121,69 +118,72 @@ def _grab_dem_elev_m(file_to_qaqc):
     return dem_elev_short
 
 
-def qaqc_elev_infill(file_to_qaqc):
+def qaqc_elev_infill(df):
     """
     Checks if elevation is NA/missing. If missing, fill in elevation from either DEM or station.
     Some stations have all nan elevation values (e.g., NDBC, MARITIME)
     Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
 
+    # create "change" column to check that lat-lon has not changed over time
+    df['lat_change'] = df['lat'].shift() != df['lat']
+    df['lon_change'] = df['lon'].shift() != df['lon']
+
     # first check to see if any elev value is missing
-    if file_to_qaqc['elevation'].isnull().any() == True: 
-        print('This station reports a NaN for elevation, infilling from DEM')
+    if df['elevation'].isnull().any() == True: 
+        print('This station reports a NaN for elevation, infilling from DEM') # testing
 
-        # might be better to check for consistency first -- COME TO THIS FIRST
-
-        if file_to_qaqc['elevation'].isnull().values.all() == True: # all elevation values are reported as nan (some ndbc/maritime)
-            file_to_qaqc['elevation_qc'] = file_to_qaqc["elevation_qc"].fillna("2")   ## QC FLAG FOR DEM FILLED VALUE
+        # all elevation values are reported as nan (some ndbc/maritime)
+        if df['elevation'].isnull().values.all() == True: 
             try:  # In-fill if value is missing
-               dem_elev_value = _grab_dem_elev_m(file_to_qaqc)
-               file_to_qaqc['elevation'] = file_to_qaqc['elevation'].fillna(dem_elev_value) # infill dem value
+
+                # check to see if lat or lon has changed
+                if (df['lat_change'][1:].any() == True) or (df['lon_change'][1:].any() == True): # lat or lon has shifted, run through all idxs
+                    for i in range(df.shape[0]):
+                        dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i]) # infill dem value
+                        df.loc[df.index[i], 'elevation'] = dem_elev_value
+                        df.loc[df.index[i], 'elevation_eraqc'] = '3'    ## QC FLAG FOR DEM FILLED VALUE
+
+                else: # lat or lon has not changed, can infill all from iloc[0]
+                    dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
+                    df['elevation'] = df['elevation'].fillna(dem_elev_value) 
+                    df['elevation_qc'] = df["elevation_qc"].fillna('3')   
 
             except: # elevation cannot be obtained from DEM
-                file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+                df = pd.DataFrame() # returns empty df to flag that it does not pass
 
 
-        else: # some stations have a single/few nan reported (some otherisd/asosawos stations)
-            ## process:
-            ## does elevation value change over time?
-                ## if elev changes over time, and lat/lon also change (station has moved)
-                    ## infill missing values from DEM
-                ## if elev changes over time, but lat and lon do not (station has not moved)
-                    ## infill missing values from station value
-
-            ## consistency check
-                ## if elevation value is significantly different than "normal"
-                    ## changes between 0 and 1500m (example), but not nan
-                        ## check lat lon value from DEM
-                            ## if DEM does not report 0 elevation, replace 0 values with station value
-
+        # some stations have a single/few nan reported (some otherisd/asosawos stations)
+        else: 
             print('this station has a missing elevation, but not all -- in progress') # dummy flag message to note which stations this occurs for focused testing
-            dem_elev_value = _grab_dem_elev_m(file_to_qaqc)
-            print(dem_elev_value) # testing
-            try:
-                ## THIS NEEDS TO BE TESTED AND CONFIRMED
-                for i in range(file_to_qaqc.shape[0]):       
-                    if file_to_qaqc['elevation'] == np.nan: #  identify which rows/timestamps have a missing elevation value
-                        file_to_qaqc.loc[file_to_qaqc.index[i], 'elevation'] = dem_elev_value
 
-                        ## notes:
-                        ## need to assess what the values before and after the infilled value are and confirm that they match + sig figs
-                        ## can alternatively, grab those values instead for consistency, rather than infilling
-
-
-
-            
-            except:
-                file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+            # if elev changes (is nan) over time, and lat/lon also change (station has moved)
+            for i in range(df.shape[0]):
+                try:
+                    if df['elevation'].iloc[i] != df['elevation'].iloc[0]: # elevation value has changed over time
+                        if (df['lat_change'][1:].any() == True) or (df['lon_change'][1:].any() == True): # lat and lon have changed -- pull from dem
+                            elev_to_fill = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
+                            df.loc[df.index[i], 'elevation'] = elev_to_fill
+                            df.loc[df.index[i], 'elevation_eraqc'] = '3'
+                        
+                        else: # elev changes (nan), but lat lon does not -- pull from dem
+                            stn_elev = df['elevation'].iloc[0]
+                            df.loc[df.index[i], 'elevation'] = stn_elev
+                            df.loc[df.index[i], 'elevation_eraqc'] = '4' ## QC FLAG FOR STATION FILLED VALUE
+                
+                except: # elevation cannot be obtained from DEM, or infilled from station
+                    df = pd.DataFrame() # returns empty df to flag that it does not pass
 
     else:
-        file_to_qaqc = file_to_qaqc
+        df = df
 
-    return file_to_qaqc
+    # drop change columns - not needed further
+    df.drop(columns=['lat_change', 'lon_change'], inplace=True)
+
+    return df
 
 
-def qaqc_elev_range(file_to_qaqc):
+def qaqc_elev_range(df):
     """
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
@@ -193,14 +193,60 @@ def qaqc_elev_range(file_to_qaqc):
     # denali is ~6190 m
 
     # If value is present but outside of reasonable value range
-    if (file_to_qaqc['elevation'].values.any() < -86.0) or (file_to_qaqc['elevation'].values.any() > 6200.0):
-        file_to_qaqc = pd.DataFrame() # returns empty df to flag that it does not pass
+    if (df['elevation'].values.any() < -86.0) or (df['elevation'].values.any() > 6200.0):
+        df = pd.DataFrame() # returns empty df to flag that it does not pass
 
     # Elevation value is present and within reasonable value range
     else:
-        file_to_qaqc = file_to_qaqc
+        df = df
 
-    return file_to_qaqc
+    return df
+
+
+def qaqc_elev_consistency(df):
+    """
+    Checks if valid elevation value changes drastically from its reported values.
+    If drastic change, time record is flagged as suspect.
+    """
+
+    # consistency check
+    # if elevation value is valid, but significantly different than "normal"
+    # e.g. ASOSAWOS_72479723176 elev is 1534m, but has valid records of 0m (flagged in the raw_qc)
+    
+    # create "change" column to check that elevation has not changed over time
+    df['elev_change'] = df['elevation'].shift() != df['elevation']
+    base_elev = df['elevation'].iloc[0]
+
+    if (df['elev_change'][1:].any() == True):
+        # compare to first value (or value prior)
+        for i in range(df.shape[0]):
+            if np.abs(df['elevation'][i] - base_elev) > 50: # arbritary threshold of 50 m here --> change to 10/20% different
+
+                # check with dem first
+                elev_to_check = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
+
+                if np.abs(df['elevation'][i] - float(elev_to_check)) > 5: # arbitrary threshold of 5 m here, but should be close to DEM value
+                    continue # elevation does match lat-lon
+
+                else:
+                    df.loc[df.index[i], 'elevation_eraqc'] = '1' ## QC FLAG FOR SUSPECT
+
+
+    ### think about repeating values here
+    
+    else: # elevation consistent throughout record
+        df = df
+
+    # drop change columns - not needed further
+    df.drop(columns=['elev_change'], inplace=True)
+
+    return df
+
+
+
+                
+    ## changes between 0 and 1500m (example), but not nan
+        ## check lat lon value from DEM
 
 
 
