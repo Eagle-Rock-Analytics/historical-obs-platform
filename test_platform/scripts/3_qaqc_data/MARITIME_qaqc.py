@@ -115,7 +115,11 @@ def spurious_buoy_check(station, df, qc_vars):
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
-        # complete this...
+        for i in range(df.shape[0]):
+            for j in qc_vars:
+                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+    
+        return df
 
     else: # station is not suspicious, move on
         return df
@@ -151,8 +155,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
-        # for station in ["46023", "46044", "46045", "46051"]: # known issues, 3 have nan elevations = good for testing
+        # for station in stations.sample(5): # TESTING SUBSET
+        for station in ["NDBC_46023"]: #, "NDBC_46044", "NDBC_46045", "NDBC_46051", 'NDBC_46230']: # known issues, 3 have nan elevations = good for testing
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -181,7 +185,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                         for var in ds.variables:
                             if var not in exclude_qaqc and var not in raw_qc_vars:
-                                qc_var = var + "_qc" # variable/column label
+                                qc_var = var + "_eraqc" # variable/column label
                                 era_qc_vars.append(qc_var)
                                 ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
                                                 
@@ -210,7 +214,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
                         ## Buoys with known issues with specific qaqc flags
-                        era_qc_vars.remove("elevation_qc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
+                        era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
                         try:
                             stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, era_qc_vars)
 
@@ -224,21 +228,24 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
                         ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
-                        if len(stn_to_qaqc.index) == 0:
-                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_elev_range')
-                        print('pass qaqc_elev_range') # testing
-
                         stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
                             print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
-                            continue # skipping
+                            # skipping
+
+                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
+                        if len(stn_to_qaqc.index) == 0:
+                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_elev_range')
+                            continue
+                        print('pass qaqc_elev_range') # testing
+
+
 
                         print(stn_to_qaqc)
 
@@ -301,8 +308,7 @@ if __name__ == "__main__":
     whole_station_qaqc(network, cleandir, qaqcdir)
 
 # To do:
-# flag as attribute?  only files that pass get saved?
-# add flag variable, reorder variables once entire qaqc is complete before saving
+# reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
 # delete testing notes

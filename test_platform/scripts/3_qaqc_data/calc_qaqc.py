@@ -115,7 +115,7 @@ def _grab_dem_elev_m(lat_to_check, lon_to_check):
     dem_elev_long = float(result.json()['value'])
     dem_elev_short = '{:.2f}'.format(dem_elev_long) # make sure to round off lat-lon values so they are not improbably precise for our needs
 
-    return dem_elev_short
+    return float(dem_elev_short)
 
 
 def qaqc_elev_infill(df):
@@ -125,60 +125,88 @@ def qaqc_elev_infill(df):
     Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
 
-    # create "change" column to check that lat-lon has not changed over time
-    df['lat_change'] = df['lat'].shift() != df['lat']
-    df['lon_change'] = df['lon'].shift() != df['lon']
-
     # first check to see if any elev value is missing
     if df['elevation'].isnull().any() == True: 
         print('This station reports a NaN for elevation, infilling from DEM') # testing
 
         # all elevation values are reported as nan (some ndbc/maritime)
         if df['elevation'].isnull().values.all() == True: 
-            try:  # In-fill if value is missing
+            try:  # in-fill if value is missing
+                # locate all instances of nan values as elevation codes
+                nan_lats = df['lat'].unique()
+                nan_lons = df['lon'].unique()
 
-                # check to see if lat or lon has changed
-                if (df['lat_change'][1:].any() == True) or (df['lon_change'][1:].any() == True): # lat or lon has shifted, run through all idxs
-                    for i in range(df.shape[0]):
-                        dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i]) # infill dem value
-                        df.loc[df.index[i], 'elevation'] = dem_elev_value
-                        df.loc[df.index[i], 'elevation_eraqc'] = '3'    ## QC FLAG FOR DEM FILLED VALUE
-
-                else: # lat or lon has not changed, can infill all from iloc[0]
+                # check if lat-lon has changed over time
+                if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
-                    df['elevation'] = df['elevation'].fillna(dem_elev_value) 
-                    df['elevation_qc'] = df["elevation_qc"].fillna('3')   
+                    print(dem_elev_value)
+                    df.loc[df['elevation'], 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
+                    df.loc[df['elevation'], 'elevation'] = dem_elev_value
+                    print(df)
 
+                else: # multiple pairs of lat-lon for missing elevs
+                    for ilat in nan_lats:
+                        for ilon in nan_lons:
+                            dem_elev_value = _grab_dem_elev_m(ilat, ilon)
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = '3'  # QC FLAG FOR DEM FILLED VALUE
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = dem_elev_value
+                
+                df = df
+                        
             except: # elevation cannot be obtained from DEM
                 df = pd.DataFrame() # returns empty df to flag that it does not pass
 
 
         # some stations have a single/few nan reported (some otherisd/asosawos stations)
-        else: 
-            print('this station has a missing elevation, but not all -- in progress') # dummy flag message to note which stations this occurs for focused testing
+        else:   # multiple values for elevation, infill each instance if missing/incorrectly coded (zeros when shouldnt be)
+            print('This station has a missing elevation, but not all -- in progress') # dummy flag message to note which stations this occurs for focused testing
 
-            # if elev changes (is nan) over time, and lat/lon also change (station has moved)
-            for i in range(df.shape[0]):
-                try:
-                    if df['elevation'].iloc[i] != df['elevation'].iloc[0]: # elevation value has changed over time
-                        if (df['lat_change'][1:].any() == True) or (df['lon_change'][1:].any() == True): # lat and lon have changed -- pull from dem
-                            elev_to_fill = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
-                            df.loc[df.index[i], 'elevation'] = elev_to_fill
-                            df.loc[df.index[i], 'elevation_eraqc'] = '3'
+            elev_vals = df['elevation'].unique() # identify how many different elevation "values" are present
+
+            try:
+                # locate all instances of nan values as elevation codes
+                nan_coded = df[df['elevation'].isnull()]
+                nan_lats = nan_coded['lat'].unique()
+                nan_lons = nan_coded['lon'].unique()
+
+                if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
+                    dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
+                    df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
+                    df.loc[df['elevation'].isnull(), 'elevation'] = dem_elev_value
+
+                else: # multiple pairs of lat-lon for missing elevs
+                    for ilat in nan_lats:
+                        for ilon in nan_lons:
+                            dem_elev_value = _grab_dem_elev_m(ilat, ilon)
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = '3'  # QC FLAG FOR DEM FILLED VALUE
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = dem_elev_value
+                                
+                # incorrectly coded as zero elevation when station elevation is not zero
+                if (df['elevation'].iloc[0] != 0) and (0 in elev_vals):
+                            
+                    # locate all instances of incorrect elevation 0 codes
+                    zero_coded = df[df['elevation']==0]
+                    zero_lats = zero_coded['lat'].unique()
+                    zero_lons = zero_coded['lon'].unique()
+                    
+                    if (len(zero_lats) == 1) and (len(zero_lons) == 1): # single lat-lon pair for bad coded elevs
+                        dem_elev_value = _grab_dem_elev_m(zero_lats[0], zero_lons[0])
+                        df.loc[df['elevation'] == 0, 'elevation_eraqc'] = '3' # QC FLAG FOR DEM FILLED VALUE
+                        df.loc[df['elevation'] == 0, 'elevation'] = dem_elev_value # is this a mix of types (float vs string)??
                         
-                        else: # elev changes (nan), but lat lon does not -- pull from dem
-                            stn_elev = df['elevation'].iloc[0]
-                            df.loc[df.index[i], 'elevation'] = stn_elev
-                            df.loc[df.index[i], 'elevation_eraqc'] = '4' ## QC FLAG FOR STATION FILLED VALUE
-                
-                except: # elevation cannot be obtained from DEM, or infilled from station
-                    df = pd.DataFrame() # returns empty df to flag that it does not pass
+                    else: # multple pairs of lat-lon for incorrectly zero coded elevs
+                        for ilat in zero_lats:
+                            for ilon in zero_lons:
+                                dem_elev_value = _grab_dem_elev_m(ilat, ilon)
+                                df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = '3'
+                                df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = dem_elev_value
+
+
+            except: # elevation cannot be obtained from DEM
+                df = pd.DataFrame() # returns empty df to flag that it does not pass
 
     else:
         df = df
-
-    # drop change columns - not needed further
-    df.drop(columns=['lat_change', 'lon_change'], inplace=True)
 
     return df
 
@@ -203,47 +231,43 @@ def qaqc_elev_range(df):
     return df
 
 
-def qaqc_elev_consistency(df):
-    """
-    Checks if valid elevation value changes drastically from its reported values.
-    If drastic change, time record is flagged as suspect.
-    """
+# def qaqc_elev_consistency(df):
+#     """
+#     Checks if valid elevation value changes drastically from its reported values.
+#     If drastic change, time record is flagged as suspect.
+#     """
 
-    # consistency check
-    # if elevation value is valid, but significantly different than "normal"
-    # e.g. ASOSAWOS_72479723176 elev is 1534m, but has valid records of 0m (flagged in the raw_qc)
+#     # consistency check
+#     # if elevation value is valid, but significantly different than "normal"
+#     # e.g. ASOSAWOS_72479723176 elev is 1534m, but has valid records of 0m (flagged in the raw_qc)
     
-    # create "change" column to check that elevation has not changed over time
-    df['elev_change'] = df['elevation'].shift() != df['elevation']
-    base_elev = df['elevation'].iloc[0]
+#     # check that elevation has not changed over time
+#     elev_shifts = df['elevation'].unique()
+#     base_elev = df['elevation'].iloc[0]
 
-    if (df['elev_change'][1:].any() == True):
-        # compare to first value (or value prior)
-        for i in range(df.shape[0]):
-            if np.abs(df['elevation'][i] - base_elev) > 50: # arbritary threshold of 50 m here --> change to 10/20% different
+#     if len(elev_shifts) > 1:
+#         # compare to first value (or value prior)
+#         for i in range(df.shape[0]):
+#             if np.abs(df['elevation'][i] - base_elev) > 50: #  change to 10/20% different
 
-                # check with dem first
-                elev_to_check = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
+#                 # check with dem first
+#                 elev_to_check = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
 
-                if np.abs(df['elevation'][i] - float(elev_to_check)) > 5: # arbitrary threshold of 5 m here, but should be close to DEM value
-                    continue # elevation does match lat-lon
+#                 if np.abs(df['elevation'][i] - float(elev_to_check)) > 5: # arbitrary threshold of 5 m here, but should be close to DEM value
+#                     continue # elevation does match lat-lon
 
-                else:
-                    df.loc[df.index[i], 'elevation_eraqc'] = '1' ## QC FLAG FOR SUSPECT
+#                 else:
+#                     df.loc[df.index[i], 'elevation_eraqc'] = '1' ## QC FLAG FOR SUSPECT
 
-
-    ### think about repeating values here
+#     ### think about repeating values here
     
-    else: # elevation consistent throughout record
-        df = df
+#     else: # elevation consistent throughout record
+#         df = df
 
-    # drop change columns - not needed further
-    df.drop(columns=['elev_change'], inplace=True)
+#     # drop change columns - not needed further
+#     df.drop(columns=['elev_change'], inplace=True)
 
-    return df
-
-
-
+#     return df
                 
     ## changes between 0 and 1500m (example), but not nan
         ## check lat lon value from DEM

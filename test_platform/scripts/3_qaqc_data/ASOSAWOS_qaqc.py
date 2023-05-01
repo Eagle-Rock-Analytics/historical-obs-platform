@@ -107,7 +107,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                         for var in ds.variables:
                             if var not in exclude_qaqc and var not in raw_qc_vars:
-                                qc_var = var + "_qc" # variable/column label
+                                qc_var = var + "_eraqc" # variable/column label
                                 # qc_vars.append(qa_var)
                                 ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
                                                    
@@ -135,15 +135,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_within_wecc') #testing
 
                         ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
-                        if len(stn_to_qaqc.index) == 0:
-                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_elev_range')
-                        print('pass qaqc_elev_range') # testing
-
-                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
+                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
                             print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
                             errors['File'].append(station)
@@ -151,8 +143,16 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
 
-                        print(stn_to_qaqc) # testing
+                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
+                        if len(stn_to_qaqc.index) == 0:
+                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_elev_range')
+                            continue # skipping station
+                        print('pass qaqc_elev_range') # testing
 
+                        print(stn_to_qaqc) # testing
 
                 except Exception as e:
                     # print(e) # testing
@@ -212,8 +212,7 @@ if __name__ == "__main__":
     whole_station_qaqc(network, cleandir, qaqcdir)
 
 # To do:
-# flag as attribute?  only files that pass get saved?
-# add flag variable, reorder variables once entire qaqc is complete before saving
+# reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
 # delete testing notes
