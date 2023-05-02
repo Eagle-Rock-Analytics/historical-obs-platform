@@ -151,6 +151,30 @@ def qaqc_elev_range(file_to_qaqc):
 #----------------------------------------------------------------------
 ## Part 2 functions (individual variable/timestamp)
 
+# sensor height - air temperature
+def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
+    '''
+    Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
+    '''
+    
+    # Check if thermometer height is missing
+    if (np.isnan(xr_ds.thermometer_height_m)):
+        file_to_qaqc['tas_qc'] = file_to_qaqc['tas_qc'].fillna(5) # see qaqc_flag_meanings.csv
+        
+    else:
+        # Check if thermometer height is within 2 m +/- 1/3 m
+        if(xr_ds.thermometer_height_m >= (2 - 1/3) & xr_ds.thermometer_height_m <= (2 + 1/3)):
+            file_to_qaqc = file_to_qaqc
+                
+        else: 
+            # Thermometer height present but outside 2m +/- tolerance
+            file_to_qaqc['tas_qc'] = file_to_qaqc['tas_qc'].fillna(6)
+            
+    return file_to_qaqc
+
+# sensor height - wind
+    
 
 #----------------------------------------------------------------------
 # To do

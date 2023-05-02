@@ -1,2 +1,6 @@
 ﻿Flag_value,Flag_meaning
 1,Suspect
+5,Thermometer height missing
+6,Thermometer height not 2 meters
+7,Anemometer height missing
+8,Anemometer height not 10 meters

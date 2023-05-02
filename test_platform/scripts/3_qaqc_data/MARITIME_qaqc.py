@@ -232,6 +232,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         if len(stn_to_qaqc.index) == 0:
                             print('DEM in-filling failure message here - in progress')
                             # continue
+                        
+                        ## Sensor height air temperature -- if fails, flag in temperature column
+                        
 
                         print(stn_to_qaqc)
 
