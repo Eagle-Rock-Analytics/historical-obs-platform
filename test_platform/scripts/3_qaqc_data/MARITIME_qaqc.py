@@ -155,8 +155,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        # for station in stations.sample(5): # TESTING SUBSET
-        for station in ["NDBC_46023"]: #, "NDBC_46044", "NDBC_46045", "NDBC_46051", 'NDBC_46230']: # known issues, 3 have nan elevations = good for testing
+        for station in stations.sample(5): # TESTING SUBSET
+        # for station in ["NDBC_46023", "NDBC_46044", "NDBC_46045", "NDBC_46051"]: # known issues, 3 have nan elevations = good for testing
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -212,6 +212,24 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_within_wecc') #testing
 
+                        ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
+                        if len(stn_to_qaqc.index) == 0:
+                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
+                            continue # skipping station
+                        print('pass qaqc_elev_infill') # testing
+
+                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
+                        if len(stn_to_qaqc.index) == 0:
+                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_elev_range')
+                            continue
+                        print('pass qaqc_elev_range') # testing
 
                         ## Buoys with known issues with specific qaqc flags
                         era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
@@ -225,26 +243,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
                             # continue # skipping station
                         print('pass spurious_buoy_check') #testing
-
-
-                        ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
-                        if len(stn_to_qaqc.index) == 0:
-                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
-                            # skipping
-
-                        stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
-                        if len(stn_to_qaqc.index) == 0:
-                            print('{} elevation out of range for WECC, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_elev_range')
-                            continue
-                        print('pass qaqc_elev_range') # testing
-
 
 
                         print(stn_to_qaqc)

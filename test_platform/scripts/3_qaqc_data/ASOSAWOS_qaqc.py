@@ -142,6 +142,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
+                        print('pass qaqc_elev_infill') # testing
 
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -149,7 +150,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Failure on qaqc_elev_range')
-                            continue # skipping station
+                            continue
                         print('pass qaqc_elev_range') # testing
 
                         print(stn_to_qaqc) # testing

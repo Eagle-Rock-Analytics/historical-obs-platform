@@ -139,10 +139,8 @@ def qaqc_elev_infill(df):
                 # check if lat-lon has changed over time
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
-                    print(dem_elev_value)
-                    df.loc[df['elevation'], 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
-                    df.loc[df['elevation'], 'elevation'] = dem_elev_value
-                    print(df)
+                    df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
+                    df.loc[df['elevation'].isnull(), 'elevation'] = dem_elev_value
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
@@ -170,9 +168,14 @@ def qaqc_elev_infill(df):
                 nan_lons = nan_coded['lon'].unique()
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
-                    dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
-                    df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
-                    df.loc[df['elevation'].isnull(), 'elevation'] = dem_elev_value
+                    if (nan_lats[0] == df['lat'].iloc[0]) and (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, can infill for consistency
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = '4' # QC FLAG FOR STATION FILLED VALUE
+                        df.loc[df['elevation'].isnull(), 'elevation'] = df['elevation'].iloc[0]
+
+                    else:
+                        dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = '3'   # QC FLAG FOR DEM FILLED VALUE
+                        df.loc[df['elevation'].isnull(), 'elevation'] = dem_elev_value
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
@@ -190,9 +193,13 @@ def qaqc_elev_infill(df):
                     zero_lons = zero_coded['lon'].unique()
                     
                     if (len(zero_lats) == 1) and (len(zero_lons) == 1): # single lat-lon pair for bad coded elevs
-                        dem_elev_value = _grab_dem_elev_m(zero_lats[0], zero_lons[0])
-                        df.loc[df['elevation'] == 0, 'elevation_eraqc'] = '3' # QC FLAG FOR DEM FILLED VALUE
-                        df.loc[df['elevation'] == 0, 'elevation'] = dem_elev_value # is this a mix of types (float vs string)??
+                        if (zero_lats[0] == df['lat'].iloc[0]) and (zero_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, can infill for consistency
+                            df.loc[df['elevation'] == 0, 'elevation_eraqc'] = '4' # QC FLAG FOR STATION FILLED VALUE
+                            df.loc[df['elevation'] == 0, 'elevation'] = df['elevation'].iloc[0]
+                        else:
+                            dem_elev_value = _grab_dem_elev_m(zero_lats[0], zero_lons[0])
+                            df.loc[df['elevation'] == 0, 'elevation_eraqc'] = '3' # QC FLAG FOR DEM FILLED VALUE
+                            df.loc[df['elevation'] == 0, 'elevation'] = dem_elev_value # is this a mix of types (float vs string)??
                         
                     else: # multple pairs of lat-lon for incorrectly zero coded elevs
                         for ilat in zero_lats:
@@ -229,48 +236,6 @@ def qaqc_elev_range(df):
         df = df
 
     return df
-
-
-# def qaqc_elev_consistency(df):
-#     """
-#     Checks if valid elevation value changes drastically from its reported values.
-#     If drastic change, time record is flagged as suspect.
-#     """
-
-#     # consistency check
-#     # if elevation value is valid, but significantly different than "normal"
-#     # e.g. ASOSAWOS_72479723176 elev is 1534m, but has valid records of 0m (flagged in the raw_qc)
-    
-#     # check that elevation has not changed over time
-#     elev_shifts = df['elevation'].unique()
-#     base_elev = df['elevation'].iloc[0]
-
-#     if len(elev_shifts) > 1:
-#         # compare to first value (or value prior)
-#         for i in range(df.shape[0]):
-#             if np.abs(df['elevation'][i] - base_elev) > 50: #  change to 10/20% different
-
-#                 # check with dem first
-#                 elev_to_check = _grab_dem_elev_m(df['lat'].iloc[i], df['lon'].iloc[i])
-
-#                 if np.abs(df['elevation'][i] - float(elev_to_check)) > 5: # arbitrary threshold of 5 m here, but should be close to DEM value
-#                     continue # elevation does match lat-lon
-
-#                 else:
-#                     df.loc[df.index[i], 'elevation_eraqc'] = '1' ## QC FLAG FOR SUSPECT
-
-#     ### think about repeating values here
-    
-#     else: # elevation consistent throughout record
-#         df = df
-
-#     # drop change columns - not needed further
-#     df.drop(columns=['elev_change'], inplace=True)
-
-#     return df
-                
-    ## changes between 0 and 1500m (example), but not nan
-        ## check lat lon value from DEM
 
 
 

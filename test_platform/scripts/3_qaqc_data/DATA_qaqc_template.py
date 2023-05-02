@@ -164,7 +164,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Failure on qaqc_elev_range')
                         print('pass qaqc_elev_range') # testing
 
-                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
+                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
                             print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
                             errors['File'].append(station)
