@@ -74,8 +74,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        # for station in stations.sample(5): # TESTING SUBSET
-        for station in ['ASOSAWOS_72479723176']: #  station has "bad" elevation values (nans, 0s, shifting values)
+        for station in stations.sample(5): # TESTING SUBSET
+        # for station in ['ASOSAWOS_72479723176']: #  station has "bad" elevation values (nans, 0s, shifting values)
 
             ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
 
