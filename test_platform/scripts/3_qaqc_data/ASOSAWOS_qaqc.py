@@ -75,7 +75,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
     else: # if files successfully read in
         # for station in stations: # full run
         # for station in stations.sample(5): # TESTING SUBSET
-        for station in ['ASOSAWOS_72479723176']: #  station has a single "bad" elevation value!!
+        for station in ['ASOSAWOS_72479723176']: #  station has "bad" elevation values (nans, 0s, shifting values)
 
             ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
 
@@ -100,6 +100,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
                         exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
                         raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
+                        era_qc_vars = [] # our qc variable
 
                         for var in ds.variables:
                              if '_qc' in var:
@@ -108,9 +109,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         for var in ds.variables:
                             if var not in exclude_qaqc and var not in raw_qc_vars:
                                 qc_var = var + "_eraqc" # variable/column label
-                                # qc_vars.append(qa_var)
+                                era_qc_vars.append(qc_var)
                                 ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
-                                                   
+                                                                                                   
                         stn_to_qaqc = ds.to_dataframe()
 
                         ## QAQC Functions
@@ -142,7 +143,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
-                        print('pass qaqc_elev_infill') # testing
+                        print('Elevation values: {}'.format(stn_to_qaqc['elevation'].unique())) # testing
+                        print('Elevation eraqc values: {}'.format(stn_to_qaqc['elevation_eraqc'].unique())) # testing
 
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -150,10 +152,10 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Failure on qaqc_elev_range')
-                            continue
+                            continue # skipping station
                         print('pass qaqc_elev_range') # testing
 
-                        print(stn_to_qaqc) # testing
+                        print(stn_to_qaqc.head(20)) # testing
 
                 except Exception as e:
                     # print(e) # testing

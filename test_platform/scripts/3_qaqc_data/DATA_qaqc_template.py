@@ -156,21 +156,23 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_within_wecc') #testing
 
                         ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling should be before range check
+                        if len(stn_to_qaqc.index) == 0:
+                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
+                            # continue # skipping station
+                        print('pass qaqc_elev_infill') # testing
+
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{} elevation out of range for WECC, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Failure on qaqc_elev_range')
-                        print('pass qaqc_elev_range') # testing
-
-                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
-                        if len(stn_to_qaqc.index) == 0:
-                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
+                        print('pass qaqc_elev_range') # testing
 
                         print(stn_to_qaqc) # testing
                 
