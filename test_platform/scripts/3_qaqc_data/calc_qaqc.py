@@ -189,7 +189,7 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
             file_to_qaqc = file_to_qaqc
                     
     else: 
-        # Anemometer height present but outside 2m +/- tolerance
+        # Anemometer height present but outside 10m +/- tolerance
         file_to_qaqc['sfcWind_qc'] = file_to_qaqc['sfcWind_qc'].fillna(9)
         file_to_qaqc['sfcWind_dir_qc'] = file_to_qaqc['sfcWind_dir_qc'].fillna(9)
                 
