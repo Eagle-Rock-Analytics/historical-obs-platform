@@ -64,42 +64,42 @@ def spurious_buoy_check(station, df, qc_vars):
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2010, 9, 9)) == True:
-                        df.loc[df.index[i], j] = "2" ## QC FLAG FOR DATA PAST STATION ACTIVE RECORD
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
             
         elif station == "NDBC_46045": # disestablished 11/1997
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1997, 12, 1)) == True:
-                        df.loc[df.index[i], j] = "2"
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
         elif station == "NDBC_46051": # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
             # qaqc_elev_infill sets elevation to be assumed 0.0m, but flagging 
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1996, 5, 1)) == True:
-                        df.loc[df.index[i], j] = "2"  
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv 
           
         elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
             # only flag if new data is added after 2022 in a new data pull
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2022, 2, 9)) == True:
-                        df.loc[df.index[i], j] = "2"
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
         # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
         elif station == "NDBC_46044":
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1] >= datetime.datetime(2015, 5, 2, 10, 40, 0)) and (df.index[i][-1] <= datetime.datetime(2015, 5, 3, 15, 50, 0)):
-                        df.loc[df.index[i], j] = "2" 
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             for i in range(df.shape[0]):
                 if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
-                    df.loc[df.index[i], "sfcWind_eraqc"] = "1" ## QC FLAG FOR SUSPECT
-                    df.loc[df.index[i], "sfcWind_dir_eraqc"] = "1"
+                    df.loc[df.index[i], "sfcWind_eraqc"] = 1 # see qaqc_flag_meanings.csv
+                    df.loc[df.index[i], "sfcWind_dir_eraqc"] = 1 
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
@@ -155,8 +155,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
-        # for station in ["NDBC_46051", "NDBC_46089", "NDBC_46023"]: # known issues, 3 have nan elevations = good for testing
+        # for station in stations.sample(5): # TESTING SUBSET
+        for station in ["NDBC_46051", "NDBC_46089", "NDBC_46023"]: # known issues, 3 have nan elevations = good for testing
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
