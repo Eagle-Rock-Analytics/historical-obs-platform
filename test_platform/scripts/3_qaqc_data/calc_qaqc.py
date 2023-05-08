@@ -160,7 +160,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
     
     # Check if thermometer height is missing
     if (np.isnan(xr_ds.thermometer_height_m)):
-        file_to_qaqc['tas_qc'] = file_to_qaqc['tas_qc'].fillna(6) # see qaqc_flag_meanings.csv
+        file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(6) # see qaqc_flag_meanings.csv
     
     else: # sensor height present
         # Check if thermometer height is within 2 m +/- 1/3 m
@@ -169,7 +169,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
                 
         else: 
             # Thermometer height present but outside 2m +/- tolerance
-            file_to_qaqc['tas_qc'] = file_to_qaqc['tas_qc'].fillna(7)
+            file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(7)
             
     return file_to_qaqc
 
@@ -182,8 +182,8 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
         
     # Check if anemometer height is missing
     if np.isnan(xr_ds.anemometer_height_m):
-        file_to_qaqc['sfcWind_qc'] = file_to_qaqc['sfcWind_qc'].fillna(8) # see qaqc_flag_meanings.csv
-        file_to_qaqc['sfcWind_dir_qc'] = file_to_qaqc['sfcWind_dir_qc'].fillna(8)
+        file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(8) # see qaqc_flag_meanings.csv
+        file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(8)
     
     else: # sensor height present
         if xr_ds.anemometer_height_m >= (10 - 1/3) and xr_ds.anemometer_height_m <= (10 + 1/3):
@@ -192,8 +192,8 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
                     
         else: 
             # Anemometer height present but outside 10m +/- tolerance
-            file_to_qaqc['sfcWind_qc'] = file_to_qaqc['sfcWind_qc'].fillna(9)
-            file_to_qaqc['sfcWind_dir_qc'] = file_to_qaqc['sfcWind_dir_qc'].fillna(9)
+            file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(9)
+            file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(9)
                 
     return file_to_qaqc
 
