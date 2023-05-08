@@ -1,6 +1,6 @@
 ﻿Flag_value,Flag_meaning
 1,Suspect
-2,Out of range for station data temporal record
+2,Out of range for station official data temporal record (i.e., buoy reports data past disestablishment date)
 3,Elevation infilled from DEM (USGS 3DEP)
 4,Elevation infilled from station
 5,Elevation manually infilled for buoy out-of-range of DEM, if not buoy, check
