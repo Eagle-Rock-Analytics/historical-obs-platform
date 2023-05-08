@@ -8,3 +8,151 @@ NDBC/MARITIME,6,Acceptable - QC has been performed: record seems inconsistent wi
 NDBC/MARITIME,7,Off Position - There is a problem with the buoy position or mooring. Data may still be useful.
 NDBC/MARITIME,8,Reserved
 NDBC/MARITIME,9,Reserved - indicates missing elements
+Synoptic Data,1,SynopticLabs Range Check (sl_range_check)
+Synoptic Data,3,SynopticLabs Temporal Persistence Check (sl_pers_check)
+Synoptic Data,10,SynopticLabs Wind Speed vs. Maximum Gusts (sl_windspd_maxgust_check)
+Synoptic Data,12,SynopticLabs Wind Speed vs. Wind Direction (sl_windspd_winddir_check)
+MADIS (NOAA),13,MADIS Range Check (ma_range_check)
+MADIS (NOAA),14,MADIS Position Consistency Check (ma_position_check)
+MADIS (NOAA),15,MADIS Internal Consistency Check (ma_int_cons_check)
+MADIS (NOAA),16,MADIS Temporal Consistency Check (ma_temp_cons_check)
+MADIS (NOAA),17,MADIS Statistical Spatial Consistency Check (ma_stat_spatial_cons_check)
+MADIS (NOAA),18,MADIS Spatial Consistency Check (ma_stat_cons_check)
+MADIS (NOAA),19,MADIS Forecast Model Consistency Check (ma_fcst_cons_check)
+MADIS (NOAA),20,MADIS Statistical Model Consistency Check (ma_stat_model_cons_check)
+MADIS (NOAA),21,MADIS Kalman Filter Check (ma_kal_filter_check)
+MADIS (NOAA),22,MADIS SLP vs. Station Pressure (ma_slp_stnpres_check)
+MADIS (NOAA),23,MADIS Pressure Change vs. Station Pressure (ma_pres_chng_stn_pres_check)
+MADIS (NOAA),24,MADIS Air Temperature vs. Dewpoint Temperature (ma_airtemp_dwpt_check)
+MADIS (NOAA),25,MADIS Air Temperature vs. Max/Min Temperature (ma_airtemp_mmtemp_check)
+MADIS (NOAA),26,MADIS Air Temperature vs. SST (ma_airtemp_SST_check)
+MADIS (NOAA),27,MADIS Wind Direction vs. Wind Speed (ma_winddir_windspd_check)
+MADIS (NOAA),28,MADIS Wind Speed vs. Maximum Gusts (ma_windspd_maxgust_check)
+MADIS (NOAA),29,MADIS Wind Speed vs. Present Weather (ma_windspd_preswx_check)
+MADIS (NOAA),30,MADIS Wind Speed vs. Peak Wind Speed (ma_windspd_peak_windspd_check)
+MADIS (NOAA),31,MADIS Wind Speed vs. Maximum Wind Speed (ma_windspd_max_windspd_check)
+MADIS (NOAA),32,MADIS Wind Direction at 10m vs. Wind Speed at 10m (ma_winddir10m_windspd10m_check)
+MADIS (NOAA),33,MADIS Wind Direction at 20m vs. Wind Speed at 20m (ma_winddir20m_windspd20m_check)
+MADIS (NOAA),34,MADIS Maximum Gusts vs. Peak Wind Speed (ma_maxgust_peak_windspd_check)
+MADIS (NOAA),35,MADIS Maximum Gusts vs. Maximum Wind Speed (ma_maxgust_max_windspd_check)
+MADIS (NOAA),36,MADIS Peak Wind Speed vs. Present Weather (ma_peak_windspd_preswx_check)
+MADIS (NOAA),37,MADIS Horizontal Visibility (VV) vs. Present Weather (ww) (ma_hvis_preswx_check)
+MADIS (NOAA),38,MADIS Present Weather vs. Air temperature (ma_preswx_airtemp_check)
+MADIS (NOAA),39,MADIS Present Weather vs. Total Cloud Cover (ma_preswx_totcldcov_check)
+MADIS (NOAA),40,MADIS Present Weather vs. Low/Middle Cloud Cover (ma_preswx_lmcldcov_check)
+MADIS (NOAA),41,MADIS Present Weather vs. Accumulated Precipitation (ma_preswx_accprecip_check)
+MADIS (NOAA),42,MADIS Present Weather vs. Air temperature; Wind Speed; and Dewpoint (ma_preswx_airtemp_windspd_dwpt_check)
+MADIS (NOAA),43,MADIS Past Weather vs. Accumulated Precipitation (ma_pastwx_accprecip_check)
+MADIS (NOAA),44,MADIS Total Cloud Cover vs. Layer Cloud cover (ma_totcldcov_layer_cldcov_check)
+MADIS (NOAA),45,MADIS Total Cloud Cover vs. Low/Middle Cloud Cover (ma_totcldcov_lmcldcov_check)
+MADIS (NOAA),46,MADIS Total Cloud Cover vs. Low/Middle/High Cloud Type (ma_totcldcov_lmhcldtype_check)
+MADIS (NOAA),47,MADIS Total Cloud Cover vs. L/M Cloud Cover and Low/Middle/High Cloud Type (ma_totcldcov_lmcldcov_lmhcldtype_check)
+MADIS (NOAA),48,MADIS Total Cloud Cover vs. Visibility (ma_totcldcov_vis_check)
+MADIS (NOAA),49,MADIS Total Cloud Cover vs. Present Weather (ma_tocldcov_preswx_check)
+MADIS (NOAA),50,MADIS Low/Middle Cloud Cover vs. Low/Middle/High Cloud Types (ma_lmcldcov_lmhcldtype_check)
+MADIS (NOAA),51,MADIS Low/Middle Cloud Cover vs. Layer Cloud Type (ma_lmcldcov_layercldtype_check)
+MADIS (NOAA),52,MADIS Low Cloud Type vs. Layer Cloud Type (ma_lcldtype_layercldtype_check)
+MADIS (NOAA),53,MADIS Low Cloud Type vs. Low/Middle Cloud Cover (ma_lcldtype_lmcldcov_check)
+MADIS (NOAA),54,MADIS Low/Middle Cloud Type vs. Low/Middle Cloud Cover (ma_lmcldtype_lmcldcov_check)
+MADIS (NOAA),55,MADIS Low Cloud Type vs. Middle/High Cloud Type (ma_lcldtype_mhcldtype_check)
+MADIS (NOAA),56,MADIS Low Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_lcldtype_hcldtype_totcldcov_lmcldcov_check)
+MADIS (NOAA),57,MADIS Middle Cloud Type vs. High Cloud Type (ma_mcldtype_hcldtype_check)
+MADIS (NOAA),58,MADIS Middle Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_mcldtype_hcldtype_totcldcov_lmcldcov_check)
+MADIS (NOAA),59,MADIS Middle Cloud Type vs. Layer Cloud Type (ma_mcldtype_layercldtype_check)
+MADIS (NOAA),60,MADIS Middle Cloud Type vs. Low Cloud Type and Layer Cloud Type (ma_mcldtype_lcldtype_layercldtype_check)
+MADIS (NOAA),61,MADIS High Cloud Type vs. Layer Cloud Type (ma_hcldtype_layercldtype_check)
+MADIS (NOAA),62,MADIS High Cloud Type vs. L/M Cloud Type and Layer Cloud Type (ma_hcldtype_lmcldtype_layercldtype)
+MADIS (NOAA),63,MADIS High Cloud Type vs. Total Cloud Cover (ma_hcldtype_totcldcov_check)
+MADIS (NOAA),64,MADIS Layer Cloud Cover vs. Cloud Layer Reports (ma_layercldcov_cldlayerreps_check)
+MADIS (NOAA),65,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Type (ma_layercldcov_lmhcldtype_check)
+MADIS (NOAA),66,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Cover (ma_layercldcov_lmhcldcov_check)
+MADIS (NOAA),67,MADIS Layer Cloud Type vs. Low/Middle/High Cloud type (ma_layercldtype_lmhcldtype_check)
+MADIS (NOAA),68,MADIS Layer Cloud Type vs. Low/Middle Cloud Cover and Layer Cloud Cover (ma_layercldtype_lmhcldcov_layercldcov_check)
+MADIS (NOAA),69,MADIS Layer Cloud Base vs. Low/Middle/High cloud type (ma_layercldbase_lmhcldtype_check)
+MADIS (NOAA),70,MADIS Layer Cloud Base vs. Layer Cloud Type (ma_layercldbase_layercldtype_check)
+MADIS (NOAA),71,MADIS Layer Cloud Base vs. Low/Middle Cloud Cover (ma_layercldbase_lmhcldcov_check)
+MADIS (NOAA),72,MADIS Layer Cloud Base vs. High Cloud Type and Layer Cloud Type (ma_layercldbase_hcldtype_layercldtype_check)
+MADIS (NOAA),73,MADIS Accumulated Precip (during period) vs. Snow Depth (ma_accprecip_snowdepth_check)
+MADIS (NOAA),74,MADIS Accumulated Precip (during period) vs. Snowfall (ma_accprecip_snowfall_check)
+MADIS (NOAA),75,MADIS Accumulated Precip (during period) vs. Accumulated Precip (24h) (ma_accprecip_24hrprecip_check)
+MADIS (NOAA),76,MADIS Snow Depth vs. Snow Water Equivalent (ma_snowdepth_swe_check)
+ARLFRD,77,ARLFRD Manual Data Check (arlfrd_manual_check)
+MesoWest,78,MesoWest Multivariate Linear Regression Check (mw_multvariate_lin_reg_check)
+MesoWest,79,MesoWest 24 Hour Wind Persistence Check (mw_24h_wind_persistence_check)
+MesoWest,80,MesoWest UU2DVAR Rejection (mw_uu2dvar_rejection)
+Synoptic Data,81,SynopticLabs Rate Change Check (sl_rate_check)
+Synoptic Data,100,SynopticLabs Percentile High Flag Check (sl_percentile_hiflag_check)
+Synoptic Data,101,SynopticLabs Percentile High Outlier Check (sl_percentile_hioutlier_check)
+Synoptic Data,102,SynopticLabs Percentile Low Flag Check (sl_percentile_loflag_check)
+Synoptic Data,103,SynopticLabs Percentile Low Outlier Check (sl_percentile_looutlier_check)
+Synoptic Data,104,SynopticLabs Spatial Percentile Check (sl_spatial_percentile_check)
+Synoptic Data,105,SynopticLabs Spatial Value Check (sl_spatial_value_check)
+SCAN/SNOTEL,V,"Valid, data meets basic profile limits (is also default by WCIS storage system)"
+SCAN/SNOTEL,S,"Suspect, data does not meet limitations of sensor profile"
+SCAN/SNOTEL,E,"Edited, data record was manually edited by data editor"
+NDBC/MARITIME,T,Transmission parity error (Applies to continuous winds and non-WPM wave data and DART data)
+NDBC/MARITIME,M,Missing sensor data (A result of a garbled or missing message)
+NDBC/MARITIME,W,"A WPM wave message is short, missing a checksum, or parity errors are detected"
+NDBC/MARITIME,D,Delete measurement from release and archive 
+NDBC/MARITIME,S,Invalid statistical parameter
+NDBC/MARITIME,V,Failed time continuity
+NDBC/MARITIME,L,Failed range limits
+NDBC/MARITIME,H,"Hierarchy reversal has occurred (BARO, WSPD, WDIR only)"
+NDBC/MARITIME,R ,A related measurement has failed a hard QC check
+NDBC/MARITIME,a,"Measurement is above monthly, regional limit"
+NDBC/MARITIME,b,"Measurement is below monthly, regional limit"
+NDBC/MARITIME,d,Failed standard deviation test (continuous winds only)
+NDBC/MARITIME,f,easurement failed hourly time continuity
+NDBC/MARITIME,g,Failed gust-to-mean wind speed ratio (applies to standard and continuous winds)
+NDBC/MARITIME,i,Continuous and hourly wind speeds don't agree
+NDBC/MARITIME,j,"One, and only one, transmission error detected in continuous wind string of a message (all continuous wind measurements are flagged, if more than one error detected, then flag is updated to a T flag)"
+NDBC/MARITIME,k,Difference between duplicate measurements is too high
+NDBC/MARITIME,m,"High frequency spikes detected in wave spectrum, WVHGT is flagged"
+NDBC/MARITIME,n,Measurement failed comparison with NCEP model fields
+NDBC/MARITIME,p,Failed wave height to wave period comparison test
+NDBC/MARITIME,q,Swell direction is from an improbably direction
+NDBC/MARITIME,r ,Related measurement failed (continuous winds only)
+NDBC/MARITIME,S,Stuck raw compass (RCOMP and WDIR are flagged)
+NDBC/MARITIME,t,Tendency difference between duplicate sensors is too high
+NDBC/MARITIME,v,Failed relative humidity versus visibility check
+NDBC/MARITIME,w,Failed wind direction versus wave direction check
+NDBC/MARITIME,x,Wind wave energy is too high for prevailing wind speed
+NDBC/MARITIME,y,Wind wave energy is too low for prevailing wind speed
+NDBC/MARITIME,z,Failed bow azimuth versus wind direction check
+CIMIS,R ,Hourly solar radiation - Sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is equal to or greater than 1.0; the sun is more than 10 degrees above the horizon and the measured hourly solar radiation is equal to or less than 0 Wm-2; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly solar radiation is equal to or greater than 10.00 Wm-2
+CIMIS,S,"Hourly solar radiation - Measured hourly solar radiation is less than or equal to -50.00 Wm-2, or is equal to or greater than 4,000 Wm-2"
+CIMIS,Y,Hourly solar radiation - The sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is greater than 0.85; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly radiation is equal to or greater than 6.00 Wm-2
+CIMIS,N,Hourly net radiation - Net radiation is not calculated for this station
+CIMIS,Q,"Hourly net radiation - Solar radiation is severe (flagged S); two or all three sensors (solar radiation, vapor pressure, and air temperature) are missing"
+CIMIS,R ,"Hourly net radiation - Net radiation is less than -100, or equal to or greater than 800; solar radiation, air temperature, or vapor pressure is flagged R"
+CIMIS,S,"Hourly net radiation - Solar radiation, air temperature, or vapor pressure is severe; net radiation is equal to or greater than 4,000 Wm-2"
+CIMIS,R ,Hourly soil temperature - Soil temperature is far out of historical range (outside the 99.8% confidence interval)
+CIMIS,Y,"Hourly soil temperature - Soil temperature is moderately out of historical range (outside the 96% confidence interval); soil temperature drop or rise between this hour and the previous hour is greater than 3¡C, or 5.4¡F"
+CIMIS,R ,
+CIMIS,S,
+CIMIS,Y,
+CIMIS,Q,
+CIMIS,R ,
+CIMIS,S,
+CIMIS,Y,
+CIMIS,I,
+CIMIS,S,
+CIMIS,I,
+CIMIS,Q ,
+CIMIS,R ,
+CIMIS,S,
+CIMIS,R ,
+CIMIS,S,
+CIMIS,R ,
+CIMIS,R ,
+CIMIS,S,
+CIMIS,Y,
+CIMIS,R ,
+CIMIS,S,
+CIMIS,Y,
+CIMIS,Q,
+CIMIS,R ,
+CIMIS,Y,
+CIMIS,Q ,
+CIMIS,R ,
+CIMIS,Y,
