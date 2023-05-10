@@ -133,7 +133,7 @@ def qaqc_elev_infill(df):
 
         # all elevation values are reported as nan (some ndbc/maritime)
         if df['elevation'].isnull().values.all() == True: 
-            print('This station reports all missing elevation -- infilling from DEM') # testing
+            # print('This station reports all missing elevation -- infilling from DEM') # testing
 
             try:  # in-fill if value is missing
                 # check if lat-lon has changed over time
@@ -162,7 +162,7 @@ def qaqc_elev_infill(df):
 
         # some stations have a single/few nan reported (some otherisd/asosawos stations)
         else:   # multiple values for elevation, infill each instance if missing/incorrectly coded (e.g., zeros when shouldnt be)
-            print('This station reports a missing elevation, but not all -- targeted in-filling') # dummy flag message to note which stations this occurs for focused testing
+            # print('This station reports a missing elevation, but not all -- targeted in-filling') # dummy flag message to note which stations this occurs for focused testing
 
             try:
                 # locate all instances of nan values as elevation codes

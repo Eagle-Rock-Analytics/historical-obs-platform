@@ -155,8 +155,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        # for station in stations.sample(5): # TESTING SUBSET
-        for station in ["NDBC_46051", "NDBC_46089", "NDBC_46023"]: # known issues, 3 have nan elevations = good for testing
+        for station in stations.sample(5): # TESTING SUBSET
+        # for station in ["NDBC_46051", "NDBC_46089", "NDBC_46023", 'NDBC_46086', 'NDBC_46022']: # known issues, 3 have nan elevations = good for testing
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -233,8 +233,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
-                        print('Elevation values: {}'.format(stn_to_qaqc['elevation'].unique())) # testing
-                        print('Elevation eraqc values: {}'.format(stn_to_qaqc['elevation_eraqc'].unique())) # testing
 
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -249,7 +247,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
                 except Exception as e:
-                    # print(e) # testing
+                    print(e) # testing
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
                     errors['Error'].append("Cannot read files in from AWS: {0}".format(e))
@@ -263,9 +261,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 # ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
-                ds = ds.assign_attrs(title = network+" quality controlled")
-                ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
-                ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
+                # ds = ds.assign_attrs(title = network+" quality controlled")
+                # ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
+                # ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
                 ## need to reassign attributes from cleaning stage here? -- check
 
                 # # Write station file to netcdf format
