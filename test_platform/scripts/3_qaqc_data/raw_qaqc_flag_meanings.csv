@@ -156,3 +156,277 @@ CIMIS,Y,Hourly relative humidity - Air temperature or vapor pressure is flagged 
 CIMIS,Q ,Dew point temperature - Relative humidity is flagged Q
 CIMIS,R ,Dew point temperature - Relative humidity is flagged R
 CIMIS,Y,Dew point temperature - Relative humidity is flagged Y
+OtherISD,V01,qaqc_process - No A or M Quality Control applied
+OtherISD,V02,qaqc_process - Automated Quality Control
+OtherISD,V03,qaqc_process - subjected to Quality Control
+OtherISD,1,"data_source - USAF SURFACE HOURLY observation, candidate for merge with NCEI SURFACE HOURLY (not yet merged, element cross-checks)"
+OtherISD,2,"data_source - NCEI SURFACE HOURLY observation, candidate for merge with USAF SURFACE HOURLY (not yet merged, failed element cross-checks)"
+OtherISD,3,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY merged observation
+OtherISD,4,data_source - USAF SURFACE HOURLY observation
+OtherISD,5,data_source - NCEI SURFACE HOURLY observation
+OtherISD,6,data_source - ASOS/AWOS observation from NCEI
+OtherISD,7,data_source - ASOS/AWOS observation merged with USAD SURFACE HOURLY observation
+OtherISD,8,data_source - MAPSO observation (NCEI)
+OtherISD,A,"data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation, candidate for merge with NCEI SURFACE HOURLY (not yet merged, failed element cross-checks)"
+OtherISD,B,"data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation, candidate for merge with USAF SURFACE HOURLY (not yet merged, failed element cross-checks"
+OtherISD,C,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
+OtherISD,D,data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
+OtherISD,E,data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
+OtherISD,F,data_source - Form OMR/1001 – Weather Bureau city office (keyed data)
+OtherISD,G,"data_source - SAO surface airways observation, pre-1949 (keyed data)"
+OtherISD,H,"data_source - SAO surface airways observation, 1965-1981 format/period (keyed data)"
+OtherISD,I,data_source - Climate Reference Network observation
+OtherISD,J,data_source - Cooperative Network observation
+OtherISD,K,data_source - Radiation Network observation
+OtherISD,L,data_source - Data from Climate Data Modernization Program (CDMP) data source
+OtherISD,M,data_source - Data from National Renewable Energy Laboratory (NREL) data source
+OtherISD,N,data_source - NCAR / NCEI cooperative effort (various national datasets)
+OtherISD,O,data_source - Summary observation created by NCEI using hourly observations that may not share the same data source flag
+OtherISD,9,data_source - Missing
+OtherISD,0,sfcWind_dir_qc - Passed gross limits check
+OtherISD,1,sfcWind_dir_qc - Passed all quality control checks
+OtherISD,2,sfcWind_dir_qc - Suspect
+OtherISD,3,sfcWind_dir_qc - Erroneous
+OtherISD,4,"sfcWind_dir_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"sfcWind_dir_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"sfcWind_dir_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"sfcWind_dir_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,sfcWind_dir_qc - Passed gross limits check if element is present
+OtherISD,A,sfcWind_method - Abridged Beaufort
+OtherISD,B,sfcWind_method - Beaufort
+OtherISD,C,sfcWind_method - Calm
+OtherISD,H,sfcWind_method - 5-Minute Average Speed
+OtherISD,N,sfcWind_method - Normal
+OtherISD,R,sfcWind_method - 60-Minute Average Speed
+OtherISD,Q,sfcWind_method - Squall
+OtherISD,T,sfcWind_method - 180 Minute Average Speed
+OtherISD,V,sfcWind_method - Variable
+OtherISD,9,sfcWind_method - Missing
+OtherISD,0,sfcWind_qc - Passed gross limits check
+OtherISD,1,sfcWind_qc - Passed all quality control checks
+OtherISD,2,sfcWind_qc - Suspect
+OtherISD,3,sfcWind_qc - Erroneous
+OtherISD,4,"sfcWind_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"sfcWind_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"sfcWind_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"sfcWind_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,sfcWind_qc - Passed gross limits check if element is present
+OtherISD,0,tas_qc - Passed gross limits check
+OtherISD,1,tas_qc - Passed all quality control checks
+OtherISD,2,tas_qc - Suspect
+OtherISD,3,tas_qc - Erroneous
+OtherISD,4,"tas_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"tas_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"tas_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"tas_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,tas_qc - Passed gross limits check if element is present
+OtherISD,A,"tas_qc - Data value flagged as suspect, but accepted as a good value"
+OtherISD,C,"tas_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values, but they are accepted as valid."
+OtherISD,I,"tas_qc - Data value not originally in data, but inserted by validator"
+OtherISD,M,tas_qc - Manual changes made to value based on information provided by NWS or FAA
+OtherISD,P,"tas_qc - Data value not originally flagged as suspect, but replaced by validator"
+OtherISD,R,tas_qc - Data value replaced with value computed by NCEI software
+OtherISD,U,tas_qc - Data value replaced with edited value
+OtherISD,0,tdps_qc - Passed gross limits check
+OtherISD,1,tdps_qc - Passed all quality control checks
+OtherISD,2,tdps_qc - Suspect
+OtherISD,3,tdps_qc - Erroneous
+OtherISD,4,"tdps_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"tdps_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"tdps_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"tdps_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,tdps_qc - Passed gross limits check if element is present
+OtherISD,A,"tdps_qc - Data value flagged as suspect, but accepted as a good value"
+OtherISD,C,"tdps_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values, but they are accepted as valid."
+OtherISD,I,"tdps_qc - Data value not originally in data, but inserted by validator"
+OtherISD,M,tdps_qc - Manual changes made to value based on information provided by NWS or FAA
+OtherISD,P,"tdps_qc - Data value not originally flagged as suspect, but replaced by validator"
+OtherISD,R,tdps_qc - Data value replaced with value computed by NCEI software
+OtherISD,U,tdps_qc - Data value replaced with edited value
+OtherISD,0,psl_qc - Passed gross limits check
+OtherISD,1,psl_qc - Passed all quality control checks
+OtherISD,2,psl_qc - Suspect
+OtherISD,3,psl_qc - Erroneous
+OtherISD,4,"psl_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"psl_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"psl_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"psl_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,psl_qc - Passed gross limits check if element is present
+OtherISD,1,pr_depth_qc - Measurement impossible or inaccurate
+OtherISD,2,pr_depth_qc - Trace
+OtherISD,3,pr_depth_qc - Begin accumulated period (precipitation amount missing until end of accumulated period)
+OtherISD,4,pr_depth_qc - End accumulated period
+OtherISD,5,pr_depth_qc - Begin deleted period (precipitation amount missing due to data problem)
+OtherISD,6,pr_depth_qc - End deleted period
+OtherISD,7,pr_depth_qc - Begin missing period
+OtherISD,8,pr_depth_qc - End missing period
+OtherISD,E,"pr_depth_qc - Estimated data value (eg, from nearby station)"
+OtherISD,I,"pr_depth_qc - Incomplete precipitation amount, excludes one or more missing reports, such as one or more 15-minute reports not included in the 1-hour precipitation total"
+OtherISD,J,"pr_depth_qc - Incomplete precipitation amount, excludes one or more erroneous reports, such as one or more 1-hour precipitation amounts excluded from the 24-hour total"
+OtherISD,9,pr_depth_qc - Missing
+OtherISD,0,pr_qc - Passed gross limits check
+OtherISD,1,pr_qc - Passed all quality control checks
+OtherISD,2,pr_qc - Suspect
+OtherISD,3,pr_qc - Erroneous
+OtherISD,4,"pr_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"pr_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"pr_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"pr_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,9,pr_qc - Passed gross limits check if element is present
+OtherISD,A,"pr_qc - Data value flagged as suspect, but accepted as a good value"
+OtherISD,I,"pr_qc - Data value not originally in data, but inserted by validator"
+OtherISD,M,pr_qc - Manual changes made to value based on information provided by NWS or FAA
+OtherISD,P,"pr_qc - Data value not originally flagged as suspect, but replaced by validator"
+OtherISD,R,pr_qc - Data value replaced with value computed by NCEI software
+OtherISD,U,pr_qc - Data value replaced with edited value
+OtherISD,1,hurs_temp_qc - Passed all quality control checks
+OtherISD,3,hurs_temp_qc - Failed all quality control checks
+OtherISD,9,hurs_temp_qc - Missing
+OtherISD,0,hurs_temp_flag - Passed all quality control checks
+OtherISD,1,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,2,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,3,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,4,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,5,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,6,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,7,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,8,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,9,hurs_temp_flag - Did not pass all quality control checks
+OtherISD,1,hurs_qc - Passed all quality control checks
+OtherISD,3,hurs_qc - Failed all quality control checks
+OtherISD,9,hurs_qc - Missing
+OtherISD,0,hurs_flag - Passed all quality control checks
+OtherISD,1,hurs_flag - Did not pass all quality control checks
+OtherISD,2,hurs_flag - Did not pass all quality control checks
+OtherISD,3,hurs_flag - Did not pass all quality control checks
+OtherISD,4,hurs_flag - Did not pass all quality control checks
+OtherISD,5,hurs_flag - Did not pass all quality control checks
+OtherISD,6,hurs_flag - Did not pass all quality control checks
+OtherISD,7,hurs_flag - Did not pass all quality control checks
+OtherISD,8,hurs_flag - Did not pass all quality control checks
+OtherISD,9,hurs_flag - Did not pass all quality control checks
+OtherISD,0,rsds_flag - Untested (raw data)
+OtherISD,1,"rsds_flag - Passed one-component test; data fall within max-min limits of Kt, Kn, or Kd"
+OtherISD,2,rsds_flag - Passed two-component test;  data fall within 0.03 of the Gompertz boundaries
+OtherISD,3,rsds_flag - Passed three-component test;  data come within + 0.03 of satisfying Kt = Kn + Kd
+OtherISD,4,rsds_flag - Passed visual inspection: not used by SERI_QC1
+OtherISD,5,rsds_flag - Failed visual inspection: not used by SERI_QC1
+OtherISD,6,rsds_flag - Value estimated ( passes all pertinent SERI_QC tests)
+OtherISD,7,rsds_flag - Failed one-component test (lower than allowed minimum)
+OtherISD,8,rsds_flag - Failed one-component test (higher than allowed maximum)
+OtherISD,9,rsds_flag - Passed three-component test but failed two-component test by 0.05
+OtherISD,10,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,11,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,12,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,13,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,14,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,15,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,16,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,17,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,18,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,19,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,20,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,21,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,22,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,23,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,24,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,25,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,26,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,27,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,28,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,29,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,30,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,31,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,32,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,33,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,34,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,35,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,36,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,37,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,38,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,39,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,40,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,41,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,42,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,43,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,44,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,45,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,46,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,47,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,48,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,49,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,50,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,51,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,52,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,53,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,54,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,55,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,56,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,57,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,58,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,59,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,60,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,61,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,62,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,63,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,64,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,65,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,66,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,67,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,68,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,69,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,70,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,71,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,72,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,73,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,74,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,75,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,76,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,77,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,78,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,79,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,80,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,81,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,82,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,83,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,84,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,85,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,86,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,87,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,88,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,89,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,90,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,91,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,92,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,93,rsds_flag - Failed two- or three- component tests in one of four ways.
+OtherISD,94,"rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95), 0.15 to 0.20 (96), and > 0.20 (97)"
+OtherISD,95,"rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95), 0.15 to 0.20 (96), and > 0.20 (97)"
+OtherISD,96,"rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95), 0.15 to 0.20 (96), and > 0.20 (97)"
+OtherISD,97,"rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95), 0.15 to 0.20 (96), and > 0.20 (97)"
+OtherISD,98,rsds_flag - Not used
+OtherISD,99,rsds_flag - Missing data
+OtherISD,0,rsds_qc - Passed gross limits check
+OtherISD,1,rsds_qc - Passed all quality control checks
+OtherISD,2,rsds_qc - Suspect
+OtherISD,3,rsds_qc - Erroneous
+OtherISD,9,rsds_qc - Missing
+OtherISD,0,ps_altimeter_qc - Passed gross limits check
+OtherISD,1,ps_altimeter_qc - Passed all quality control checks
+OtherISD,2,ps_altimeter_qc - Suspect
+OtherISD,3,ps_altimeter_qc - Erroneous
+OtherISD,4,"ps_altimeter_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"ps_altimeter_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"ps_altimeter_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"ps_altimeter_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,M,ps_altimeter_qc - Manual changes made to value based on information provided by NWS or FAA
+OtherISD,9,ps_altimeter_qc - Passed gross limits check if element is present
+OtherISD,0,ps_qc - Passed gross limits check
+OtherISD,1,ps_qc - Passed all quality control checks
+OtherISD,2,ps_qc - Suspect
+OtherISD,3,ps_qc - Erroneous
+OtherISD,4,"ps_qc - Passed gross limits check, data originate from an NCEI data source"
+OtherISD,5,"ps_qc - Passed all quality control checks, data originate from an NCEI data source"
+OtherISD,6,"ps_qc - Suspect, data originate from an NCEI data source"
+OtherISD,7,"ps_qc - Erroneous, data originate from an NCEI data source"
+OtherISD,M,ps_qc - Manual changes made to value based on information provided by NWS or FAA
+OtherISD,9,ps_qc - Passed gross limits check if element is present
