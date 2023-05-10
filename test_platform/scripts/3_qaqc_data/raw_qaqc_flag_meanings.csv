@@ -98,7 +98,7 @@ NDBC/MARITIME,S,Invalid statistical parameter
 NDBC/MARITIME,V,Failed time continuity
 NDBC/MARITIME,L,Failed range limits
 NDBC/MARITIME,H,"Hierarchy reversal has occurred (BARO, WSPD, WDIR only)"
-NDBC/MARITIME,R ,A related measurement has failed a hard QC check
+NDBC/MARITIME,R,A related measurement has failed a hard QC check
 NDBC/MARITIME,a,"Measurement is above monthly, regional limit"
 NDBC/MARITIME,b,"Measurement is below monthly, regional limit"
 NDBC/MARITIME,d,Failed standard deviation test (continuous winds only)
@@ -111,7 +111,7 @@ NDBC/MARITIME,m,"High frequency spikes detected in wave spectrum, WVHGT is flagg
 NDBC/MARITIME,n,Measurement failed comparison with NCEP model fields
 NDBC/MARITIME,p,Failed wave height to wave period comparison test
 NDBC/MARITIME,q,Swell direction is from an improbably direction
-NDBC/MARITIME,r ,Related measurement failed (continuous winds only)
+NDBC/MARITIME,r,Related measurement failed (continuous winds only)
 NDBC/MARITIME,S,Stuck raw compass (RCOMP and WDIR are flagged)
 NDBC/MARITIME,t,Tendency difference between duplicate sensors is too high
 NDBC/MARITIME,v,Failed relative humidity versus visibility check
@@ -119,42 +119,42 @@ NDBC/MARITIME,w,Failed wind direction versus wave direction check
 NDBC/MARITIME,x,Wind wave energy is too high for prevailing wind speed
 NDBC/MARITIME,y,Wind wave energy is too low for prevailing wind speed
 NDBC/MARITIME,z,Failed bow azimuth versus wind direction check
-CIMIS,R ,Hourly solar radiation - Sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is equal to or greater than 1.0; the sun is more than 10 degrees above the horizon and the measured hourly solar radiation is equal to or less than 0 Wm-2; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly solar radiation is equal to or greater than 10.00 Wm-2
+CIMIS,R,Hourly solar radiation - Sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is equal to or greater than 1.0; the sun is more than 10 degrees above the horizon and the measured hourly solar radiation is equal to or less than 0 Wm-2; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly solar radiation is equal to or greater than 10.00 Wm-2
 CIMIS,S,"Hourly solar radiation - Measured hourly solar radiation is less than or equal to -50.00 Wm-2, or is equal to or greater than 4,000 Wm-2"
 CIMIS,Y,Hourly solar radiation - The sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is greater than 0.85; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly radiation is equal to or greater than 6.00 Wm-2
 CIMIS,N,Hourly net radiation - Net radiation is not calculated for this station
 CIMIS,Q,"Hourly net radiation - Solar radiation is severe (flagged S); two or all three sensors (solar radiation, vapor pressure, and air temperature) are missing"
 CIMIS,R ,"Hourly net radiation - Net radiation is less than -100, or equal to or greater than 800; solar radiation, air temperature, or vapor pressure is flagged R"
 CIMIS,S,"Hourly net radiation - Solar radiation, air temperature, or vapor pressure is severe; net radiation is equal to or greater than 4,000 Wm-2"
-CIMIS,R ,Hourly soil temperature - Soil temperature is far out of historical range (outside the 99.8% confidence interval)
+CIMIS,R,Hourly soil temperature - Soil temperature is far out of historical range (outside the 99.8% confidence interval)
 CIMIS,Y,"Hourly soil temperature - Soil temperature is moderately out of historical range (outside the 96% confidence interval); soil temperature drop or rise between this hour and the previous hour is greater than 3¡C, or 5.4¡F"
-CIMIS,R ,"Hourly air temperature - Air temperature drop or rise between this hour and the previous hour is greater than 10¡C, or 18¡F; air temperature is far out of historical range (outside the 99.8% confidence interval)"
+CIMIS,R,"Hourly air temperature - Air temperature drop or rise between this hour and the previous hour is greater than 10¡C, or 18¡F; air temperature is far out of historical range (outside the 99.8% confidence interval)"
 CIMIS,S,Hourly air temperature - Air temperature is constant for 4 hours in a row
 CIMIS,Y,Hourly air temperature - Air temperature is moderately out of historical range (outside of 96% confidence interval)
 CIMIS,Q,Hourly vapor pressure - Air temperature or precipitation is severe (eitehr or both are flagged S)
-CIMIS,R ,Hourly vapor pressure - Vapor pressure is constant for 4 hours in a row; actual vapor pressure is equal to or less than to 0.00 kPa or actual vapor pressure is greater than 1.05 times the saturation vapor pressure
+CIMIS,R,Hourly vapor pressure - Vapor pressure is constant for 4 hours in a row; actual vapor pressure is equal to or less than to 0.00 kPa or actual vapor pressure is greater than 1.05 times the saturation vapor pressure
 CIMIS,S,Hourly vapor pressure - Vapor pressure is equal to or less than 0
 CIMIS,Y,Hourly vapor pressure - Relative humidity is less than 50% during an hour with 1.00 mm or more of precipitation
 CIMIS,I,Hourly wind speed - Wind speed is equal to or less than 0.447 (1 mph) or wind speed is constant for 4 hours in a row
 CIMIS,S,Hourly wind speed - Wind speed is equal to or less than 0; wind speed is equal to or greater than 45 m/s or 100 mph
 CIMIS,I,Hourly resultant wind - Wind speed is flagged I
-CIMIS,Q ,Hourly resultant wind - Wind speed is severe
-CIMIS,R ,Hourly resultant wind - Resultant wind is equal to or greater than wind speed
+CIMIS,Q,Hourly resultant wind - Wind speed is severe
+CIMIS,R,Hourly resultant wind - Resultant wind is equal to or greater than wind speed
 CIMIS,S,Hourly wind direction - Wind direction is less than 0 or greater than 360 degrees
-CIMIS,R ,Hourly wind direction - Wind direction is constant for 4 hours in a row
+CIMIS,R,Hourly wind direction - Wind direction is constant for 4 hours in a row
 CIMIS,S,Hourly standard deviation of wind direction - Wind direction is severe; standard dviation of wind direction is between 188 and 189
-CIMIS,R ,Hourly standard deviation of wind direction - Wind direction is flagged R; standard deviation of wind speed is equal to or greater than 180 degrees or less than 0
-CIMIS,R ,"Hourly precipitation - Precipitation is more than 100 mm (4 inches); measured solar radiation is greater than 75% of calculated extraterrestrial radiation, the sun is 10 or more degrees above the horizon, and the station shows recorded precipitation (precipitation is greater than 0)"
+CIMIS,R,Hourly standard deviation of wind direction - Wind direction is flagged R; standard deviation of wind speed is equal to or greater than 180 degrees or less than 0
+CIMIS,R,"Hourly precipitation - Precipitation is more than 100 mm (4 inches); measured solar radiation is greater than 75% of calculated extraterrestrial radiation, the sun is 10 or more degrees above the horizon, and the station shows recorded precipitation (precipitation is greater than 0)"
 CIMIS,S,Hourly precipitation - Precipitation is less than 0
 CIMIS,Y,"Hourly precipitation - Measured solar radiation is greater than 65% of calculated extraterrestrial radiation, the sun is 10 or more degrees above the horizon, and the station shows recorded precipitation"
-CIMIS,R ,Hourly evapotranspiration - One or more of the above listed measurements is flagged R; wind speed is flagged I
+CIMIS,R,Hourly evapotranspiration - One or more of the above listed measurements is flagged R; wind speed is flagged I
 CIMIS,S,Hourly evapotranspiration - Precipitation is less than 0
 CIMIS,Y,Hourly evapotranspiration - One or more of the above listed measurements is flagged Y
 CIMIS,Q,Hourly relative humidity - Air temperature or vapor pressure is severe
-CIMIS,R ,Hourly relative humidity - Air temperature or vapor pressure is flagged R
+CIMIS,R,Hourly relative humidity - Air temperature or vapor pressure is flagged R
 CIMIS,Y,Hourly relative humidity - Air temperature or vapor pressure is flagged Y
 CIMIS,Q ,Dew point temperature - Relative humidity is flagged Q
-CIMIS,R ,Dew point temperature - Relative humidity is flagged R
+CIMIS,R,Dew point temperature - Relative humidity is flagged R
 CIMIS,Y,Dew point temperature - Relative humidity is flagged Y
 OtherISD,V01,qaqc_process - No A or M Quality Control applied
 OtherISD,V02,qaqc_process - Automated Quality Control
