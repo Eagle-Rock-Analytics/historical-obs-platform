@@ -245,7 +245,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue
                         print('pass qaqc_elev_range') # testing
 
-                        print(stn_to_qaqc.head(20))
+                        # print(stn_to_qaqc.head(20))
 
 
                 except Exception as e:

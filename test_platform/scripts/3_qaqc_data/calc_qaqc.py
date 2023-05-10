@@ -125,6 +125,9 @@ def qaqc_elev_infill(df):
     Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
 
+    print('Elevation values pre-infilling: {}'.format(df['elevation'].unique()))
+    print('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique())) # testing
+
     # first check to see if any elev value is missing
     if df['elevation'].isnull().any() == True: 
 
@@ -161,8 +164,6 @@ def qaqc_elev_infill(df):
         else:   # multiple values for elevation, infill each instance if missing/incorrectly coded (e.g., zeros when shouldnt be)
             print('This station reports a missing elevation, but not all -- targeted in-filling') # dummy flag message to note which stations this occurs for focused testing
 
-            elev_vals = df['elevation'].unique() # identify how many different elevation "values" are present
-
             try:
                 # locate all instances of nan values as elevation codes
                 nan_coded = df[df['elevation'].isnull()]
@@ -170,7 +171,7 @@ def qaqc_elev_infill(df):
                 nan_lons = nan_coded['lon'].unique()
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
-                    if (nan_lats[0] == df['lat'].iloc[0]) and (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
+                    if (nan_lats[0] == df['lat'].iloc[0]) & (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
                         df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 4 # see qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull(), 'elevation'] = df['elevation'].iloc[0]
 
@@ -185,32 +186,7 @@ def qaqc_elev_infill(df):
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
                             df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
                             df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
-                                
-                # elevation values flagged as incorrectly coded
-                # uses a threshold of 30% different from the station elevation to identify suspicious elevations
-                for elev_value in elev_vals:
-                    if (elev_value > 1.3*df['elevation'].iloc[0]) or (elev_value < 0.3*df['elevation'].iloc[0]):
-                        off_elevs = df.loc[df['elevation'] == elev_value]
-                        off_lats = off_elevs['lat'].unique()
-                        off_lons = off_elevs['lon'].unique()
-
-                        if (len(off_lats) == 1) and (len(off_lons) == 1): # single lat-lon pair for incorrectly coded elevation
-                            if (off_lats[0] == df['lat'].iloc[0]) and (off_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
-                                df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 4 # see qaqc_flag_meanings.csv
-                                df.loc[df['elevation'] == elev_value, 'elevation'] = df['elevation'].iloc[0]
-
-                            else: # lat-lon of incorrectly coded elevation does not match station lat-lon (has shifted), infill from dem
-                                dem_elev_value = _grab_dem_elev_m(off_lats[0], off_lons[0])
-                                df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
-                                df.loc[df['elevation'] == elev_value, 'elevation'] = float(dem_elev_value)
-                        
-                        else: # multple pairs of lat-lon for incorrectly zero coded elevs 
-                            for ilat in off_lats:
-                                for ilon in off_lons:
-                                    dem_elev_value = _grab_dem_elev_m(ilat, ilon)
-                                    df.loc[(df['lat'] == ilat) and (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
-                                    df.loc[(df['lat'] == ilat) and (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
-                            
+                                                            
             except: # elevation cannot be obtained from DEM
                 df = pd.DataFrame() # returns empty df to flag that it does not pass
 
@@ -222,18 +198,52 @@ def qaqc_elev_infill(df):
 
 def qaqc_elev_range(df):
     """
+    Checks valid values to identify suspicious elevation values that are larger than 10m in difference
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
     """
 
+    # first check for suspicious values
+    elev_vals = df['elevation'].unique() # identify how many different elevation "values" are present
+
+    # elevation values flagged as incorrectly coded
+    # uses a threshold of 10m different from the station elevation to identify suspicious elevations
+    for elev_value in elev_vals:
+        if (elev_value > df['elevation'].iloc[0] + 10) or (elev_value < df['elevation'].iloc[0] - 10): # 10m above and below bounds to check
+            off_elevs = df.loc[df['elevation'] == elev_value]
+            off_lats = off_elevs['lat'].unique()
+            off_lons = off_elevs['lon'].unique()
+
+            if (len(off_lats) == 1) and (len(off_lons) == 1): # single lat-lon pair for incorrectly coded elevation
+                if (off_lats[0] == df['lat'].iloc[0]) & (off_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
+                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 4 # see qaqc_flag_meanings.csv
+                    df.loc[df['elevation'] == elev_value, 'elevation'] = df['elevation'].iloc[0]
+
+                else: # lat-lon of incorrectly coded elevation does not match station lat-lon (has shifted), infill from dem
+                    dem_elev_value = _grab_dem_elev_m(off_lats[0], off_lons[0])
+                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                    df.loc[df['elevation'] == elev_value, 'elevation'] = float(dem_elev_value)
+            
+            else: # multple pairs of lat-lon for incorrectly zero coded elevs 
+                for ilat in off_lats:
+                    for ilon in off_lons:
+                        dem_elev_value = _grab_dem_elev_m(ilat, ilon)
+                        df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                        df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
+    
+    print('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique())) # testing
+    print('Elevation qaqc values post-infilling/correcting: {}'.format(df['elevation_eraqc'].unique())) # testing
+
+    # then check for in range
+    # if value is present but outside of reasonable value range
+
     # death valley is 282 feet (85.9 m) below sea level
     # denali is ~6190 m
 
-    # If value is present but outside of reasonable value range
     if (df['elevation'].values.any() < -86.0) or (df['elevation'].values.any() > 6200.0):
         df = pd.DataFrame() # returns empty df to flag that it does not pass
 
-    # Elevation value is present and within reasonable value range
+    # elevation value is present and within reasonable value range
     else:
         df = df
 

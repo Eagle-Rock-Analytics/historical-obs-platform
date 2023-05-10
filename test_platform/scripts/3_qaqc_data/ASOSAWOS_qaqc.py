@@ -74,8 +74,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
-        # for station in ['ASOSAWOS_72479723176', 'ASOSAWOS_72785024157']: #  station has "bad" elevation values (nans, 0s, shifting values)
+        # for station in stations.sample(5): # TESTING SUBSET
+        for station in ['ASOSAWOS_72479723176', 'ASOSAWOS_72785024157', 'ASOSAWOS_72698024229']: #  station has "bad" elevation values (nans, 0s, shifting values)
 
             ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
 
@@ -143,8 +143,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
-                        print('Elevation values: {}'.format(stn_to_qaqc['elevation'].unique())) # testing
-                        print('Elevation eraqc values: {}'.format(stn_to_qaqc['elevation_eraqc'].unique())) # testing
+
 
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -155,7 +154,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_elev_range') # testing
 
-                        print(stn_to_qaqc.head(20)) # testing
+                        # print(stn_to_qaqc.head(20)) # testing
 
                 except Exception as e:
                     # print(e) # testing
