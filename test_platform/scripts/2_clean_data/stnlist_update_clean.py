@@ -16,6 +16,8 @@ import boto3
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
+import xarray as xr
+import s3fs
 # from datetime import datetime
 
 # Set environment variables
@@ -83,8 +85,11 @@ def parse_error_csv(network):
 
         return errordf
 
-# Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors.
-def clean_qa(network):
+# Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors
+# Optional: clean_var_add will open every cleaned station file, check which variables are present, and flag in the station list
+    # Default is False, time intensive
+    # Recommendation: run clean_var_add=True only after a full clean or partial clean update
+def clean_qa(network, clean_var_add=False):
     if 'otherisd' in network: # Fixing capitalization issues
         network = "OtherISD"
     else:
@@ -117,7 +122,6 @@ def clean_qa(network):
         stations['ERA-ID'] = network+"_"+stations['STATION_ID']
     elif network in ['SCAN', 'SNOTEL']:
         stations['ERA-ID'] = network+"_"+stations['stationTriplet'].str.split(":").str[0]
-
 
     # Make ERA-ID first column
     eraid = stations.pop('ERA-ID')
@@ -206,7 +210,65 @@ def clean_qa(network):
         else:
             print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
 
+    # clean_var_add
+    if clean_var_add == True:
+        print('Processing all cleaned files to assess variable coverage -- this may take awhile based on size of network!') # useful warning
 
+        bucket_name="wecc-historical-wx"
+        directory="2_clean_wx/"
+
+        # add in default columns of "N" to cleaned station list for all core variables
+        core_vars = ['tas', 'ps', 'tdps', 'hurs', 'pr', 'sfcWind', 'sfcWind_dir', 'rsds']
+        for var in core_vars:
+            stations[str(var)] = "N"
+                    
+        # open cleaned datafile
+        network_prefix = clean_wx+network+"/"
+
+        # for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix+network+"_"):
+        # cleandir = "{0}{1}/".format(directory, network)
+        files = []
+        for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix):
+            file = str(item.key)
+            files += [file]
+            
+        # get list of station filenames successfully cleaned    
+        files = list(filter(lambda f: f.endswith(".nc"), files))
+        
+        for file in files: 
+            if file not in files: # dont run qa/qc on a station that isn't cleaned
+                continue
+            else:
+                try:
+                    fs = s3fs.S3FileSystem()
+                    aws_url = "s3://wecc-historical-wx/"+file
+
+                    with fs.open(aws_url) as fileObj:
+                        ds = xr.open_dataset(fileObj, engine='h5netcdf')
+
+                        # mark each variable as present if in dataset
+                        for var in ds.variables:
+                            if var == "tdps_derived":  # tdps requires handling for tdps_derived
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps'] = 'Y'
+                                
+                            elif var == "pr_1h" or var=="pr_24h" or var=='pr_5min': # pr has multiple options
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr'] = 'Y'  
+                                
+                            elif var == "ps_altimeter" or var == "psl" or var=='ps_derived': # ps has multiple options
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps'] = 'Y'
+                                
+                            elif var in core_vars:
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], str(var)] = 'Y'
+
+                        # close dataset
+                        ds.close()
+                except:
+                    print('{} not opening'.format(file))
+                    continue
+
+        # reset index
+        stations = stations.reset_index(drop = True)
+        
     # Save station file to cleaned bucket
     print(stations) # For testing
     new_buffer = StringIO()
@@ -216,7 +278,7 @@ def clean_qa(network):
 
 
 if __name__ == "__main__":
-    clean_qa('CWOP')
+    clean_qa('NDBC', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
