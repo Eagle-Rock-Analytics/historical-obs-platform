@@ -1,4 +1,4 @@
-'''
+"""
 This script iterates through a specified network and checks to see what stations have been successfully cleaned,
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files are not cleaned, or if the errors occur during or after the cleaning process.
@@ -10,8 +10,8 @@ As of 01/23, current networks are as follows:
 ASOSAWOS, CAHYDRO, CDEC, CIMIS, CNRFC, CRN, CW3E, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO, MAP,
 MARITIME, MTRWFO, NCAWOS, NDBC, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SCAN, SGXWFO, SHASAVAL,
 SNOTEL, VCAPCD
+"""
 
-'''
 import boto3
 import pandas as pd
 from io import BytesIO, StringIO
