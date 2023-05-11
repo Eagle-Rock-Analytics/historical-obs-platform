@@ -224,9 +224,6 @@ def clean_qa(network, clean_var_add=False):
                     
         # open cleaned datafile
         network_prefix = clean_wx+network+"/"
-
-        # for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix+network+"_"):
-        # cleandir = "{0}{1}/".format(directory, network)
         files = []
         for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix):
             file = str(item.key)
