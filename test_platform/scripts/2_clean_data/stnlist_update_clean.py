@@ -218,9 +218,14 @@ def clean_qa(network, clean_var_add=False):
         directory="2_clean_wx/"
 
         # add in default columns of "N" to cleaned station list for all core variables
+        # also adds column that counts number of valid/non-nan observations
         core_vars = ['tas', 'ps', 'tdps', 'hurs', 'pr', 'sfcWind', 'sfcWind_dir', 'rsds']
         for var in core_vars:
             stations[str(var)] = "N"
+            stations[str(var+"_nobs")] = 0      # default of 0 to start
+
+        # add column for total length of each record, valid (non-nan) and nans
+        stations['total_nobs'] = 0   # default of 0 to start
                     
         # open cleaned datafile
         network_prefix = clean_wx+network+"/"
@@ -241,21 +246,37 @@ def clean_qa(network, clean_var_add=False):
                     aws_url = "s3://wecc-historical-wx/"+file
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj, engine='h5netcdf')
+                        ds = xr.open_dataset(fileObj) # setting engine=None (default) uses what is best for system, previously engine='h5netcdf'
+                        
+                        stations.loc[stations['ERA-ID']==ds.station.values[0], 'total_nobs'] = ds.time.shape[0]
 
-                        # mark each variable as present if in dataset
+                        # mark each variable as present if in dataset, and count number of valid/non-nan values
                         for var in ds.variables:
                             if var == "tdps_derived":  # tdps requires handling for tdps_derived
                                 stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps'] = 'Y'
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps_nobs'] = ds['tdps_derived'].count()
                                 
                             elif var == "pr_1h" or var=="pr_24h" or var=='pr_5min': # pr has multiple options
-                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr'] = 'Y'  
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr'] = 'Y'
+                                if var == "pr_1h":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_1h'].count()
+                                elif var == "pr_24h":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_24h'].count()
+                                elif var == "pr_5min":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_5min'].count()
                                 
                             elif var == "ps_altimeter" or var == "psl" or var=='ps_derived': # ps has multiple options
                                 stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps'] = 'Y'
+                                if var == 'ps_altimeter':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_altimeter'].count()
+                                elif var == 'psl':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['psl'].count()
+                                elif var == 'ps_derived':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_derived'].count()
                                 
                             elif var in core_vars:
                                 stations.loc[stations['ERA-ID']==ds.station.values[0], str(var)] = 'Y'
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], str(var+"_nobs")] = ds[str(var)].count()
 
                         # close dataset
                         ds.close()
@@ -275,7 +296,7 @@ def clean_qa(network, clean_var_add=False):
 
 
 if __name__ == "__main__":
-    clean_qa('NDBC', clean_var_add=False)
+    clean_qa('VCAPCD', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
