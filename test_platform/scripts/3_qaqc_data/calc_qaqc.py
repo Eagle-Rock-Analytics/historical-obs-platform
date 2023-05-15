@@ -272,18 +272,22 @@ def qaqc_precip_logic_nonegvals(df):
 
     # identify which precipitation vars are reported by a station
     all_pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
-    pr_vars = [var for var in all_pr_vars if "_qc" not in var] # remove all qc variables so they do not also run through
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
 
     if len(pr_vars) != 0: # precipitation variable(s) is present
         for item in pr_vars:
-            if (df[item] < 0).any():
-                df.loc[df[item] < 0, 'pr_eraqc'] = 10 # see qaqc_flag_meanings.csv
+            print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
+            if (df[item] < 0).any() == True:
+                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see qaqc_flag_meanings.csv
+
+            print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
 
     else: # station does not report precipitation
         print('station does not report precipitation - bypassing precip logic check') # testing
         df = df
 
-    print('Precipitation neg-values logic check testing: {}'.format(df['pr_eraqc'].unique())) # testing
 
     return df
 

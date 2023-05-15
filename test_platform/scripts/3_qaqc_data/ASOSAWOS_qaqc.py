@@ -74,8 +74,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        # for station in stations.sample(5): # TESTING SUBSET
-        for station in ['ASOSAWOS_72698024229', 'ASOSAWOS_72479723176', 'ASOSAWOS_72785024157']: #  station has "bad" elevation values (nans, 0s, shifting values)
+        for station in stations.sample(5): # TESTING SUBSET
+        # for station in ['ASOSAWOS_72698024229', 'ASOSAWOS_72479723176', 'ASOSAWOS_72785024157']: #  station has "bad" elevation values (nans, 0s, shifting values)
 
             ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
 
@@ -154,7 +154,13 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_elev_range') # testing
 
-                        # print(stn_to_qaqc.head(20)) # testing
+
+                        ## Variable logic checks
+                        # precipitation is not negative
+                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        print('pass qaqc_precip_logic_nonegvals') # testing
+
+                        print(stn_to_qaqc)
 
                 except Exception as e:
                     # print(e) # testing
@@ -209,7 +215,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "ASOSAWOS"
+    network = "VCAPCD"
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 
