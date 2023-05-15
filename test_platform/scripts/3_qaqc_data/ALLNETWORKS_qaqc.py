@@ -13,7 +13,6 @@ Outputs: QA/QC-processed data for an individual network, priority variables, all
 # Import libraries
 import os
 import datetime
-# import numpy as np
 import pandas as pd
 import xarray as xr
 import boto3
@@ -74,7 +73,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
+        for station in stations.sample(1): # TESTING SUBSET
+        # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -153,16 +153,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
                         ## Buoys with known issues with specific qaqc flags
-                        era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
-                        try:
-                            stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, era_qc_vars)
-                        except Exception as e:
-                            print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
-                            continue # skipping station
-                        print('pass spurious_buoy_check') #testing
+                        if network == 'MARITIME' or network == 'NDBC':
+                            era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
+                            try:
+                                stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, era_qc_vars)
+                            except Exception as e:
+                                print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
+                                errors['File'].append(station)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
+                                continue # skipping station
+                            print('pass spurious_buoy_check') #testing
 
                         print(stn_to_qaqc.head(10)) # testing
 
@@ -219,13 +220,13 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "NDBC"
+    network = "ASOSAWOS"
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
     # NDBC, SCAN, SNOTEL
 
 

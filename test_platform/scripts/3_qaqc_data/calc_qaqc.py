@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import requests
 import urllib
+import datetime
+
 
 
 ## Set AWS credentials
