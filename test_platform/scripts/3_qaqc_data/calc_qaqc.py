@@ -151,6 +151,37 @@ def qaqc_elev_range(file_to_qaqc):
 #----------------------------------------------------------------------
 ## Part 2 functions (individual variable/timestamp)
 
+## logic check: precip does not have any negative values
+def qaqc_precip_logic_nonegvals(df):
+    """
+    Ensures that precipitation values are positive. Negative values are flagged as impossible.
+    Provides handling for the multiple precipitation variables presently in the cleaned data. 
+    """
+    # pr_24h: Precipitation accumulated from last 24 hours
+    # pr_localmid: Precipitation accumulated from local midnight
+    # pr: Precipitation accumulated since last record
+    # pr_1h: Precipitation accumulated in last hour
+    # pr_5min: Precipitation accumulated in last 5 minutes
+
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if "_qc" not in var] # remove all qc variables so they do not also run through
+
+    if len(pr_vars) != 0: # precipitation variable(s) is present
+        for item in pr_vars:
+            if (df[item] < 0).any():
+                df.loc[df[item] < 0, 'pr_eraqc'] = 10 # see qaqc_flag_meanings.csv
+
+    else: # station does not report precipitation
+        print('station does not report precipitation - bypassing precip logic check') # testing
+        df = df
+
+    print('Precipitation neg-values logic check testing: {}'.format(df['pr_eraqc'].unique())) # testing
+
+    return df
+
+
+
 
 #----------------------------------------------------------------------
 # To do

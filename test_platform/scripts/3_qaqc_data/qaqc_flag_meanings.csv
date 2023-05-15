@@ -1,2 +1,3 @@
 ﻿Flag_value,Flag_meaning
 1,Suspect
+10,Precipitation value reported below 0 (negative value)

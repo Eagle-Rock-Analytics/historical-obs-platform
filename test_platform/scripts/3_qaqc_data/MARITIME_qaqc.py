@@ -233,6 +233,14 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             print('DEM in-filling failure message here - in progress')
                             # continue
 
+
+
+                        ## Variable logic checks
+                        
+                        # precipitation is not negative
+                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        print('pass qaqc_precip_logic_nonegvals') # testing
+
                         print(stn_to_qaqc)
 
 
