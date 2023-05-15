@@ -1,5 +1,6 @@
 """
-This script performs qa/qc protocols for cleaned NDBC/MARITIME data for ingestion into the Historical Observations Platform.
+This script performs qa/qc protocols for cleaned station data for ingestion into the Historical Observations Platform, and is
+independent of network. 
 Approach:
 (1) Remove duplicate stations
 (2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
