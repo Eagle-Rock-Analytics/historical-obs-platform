@@ -27,4 +27,3 @@ MM,NDBC,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/measdes.
 99.0,NDBC,historical data,https://www.ndbc.noaa.gov/measdes.shtml
 -9999,NOS-NWLON,,https://tidesandcurrents.noaa.gov/publications/tech_rpt_026.pdf
 -9999,NOS-PORTS,,https://tidesandcurrents.noaa.gov/publications/tech_rpt_026.pdf
--30479.6952,ASOSAWOS,elevation bad value,in cleaned data
