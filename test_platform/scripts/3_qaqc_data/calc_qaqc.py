@@ -339,6 +339,23 @@ def spurious_buoy_check(station, df, qc_vars):
 
     else: # station is not suspicious, move on
         return df
+    
+
+## logic check: precip accumulation amounts balance for time period
+def qaqc_precip_logic_accum_amounts(df):
+    """
+    Ensures that precipitation accumulation amounts are consistent with reporting time frame. 
+    For example: pr_5min should not be larger than pr_1h
+    """
+    # pr: Precipitation accumulated since last record
+    # pr_5min: Precipitation accumulated in last 5 minutes
+    # pr_1h: Precipitation accumulated in last hour
+    # pr_24h: Precipitation accumulated from last 24 hours
+    # pr_localmid: Precipitation accumulated from local midnight
+
+    # need an inter-time stamp (row) check for consistency between vars
+
+    # need a subsequent time stamp (column) check for consistency within var
 
 #----------------------------------------------------------------------
 # To do
