@@ -1,6 +1,12 @@
-﻿Flag_value,Flag_meaning
-1,Suspect
-2,Out of range for station official data temporal record (i.e., buoy reports data past disestablishment date)
-3,Elevation infilled from DEM (USGS 3DEP)
-4,Elevation infilled from station
-5,Elevation manually infilled for buoy out-of-range of DEM, if not buoy, check
+﻿Flag_value,QAQC_function,Flag_meaning
+1,all,Suspect
+2,spurious_buoy_check,Out of range for station official data temporal record (i.e., buoy reports data past disestablishment date)
+3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
+4,qaqc_elev_infill,Elevation infilled from station
+5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM; if not buoy, check
+11,qaqc_precip_logic_accum_amounts,pr_5min accumulation is too large when compared to pr_1h
+12,qaqc_precip_logic_accum_amounts,pr_5min accumulation is too large when compared to pr_24h
+13,qaqc_precip_logic_accum_amounts,pr_1h accumulation is too low when compared to pr_5min
+14,qaqc_precip_logic_accum_amounts,pr_1h accumulation is too high when compared to pr_24h
+15,qaqc_precip_logic_accum_amounts,pr_24h accumulation is too low when compared to pr_5min
+16,qaqc_precip_logic_accum_amounts,pr_24h accumulation is too low when compared to pr_1h
