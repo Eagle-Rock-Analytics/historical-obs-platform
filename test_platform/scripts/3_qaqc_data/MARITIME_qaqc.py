@@ -64,42 +64,42 @@ def spurious_buoy_check(station, df, qc_vars):
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2010, 9, 9)) == True:
-                        df.loc[df.index[i], j] = "DS" # DISESTABLISHMENT FLAG?
-                        # df.loc[df.index[i], 'ps_qc'] = "DS" # format
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
             
         elif station == "NDBC_46045": # disestablished 11/1997
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1997, 12, 1)) == True:
-                        df.loc[df.index[i], j] = "DS"
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
-        elif station == "NDBC_46051": # disestablished 4/1996
+        elif station == "NDBC_46051": # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
+            # qaqc_elev_infill sets elevation to be assumed 0.0m, but flagging 
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1996, 5, 1)) == True:
-                        df.loc[df.index[i], j] = "DS"
-
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv 
+          
         elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
             # only flag if new data is added after 2022 in a new data pull
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2022, 2, 9)) == True:
-                        df.loc[df.index[i], j] = "DS"
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
         # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
         elif station == "NDBC_46044":
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1] >= datetime.datetime(2015, 5, 2, 10, 40, 0)) and (df.index[i][-1] <= datetime.datetime(2015, 5, 3, 15, 50, 0)):
-                        df.loc[df.index[i], j] = "AD" # ADRIFT FLAG?
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
 
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             for i in range(df.shape[0]):
                 if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
-                    df.loc[df.index[i], "sfcWind_qc"] = "1" 
-                    df.loc[df.index[i], "sfcWind_dir_qc"] = "1"
+                    df.loc[df.index[i], "sfcWind_eraqc"] = 1 # see qaqc_flag_meanings.csv
+                    df.loc[df.index[i], "sfcWind_dir_eraqc"] = 1 
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
@@ -115,7 +115,11 @@ def spurious_buoy_check(station, df, qc_vars):
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
-        # complete this...
+        for i in range(df.shape[0]):
+            for j in qc_vars:
+                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+    
+        return df
 
     else: # station is not suspicious, move on
         return df
@@ -139,7 +143,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         station_file = [file for file in files if 'stationlist_' in file]
         obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj['Body'].read()))
-        stations = station_file['STATION_ID'].dropna()
+        stations = station_file['ERA-ID'].dropna()
 
         files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
 
@@ -152,8 +156,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
     else: # if files successfully read in
         # for station in stations: # full run
         for station in stations.sample(5): # TESTING SUBSET
-        # for station in ["46023", "46044", "46045", "46051"]: # known issues, 3 have nan elevations = good for testing
-            station = network + "_" + station
+        # for station in ["NDBC_46051", "NDBC_46089", "NDBC_46023", 'NDBC_46086', 'NDBC_46022']: # known issues, 3 have nan elevations = good for testing
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -170,16 +173,21 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj, engine='h5netcdf') # CHECK THE ENGINE HERE
+                        ds = xr.open_dataset(fileObj) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
 
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
-                        exclude_qaqc = ["time", "station", "lat", "lon", "q_code"] # lat and lon have a different qc check
-                        qc_vars = [] # qc_variable for each data variable, will vary station to station
+                        exclude_qaqc = ["time", "station", "lat", "lon"] # lat and lon have a different qc check
+                        raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
+                        era_qc_vars = [] # our qc variable
                         for var in ds.variables:
-                            if var not in exclude_qaqc:
-                                qa_var = var + "_qc" # variable/column label
-                                qc_vars.append(qa_var)
-                                ds[qa_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
+                             if 'q_code' in var:
+                                  raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
+
+                        for var in ds.variables:
+                            if var not in exclude_qaqc and var not in raw_qc_vars:
+                                qc_var = var + "_eraqc" # variable/column label
+                                era_qc_vars.append(qc_var)
+                                ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
                                                 
                         stn_to_qaqc = ds.to_dataframe()
 
@@ -204,40 +212,42 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_within_wecc') #testing
 
-
                         ## Buoys with known issues with specific qaqc flags
-                        qc_vars.remove("elevation_qc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
+                        era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
                         try:
-                            stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, qc_vars)
+                            stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, era_qc_vars)
 
                         except Exception as e:
                             print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
-                            # continue # skipping station
+                            continue # skipping station
                         print('pass spurious_buoy_check') #testing
 
-
                         ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+                        stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
+                        if len(stn_to_qaqc.index) == 0:
+                            print('DEM in-filling for {} failed, may not mean station does not pass qa/qc -- check'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
+                            continue # skipping station
+
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
                             print('{} elevation out of range for WECC, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
                             errors['Error'].append('Failure on qaqc_elev_range')
+                            continue
                         print('pass qaqc_elev_range') # testing
 
-                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
-                        if len(stn_to_qaqc.index) == 0:
-                            print('DEM in-filling failure message here - in progress')
-                            # continue
-
-                        print(stn_to_qaqc)
+                        # print(stn_to_qaqc.head(20))
 
 
                 except Exception as e:
-                    # print(e) # testing
+                    print(e) # testing
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
                     errors['Error'].append("Cannot read files in from AWS: {0}".format(e))
@@ -251,9 +261,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 # ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
-                ds = ds.assign_attrs(title = network+" quality controlled")
-                ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
-                ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
+                # ds = ds.assign_attrs(title = network+" quality controlled")
+                # ds = ds.assign_attrs(history = 'MARITIME_qaqc.py script run on {} UTC'.format(timestamp))
+                # ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
                 ## need to reassign attributes from cleaning stage here? -- check
 
                 # # Write station file to netcdf format
@@ -294,8 +304,7 @@ if __name__ == "__main__":
     whole_station_qaqc(network, cleandir, qaqcdir)
 
 # To do:
-# flag as attribute?  only files that pass get saved?
-# add flag variable, reorder variables once entire qaqc is complete before saving
+# reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
 # delete testing notes
