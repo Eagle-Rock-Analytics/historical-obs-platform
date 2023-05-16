@@ -353,9 +353,27 @@ def qaqc_precip_logic_accum_amounts(df):
     # pr_24h: Precipitation accumulated from last 24 hours
     # pr_localmid: Precipitation accumulated from local midnight
 
+    # determine which precipitation vars are present
+    pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
+    pr_vars = [item for item in pr_vars if "qc" not in item]
+    pr_vars = [item for item in pr_vars if "duration" not in item]
+    df_to_check = df[df.columns.intersection(pr_vars)]
+
+
+    if df_to_check.empty() == True: # if station does not report any precipitation values, bypass
+        df = df
+
+    else: 
+        print('things')
+
+
     # need an inter-time stamp (row) check for consistency between vars
 
     # need a subsequent time stamp (column) check for consistency within var
+
+    return df
+
+
 
 #----------------------------------------------------------------------
 # To do
