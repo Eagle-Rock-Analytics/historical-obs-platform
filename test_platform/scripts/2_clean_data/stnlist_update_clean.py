@@ -18,7 +18,7 @@ from io import BytesIO, StringIO
 import numpy as np
 import xarray as xr
 import s3fs
-# from datetime import datetime
+from datetime import datetime
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -176,7 +176,6 @@ def clean_qa(network, clean_var_add=False):
             if id:
                 errors.loc[index, 'ID'] = network+"_"+id[-1]
 
-
         for index, row in stations.iterrows(): # For each station
             error_sta = errors.loc[errors.ID == row['ERA-ID']]
             if error_sta.empty: # if no errors for station
@@ -214,8 +213,14 @@ def clean_qa(network, clean_var_add=False):
     if clean_var_add == True:
         print('Processing all cleaned files to assess variable coverage -- this may take awhile based on size of network!') # useful warning
 
-        bucket_name="wecc-historical-wx"
         directory="2_clean_wx/"
+
+        # Set up error handling for identifing cleaned files that can't open
+        # Appears that some datetime/index failed to format -- need to reclean
+        errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
+        end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
+        timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
+
 
         # add in default columns of "N" to cleaned station list for all core variables
         # also adds column that counts number of valid/non-nan observations
@@ -280,8 +285,11 @@ def clean_qa(network, clean_var_add=False):
 
                         # close dataset
                         ds.close()
-                except:
+                except Exception as e:
                     print('{} not opening'.format(file))
+                    errors['File'].append(file) 
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('clean_var_add error in opening file: {}'.format(e))
                     continue
 
         # reset index
@@ -294,9 +302,16 @@ def clean_qa(network, clean_var_add=False):
     content = new_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
+    # Save errors file to cleaned bucket
+    errors = pd.DataFrame(errors)
+    csv_buffer = StringIO()
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"add_clean_var_errors_{}_{}.csv".format(network, end_api))
+
 
 if __name__ == "__main__":
-    clean_qa('VCAPCD', clean_var_add=False)
+    clean_qa('VCAPCD', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
