@@ -307,7 +307,7 @@ def clean_qa(network, clean_var_add=False):
     csv_buffer = StringIO()
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"add_clean_var_errors_{}_{}.csv".format(network, end_api))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
 
 
 if __name__ == "__main__":
