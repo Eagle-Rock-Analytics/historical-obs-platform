@@ -243,6 +243,18 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue
                         print('pass qaqc_elev_range') # testing
 
+                        stn_to_qaqc = qaqc_elev_demfill(stn_to_qaqc) # nan infilling must be before range check
+                        if len(stn_to_qaqc.index) == 0:
+                            print('DEM in-filling failure message here - in progress')
+                            # continue
+                        
+                        ## Sensor height air temperature -- if fails, flag in temperature qc column
+                        stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        
+                        ## Sensor height wind -- if fails, flag in wind speed and direction qc columns
+                        stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+
+                        print(stn_to_qaqc)
                         # print(stn_to_qaqc.head(20))
 
 
