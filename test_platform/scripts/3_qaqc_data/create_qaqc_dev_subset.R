@@ -4,6 +4,8 @@ library(tidyverse)
 library(sf)
 library(raster)
 library(lhs)
+library(tigris)
+library(tmap)
 
 # Read in list of cleaned stations
 stns <- read_csv('cleaned_stations.csv')
@@ -28,6 +30,20 @@ stns_allvars <- bind_cols(stns_sf, bioclim_stns)
 stns_subset <- stns_allvars %>%
   dplyr::select(name, elevation, network, 
                 wc2.1_30s_bio_5, wc2.1_30s_bio_6, wc2.1_30s_bio_13, wc2.1_30s_bio_14)
+
+# Read in windspeed raster
+wind <- raster('map_data/wtk_conus_10m_mean_masked.tif')
+wind <- flip(wind, direction = 'y') # flip on y axis to correct orientation
+
+# reproject to match other rasters
+wind_latlon <- projectRaster(wind, crs = crs(bioclim))
+
+# Extract windspeed at stns
+wind_stns <- extract(wind_latlon, stns_sf)
+
+# append to stns df 
+stns_subset <- stns_subset %>%
+  bind_cols(windspeed = wind_stns)
 
 # 250 stations across 1 dimension, maximin criteria LHS
 lhs_samp <- maximinLHS(250, 1)
@@ -66,8 +82,12 @@ bio14 <- pmap(list(lhs_samp),
               ~which.min(abs(stns_subset$wc2.1_30s_bio_14 - transform_lhs(., stns_subset$wc2.1_30s_bio_14)))) %>%
   unlist()
 
+wind <- pmap(list(lhs_samp),
+             ~which.min(abs(stns_subset$wind - transform_lhs(., stns_subset$wind)))) %>%
+  unlist()
+
 # unique list of stations
-stns_lhs <- unique(c(elev, bio5, bio6, bio13, bio14))
+stns_lhs <- unique(c(elev, bio5, bio6, bio13, bio14, wind))
 
 # get stations in final list
 stns_final <- stns_subset[stns_lhs, ]
@@ -95,7 +115,12 @@ bio14 <- ggplot(stns_subset, aes(x = wc2.1_30s_bio_14)) +
   geom_density() + ylab('density') + xlab('precip driest month') +
   geom_point(data = stns_final, aes(x = wc2.1_30s_bio_14, y = 0), col = 'skyblue', alpha = 0.5)
 
-cowplot::plot_grid(elev, bio5, bio6, bio13, bio14, nrow = 3)
+wind <- ggplot(stns_subset, aes(x = windspeed)) + 
+  geom_density() + ylab('density') + xlab('avg windspeed') +
+  geom_point(data = stns_final, aes(x = wc2.1_30s_bio_14, y = 0), col = 'skyblue', alpha = 0.5)
+
+cowplot::plot_grid(elev, bio5, bio6, bio13, bio14, wind, nrow = 3)
+ggsave('qaqc_training_stations_vars.pdf', height = 6, width = 7, units = 'in')
 
 ## Write df with final station set
 coords <- st_coordinates(stns_final) %>%
@@ -108,11 +133,4 @@ stns_to_write <- stns_final %>%
   bind_cols(coords)
 
 write.csv(stns_to_write, "test_platform/scripts/3_qaqc_data/qaqc_training_station_list.csv", row.names = F)
-
-## Add in annual max wind
-
-## Map of stations
-
-## Length of record for stations
-
 
