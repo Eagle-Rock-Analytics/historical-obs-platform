@@ -304,6 +304,34 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
                 
     return file_to_qaqc
 
+
+## cross-variable logic checks
+# wind direction must be 0 if wind speed is 0
+def qaqc_crossvar_logic_calm_wind_dir(df):
+    """Checks that wind direction is zero when wind speed is also zero.
+    If fails, both wind speed and direction are flagged.""" # only flag wind direction?
+
+    # Noting that a wind direction value of 0 is a valid value (i.e., true north)
+    # Only a problem when wind speed is also 0, where 0 now means no winds for there to be a direction
+
+    # Check values for physical constraint
+    if df['sfcWind'] == 0 and df['sfcWind_dir'] != 0:
+        df.loc[(df['sfcWind'] == 0) and (df['sfcWind_dir'] != 0), 'sfcWind_eraqc'] = 11 # see qaqc_flag_meanings.csv
+        df.loc[(df['sfcWind'] == 0) and (df['sfcWind_dir'] != 0), 'sfcWind_dir_eraqc'] = 11 
+
+    return df
+
+# dew point must not exceed air temperature
+def qaqc_crossvar_logic_tdps_to_tas(df):
+    """Checks that dewpoint temperature does not exceed air temperature.
+    If fails, dewpoint temperature is flagged.""" # also flag air temp, might illustrate a larger problem?
+
+    # Check values for physical constraint
+    if df['tdps'] > df['tas']:
+        df.loc[df['tdps'] > df['tas'], 'tdps_eraqc'] = 12 # see qaqc_flag_meanings.csv
+
+    return df
+
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate

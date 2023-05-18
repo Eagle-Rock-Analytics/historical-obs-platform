@@ -8,3 +8,5 @@
 7,Thermometer height not 2 meters
 8,Anemometer height missing
 9,Anemometer height not 10 meters
+11,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+12,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
