@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import requests
 import urllib
+import datetime
 
 
 ## Set AWS credentials
@@ -250,15 +251,128 @@ def qaqc_elev_range(df):
     return df
 
 
-
-
 ## Time conversions
 ## Need function to calculate sub-hourly to hourly -- later on?
 
 #----------------------------------------------------------------------
 ## Part 2 functions (individual variable/timestamp)
 
-# sensor height - air temperature
+## NDBC and MARITIME only
+
+def spurious_buoy_check(station, df, qc_vars):
+    """
+    Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
+    If station reports data past disestablishment date, data records are flagged as suspect.
+    If station reports data during buoy dates, data records are flagged as suspect.
+    """
+    known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'NDBC_46044', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
+                    'MARITIME_SMOC1', 'MARITIME_ICAC1']
+    potential_issues = ['NDBC_46290', 'NDBC_46404', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220', 'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 
+                        'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
+                        
+    if station in known_issues:
+        print('{0} is flagged as suspect, checking data coverage'.format(station)) # testing
+
+        # buoys with "data" past their disestablishment dates
+        if station == 'NDBC_46023': # disestablished 9/8/2010
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(2010, 9, 9)) == True:
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+            
+        elif station == "NDBC_46045": # disestablished 11/1997
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(1997, 12, 1)) == True:
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+
+        elif station == "NDBC_46051": # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
+            # qaqc_elev_infill sets elevation to be assumed 0.0m, but flagging 
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(1996, 5, 1)) == True:
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv 
+          
+        elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
+            # only flag if new data is added after 2022 in a new data pull
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1].date() >= datetime.date(2022, 2, 9)) == True:
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+
+        # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
+        elif station == "NDBC_46044":
+            for i in range(df.shape[0]):
+                for j in qc_vars:
+                    if (df.index[i][-1] >= datetime.datetime(2015, 5, 2, 10, 40, 0)) and (df.index[i][-1] <= datetime.datetime(2015, 5, 3, 15, 50, 0)):
+                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+
+        # other known issues
+        elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
+            # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
+            for i in range(df.shape[0]):
+                if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
+                    df.loc[df.index[i], "sfcWind_eraqc"] = 1 # see qaqc_flag_meanings.csv
+                    df.loc[df.index[i], "sfcWind_dir_eraqc"] = 1 
+
+        # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
+        #     # modify attribute/naming with note
+        #     # this will get flagged in station proximity tests
+
+        # elif station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
+        #     # modify attribute/naming with note
+        #     # this will get flagged in station proximity tests
+        return df
+
+    elif station in potential_issues: 
+        # other stations have partial coverage of their full data records as well as disestablishment dates
+        # if new data is added in the future, needs a manual check and added to known issue list if requires handling
+        # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
+        print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
+        for i in range(df.shape[0]):
+            for j in qc_vars:
+                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+    
+        return df
+
+    else: # station is not suspicious, move on
+        return df
+
+
+## logic check: precip does not have any negative values
+def qaqc_precip_logic_nonegvals(df):
+    """
+    Ensures that precipitation values are positive. Negative values are flagged as impossible.
+    Provides handling for the multiple precipitation variables presently in the cleaned data. 
+    """
+    # pr_24h: Precipitation accumulated from last 24 hours
+    # pr_localmid: Precipitation accumulated from local midnight
+    # pr: Precipitation accumulated since last record
+    # pr_1h: Precipitation accumulated in last hour
+    # pr_5min: Precipitation accumulated in last 5 minutes
+
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
+
+    if len(pr_vars) != 0: # precipitation variable(s) is present
+        for item in pr_vars:
+            print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
+            if (df[item] < 0).any() == True:
+                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see qaqc_flag_meanings.csv
+
+            print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
+
+    else: # station does not report precipitation
+        print('station does not report precipitation - bypassing precip logic check') # testing
+        df = df
+
+    return df
+
+  
+## sensor height - air temperature
 def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
@@ -280,7 +394,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
             
     return file_to_qaqc
 
-# sensor height - wind
+## sensor height - wind
 def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
