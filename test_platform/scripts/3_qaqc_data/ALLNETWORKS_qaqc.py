@@ -1,5 +1,6 @@
 """
-This script performs qa/qc protocols for cleaned  data for ingestion into the Historical Observations Platform.
+This script performs qa/qc protocols for cleaned station data for ingestion into the Historical Observations Platform, and is
+independent of network. 
 Approach:
 (1) Remove duplicate stations
 (2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
@@ -13,7 +14,6 @@ Outputs: QA/QC-processed data for an individual network, priority variables, all
 # Import libraries
 import os
 import datetime
-# import numpy as np
 import pandas as pd
 import xarray as xr
 import boto3
@@ -74,10 +74,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(5): # TESTING SUBSET
-        # for station in ['ASOSAWOS_72698024229', 'ASOSAWOS_72479723176', 'ASOSAWOS_72785024157']: #  station has "bad" elevation values (nans, 0s, shifting values)
-
-            ## NOTE: elev values in these files dont match the cleaned master spreadsheet - check as to whats going on
+        for station in stations.sample(1): # TESTING SUBSET
+        # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
 
             file_name = cleandir+station+".nc"
 
@@ -101,17 +99,18 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
                         raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
                         era_qc_vars = [] # our qc variable
-
                         for var in ds.variables:
-                             if '_qc' in var:
-                                  raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
+                            if 'q_code' in var:
+                                raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
+                            if '_qc' in var:
+                                raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
                         for var in ds.variables:
                             if var not in exclude_qaqc and var not in raw_qc_vars:
                                 qc_var = var + "_eraqc" # variable/column label
                                 era_qc_vars.append(qc_var)
                                 ds[qc_var] = xr.full_like(ds[var], np.nan) # adds new variable in shape of original variable with designated nan fill value
-                                                                                                   
+                                                
                         stn_to_qaqc = ds.to_dataframe()
 
                         ## QAQC Functions
@@ -135,6 +134,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_within_wecc') #testing
 
+
                         ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
                         stn_to_qaqc = qaqc_elev_infill(stn_to_qaqc) # nan infilling must be before range check
                         if len(stn_to_qaqc.index) == 0:
@@ -143,7 +143,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Time'].append(end_api)
                             errors['Error'].append('DEM in-filling error, may not mean station does not pass qa/qc -- check')
                             continue # skipping station
-
 
                         stn_to_qaqc = qaqc_elev_range(stn_to_qaqc)
                         if len(stn_to_qaqc.index) == 0:
@@ -160,10 +159,25 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
                         print('pass qaqc_precip_logic_nonegvals') # testing
 
-                        print(stn_to_qaqc)
+
+                        ## Buoys with known issues with specific qaqc flags
+                        if network == 'MARITIME' or network == 'NDBC':
+                            era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
+                            try:
+                                stn_to_qaqc = spurious_buoy_check(station, stn_to_qaqc, era_qc_vars)
+                            except Exception as e:
+                                print('Flagging problematic buoy issue for {0}, skipping'.format(station)) # testing
+                                errors['File'].append(station)
+                                errors['Time'].append(end_api)
+                                errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
+                                continue # skipping station
+                            print('pass spurious_buoy_check') #testing
+
+                        print(stn_to_qaqc.head(10)) # testing
+
 
                 except Exception as e:
-                    # print(e) # testing
+                    print(e) # testing
                     errors['File'].append(station)
                     errors['Time'].append(end_api)
                     errors['Error'].append("Cannot read files in from AWS: {0}".format(e))
@@ -177,9 +191,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 # ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
-                ds = ds.assign_attrs(title = network+" quality controlled")
-                ds = ds.assign_attrs(history = 'ASOSAWOS_qaqc.py script run on {} UTC'.format(timestamp))
-                ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
+                # ds = ds.assign_attrs(title = network+" quality controlled")
+                # ds = ds.assign_attrs(history = 'ALLNETWORKS_qaqc.py script run on {} UTC'.format(timestamp))
+                # ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
                 ## need to reassign attributes from cleaning stage here? -- check
 
                 # # Write station file to netcdf format
@@ -219,7 +233,14 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 
-# To do:
+    # List of all stations for ease of use here:
+    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+    # NDBC, SCAN, SNOTEL
+
+
+
+# Dev to do:
 # reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
 # check the h5netcdf vs. netcdf4 engine
