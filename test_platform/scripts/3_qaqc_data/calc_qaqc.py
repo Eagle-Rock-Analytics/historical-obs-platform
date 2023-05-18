@@ -13,7 +13,6 @@ import urllib
 import datetime
 
 
-
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
@@ -252,8 +251,6 @@ def qaqc_elev_range(df):
     return df
 
 
-
-
 ## Time conversions
 ## Need function to calculate sub-hourly to hourly -- later on?
 
@@ -261,6 +258,7 @@ def qaqc_elev_range(df):
 ## Part 2 functions (individual variable/timestamp)
 
 ## NDBC and MARITIME only
+
 def spurious_buoy_check(station, df, qc_vars):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
@@ -372,6 +370,54 @@ def qaqc_precip_logic_nonegvals(df):
         df = df
 
     return df
+
+  
+## sensor height - air temperature
+def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
+    '''
+    Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
+    '''
+    
+    # Check if thermometer height is missing
+    if (np.isnan(xr_ds.thermometer_height_m)):
+        file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(6) # see qaqc_flag_meanings.csv
+    
+    else: # sensor height present
+        # Check if thermometer height is within 2 m +/- 1/3 m
+        if(xr_ds.thermometer_height_m >= (2 - 1/3) and xr_ds.thermometer_height_m <= (2 + 1/3)):
+            file_to_qaqc = file_to_qaqc
+                
+        else: 
+            # Thermometer height present but outside 2m +/- tolerance
+            file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(7)
+            
+    return file_to_qaqc
+
+## sensor height - wind
+def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
+    '''
+    Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
+    '''
+        
+    # Check if anemometer height is missing
+    if np.isnan(xr_ds.anemometer_height_m):
+        file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(8) # see qaqc_flag_meanings.csv
+        file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(8)
+    
+    else: # sensor height present
+        if xr_ds.anemometer_height_m >= (10 - 1/3) and xr_ds.anemometer_height_m <= (10 + 1/3):
+            # Check if anemometer height is within 10 m +/- 1/3 m
+            file_to_qaqc = file_to_qaqc
+                    
+        else: 
+            # Anemometer height present but outside 10m +/- tolerance
+            file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(9)
+            file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(9)
+                
+    return file_to_qaqc
+
 
 #----------------------------------------------------------------------
 # To do

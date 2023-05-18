@@ -76,7 +76,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         # for station in stations: # full run
         for station in stations.sample(1): # TESTING SUBSET
         # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
-
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -230,6 +229,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 # Run function
 if __name__ == "__main__":
     network = "VCAPCD"
+
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 
