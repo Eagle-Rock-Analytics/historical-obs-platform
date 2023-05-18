@@ -331,7 +331,7 @@ def spurious_buoy_check(station, df, qc_vars):
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
         for i in range(df.shape[0]):
             for j in qc_vars:
-                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+                df.loc[df.index[i], j] = 1  # see qaqc_flag_meanings.csv
     
         return df
 
@@ -423,15 +423,16 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
 # wind direction must be 0 if wind speed is 0
 def qaqc_crossvar_logic_calm_wind_dir(df):
     """Checks that wind direction is zero when wind speed is also zero.
-    If fails, both wind speed and direction are flagged.""" # only flag wind direction?
+    If fails, wind direction is flagged.""" # only flag wind direction?
 
     # Noting that a wind direction value of 0 is a valid value (i.e., true north)
     # Only a problem when wind speed is also 0, where 0 now means no winds for there to be a direction
-
-    # Check values for physical constraint
-    if df['sfcWind'] == 0 and df['sfcWind_dir'] != 0:
-        df.loc[(df['sfcWind'] == 0) and (df['sfcWind_dir'] != 0), 'sfcWind_eraqc'] = 11 # see qaqc_flag_meanings.csv
-        df.loc[(df['sfcWind'] == 0) and (df['sfcWind_dir'] != 0), 'sfcWind_dir_eraqc'] = 11 
+    
+    # Identify calm winds but with incorrect wind directions
+    df.loc[(df['sfcWind'] == 0) & # calm winds
+           (df['sfcWind_dir'] != 0) & # direction is not 0
+           (df['sfcWind_dir'].isnull()==False), # exclude directions that are null/nan
+              'sfcWind_dir_eraqc'] = 11 # see qaqc_flag_meanings.csv
 
     return df
 
