@@ -153,6 +153,12 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_elev_range') # testing
 
 
+                        ## Variable logic checks
+                        # precipitation is not negative
+                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        print('pass qaqc_precip_logic_nonegvals') # testing
+
+
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
                             era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
@@ -167,6 +173,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             print('pass spurious_buoy_check') #testing
 
                         print(stn_to_qaqc.head(10)) # testing
+
 
                 except Exception as e:
                     print(e) # testing
@@ -221,7 +228,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "ASOSAWOS"
+    network = "VCAPCD"
+
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 

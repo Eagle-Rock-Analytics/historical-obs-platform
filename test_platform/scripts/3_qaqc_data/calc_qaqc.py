@@ -13,7 +13,6 @@ import urllib
 import datetime
 
 
-
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
@@ -252,15 +251,14 @@ def qaqc_elev_range(df):
     return df
 
 
-
-
 ## Time conversions
 ## Need function to calculate sub-hourly to hourly -- later on?
 
 #----------------------------------------------------------------------
 ## Part 2 functions (individual variable/timestamp)
 
-# NDBC and MARITIME only
+## NDBC and MARITIME only
+
 def spurious_buoy_check(station, df, qc_vars):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
@@ -340,7 +338,41 @@ def spurious_buoy_check(station, df, qc_vars):
     else: # station is not suspicious, move on
         return df
 
-# sensor height - air temperature
+
+## logic check: precip does not have any negative values
+def qaqc_precip_logic_nonegvals(df):
+    """
+    Ensures that precipitation values are positive. Negative values are flagged as impossible.
+    Provides handling for the multiple precipitation variables presently in the cleaned data. 
+    """
+    # pr_24h: Precipitation accumulated from last 24 hours
+    # pr_localmid: Precipitation accumulated from local midnight
+    # pr: Precipitation accumulated since last record
+    # pr_1h: Precipitation accumulated in last hour
+    # pr_5min: Precipitation accumulated in last 5 minutes
+
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
+
+    if len(pr_vars) != 0: # precipitation variable(s) is present
+        for item in pr_vars:
+            print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
+            if (df[item] < 0).any() == True:
+                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see qaqc_flag_meanings.csv
+
+            print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
+
+    else: # station does not report precipitation
+        print('station does not report precipitation - bypassing precip logic check') # testing
+        df = df
+
+    return df
+
+  
+## sensor height - air temperature
 def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
@@ -362,7 +394,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
             
     return file_to_qaqc
 
-# sensor height - wind
+## sensor height - wind
 def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
