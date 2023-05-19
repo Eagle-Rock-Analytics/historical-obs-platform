@@ -6,14 +6,17 @@ library(raster)
 library(lhs)
 library(tigris)
 library(tmap)
+library(aws.s3)
 
-# Read in list of cleaned stations
-stns <- read_csv('cleaned_stations.csv')
+# Read in master list of cleaned stations
+stns <- s3read_using(FUN = read.csv, 
+                     object = '2_clean_wx/temp_clean_master_station_list.csv',
+                     bucket = 'wecc-historical-wx')
 
 # Read in bioclim vars
 bioclim_files <- list.files('map_data/')[grepl('bio', list.files('map_data/'))]
 
-bioclim <- stack(paste0('map_data/',bioclim_files))
+bioclim <- raster::stack(paste0('map_data/',bioclim_files))
 
 # Extract bioclim at stations
 stns_sf <- stns %>%
@@ -28,7 +31,7 @@ stns_allvars <- bind_cols(stns_sf, bioclim_stns)
 # Keep bio5,6,13,14 (max temp of warmest month, min temp of coldest month, 
 # precip driest month, precip wettest month)
 stns_subset <- stns_allvars %>%
-  dplyr::select(name, elevation, network, 
+  dplyr::select(era.id, elevation, network, 
                 wc2.1_30s_bio_5, wc2.1_30s_bio_6, wc2.1_30s_bio_13, wc2.1_30s_bio_14)
 
 # Read in windspeed raster
@@ -43,7 +46,8 @@ wind_stns <- extract(wind_latlon, stns_sf)
 
 # append to stns df 
 stns_subset <- stns_subset %>%
-  bind_cols(windspeed = wind_stns)
+  bind_cols(windspeed = wind_stns) %>%
+  filter(elevation > -10000) #rm one erroneous value
 
 # 250 stations across 1 dimension, maximin criteria LHS
 lhs_samp <- maximinLHS(250, 1)
@@ -129,7 +133,7 @@ coords <- st_coordinates(stns_final) %>%
 
 stns_to_write <- stns_final %>%
   st_set_geometry(NULL) %>%
-  dplyr::select(name, elevation, network) %>%
+  dplyr::select(era.id, elevation, network) %>%
   bind_cols(coords)
 
 write.csv(stns_to_write, "test_platform/scripts/3_qaqc_data/qaqc_training_station_list.csv", row.names = F)
