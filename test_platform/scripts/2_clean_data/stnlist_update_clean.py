@@ -213,8 +213,6 @@ def clean_qa(network, clean_var_add=False):
     if clean_var_add == True:
         print('Processing all cleaned files to assess variable coverage -- this may take awhile based on size of network!') # useful warning
 
-        directory="2_clean_wx/"
-
         # Set up error handling for identifing cleaned files that can't open
         # Appears that some datetime/index failed to format -- need to reclean
         errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
@@ -222,9 +220,12 @@ def clean_qa(network, clean_var_add=False):
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
 
 
-        # add in default columns of "N" to cleaned station list for all core variables
+        # add in default columns of "N" to cleaned station list for all core and associated variables
         # also adds column that counts number of valid/non-nan observations
-        core_vars = ['tas', 'ps', 'tdps', 'hurs', 'pr', 'sfcWind', 'sfcWind_dir', 'rsds']
+        core_vars = ['tas', 'tdps', 'tdps_derived',
+                     'ps', 'psl', 'ps_altimeter', 'ps_derived',
+                     'pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid',
+                     'hurs',  'sfcWind', 'sfcWind_dir', 'rsds']
         for var in core_vars:
             stations[str(var)] = "N"
             stations[str(var+"_nobs")] = 0      # default of 0 to start
@@ -247,6 +248,7 @@ def clean_qa(network, clean_var_add=False):
                 continue
             else:
                 try:
+                    print(file)
                     fs = s3fs.S3FileSystem()
                     aws_url = "s3://wecc-historical-wx/"+file
 
@@ -257,29 +259,7 @@ def clean_qa(network, clean_var_add=False):
 
                         # mark each variable as present if in dataset, and count number of valid/non-nan values
                         for var in ds.variables:
-                            if var == "tdps_derived":  # tdps requires handling for tdps_derived
-                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps'] = 'Y'
-                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps_nobs'] = ds['tdps_derived'].count()
-                                
-                            elif var == "pr_1h" or var=="pr_24h" or var=='pr_5min': # pr has multiple options
-                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr'] = 'Y'
-                                if var == "pr_1h":
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_1h'].count()
-                                elif var == "pr_24h":
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_24h'].count()
-                                elif var == "pr_5min":
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_5min'].count()
-                                
-                            elif var == "ps_altimeter" or var == "psl" or var=='ps_derived': # ps has multiple options
-                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps'] = 'Y'
-                                if var == 'ps_altimeter':
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_altimeter'].count()
-                                elif var == 'psl':
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['psl'].count()
-                                elif var == 'ps_derived':
-                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_derived'].count()
-                                
-                            elif var in core_vars:
+                            if var in core_vars:
                                 stations.loc[stations['ERA-ID']==ds.station.values[0], str(var)] = 'Y'
                                 stations.loc[stations['ERA-ID']==ds.station.values[0], str(var+"_nobs")] = ds[str(var)].count()
 
@@ -294,6 +274,7 @@ def clean_qa(network, clean_var_add=False):
 
         # reset index
         stations = stations.reset_index(drop = True)
+        
         
     # Save station file to cleaned bucket
     print(stations) # For testing
@@ -311,7 +292,7 @@ def clean_qa(network, clean_var_add=False):
 
 
 if __name__ == "__main__":
-    clean_qa('VCAPCD', clean_var_add=True)
+    clean_qa('SHASAVAL', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
