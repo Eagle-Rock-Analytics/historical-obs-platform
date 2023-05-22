@@ -16,13 +16,33 @@ Outputs: QA/QC-processed data for an individual network, priority variables, all
 # Step 0: Environment set-up
 # Import libraries
 import os
-from datetime import datetime, timezone
+import datetime
+import pandas as pd
 import xarray as xr
+import boto3
+import s3fs
+from io import BytesIO, StringIO
 
 
-# Set envr variables
-workdir = "/path/to/working/directory/"
-years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
+## Import qaqc stage calc functions
+try:
+    from calc_qaqc import *
+except:
+    print("Error importing calc_qaqc.py")
+
+## Set up directory to save files temporarily, if it doesn't already exist.
+try:
+    os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
+except:
+    pass
+
+## Set AWS credentials
+s3 = boto3.resource("s3")
+s3_cl = boto3.client('s3') # for lower-level processes
+
+## Set relative paths to other folders and objects in repository.
+bucket_name = "wecc-historical-wx"
+
 
 ## Step 0: Development standards
 ## Calculate false positive rate (our goal is <2%), evaluate data flagged by original network
@@ -44,10 +64,21 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
         # History of threshold tuning to get to target FP rate
 
 ## Step 1: whole station checks
+    # Remove station if NA in lat-lon
+    # Remove station if NA elevation or elevation out of range (must be >= -282 ft below sea level - Death Valley)
+    # Remove station if outside of WECC
 
-# Remove station if NA in lat-lon
-# Remove station if NA elevation or elevation out of range (must be >= -282 ft below sea level - Death Valley)
-# Remove station if outside of WECC
+## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
+    ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
+
+    ## QAQC Part 1 (Whole Network) Functions
+    ## Lat-lon -- does not proceed through qaqc if failure
+
+    ## Within WECC -- does not proceed through qaqc if failure
+    ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+
+
+## -------------------------------------------------------------------------------------------------------------------------------------------
 
 ## Step 2: QA/QC (these could potentially be individual steps too)
 ## Testing with random subsample to ensure acceptably low level of false positive rates for specified thresholds and tests for each variables

@@ -1,0 +1,11 @@
+﻿Flag_value,Flag_meaning
+1,Suspect
+2,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
+3,Elevation infilled from DEM (USGS 3DEP)
+4,Elevation infilled from station
+5,Elevation manually infilled for buoy out-of-range of DEM (check if not buoy)
+6,Thermometer height missing
+7,Thermometer height not 2 meters
+8,Anemometer height missing
+9,Anemometer height not 10 meters
+10,Precipitation value reported below 0 (negative value)

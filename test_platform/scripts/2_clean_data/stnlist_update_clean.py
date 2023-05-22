@@ -1,4 +1,4 @@
-'''
+"""
 This script iterates through a specified network and checks to see what stations have been successfully cleaned,
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files are not cleaned, or if the errors occur during or after the cleaning process.
@@ -10,13 +10,15 @@ As of 01/23, current networks are as follows:
 ASOSAWOS, CAHYDRO, CDEC, CIMIS, CNRFC, CRN, CW3E, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO, MAP,
 MARITIME, MTRWFO, NCAWOS, NDBC, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SCAN, SGXWFO, SHASAVAL,
 SNOTEL, VCAPCD
+"""
 
-'''
 import boto3
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
-# from datetime import datetime
+import xarray as xr
+import s3fs
+from datetime import datetime
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -83,8 +85,11 @@ def parse_error_csv(network):
 
         return errordf
 
-# Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors.
-def clean_qa(network):
+# Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors
+# Optional: clean_var_add will open every cleaned station file, check which variables are present, and flag in the station list
+    # Default is False, time intensive
+    # Recommendation: run clean_var_add=True only after a full clean or partial clean update
+def clean_qa(network, clean_var_add=False):
     if 'otherisd' in network: # Fixing capitalization issues
         network = "OtherISD"
     else:
@@ -117,7 +122,6 @@ def clean_qa(network):
         stations['ERA-ID'] = network+"_"+stations['STATION_ID']
     elif network in ['SCAN', 'SNOTEL']:
         stations['ERA-ID'] = network+"_"+stations['stationTriplet'].str.split(":").str[0]
-
 
     # Make ERA-ID first column
     eraid = stations.pop('ERA-ID')
@@ -172,7 +176,6 @@ def clean_qa(network):
             if id:
                 errors.loc[index, 'ID'] = network+"_"+id[-1]
 
-
         for index, row in stations.iterrows(): # For each station
             error_sta = errors.loc[errors.ID == row['ERA-ID']]
             if error_sta.empty: # if no errors for station
@@ -206,7 +209,92 @@ def clean_qa(network):
         else:
             print("Station list updated for cleaned {} stations. No stations cleaned successfully. {} stations not yet cleaned.".format(network, stations['Cleaned'].value_counts()['N']))
 
+    # clean_var_add
+    if clean_var_add == True:
+        print('Processing all cleaned files to assess variable coverage -- this may take awhile based on size of network!') # useful warning
 
+        directory="2_clean_wx/"
+
+        # Set up error handling for identifing cleaned files that can't open
+        # Appears that some datetime/index failed to format -- need to reclean
+        errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling.
+        end_api = datetime.now().strftime('%Y%m%d%H%M') # Set end time to be current time at beginning of download: for error handling csv.
+        timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S") # For attributes of netCDF file.
+
+
+        # add in default columns of "N" to cleaned station list for all core variables
+        # also adds column that counts number of valid/non-nan observations
+        core_vars = ['tas', 'ps', 'tdps', 'hurs', 'pr', 'sfcWind', 'sfcWind_dir', 'rsds']
+        for var in core_vars:
+            stations[str(var)] = "N"
+            stations[str(var+"_nobs")] = 0      # default of 0 to start
+
+        # add column for total length of each record, valid (non-nan) and nans
+        stations['total_nobs'] = 0   # default of 0 to start
+                    
+        # open cleaned datafile
+        network_prefix = clean_wx+network+"/"
+        files = []
+        for item in s3.Bucket(bucket_name).objects.filter(Prefix = network_prefix):
+            file = str(item.key)
+            files += [file]
+            
+        # get list of station filenames successfully cleaned    
+        files = list(filter(lambda f: f.endswith(".nc"), files))
+        
+        for file in files: 
+            if file not in files: # dont run qa/qc on a station that isn't cleaned
+                continue
+            else:
+                try:
+                    fs = s3fs.S3FileSystem()
+                    aws_url = "s3://wecc-historical-wx/"+file
+
+                    with fs.open(aws_url) as fileObj:
+                        ds = xr.open_dataset(fileObj) # setting engine=None (default) uses what is best for system, previously engine='h5netcdf'
+                        
+                        stations.loc[stations['ERA-ID']==ds.station.values[0], 'total_nobs'] = ds.time.shape[0]
+
+                        # mark each variable as present if in dataset, and count number of valid/non-nan values
+                        for var in ds.variables:
+                            if var == "tdps_derived":  # tdps requires handling for tdps_derived
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps'] = 'Y'
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'tdps_nobs'] = ds['tdps_derived'].count()
+                                
+                            elif var == "pr_1h" or var=="pr_24h" or var=='pr_5min': # pr has multiple options
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr'] = 'Y'
+                                if var == "pr_1h":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_1h'].count()
+                                elif var == "pr_24h":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_24h'].count()
+                                elif var == "pr_5min":
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'pr_nobs'] = ds['pr_5min'].count()
+                                
+                            elif var == "ps_altimeter" or var == "psl" or var=='ps_derived': # ps has multiple options
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps'] = 'Y'
+                                if var == 'ps_altimeter':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_altimeter'].count()
+                                elif var == 'psl':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['psl'].count()
+                                elif var == 'ps_derived':
+                                    stations.loc[stations['ERA-ID']==ds.station.values[0], 'ps_nobs'] = ds['ps_derived'].count()
+                                
+                            elif var in core_vars:
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], str(var)] = 'Y'
+                                stations.loc[stations['ERA-ID']==ds.station.values[0], str(var+"_nobs")] = ds[str(var)].count()
+
+                        # close dataset
+                        ds.close()
+                except Exception as e:
+                    print('{} not opening'.format(file))
+                    errors['File'].append(file) 
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('clean_var_add error in opening file: {}'.format(e))
+                    continue
+
+        # reset index
+        stations = stations.reset_index(drop = True)
+        
     # Save station file to cleaned bucket
     print(stations) # For testing
     new_buffer = StringIO()
@@ -214,9 +302,16 @@ def clean_qa(network):
     content = new_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
+    # Save errors file to cleaned bucket
+    errors = pd.DataFrame(errors)
+    csv_buffer = StringIO()
+    errors.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
+
 
 if __name__ == "__main__":
-    clean_qa('CWOP')
+    clean_qa('VCAPCD', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
