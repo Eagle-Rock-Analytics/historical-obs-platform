@@ -292,7 +292,7 @@ def clean_qa(network, clean_var_add=False):
 
 
 if __name__ == "__main__":
-    clean_qa('SHASAVAL', clean_var_add=True)
+    clean_qa('SHASAVAL', clean_var_add=False)
 
 
     # List of all stations for ease of use here:
