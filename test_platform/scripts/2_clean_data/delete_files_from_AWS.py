@@ -49,7 +49,7 @@ def delete_files_from_AWS(network, which_to_delete):
     bucket_name  = "wecc-historical-wx"
 
     # deletes only update pull files with date extensions that are empty
-    if which_to_delete == "empty": # DO NOT TEST UNTIL TIME TO DELETE, CHECK FILES FIRST
+    if which_to_delete == "empty":
 
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
@@ -90,6 +90,7 @@ def delete_files_from_AWS(network, which_to_delete):
         print('Number of empty files to delete in {0}: {1}'.format(rawdir, len(empty)))
         print(empty)
 
+        ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
         ## delete files in empty -- commenting out for now/safety
         # for file in empty:
         #     s3.Object(bucket_name, file).delete() # delete file
@@ -99,7 +100,7 @@ def delete_files_from_AWS(network, which_to_delete):
 
 
     # deletes ALL update pull files with date extensions
-    elif which_to_delete == "update_pull": # DO NOT TEST UNTIL TIME TO DELETE, CHECK FILE NAMES FIRST
+    elif which_to_delete == "update_pull":
 
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
@@ -125,6 +126,7 @@ def delete_files_from_AWS(network, which_to_delete):
         print('Number of files to delete in {0}: {1}'.format(rawdir, len(files_to_delete)))
         print(files_to_delete) # should have date in filename
 
+        ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
         ## delete files in files_to_delete -- commenting out for now/safety
         # for file in files_to_delete:
         #     s3.Object(bucket_name, file).delete() # delete file
@@ -134,7 +136,7 @@ def delete_files_from_AWS(network, which_to_delete):
 
     # deletes the monthly files from NDBC, MARITIME after year file is in
     # note: CIMIS has monthly files, but should not delete, as these files retain data for all stations
-    elif which_to_delete == "monthly": # DO NOT TEST UNTIL TIME TO DELETE, CHECK FILES FIRST
+    elif which_to_delete == "monthly":
 
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
@@ -176,6 +178,7 @@ def delete_files_from_AWS(network, which_to_delete):
             print('Number of files to delete in {0}: {1}'.format(rawdir, len(files_to_delete)))
             print(files_to_delete) # should have date in filename
 
+            ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
             ## delete files in files_to_delete -- commenting out for now/safety
             # for file in files_to_delete:
             #     s3.Object(bucket_name, file).delete() # delete file
