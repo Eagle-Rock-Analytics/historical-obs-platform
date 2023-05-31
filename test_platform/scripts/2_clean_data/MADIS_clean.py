@@ -212,7 +212,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     df['Date_Time'] = pd.to_datetime(df['Date_Time'], errors = 'coerce') # Convert time to datetime and catch any incorrectly formatted columns.
     df = df[pd.notnull(df['Date_Time'])] # Remove any rows where time is missing.
 
-    df = df.loc[(df['Date_Time']<'09-01-2022') & (df['Date_Time']>'12-31-1979')]# TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+    df = df.loc[(df['Date_Time']<'09-01-2022') & (df['Date_Time']>'12-31-1979')] # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
 
     # Remove any non-essential columns.
     coltokeep = ['Station_ID', 'Date_Time', 'altimeter_set_1', 'altimeter_set_1_qc',
@@ -824,7 +824,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                 if 'precip_accum_since_local_midnight_set_1' in ds.keys():
                     ds = ds.rename({'precip_accum_since_local_midnight_set_1': 'pr_localmid'})
                     ds['pr_localmid'].attrs['long_name'] = "precipitation_since_local_midnight"
-                    ds['pr_localmid'].attrs['units'] = "mm since local midnight"
+                    ds['pr_localmid'].attrs['units'] = "mm" # since local midnight, including "midnight" in unit will break xr read in for time unit
                     ds['pr_localmid'].attrs['comment'] = "Precipitation accumulated since local midnight."
 
                     if 'precip_accum_since_local_midnight_set_1_qc' in ds.keys():
@@ -1198,7 +1198,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "CWOP"
+    network = "HNXWFO"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
