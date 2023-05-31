@@ -21,19 +21,19 @@ def delete_files_from_AWS(network, which_to_delete):
         /1_raw_wx bucket that will cause issues in cleaning and updating the cleaned station list 
         for cleaned variable coverage. 
         This option *specifically* identifies these empty files and deletes them. 
+        Note: we are no longer pulling data from Synoptic in the future.
 
     which_to_delete = "update_pull"
-        When we complete an update pull of raw data files, but not a full new pull, the update_pull
-        script will place a raw data file from the date of the last pull to the designated date
-        (excluding preliminary "waiting" period for MARITIME/NDBC) for some networks (MADIS). 
-        This file has a suffix with the date of the update pull. When the next full pull is performed, 
-        the original raw data files will be overwritten, but the old update pull files with the date 
-        suffix will not, even though that data should be encapsulated in the latest new full pull. 
+        When grabbing data for an updated pull from Synoptic/MADIS networks for end of 2022 data, 
+        our update_pull script produced an update raw data file for every station. This file has a 
+        suffix with the date of the update pull. When the next full pull is performed, the original 
+        raw data files will be overwritten, but the old update pull files with the date suffix will
+        not, even though that data should be encapsulated in the latest new full pull. 
         This option *specifically* identifies the files with a date suffix and deletes them. 
         Only perform after a new full pull has occured. 
 
     which_to_delete = "monthly"
-        NDBC, MARITIME, CIMIS networks produce a monthly file if the year of data coverage is within the
+        NDBC, MARITIME networks produce a monthly file if the year of data coverage is within the
         current year, rather than a single annual file. Once the annual file is available for the year,
         these monthly files should be deleted.
 
