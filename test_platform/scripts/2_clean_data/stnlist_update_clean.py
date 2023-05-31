@@ -274,6 +274,13 @@ def clean_qa(network, clean_var_add=False):
 
         # reset index
         stations = stations.reset_index(drop = True)
+
+        # Save errors file to cleaned bucket
+        errors = pd.DataFrame(errors)
+        csv_buffer = StringIO()
+        errors.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
         
         
     # Save station file to cleaned bucket
@@ -283,16 +290,9 @@ def clean_qa(network, clean_var_add=False):
     content = new_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
-    # Save errors file to cleaned bucket
-    errors = pd.DataFrame(errors)
-    csv_buffer = StringIO()
-    errors.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
-
-
+    
 if __name__ == "__main__":
-    clean_qa('SHASAVAL', clean_var_add=False)
+    clean_qa('ASOSAWOS', clean_var_add=True)
 
 
     # List of all stations for ease of use here:
