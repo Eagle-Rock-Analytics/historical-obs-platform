@@ -184,10 +184,6 @@ def delete_files_from_AWS(network, which_to_delete):
             #     s3.Object(bucket_name, file).delete() # delete file
             #     print('File {} deleted from AWS'.format(file))
 
-                    
-
-    elif which_to_delete == None:
-        print('Please provide an option to delete files from AWS. Options are "empty", "monthly", and "update_pull". Check documentation for meanings.')
 
 
 if __name__ == "__main__":
