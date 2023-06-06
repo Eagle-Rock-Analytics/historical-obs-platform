@@ -213,6 +213,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     df = df[pd.notnull(df['Date_Time'])] # Remove any rows where time is missing.
 
     df = df.loc[(df['Date_Time']<'09-01-2022') & (df['Date_Time']>'12-31-1979')] # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
+    # note this will still return an empty df if all data is outside these time bounds
 
     # Remove any non-essential columns.
     coltokeep = ['Station_ID', 'Date_Time', 'altimeter_set_1', 'altimeter_set_1_qc',
@@ -313,6 +314,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
             ids = ids 
 
         for i in ids:
+
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
@@ -367,10 +369,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
                 try:
                     dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
+
                 except Exception as e: # Note: error handling will be slightly coarse here bc of list comprehension.
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
                     errors['Error'].append("Error in parsing MADIS files to pandas dfs: {}".format(e))
+                    continue
 
             except Exception as e:
                 errors['File'].append(i) # If stat_files is none, this will default to saving ID of station.
@@ -388,6 +392,14 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                     errors['Error'].append('Dataframe appending issue, please check')
                     continue
                 df_stat = pd.concat(dfs)
+
+                # handling for stations with data starting after cut-off date -- COME BACK TO THIS FOR NEXT CLEAN
+                if len(df_stat) == 0:
+                    print('No data for this station during v1 period (1/1980 - 8/2022), station not cleaned.')
+                    errors['File'].append(stat_files)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append("No data for this station during v1 period (1/1980 - 8/2022") 
+                    continue
 
                 # Deal with units
                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
@@ -1132,6 +1144,13 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                 errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
+            elif len(ds.time) == 0: # this should not be necessary, but placing for testing
+                print('No data for this station during v1 period (1/1980 - 8/2022), station not cleaned.')
+                errors['File'].append(stat_files)
+                errors['Time'].append(end_api)
+                errors['Error'].append("No data for this station during v1 period (1/1980 - 8/2022") 
+                continue
+
             else:
                 try:
                     filename = station_id+".nc" # Make file name
@@ -1198,7 +1217,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "HNXWFO"
+    network = "HADS"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)

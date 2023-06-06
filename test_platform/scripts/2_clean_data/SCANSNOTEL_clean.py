@@ -602,6 +602,13 @@ def clean_scansnotel(rawdir, cleandir):
                 errors['Error'].append('Station reports all nan meteorological data.')
                 continue
 
+            elif len(ds.time) == 0: # this should not be necessary, but placing for testing
+                print('No data for this station during v1 period (1/1980 - 8/2022), station not cleaned.')
+                errors['File'].append(stat_files)
+                errors['Time'].append(end_api)
+                errors['Error'].append("No data for this station during v1 period (1/1980 - 8/2022") 
+                continue
+
             else:
                 try:
                     filename = station_id+".nc" # Make file name
