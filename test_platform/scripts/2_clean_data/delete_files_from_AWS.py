@@ -90,12 +90,17 @@ def delete_files_from_AWS(network, which_to_delete):
         print('Number of empty files to delete in {0}: {1}'.format(rawdir, len(empty)))
         print(empty)
 
-        ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
-        ## delete files in empty -- commenting out for now/safety
-        # for file in empty:
-        #     s3.Object(bucket_name, file).delete() # delete file
-        #     print('File {} deleted from AWS'.format(file))       
+        resp = input('\nWARNING: this will permanently delete {0} files from {1}. Are you ready to delete these files? (Y/N)'.format(len(empty), rawdir))
+        if resp == 'N': # do not delete files!!
+            print('Files not deleted. Exiting function.')
 
+        elif resp == 'Y': # proceed to delete files
+            for file in empty:
+                s3.Object(bucket_name, file).delete() # delete file -- THIS IS THE LINE OF CODE THAT MATTERS
+                print('File {0} deleted from AWS bucket'.format(file))
+
+        else: # any other character thrown in, do not delete
+            print('Invalid response. Exiting function.')
 
 
 
@@ -126,11 +131,17 @@ def delete_files_from_AWS(network, which_to_delete):
         print('Number of files to delete in {0}: {1}'.format(rawdir, len(files_to_delete)))
         print(files_to_delete) # should have date in filename
 
-        ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
-        ## delete files in files_to_delete -- commenting out for now/safety
-        # for file in files_to_delete:
-        #     s3.Object(bucket_name, file).delete() # delete file
-        #     print('File {} deleted from AWS'.format(file))
+        resp = input('\nWARNING: this will permanently delete {0} files from {1}. Are you ready to delete these files? (Y/N)'.format(len(files_to_delete), rawdir))
+        if resp == 'N': # do not delete files!!
+            print('Files not deleted. Exiting function.')
+
+        elif resp == 'Y': # proceed to delete files
+            for file in files_to_delete:
+                s3.Object(bucket_name, file).delete() # delete file -- THIS IS THE LINE OF CODE THAT MATTERS
+                print('File {0} deleted from AWS bucket'.format(file))
+
+        else: # any other character thrown in, do not delete
+            print('Invalid response. Exiting function.')
 
 
 
@@ -173,21 +184,26 @@ def delete_files_from_AWS(network, which_to_delete):
                             files_to_delete += [file]
                     
                         else: # annual file for that station is not downloaded yet
-                            print('Warning! The annual file for this {} is not yet downloaded. Please check before proceeding.'.format(stn_name))
+                            print('Warning! The annual file for this {0} is not yet downloaded. Please check before proceeding.'.format(stn_name))
 
             print('Number of files to delete in {0}: {1}'.format(rawdir, len(files_to_delete)))
             print(files_to_delete) # should have date in filename
 
-            ## UNCOMMENT WHEN READY TO ACTUALLY RUN -- DO NOT TEST/RUN THIS PART UNTIL FILES ARE CONFIRMED, IT WILL DELETE FILES
-            ## delete files in files_to_delete -- commenting out for now/safety
-            # for file in files_to_delete:
-            #     s3.Object(bucket_name, file).delete() # delete file
-            #     print('File {} deleted from AWS'.format(file))
+            resp = input('\nWARNING: this will permanently delete {0} files from {1}. Are you ready to delete these files? (Y/N)'.format(len(files_to_delete), rawdir))
+            if resp == 'N': # do not delete files!!
+                print('Files not deleted. Exiting function.')
 
+            elif resp == 'Y': # proceed to delete files
+                for file in files_to_delete:
+                    s3.Object(bucket_name, file).delete() # delete file -- THIS IS THE LINE OF CODE THAT MATTERS
+                    print('File {0} deleted from AWS bucket'.format(file))
+
+            else: # any other character thrown in, do not delete
+                print('Invalid response. Exiting function.')
 
 
 if __name__ == "__main__":
-    network = "HNXWFO"
+    network = "MTRWFO"
     delete_files_from_AWS(network, which_to_delete="empty")
     # intentionally going to have user do this network by network, as we should be careful as to what we delete for now
 
