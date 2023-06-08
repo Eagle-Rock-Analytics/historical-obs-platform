@@ -418,7 +418,39 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
                 
     return file_to_qaqc
 
+## flag values outside world records for North America
+# temp, dewpoint, windspeed, sea level pressure
+def qaqc_world_record(df):
+    
+    # world records from HadISD protocol, cross-checked with WMO database
+    # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
+    T_X = {"North_America":329.92} #K
+    T_N = {"North_America":210.15} #K
+    D_X = {"North_America":329.85} #K
+    D_N = {"North_America":173.15} #K
+    W_X = {"North_America":113.2} #m/s
+    W_N = {"North_America":0.} #m/s
+    S_X = {"North_America":108330} #Pa
+    S_N = {"North_America":87000} #Pa
 
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "ps": S_X, "ps_derived": S_X}
+    mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "ps": S_N, "ps_derived": S_N}
+    
+    # theoretical maximum 1000 for rsds
+    # precip depends on time scale for realism - discuss at Monday meeting
+    
+    # column names to check against world record limits
+    wr_cols = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
+
+    # subset data to variables to check
+    wr_vars = [col for col in df.columns if col in wr_cols]
+
+    for item in wr_vars:
+        if ((df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America'])).any() == True:
+                df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
+    
+    return df
+    
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate

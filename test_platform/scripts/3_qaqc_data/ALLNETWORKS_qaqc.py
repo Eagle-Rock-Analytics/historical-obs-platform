@@ -92,7 +92,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
+                        ds_raw = xr.open_dataset(fileObj) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
+                        ds = ds_raw.where()
 
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
                         exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
@@ -171,7 +172,19 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                                 errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
                                 continue # skipping station
                             print('pass spurious_buoy_check') #testing
-
+                            
+                        ## Sensor height: wind
+                        stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+                        print('complete qaqc_sensor_height_w')
+                        
+                        ## Sensor height: air temperature
+                        stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        print('complete qaqc_sensor_height_t')
+                        
+                        ## World record checks: air temperature, dewpoint, wind, pressure
+                        stn_to_qaqc = qaqc_world_record(stn_to_qaqc)
+                        print('complete qaqc_world_record')
+                        
                         print(stn_to_qaqc.head(10)) # testing
 
 
