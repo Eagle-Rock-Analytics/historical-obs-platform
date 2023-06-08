@@ -263,8 +263,12 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
         ids = list()
         for file in files:
             id = file.split("/")[-1] # Remove leading folders
-            id = id.split("_")[-1] # Remove leading prefixes (for mult files)
-            id = re.sub('.csv', "", id) # Remove file extension.
+            id = re.sub('.csv','', id) # Remove file extension
+            id_mult = id.split('_') # Split on _ char in two cases
+            if len(id_mult[0]) <= 2: # timeout split files go up to 11_STID so far
+                id = id_mult[-1] # X_STID timeout split files, id is after _
+            elif len(id_mult[-1]) == 10: 
+                id = id_mult[0] # STID_20YY-MM-DD update pull files, id is before _
             if id not in ids:
                 ids.append(id)
 
@@ -313,7 +317,8 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
         else: # network should not be CWOP, and will complete full clean
             ids = ids 
 
-        for i in ids:
+        # for i in ids:
+        for i in ['HGFW1', 'HUMC1', 'JSDC1', 'SDLC1', 'SMOC1', 'SVFO3']: # RAWS one-off fixes
 
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
@@ -1217,7 +1222,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "HADS"
+    network = "RAWS"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
