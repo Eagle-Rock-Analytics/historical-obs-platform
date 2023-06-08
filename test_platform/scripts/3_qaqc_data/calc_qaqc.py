@@ -433,8 +433,8 @@ def qaqc_world_record(df):
     S_X = {"North_America":108330} #Pa
     S_N = {"North_America":87000} #Pa
 
-    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "ps": S_X, "ps_derived": S_X}
-    mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "ps": S_N, "ps_derived": S_N}
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
+    mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
     
     # theoretical maximum 1000 for rsds
     # precip depends on time scale for realism - discuss at Monday meeting
