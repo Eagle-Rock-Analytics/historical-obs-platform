@@ -125,7 +125,7 @@ def clean_qa(network, clean_var_add=False):
 
     # Make ERA-ID first column
     eraid = stations.pop('ERA-ID')
-    eraid = eraid.str.upper()  # Standardize names (one outlier station in CWOP)
+    # eraid = eraid.str.upper()  # Standardize names (one outlier station in CWOP)
     stations.insert(0, 'ERA-ID', eraid)
 
     # Join cleaned columns to column list
@@ -274,6 +274,13 @@ def clean_qa(network, clean_var_add=False):
 
         # reset index
         stations = stations.reset_index(drop = True)
+
+        # Save errors file to cleaned bucket
+        errors = pd.DataFrame(errors)
+        csv_buffer = StringIO()
+        errors.to_csv(csv_buffer)
+        content = csv_buffer.getvalue()
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
         
         
     # Save station file to cleaned bucket
@@ -283,17 +290,9 @@ def clean_qa(network, clean_var_add=False):
     content = new_buffer.getvalue()
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
-    # Save errors file to cleaned bucket
-    errors = pd.DataFrame(errors)
-    csv_buffer = StringIO()
-    errors.to_csv(csv_buffer)
-    content = csv_buffer.getvalue()
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/add_clean_var_errors_{}_{}.csv".format(network, end_api))
-
-
+    
 if __name__ == "__main__":
-    clean_qa('SHASAVAL', clean_var_add=False)
-
+    clean_qa('HADS', clean_var_add=False)
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
