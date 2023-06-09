@@ -125,7 +125,7 @@ def clean_qa(network, clean_var_add=False):
 
     # Make ERA-ID first column
     eraid = stations.pop('ERA-ID')
-    eraid = eraid.str.upper()  # Standardize names (one outlier station in CWOP)
+    # eraid = eraid.str.upper()  # Standardize names (one outlier station in CWOP)
     stations.insert(0, 'ERA-ID', eraid)
 
     # Join cleaned columns to column list
@@ -292,8 +292,7 @@ def clean_qa(network, clean_var_add=False):
 
     
 if __name__ == "__main__":
-    clean_qa('ASOSAWOS', clean_var_add=True)
-
+    clean_qa('HADS', clean_var_add=False)
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO

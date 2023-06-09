@@ -259,9 +259,10 @@ def clean_scansnotel(rawdir, cleandir):
                 if isinstance(station_metadata['shefId'], str):
                     ds = ds.assign_attrs(shefId = station_metadata['shefId'])
 
-                if network == "SCAN":
-                    if isinstance(station_metadata['actonId'], str):
-                        ds = ds.assign_attrs(actonId = station_metadata['actonId'])
+                ## commenting out the following section - it breaks 4 stations in terms of opening (sometimes) but it appears SCAN is missing actonId anyways?
+                # if network == "SCAN":
+                #     if isinstance(station_metadata['actonId'], str):
+                #         ds = ds.assign_attrs(actonId = station_metadata['actonId'])
 
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station.
 
@@ -648,7 +649,7 @@ def clean_scansnotel(rawdir, cleandir):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SNOTEL"
+    network = "SCAN"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)
