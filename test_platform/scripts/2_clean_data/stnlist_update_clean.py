@@ -273,6 +273,13 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
 
             print("CWOP batch variable coverage update for '{0}' stations: batch-size of {1} stations".format(cwop_letter, len(ids)))
             files = ids # resetting subset to main file list to be consistent for all networks and subset options
+
+            # generates subsetted list of just the station ids, needed to subset for CWOP
+            stnids_to_check = []
+            for item in ids:
+                stnids = str(item).split("/")
+                stnids = stnids[-1].replace(".nc","") # drops .nc
+                stnids_to_check += [stnids]
  
         for file in files: 
             if file not in files: # dont run qa/qc on a station that isn't cleaned
@@ -283,15 +290,13 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
                     fs = s3fs.S3FileSystem()
                     aws_url = "s3://wecc-historical-wx/"+file
 
+                    if network == "CWOP" and cwop_letter != None: # produces stationlist update of only stations within that cwop_letter so it doesnt overwrite
+                        stations = stations.loc[stations['ERA-ID'].isin(stnids_to_check)] # uses subsetted station ids list
+
                     with fs.open(aws_url) as fileObj:
-                        
-                        if network == "CWOP" and cwop_letter != None: # produces stationlist update of only stations within that cwop_letter so it doesnt overwrite
-                            stnid_fn = str(aws_url).split("/")[-1] # grabs station id from filename
-                            stations = stations.loc[stations['ERA-ID'] == stnid_fn[:-3]]
-                        
                         ds = xr.open_dataset(fileObj) # setting engine=None (default) uses what is best for system, previously engine='h5netcdf'
-                        
-                        stations.loc[stations['ERA-ID']==ds.station.values[0], 'total_nobs'] = ds.time.shape[0]
+                
+                        stations.loc[stations['ERA-ID']==ds.station.values[0], 'total_nobs'] = ds.time.shape[0] # fill total num of obs with length of time var
 
                         # mark each variable as present if in dataset, and count number of valid/non-nan values
                         for var in ds.variables:
@@ -326,14 +331,18 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
     content = new_buffer.getvalue()
 
     # set different files for CWOP if subsetting
-    if network == "CWOP" and cwop_letter != None:
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{0}_cleaned_{1}.csv".format(network, cwop_letter))
-    else:
+    if clean_var_add == False:
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
+
+    else: # clean_var_add == True
+        if network == "CWOP" and cwop_letter != None:
+            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{0}_cleaned_{1}.csv".format(network, cwop_letter))
+        else:
+            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
     
 if __name__ == "__main__":
-    clean_qa('CWOP', clean_var_add = True, cwop_letter = "B")
+    clean_qa('CWOP', clean_var_add = False, cwop_letter = None)
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
