@@ -173,15 +173,36 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             print('pass spurious_buoy_check') #testing
                             
                         ## Sensor height: wind
-                        stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with anemometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_w: {0}'.format(e))
+                            continue # skipping station
                         print('complete qaqc_sensor_height_w')
                         
                         ## Sensor height: air temperature
-                        stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with thermometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_t: {0}'.format(e))
+                            continue # skipping station
                         print('complete qaqc_sensor_height_t')
                         
                         ## World record checks: air temperature, dewpoint, wind, pressure
-                        stn_to_qaqc = qaqc_world_record(stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_world_record(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with world record check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_world_record: {0}'.format(e))
+                            continue # skipping station
                         print('complete qaqc_world_record')
                         
                         print(stn_to_qaqc.head(10)) # testing
