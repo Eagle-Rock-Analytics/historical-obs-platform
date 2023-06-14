@@ -180,10 +180,23 @@ def parse_madis_headers(file):
 # Function: take heads, read csv into pandas db and clean.
 def parse_madis_to_pandas(file, headers, errors, removedvars):
 
+    ### TEMPORARY MISMATCH METADATA FIX 
+    if len(file) > 24: # identifies files whose name is longer than 24 characters; for CWOP standard is 23 chars, update pull files are 32
+        return # skips any file whose name is longer than 24 characters --> targets the CWOP_STID-20YY-MM-DD files
+    ###
+
     # Read in CSV, removing header.
     obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-    df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
-    
+    try:
+        df = pd.read_csv(BytesIO(obj['Body'].read()), names = headers['columns'], header = headers['first_row']-1, low_memory=False) # Ignore dtype warning here, we resolve this manually below.
+    except:
+        print('Raw data file {} is either empty or does not report data within v1 period (1/1980 - 8/2022). Not cleaned.'.format(file))
+        return
+
+    if len(df.index) == 0:
+        print('Raw data file for {} is empty, station not cleaned.'.format(file))
+        return
+
     # Handling for timeout errors
     # If a timeout occurs, the last line of valid data is repeated in the next file and is skipped, but if that is the only line of data, script breaks
     # Remove "status" error rows
@@ -213,7 +226,10 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     df = df[pd.notnull(df['Date_Time'])] # Remove any rows where time is missing.
 
     df = df.loc[(df['Date_Time']<'09-01-2022') & (df['Date_Time']>'12-31-1979')] # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
-    # note this will still return an empty df if all data is outside these time bounds
+    # note this will return an empty df if all data is outside these time bounds
+    if len(df.index) == 0:
+        print('No data for {} during v1 period (1/1980 - 8/2022), station not cleaned.'.format(file))
+        return # exits the function
 
     # Remove any non-essential columns.
     coltokeep = ['Station_ID', 'Date_Time', 'altimeter_set_1', 'altimeter_set_1_qc',
@@ -322,8 +338,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
             try:
                 stat_files = [k for k in files if i in k] # Get list of files with station ID in them.
                 station_id = "{}_".format(network)+i.upper() # Save file ID as uppercase always.
-                headers = []
-                    # Iterate through files to clean. Each file represents a station's data.
+                headers = [] # Iterate through files to clean. Each file represents a station's data.
 
                 if not stat_files: # If no files left in list
                     print('No raw data found for {} on AWS.'.format(station_id))
@@ -353,23 +368,22 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                         errors['Error'].append("Error parsing MADIS headers.")
                         continue
 
-                # If more than one station, metadata should be identical. Test this.
+                # If more than one file for station, metadata should be identical. Test this.
                 if(all(a == headers[0] for a in headers[1:])):
                     headers = headers[0]
                 else: # If not, provide user input option to proceed.
-                    print("Station files provide conflicting metadata for station {}. Examine manually to determine which station data to use.".format(station_id))
-                    for k in headers:
-                        print("File {}:".format(i), headers[k])
-                        resp = input("Which file's metadata would you like to use (0-n)?")
-                        try:
-                            int(resp)
-                            headers = headers[resp]
-                        except ValueError:
-                            errors['File'].append(stat_files)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append("Invalid response to metadata query. Skipping file.")
-                            print("Invalid response. Skipping file {}.")
-                            continue
+                    ### TEMPORARY MISMATCH METADATA FIX 
+                    headers = headers[0] 
+                    # resp = input("Station files provide conflicting metadata for station {0}. Which file's metadata would you like to use (0-{1})?".format(station_id, len(headers)-1))
+                    # try:
+                    #     headers = headers[int(resp)]
+                    # except ValueError:
+                    #     errors['File'].append(stat_files)
+                    #     errors['Time'].append(end_api)
+                    #     errors['Error'].append("Invalid response to metadata query. Skipping file.")
+                    #     print("Invalid response. Skipping file {}.")
+                    #     continue
+                    ### 
 
                 try:
                     dfs = [parse_madis_to_pandas(file, headers, errors, removedvars) for file in stat_files]
@@ -394,16 +408,15 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                     errors['File'].append(i)
                     errors['Time'].append(end_api)
                     errors['Error'].append('Dataframe appending issue, please check')
-                    continue
-                df_stat = pd.concat(dfs)
+                    continue # skip station
 
-                # handling for stations with data starting after cut-off date -- COME BACK TO THIS FOR NEXT CLEAN
-                if len(df_stat) == 0:
-                    print('No data for this station during v1 period (1/1980 - 8/2022), station not cleaned.')
+                elif all(df is None for df in dfs) == True: # If all files for a station do not have data within time bound range
                     errors['File'].append(stat_files)
                     errors['Time'].append(end_api)
-                    errors['Error'].append("No data for this station during v1 period (1/1980 - 8/2022") 
-                    continue
+                    errors['Error'].append('All raw data files do not report data for 1/1980 - 8/2022. Not cleaned')
+                    continue # skip station
+
+                df_stat = pd.concat(dfs, axis=0, ignore_index=True) # fixes mismatch in num. of cols if sensor is added to station in newer raw datafile
 
                 # Deal with units
                 units = pd.DataFrame(list(zip(headers['columns'], list(headers['units'].split(",")))), columns = ['column', 'units'])
@@ -1149,7 +1162,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
                 continue
 
             elif len(ds.time) == 0: # this should not be necessary, but placing for testing
-                print('No data for this station during v1 period (1/1980 - 8/2022), station not cleaned.')
+                print('No data for {} during v1 period (1/1980 - 8/2022), station not cleaned.'.format(station_id))
                 errors['File'].append(stat_files)
                 errors['Time'].append(end_api)
                 errors['Error'].append("No data for this station during v1 period (1/1980 - 8/2022") 
@@ -1211,7 +1224,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
     # Write errors.csv
     finally: # Always execute this.
-        # print(errors)
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -1221,7 +1233,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "RAWS"
+    network = "CWOP"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
