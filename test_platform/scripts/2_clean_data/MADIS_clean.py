@@ -187,11 +187,10 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     # Handling for timeout errors
     # If a timeout occurs, the last line of valid data is repeated in the next file and is skipped, but if that is the only line of data, script breaks
     # Remove "status" error rows
-    if len(df[df.isin(['{"status": 408']).any(axis=1)]) != 0:
+    if len(df[df.isin([' "message": "Request could not complete. Timeout."}']).any(axis=1)]) != 0:
         df = df.drop(df.tail(1).index)
-
-    # df = df.loc[df["Station_ID"].str.contains("status")==False]
-    # df = df.loc[df["Date_Time"].str.contains("message")==False]
+    elif len(df[df.isin(['{"status": 408']).any(axis=1)]) != 0:
+        df = df.drop(df.tail(1).index)
 
     # Drop any columns that only contain NAs.
     df = df.dropna(axis = 1, how = 'all')
@@ -1224,7 +1223,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter = None):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "RAWS"
+    network = "CWOP"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     get_qaqc_flags(token = config.token, bucket_name = bucket_name, qaqcdir = qaqcdir, network = network)
