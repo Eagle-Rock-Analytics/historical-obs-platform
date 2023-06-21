@@ -421,6 +421,10 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
 ## flag values outside world records for North America
 # temp, dewpoint, windspeed, sea level pressure
 def qaqc_world_record(df):
+    '''
+    Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
+    If outside minimum or maximum records, flags values
+    '''
     
     # world records from HadISD protocol, cross-checked with WMO database
     # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
@@ -435,9 +439,6 @@ def qaqc_world_record(df):
 
     maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
     mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
-    
-    # theoretical maximum 1000 for rsds
-    # precip depends on time scale for realism - discuss at Monday meeting
     
     # column names to check against world record limits
     wr_cols = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
