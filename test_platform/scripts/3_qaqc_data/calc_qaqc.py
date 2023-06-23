@@ -338,6 +338,22 @@ def spurious_buoy_check(station, df, qc_vars):
     else: # station is not suspicious, move on
         return df
 
+## missing value check: double check that all missing value observations are converted to NA before QA/QC
+def qaqc_missing_vals(df):
+    '''
+    Checks data to be qaqc'ed for any errant missing values that made it through cleaning
+    Converts those missing values to NAs
+    Searches for missing values in 2_clean_data/missing_data_flags.csv
+    '''
+
+    missing_vals = pd.read_csv('missing_data_flags.csv')
+    
+    all_vars = [col for col in df.columns if 'qc' not in col]
+    obs_vars = [var for var in all_vars if var not in ['lon','lat']]
+    
+    for item in obs_vars:
+        # search item in missing_vals['variable'] = item | 'all'
+        # values in column that == missing_flag, replace_na
 
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df):
