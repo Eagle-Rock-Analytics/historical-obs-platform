@@ -351,28 +351,29 @@ def cwop_stnlist_merge(network):
     # generate station chart
     # Need to check that all subsetted CWOP stationlists are present in bucket
     # As of 6/23, should be (A, B, C, D, E, F, G, other) -- assumes that no groupings were applied (i.e., "AB + other")
-
     station_files = s3.Bucket(bucket_name).objects.filter(Prefix = clean_wx+network+"/stationlist_").all()
-    print(station_files)
-    print(len(list(station_files)))
 
     # open each csv file
     all_cwop = pd.DataFrame()
 
     # append/concat
+    for item in station_files:
+        df = pd.read_csv(item)
+        all_cwop = pd.concat([all_cwop, df], ignore_index=True)
+
+    all_cwop = all_cwop.sort_values('ERA-ID', ascending=True).reset_index(drop=True)
 
     # save to s3 bucket
-
     csv_buffer = StringIO()
     all_cwop.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
-    # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
 
 
     
 if __name__ == "__main__":
-    # clean_qa('CWOP', clean_var_add = False, cwop_letter = None)
+    clean_qa('CWOP', clean_var_add = False, cwop_letter = None)
     cwop_stnlist_merge("CWOP")  # Use once all CWOP stationlist(s) are updated with variable coverage
 
     # List of all stations for ease of use here:
