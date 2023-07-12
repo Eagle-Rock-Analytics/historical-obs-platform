@@ -359,7 +359,9 @@ def qaqc_missing_vals(df):
         # note numerical vals converted to strings first to match missing_flag formatting
         df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
         
-        return df
+        print(item)
+        
+    return df
 
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df):
