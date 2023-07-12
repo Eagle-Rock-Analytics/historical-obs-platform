@@ -151,6 +151,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Failure on qaqc_elev_range')
                             continue # skipping station
                         print('pass qaqc_elev_range') # testing
+                        
+                        
+                        ## Missing value checks -- convert any lingering missing value codes to NaNs
+                        stn_to_qaqc = qaqc_missing_vals(df)
+                        if len(stn_to_qaqc.index) == 0:
+                            print('Flagging problem on missing values check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_missing_vals')
+                            continue # skipping station
+                        print('pass qaqc_missing_vals') # testing
 
 
                         ## Variable logic checks

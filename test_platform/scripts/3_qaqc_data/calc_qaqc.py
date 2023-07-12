@@ -352,8 +352,14 @@ def qaqc_missing_vals(df):
     obs_vars = [var for var in all_vars if var not in ['lon','lat']]
     
     for item in obs_vars:
-        # search item in missing_vals['variable'] = item | 'all'
-        # values in column that == missing_flag, replace_na
+        # pull missing values which are appropriate for the range of real values for each variable 
+        missing_codes = missing_vals.loc[missing_vals['variable'].str.contains(item) | missing_vals['variable'].str.contains('all')]
+        
+        # values in column that == missing_flag values, replace with NAs
+        # note numerical vals converted to strings first to match missing_flag formatting
+        df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
+        
+        return df
 
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df):
