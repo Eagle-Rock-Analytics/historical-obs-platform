@@ -154,8 +154,10 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         
                         
                         ## Missing value checks -- convert any lingering missing value codes to NaNs
-                        stn_to_qaqc = qaqc_missing_vals(df)
-                        if len(stn_to_qaqc.index) == 0:
+                        try:
+                            stn_to_qaqc = qaqc_missing_vals(stn_to_qaqc)
+                            
+                        except:
                             print('Flagging problem on missing values check for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
