@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 # Given a variable column in an xarray object, this function returns a string with all of the unique variables
 # present in that column. This is used to generate lists of qaqc flag values from existing data in the cleaning stage.
 # Inputs: ds is xarray dataset, column is the name of the column
@@ -19,5 +20,4 @@ def get_file_paths(network):
     cleandir = "2_clean_wx/{}/".format(network)
     qaqcdir = "3_qaqc_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir
-
 

@@ -39,7 +39,6 @@ except:
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
 
-
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
 
@@ -74,7 +73,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(1): # TESTING SUBSET
+        for station in stations.sample(3): # TESTING SUBSET
         # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
@@ -155,8 +154,38 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                         ## Variable logic checks
                         # precipitation is not negative
-                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with negative precipitation values for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_nonegvals: {0}'.format(e))
+                            continue # skipping station
                         print('pass qaqc_precip_logic_nonegvals') # testing
+
+                        ## Variable cross-logic checks
+                        # dew point temp cannot exceed air temperature
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with temperature cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
+
+                        # wind direction should be 0 when wind speed is also 0
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
 
 
                         ## Buoys with known issues with specific qaqc flags
@@ -171,7 +200,40 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                                 errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
                                 continue # skipping station
                             print('pass spurious_buoy_check') #testing
-
+                            
+                        ## Sensor height: wind
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with anemometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_w: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_sensor_height_w')
+                        
+                        ## Sensor height: air temperature
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with thermometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_t: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_sensor_height_t')
+                        
+                        ## World record checks: air temperature, dewpoint, wind, pressure
+                        try:
+                            stn_to_qaqc = qaqc_world_record(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with world record check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_world_record: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_world_record')
+                        
                         print(stn_to_qaqc.head(10)) # testing
 
 

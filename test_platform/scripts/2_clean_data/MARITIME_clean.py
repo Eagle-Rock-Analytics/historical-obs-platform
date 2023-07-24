@@ -308,12 +308,12 @@ def clean_buoys(rawdir, cleandir, network):
                 ds = ds.assign_attrs(license = '')
                 ds = ds.assign_attrs(citation = '')
                 ds = ds.assign_attrs(disclaimer = "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.")
-                ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0])
+                ds = ds.assign_attrs(station_name = station_metadata['NAME'].values[0].upper())
                 ds = ds.assign_attrs(raw_files_merged = file_count) # Keep count of how many files merged per station
 
                 # Add dimensions and coordinates
                 ds = ds.set_coords('time').swap_dims({'index': 'time'}) # Swap index with time
-                ds = ds.assign_coords(id = str(station_id))
+                ds = ds.assign_coords(id = str(station_id).upper())
                 ds = ds.expand_dims('id') # Add station_id as index
                 ds = ds.drop_vars(('index')) # Drop station_id variable and index coordinate
                 ds = ds.rename({'id': 'station'}) # Rename id to station_id
@@ -517,7 +517,7 @@ def clean_buoys(rawdir, cleandir, network):
                 continue
             else:
                 try:
-                    filename = station_id + ".nc" # Make file name
+                    filename = station_id.upper() + ".nc" # Make file name
                     filepath = cleandir + filename # Writes file path
 
                     # Write locally

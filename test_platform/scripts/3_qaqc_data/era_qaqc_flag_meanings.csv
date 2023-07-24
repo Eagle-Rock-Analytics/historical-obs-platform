@@ -9,5 +9,6 @@
 8,Anemometer height missing
 9,Anemometer height not 10 meters
 10,Precipitation value reported below 0 (negative value)
-11,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+11,Value outside of world record range
 12,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
+13,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
