@@ -164,30 +164,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_precip_logic_nonegvals') # testing
 
-                        ## Variable cross-logic checks
-                        # dew point temp cannot exceed air temperature
-                        try:
-                            stn_to_qaqc = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc)
-                        except Exception as e:
-                            print('Flagging problem with temperature cross-variable logic check for {0}, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
-                            continue # skipping station
-                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
-
-                        # wind direction should be 0 when wind speed is also 0
-                        try:
-                            stn_to_qaqc = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
-                        except Exception as e:
-                            print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
-                            continue # skipping station
-                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
-
-
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
                             era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
@@ -235,6 +211,30 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('complete qaqc_world_record')
                         
                         print(stn_to_qaqc.head(10)) # testing
+
+
+                        ## Variable cross-logic checks
+                        # dew point temp cannot exceed air temperature
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with temperature cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
+
+                        # wind direction should be 0 when wind speed is also 0
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
 
 
                 except Exception as e:
