@@ -232,9 +232,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_calm_wind_dir: {0}'.format(e))
                             continue # skipping station
-                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
+                        print('pass qaqc_crossvar_logic_calm_wind_dir') # testing
 
 
                 except Exception as e:
