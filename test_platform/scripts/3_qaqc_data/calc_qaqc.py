@@ -13,7 +13,6 @@ import urllib
 import datetime
 
 
-
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
@@ -252,20 +251,18 @@ def qaqc_elev_range(df):
     return df
 
 
-
-
 ## Time conversions
 ## Need function to calculate sub-hourly to hourly -- later on?
 
 #----------------------------------------------------------------------
 ## Part 2 functions (individual variable/timestamp)
 
-# NDBC and MARITIME only
+## NDBC and MARITIME only
+
 def spurious_buoy_check(station, df, qc_vars):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
-    If station reports data during buoy dates, data records are flagged as suspect.
     """
     known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'NDBC_46044', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
                     'MARITIME_SMOC1', 'MARITIME_ICAC1']
@@ -333,7 +330,7 @@ def spurious_buoy_check(station, df, qc_vars):
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
         for i in range(df.shape[0]):
             for j in qc_vars:
-                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+                df.loc[df.index[i], j] = 2  # see qaqc_flag_meanings.csv
     
         return df
 
@@ -375,6 +372,120 @@ def qaqc_precip_logic_accum_amounts(df):
 
 
 
+
+## logic check: precip does not have any negative values
+def qaqc_precip_logic_nonegvals(df):
+    """
+    Ensures that precipitation values are positive. Negative values are flagged as impossible.
+    Provides handling for the multiple precipitation variables presently in the cleaned data. 
+    """
+    # pr_24h: Precipitation accumulated from last 24 hours
+    # pr_localmid: Precipitation accumulated from local midnight
+    # pr: Precipitation accumulated since last record
+    # pr_1h: Precipitation accumulated in last hour
+    # pr_5min: Precipitation accumulated in last 5 minutes
+
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
+
+    if len(pr_vars) != 0: # precipitation variable(s) is present
+        for item in pr_vars:
+            print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
+            if (df[item] < 0).any() == True:
+                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see qaqc_flag_meanings.csv
+
+            print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
+
+    else: # station does not report precipitation
+        print('station does not report precipitation - bypassing precip logic check') # testing
+        df = df
+
+    return df
+
+  
+## sensor height - air temperature
+def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
+    '''
+    Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
+    '''
+    
+    # Check if thermometer height is missing
+    if (np.isnan(xr_ds.thermometer_height_m)):
+        file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(6) # see qaqc_flag_meanings.csv
+    
+    else: # sensor height present
+        # Check if thermometer height is within 2 m +/- 1/3 m
+        if(xr_ds.thermometer_height_m >= (2 - 1/3) and xr_ds.thermometer_height_m <= (2 + 1/3)):
+            file_to_qaqc = file_to_qaqc
+                
+        else: 
+            # Thermometer height present but outside 2m +/- tolerance
+            file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(7)
+            
+    return file_to_qaqc
+
+## sensor height - wind
+def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
+    '''
+    Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
+    '''
+        
+    # Check if anemometer height is missing
+    if np.isnan(xr_ds.anemometer_height_m):
+        file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(8) # see qaqc_flag_meanings.csv
+        file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(8)
+    
+    else: # sensor height present
+        if xr_ds.anemometer_height_m >= (10 - 1/3) and xr_ds.anemometer_height_m <= (10 + 1/3):
+            # Check if anemometer height is within 10 m +/- 1/3 m
+            file_to_qaqc = file_to_qaqc
+                    
+        else: 
+            # Anemometer height present but outside 10m +/- tolerance
+            file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(9)
+            file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(9)
+                
+    return file_to_qaqc
+
+## flag values outside world records for North America
+# temp, dewpoint, windspeed, sea level pressure
+def qaqc_world_record(df):
+    '''
+    Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
+    If outside minimum or maximum records, flags values
+    '''
+    
+    # world records from HadISD protocol, cross-checked with WMO database
+    # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
+    T_X = {"North_America":329.92} #K
+    T_N = {"North_America":210.15} #K
+    D_X = {"North_America":329.85} #K
+    D_N = {"North_America":173.15} #K
+    W_X = {"North_America":113.2} #m/s
+    W_N = {"North_America":0.} #m/s
+    S_X = {"North_America":108330} #Pa
+    S_N = {"North_America":87000} #Pa
+
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
+    mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
+    
+    # column names to check against world record limits
+    wr_cols = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
+
+    # subset data to variables to check
+    wr_vars = [col for col in df.columns if col in wr_cols]
+
+    for item in wr_vars:
+        if ((df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America'])).any() == True:
+                df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
+    
+    return df
+    
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate

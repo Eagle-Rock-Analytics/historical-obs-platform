@@ -153,6 +153,12 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_elev_range') # testing
 
 
+                        ## Variable logic checks
+                        # precipitation is not negative
+                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        print('pass qaqc_precip_logic_nonegvals') # testing
+
+
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
                             era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
@@ -165,8 +171,42 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                                 errors['Error'].append('Failure on spurious_buoy_check: {0}'.format(e))
                                 continue # skipping station
                             print('pass spurious_buoy_check') #testing
-
+                            
+                        ## Sensor height: wind
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_w(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with anemometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_w: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_sensor_height_w')
+                        
+                        ## Sensor height: air temperature
+                        try:
+                            stn_to_qaqc = qaqc_sensor_height_t(ds, stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with thermometer sensor height for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_sensor_height_t: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_sensor_height_t')
+                        
+                        ## World record checks: air temperature, dewpoint, wind, pressure
+                        try:
+                            stn_to_qaqc = qaqc_world_record(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with world record check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_world_record: {0}'.format(e))
+                            continue # skipping station
+                        print('complete qaqc_world_record')
+                        
                         print(stn_to_qaqc.head(10)) # testing
+
 
                 except Exception as e:
                     print(e) # testing
@@ -221,7 +261,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "ASOSAWOS"
+    network = "VCAPCD"
+
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
 

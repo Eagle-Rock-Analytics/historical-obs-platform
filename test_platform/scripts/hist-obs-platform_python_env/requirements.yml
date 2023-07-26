@@ -1,0 +1,88 @@
+channels:
+ - conda-forge
+ - plotly
+dependencies:
+ - aioboto3==10.1.0
+ - aiobotocore==2.4.0
+ - beautifulsoup4==4.11.1
+ - boto3==1.24.59
+ - botocore==1.27.59
+ - contextily==1.2.0
+ - dask==2022.8.1
+ - ftputil==5.0.4
+ - geopandas==0.11.1
+ - h5netcdf==1.0.2
+ - h5py==3.7.0
+ - matplotlib==3.5.3
+ - netCDF4==1.6.0
+ - openpyxl==3.0.10
+ - pandas==1.5.0
+ - pathlib2
+ - requests==2.28.1
+ - s3fs==2022.11.0
+ - s3transfer==0.6.0
+ - smart_open==6.3.0
+ - xarray==2022.3.0
+ - autopep8 #autoformat code to PEP8
+ - cartopy #plotting geospatial data
+ - cfgrib #handling GRIB files with xarray
+ - cftime #handling non-standard calendars
+ - cloudpickle #extended support for serializing for Python objects
+ - cmocean #more perceptually-uniform colorbars
+ - cython #Python - C interface
+ - dask-labextension #dask dashboard extension for Jupyter
+ - descartes #add geometric patch support to matplotlib
+ - emcee #MCMC (Markov chain Monte Carlo) sampler
+ - f90nml #Fortran90 namelist builder
+ - ffmpeg #multimedia file handling
+ - fiona #GDAL rasterized and vectorized geospatial data handling
+ - gitpython #python git interface
+ - imageio #read and write images
+ - ipympl #interactive matplotlib widgets in Jupyter
+ - ipywidgets #interactive widgets in Jupyter
+ - jupyterlab #Jupyter
+ - jupyterlab_execute_time #Jupyter cell timings
+ - jupyterlab-git #git version control for Jupyter
+ - jupyter-resource-usage #Jupyter memory usage tracker
+ - jupyterlab_vim #vim-style editor for Jupyter
+ - keras #deep learning
+ - metpy #plotting (esp. skew-Ts) and analysis of meteorlogical data
+ - mpi4py #python bindings for MPI
+ - nc-time-axis #nice plotting of cftime objs for xarray plots
+ - nodejs #for installing extensions in Jupyter
+ - numba #speed ups for numpy
+ - numpy #low-level, fast array handling
+ - openh264 #H.264 codec support
+ - pip #python package manager
+ - progress #progress bars
+ - pyshp #shapefile handling
+ - pytest #python package tester
+ - pywavelets #wavelet transforms
+ - qtpy #Qt graphics interace
+ - regionmask #filtering and plotting to IPCC AR6 regions
+ - schwimmbad #easy code scaling from serial to parallel
+ - scikit-image #image processing
+ - scikit-learn #machine learning
+ - scipy #interpolation, statistics, linear algebra, signal processing, special funcs
+ - seaborn #high-level plotting
+ - setuptools #python package development
+ - statsmodels #higher-level statistical tests
+ - sympy #symbolic math (think mathematica)
+ - tk #tensorkit, deep learning
+ - tqdm #fancy progress bars for command line
+ - widgetsnbextension #with ipywidgets, for Jupyter widgets
+ - x264 #video codec
+ - xesmf #utilities for regridding
+ - xlsxwriter #writing Excel files
+ - pip: #pip dependencies
+   - fastkde #fast Kernel Density Estimation
+   - gitsummary # makes it simple to print git repo info in a notebook or script
+   - cdsapi
+   - jupyterlab
+   - notebook
+   - redis==4.2.0
+   - shapely==1.8.1.post1
+   - DateTime==4.4
+   - jupyterlab
+   - ipython
+   - notebook

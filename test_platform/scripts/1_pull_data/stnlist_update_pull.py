@@ -626,5 +626,5 @@ def retry_downloads(token, bucket_name, networks = None):
             continue
 
 if __name__ == "__main__":
-    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['HADS'])
+    retry_downloads(token = config.token, bucket_name= bucket_name, networks = ['CWOP'])
 # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
