@@ -1,0 +1,9 @@
+﻿pr_5min,pr_1h,pr_24h,note,desired_behavior
+15,10,20,5min larger than 1h,flag 5min and 1h
+20,10,15,5min larger than 24h,flag all
+1,0.5,2,1h smaller than 5min,flag 5min and 1h
+2,15,3,1h larger than 24h,flag 1h and 24h
+10,15,0,24h smaller than 5min,flag all
+1,2,1,24h smaller than 1h,flag 1h and 24h
+1,5,10,no flags,no flags
+,15,10,flag with nan,flag 1h and 24h

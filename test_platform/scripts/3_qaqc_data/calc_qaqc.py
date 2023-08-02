@@ -144,17 +144,17 @@ def qaqc_elev_infill(df):
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     try:
                         dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
                     except: # some buoys out of range of dem (past coastal range) report nan elevation, manually set to 0.00m and flag
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 5 # see qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 5 # see era_qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull(), 'elevation'] = float(0.00) # manual infilling
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
-                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                             df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
                         
             except: # elevation cannot be obtained from DEM
@@ -173,19 +173,19 @@ def qaqc_elev_infill(df):
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     if (nan_lats[0] == df['lat'].iloc[0]) & (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 4 # see qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull(), 'elevation'] = df['elevation'].iloc[0]
 
                     else: # lat-lon of missing elev does not match station lat-lon (has shifted), infill from dem
                         dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
-                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                            df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                             df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
                                                             
             except: # elevation cannot be obtained from DEM
@@ -217,19 +217,19 @@ def qaqc_elev_range(df):
 
             if (len(off_lats) == 1) and (len(off_lons) == 1): # single lat-lon pair for incorrectly coded elevation
                 if (off_lats[0] == df['lat'].iloc[0]) & (off_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
-                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 4 # see qaqc_flag_meanings.csv
+                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
                     df.loc[df['elevation'] == elev_value, 'elevation'] = df['elevation'].iloc[0]
 
                 else: # lat-lon of incorrectly coded elevation does not match station lat-lon (has shifted), infill from dem
                     dem_elev_value = _grab_dem_elev_m(off_lats[0], off_lons[0])
-                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                    df.loc[df['elevation'] == elev_value, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                     df.loc[df['elevation'] == elev_value, 'elevation'] = float(dem_elev_value)
             
             else: # multple pairs of lat-lon for incorrectly zero coded elevs 
                 for ilat in off_lats:
                     for ilon in off_lons:
                         dem_elev_value = _grab_dem_elev_m(ilat, ilon)
-                        df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see qaqc_flag_meanings.csv
+                        df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                         df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
     
     print('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique())) # testing
@@ -277,41 +277,41 @@ def spurious_buoy_check(station, df, qc_vars):
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2010, 9, 9)) == True:
-                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+                        df.loc[df.index[i], j] = 2 # see era_qaqc_flag_meanings.csv
             
         elif station == "NDBC_46045": # disestablished 11/1997
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1997, 12, 1)) == True:
-                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+                        df.loc[df.index[i], j] = 2 # see era_qaqc_flag_meanings.csv
 
         elif station == "NDBC_46051": # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
             # qaqc_elev_infill sets elevation to be assumed 0.0m, but flagging 
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(1996, 5, 1)) == True:
-                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv 
+                        df.loc[df.index[i], j] = 2 # see era_qaqc_flag_meanings.csv 
           
         elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
             # only flag if new data is added after 2022 in a new data pull
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1].date() >= datetime.date(2022, 2, 9)) == True:
-                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+                        df.loc[df.index[i], j] = 2 # see era_qaqc_flag_meanings.csv
 
         # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
         elif station == "NDBC_46044":
             for i in range(df.shape[0]):
                 for j in qc_vars:
                     if (df.index[i][-1] >= datetime.datetime(2015, 5, 2, 10, 40, 0)) and (df.index[i][-1] <= datetime.datetime(2015, 5, 3, 15, 50, 0)):
-                        df.loc[df.index[i], j] = 2 # see qaqc_flag_meanings.csv
+                        df.loc[df.index[i], j] = 2 # see era_qaqc_flag_meanings.csv
 
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             for i in range(df.shape[0]):
                 if (df.index[i][-1].time() >= datetime.time(6, 0)) and (df.index[i][-1].time() <= datetime.time(20, 0)):
-                    df.loc[df.index[i], "sfcWind_eraqc"] = 1 # see qaqc_flag_meanings.csv
+                    df.loc[df.index[i], "sfcWind_eraqc"] = 1 # see era_qaqc_flag_meanings.csv
                     df.loc[df.index[i], "sfcWind_dir_eraqc"] = 1 
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
@@ -330,7 +330,7 @@ def spurious_buoy_check(station, df, qc_vars):
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
         for i in range(df.shape[0]):
             for j in qc_vars:
-                df.loc[df.index[i], j] = 2  # see qaqc_flag_meanings.csv
+                df.loc[df.index[i], j] = 2  # see era_qaqc_flag_meanings.csv
     
         return df
 
@@ -341,7 +341,9 @@ def spurious_buoy_check(station, df, qc_vars):
 ## logic check: precip accumulation amounts balance for time period
 def qaqc_precip_logic_accum_amounts(df):
     """
-    Ensures that precipitation accumulation amounts are consistent with reporting time frame. 
+    Ensures that precipitation accumulation amounts are consistent with reporting time frame.
+    Only needs to be applied when 2 or more precipitation duration specific
+    variables are present (pr_5min, pr_1h, pr_24h)
     For example: pr_5min should not be larger than pr_1h
     """
     # pr: Precipitation accumulated since last record
@@ -349,27 +351,52 @@ def qaqc_precip_logic_accum_amounts(df):
     # pr_1h: Precipitation accumulated in last hour
     # pr_24h: Precipitation accumulated from last 24 hours
     # pr_localmid: Precipitation accumulated from local midnight
+        
+    # rules
+    # pr_5min < pr_1h < pr_24h
+    # none of these time duration vars should be compared to pr_localmid
+    # depending on the reporting interval, pr can be equivalent to any of duration vars, or is accumulated
 
     # determine which precipitation vars are present
-    pr_vars = [col for col in df.columns if 'pr' in col] # can be variable length depending if there is a raw qc var
-    pr_vars = [item for item in pr_vars if "qc" not in item]
-    pr_vars = [item for item in pr_vars if "duration" not in item]
-    df_to_check = df[df.columns.intersection(pr_vars)]
+    pr_vars = [col for col in df.columns if 'pr_' in col] # excludes 'pr' variable
+    pr_vars = [item for item in pr_vars if "qc" not in item] # excludes raw/eraqc variable
+    pr_vars = [item for item in pr_vars if "duration" not in item] # excludes duration variable (if provided)
+    pr_vars = [item for item in pr_vars if "localmid" not in item] # excludes 'pr_localmid' variable
 
-
-    if df_to_check.empty() == True: # if station does not report any precipitation values, bypass
+    if len(pr_vars) == 0: # if station does not report any precipitation values, bypass
+        print('station does not report a precipitation duration variable - bypassing precip logic check') # testing
         df = df
 
-    else: 
-        print('things')
+    elif len(pr_vars) == 1: # no need for amount check
+        print('station does not report multiple precipitation duration variables - bypassing precip logic check') # testing
+        df = df
+        
+    elif len(pr_vars) >= 1: 
+        if 'pr_5min' in pr_vars:
+            if 'pr_1h' in pr_vars:
+                df.loc[df['pr_5min'] > df['pr_1h'], 'pr_5min_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
+            if 'pr_24h' in pr_vars:
+                df.loc[df['pr_5min'] > df['pr_24h'], 'pr_5min_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
+                
+            print('Precip 5min eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_5min_eraqc'].unique())) # testing
 
+        if 'pr_1h' in pr_vars:
+            if 'pr_5min' in pr_vars:
+                df.loc[df['pr_1h'] < df['pr_5min'], 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            if 'pr_24h' in pr_vars:
+                df.loc[df['pr_1h'] > df['pr_24h'], 'pr_1h_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
+                
+            print('Precip 1h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_1h_eraqc'].unique())) # testing
 
-    # need an inter-time stamp (row) check for consistency between vars
-
-    # need a subsequent time stamp (column) check for consistency within var
+        if 'pr_24h' in pr_vars:
+            if 'pr_5min' in pr_vars:
+                df.loc[df['pr_24h'] < df['pr_5min'], 'pr_24h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            if 'pr_1h' in pr_vars:
+                df.loc[df['pr_24h'] < df['pr_1h'], 'pr_24h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+                
+            print('Precip 24h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_24h_eraqc'].unique())) # testing
 
     return df
-
 
 
 
@@ -395,7 +422,7 @@ def qaqc_precip_logic_nonegvals(df):
         for item in pr_vars:
             print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
             if (df[item] < 0).any() == True:
-                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see qaqc_flag_meanings.csv
+                df.loc[df[item] < 0, item+'_eraqc'] = 10 # see era_qaqc_flag_meanings.csv
 
             print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
 
@@ -415,7 +442,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
     
     # Check if thermometer height is missing
     if (np.isnan(xr_ds.thermometer_height_m)):
-        file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(6) # see qaqc_flag_meanings.csv
+        file_to_qaqc['tas_eraqc'] = file_to_qaqc['tas_eraqc'].fillna(6) # see era_qaqc_flag_meanings.csv
     
     else: # sensor height present
         # Check if thermometer height is within 2 m +/- 1/3 m
@@ -437,7 +464,7 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
         
     # Check if anemometer height is missing
     if np.isnan(xr_ds.anemometer_height_m):
-        file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(8) # see qaqc_flag_meanings.csv
+        file_to_qaqc['sfcWind_eraqc'] = file_to_qaqc['sfcWind_eraqc'].fillna(8) # see era_qaqc_flag_meanings.csv
         file_to_qaqc['sfcWind_dir_eraqc'] = file_to_qaqc['sfcWind_dir_eraqc'].fillna(8)
     
     else: # sensor height present
@@ -485,7 +512,8 @@ def qaqc_world_record(df):
                 df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
     
     return df
-    
+
+
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate

@@ -74,8 +74,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(1): # TESTING SUBSET
-        # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
+        for station in stations.sample(4): # TESTING SUBSET
+        # for station in ['RAWS_SMOC1']:
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -157,6 +157,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         # precipitation is not negative
                         stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
                         print('pass qaqc_precip_logic_nonegvals') # testing
+
+                        ## precipitation duration logic
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_accum_amounts(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with precip duration logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_accum_ammounts: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_precip_logic_accum_amounts') # testing
 
 
                         ## Buoys with known issues with specific qaqc flags
@@ -261,7 +272,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "VCAPCD"
+    network = "RAWS"
 
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
