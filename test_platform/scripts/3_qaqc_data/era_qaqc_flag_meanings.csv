@@ -14,3 +14,4 @@
 13,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
 14,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value is too large upon comparison to other accumulated periods
 15,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value is too small upon comparison to other accumulated periods
+16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
