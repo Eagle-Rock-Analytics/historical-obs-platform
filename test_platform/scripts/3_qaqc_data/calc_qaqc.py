@@ -484,8 +484,9 @@ def qaqc_dist_frequent_vals(df, plots=False):
 
     # do we produce plots that are saved? have optional plots=true/false call where plots are saved if true
         # do we have a separate folder for these plots
+        # produce plots only when data is flagged? 
 
-    # how to flag data if bad - or throw out station? 
+    # how to flag data if bad - or throw out station if severe enough? 
 
 
 
