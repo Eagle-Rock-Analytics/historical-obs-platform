@@ -451,6 +451,44 @@ def qaqc_world_record(df):
                 df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
     
     return df
+
+
+## distribution checks
+# flag unusually frequent values - if any one value has more than 50% of data in the bin
+def qaqc_dist_frequent_vals(df, plots=False):
+    '''
+    Checks for values occurring more frequently than would be expected
+    '''
+
+    # need to run through every var, excluding qaqc/duration vars
+    vars_to_check = [var for var in df.columns if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    vars_to_check = [var for var in vars_to_check if 'duration' not in var]
+    vars_to_check = [var for var in vars_to_check if 'method' not in var]
+    vars_to_check = [var for var in vars_to_check if 'lat' not in var]
+    vars_to_check = [var for var in vars_to_check if 'lon' not in var]
+    vars_to_check = [var for var in vars_to_check if 'elevation' not in var]
+    # look into ways to simplify ^
+
+
+
+    # need to set a minimum length of record to calculate distribution? some stations will have long records, some will have just a years amount of data
+        # how do we run this on the CW3E stations which are broken up by year
+    # daily would be 29-31 per month
+    # hourly would be ~720 per month
+
+    # what threshold do we use for unusually frequent - 50% in bin?
+        # how would this work for sfcWind, which might be the exception here
+        # exclude wind direction? 
+
+        # identify "bad bins", then check each year in that bin
+
+    # do we produce plots that are saved? have optional plots=true/false call where plots are saved if true
+        # do we have a separate folder for these plots
+
+    # how to flag data if bad - or throw out station? 
+
+
+
     
 #----------------------------------------------------------------------
 # To do
