@@ -371,6 +371,8 @@ def qaqc_precip_logic_accum_amounts(df):
         
     elif len(pr_vars) >= 1: 
         # checks accumulated precip vars against each other
+        # noting that these flags are essentially identical in operation
+        # flag assignment is logically dependent on the first var to determine which flag is placed (i.e. to determine if too larges/small)
         if 'pr_5min' in pr_vars:
             if 'pr_1h' in pr_vars:
                 df.loc[df['pr_5min'] > df['pr_1h'], 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
