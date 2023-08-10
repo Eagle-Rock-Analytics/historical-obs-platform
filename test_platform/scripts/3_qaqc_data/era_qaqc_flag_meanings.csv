@@ -12,3 +12,4 @@
 11,Value outside of world record range
 12,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
 13,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+14,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds

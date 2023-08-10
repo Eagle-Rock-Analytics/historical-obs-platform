@@ -489,11 +489,18 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
 
     # First check that wind direction is provided
     if 'sfcWind_dir' in df.columns:
-        # Identify calm winds but with incorrect wind directions
+        # First, identify calm winds but with incorrect wind directions
         df.loc[(df['sfcWind'] == 0) & # calm winds
             (df['sfcWind_dir'] != 0) & # direction is not 0
-            (df['sfcWind_dir'].isnull()==False), # exclude directions that are null/nan
+            (df['sfcWind_dir'].isnull() == False), # exclude directions that are null/nan
                 'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
+
+        # Next, identify non-zero winds but with incorrect wind directions
+        # Non-zero northerly winds should be coded as 360 deg, not 0 deg
+        df.loc[(df['sfcWind'] != 0) & # non-calm winds
+            (df['sfcWind_dir'] == 0) & # direction is zero
+            (df['sfcWind_dir'].isnull() == False), # exclude directions that are null/nan
+            'sfcWind_dir_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
 
         print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.format(df['sfcWind_dir_eraqc'].unique()))
 
