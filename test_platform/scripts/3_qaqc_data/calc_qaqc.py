@@ -373,26 +373,26 @@ def qaqc_precip_logic_accum_amounts(df):
         # checks accumulated precip vars against each other
         if 'pr_5min' in pr_vars:
             if 'pr_1h' in pr_vars:
-                df.loc[df['pr_5min'] > df['pr_1h'], 'pr_5min_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
+                df.loc[df['pr_5min'] > df['pr_1h'], 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
             if 'pr_24h' in pr_vars:
-                df.loc[df['pr_5min'] > df['pr_24h'], 'pr_5min_eraqc'] = 14 # see era_qaqc_flag_meanings.csv 
+                df.loc[df['pr_5min'] > df['pr_24h'], 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv 
             print('Precip 5min eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_5min_eraqc'].unique())) # testing
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
-                df.loc[df['pr_1h'] < df['pr_5min'], 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+                df.loc[df['pr_1h'] < df['pr_5min'], 'pr_1h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
             if 'pr_24h' in pr_vars:
-                df.loc[df['pr_1h'] > df['pr_24h'], 'pr_1h_eraqc'] = 14 # see era_qaqc_flag_meanings.csv   
+                df.loc[df['pr_1h'] > df['pr_24h'], 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv   
             print('Precip 1h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_1h_eraqc'].unique())) # testing
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
-                df.loc[df['pr_24h'] < df['pr_5min'], 'pr_24h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+                df.loc[df['pr_24h'] < df['pr_5min'], 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
             if 'pr_1h' in pr_vars:
-                df.loc[df['pr_24h'] < df['pr_1h'], 'pr_24h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv 
+                df.loc[df['pr_24h'] < df['pr_1h'], 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv 
             # checks pr_24h against pr_localmid, catches an issue in pr_24h
             if 'pr_localmid' in pr_vars:
-                df.loc[df['pr_24h'] < df['pr_localmid'], 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+                df.loc[df['pr_24h'] < df['pr_localmid'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
             print('Precip 24h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_24h_eraqc'].unique())) # testing
 
     return df
