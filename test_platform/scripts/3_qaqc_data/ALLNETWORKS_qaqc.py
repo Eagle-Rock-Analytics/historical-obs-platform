@@ -164,6 +164,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             continue # skipping station
                         print('pass qaqc_precip_logic_nonegvals') # testing
 
+                        ## precipitation duration logic
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_accum_amounts(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with precip duration logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_accum_ammounts: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_precip_logic_accum_amounts') # testing
+
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
                             era_qc_vars.remove("elevation_eraqc") # remove elevation_qc var from remainder of analyses so it does not also get flagged -- confirm with final qaqc process
@@ -290,7 +301,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "VCAPCD"
+    network = "RAWS"
 
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
