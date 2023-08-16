@@ -331,7 +331,7 @@ def spurious_buoy_check(station, df, qc_vars):
         print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
         for i in range(df.shape[0]):
             for j in qc_vars:
-                df.loc[df.index[i], j] = "1"  ## QC FLAG FOR SUSPECT -- using as a placeholder here
+                df.loc[df.index[i], j] = 1  # see qaqc_flag_meanings.csv
     
         return df
 
@@ -450,6 +450,64 @@ def qaqc_world_record(df):
         if ((df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America'])).any() == True:
                 df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
     
+    return df
+
+## cross-variable logic checks
+# dew point must not exceed air temperature
+def qaqc_crossvar_logic_tdps_to_tas(df):
+    """
+    Checks that dewpoint temperature does not exceed air temperature.
+    If fails, only dewpoint temperature is flagged.
+    """ 
+
+    # First check that tdps and/or tdps_derived are provided
+    dew_vars = [col for col in df.columns if 'tdps' in col]
+    all_dew_vars = [var for var in dew_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc
+
+    if len(all_dew_vars) != 0: # dew point is present
+        for dew_var in all_dew_vars:            
+            # check values for physical constraint
+            df.loc[df[dew_var] > df['tas'], dew_var+"_eraqc"] = 12  # see qaqc_flag_meanings.csv
+
+            print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.format(dew_var, df[dew_var+'_eraqc'].unique())) # testing
+
+    else: # station does not report dew point temperature
+        print('station does not report dew point temperature - bypassing temperature cross-variable logic check') # testing
+        df = df
+
+    return df
+
+# wind direction must be 0 if wind speed is 0
+def qaqc_crossvar_logic_calm_wind_dir(df):
+    """
+    Checks that wind direction is zero when wind speed is also zero.
+    If fails, wind direction is flagged. # only flag wind direction?
+    """
+
+    # Noting that a wind direction value of 0 is a valid value
+    # Only a problem when wind speed is also 0, where 0 now means no winds for there to be a direction
+
+    # First check that wind direction is provided
+    if 'sfcWind_dir' in df.columns:
+        # First, identify calm winds but with incorrect wind directions
+        df.loc[(df['sfcWind'] == 0) & # calm winds
+            (df['sfcWind_dir'] != 0) & # direction is not 0
+            (df['sfcWind_dir'].isnull() == False), # exclude directions that are null/nan
+                'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
+
+        # Next, identify non-zero winds but with incorrect wind directions
+        # Non-zero northerly winds should be coded as 360 deg, not 0 deg
+        df.loc[(df['sfcWind'] != 0) & # non-calm winds
+            (df['sfcWind_dir'] == 0) & # direction is zero
+            (df['sfcWind_dir'].isnull() == False), # exclude directions that are null/nan
+            'sfcWind_dir_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
+
+        print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.format(df['sfcWind_dir_eraqc'].unique()))
+
+    else: # station does not report wind direction
+        print('station does not report wind direction - bypassing wind cross-variable logic check') # testing
+        df = df
+
     return df
     
 #----------------------------------------------------------------------

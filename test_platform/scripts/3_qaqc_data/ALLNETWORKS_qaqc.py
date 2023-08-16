@@ -39,7 +39,6 @@ except:
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
 
-
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
 
@@ -74,7 +73,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(1): # TESTING SUBSET
+        for station in stations.sample(3): # TESTING SUBSET
         # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
@@ -155,9 +154,15 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                         ## Variable logic checks
                         # precipitation is not negative
-                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with negative precipitation values for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_nonegvals: {0}'.format(e))
+                            continue # skipping station
                         print('pass qaqc_precip_logic_nonegvals') # testing
-
 
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
@@ -206,6 +211,30 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('complete qaqc_world_record')
                         
                         print(stn_to_qaqc.head(10)) # testing
+
+
+                        ## Variable cross-logic checks
+                        # dew point temp cannot exceed air temperature
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with temperature cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
+
+                        # wind direction should be 0 when wind speed is also 0
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_calm_wind_dir: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_calm_wind_dir') # testing
 
 
                 except Exception as e:
