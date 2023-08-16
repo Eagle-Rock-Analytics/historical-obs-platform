@@ -451,6 +451,26 @@ def qaqc_world_record(df):
                 df.loc[(df[item] < mins[item]['North_America']) | (df[item] > maxes[item]['North_America']), item+'_eraqc'] = 11
     
     return df
+
+# flag unusual gaps within the monthly distribution bins
+def qaqc_dist_gaps(df, plots=False):
+    '''
+    Identifies if there are any unusual gaps in the monthly distribution for any variable.
+    Flags if there is a gap in the distribution, and outputs and saves a figure when data is flagged. 
+    '''
+
+    # run through every var, excluding qaqc/duration/method vars
+    vars_to_remove = ['qc', 'duration', 'method', 'lat', 'lon', 'elevation'] # list of var substrings to exclude if present in var
+    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
+
+    # first need to set a minimum threshold for # of obs to build distribution check
+
+    print('Checking for gaps in monthly distribution for: {}'.format(var))
+
+    # if data is flagged, print statement and save figure
+    print('Unusual gap in monthly distribution identified for {0} in month of {1} - flagged and figure saved for analysis'.format(var, MONTH))
+
+    return df
     
 #----------------------------------------------------------------------
 # To do
