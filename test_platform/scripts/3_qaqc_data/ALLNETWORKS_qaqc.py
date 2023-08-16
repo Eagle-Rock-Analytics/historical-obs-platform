@@ -73,7 +73,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(3): # TESTING SUBSET
+        for station in stations.sample(1): # TESTING SUBSET
         # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
@@ -279,7 +279,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 #     # Push file to AWS with correct file name
                 #     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
-                #     print('Saving {} with dims {}'.format(filename, ds.dims))
+                #     print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
                 #     ds.close() # Close dataframe
 
                 # except Exception as e:
@@ -296,6 +296,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) # Make sure error files save to correct directory
+        print('errors_{0}_{1}.csv saved to {2}'.format(network, end_api, bucket_name + "/" + qaqcdir))
 
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
