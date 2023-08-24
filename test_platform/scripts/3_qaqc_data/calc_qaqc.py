@@ -514,7 +514,6 @@ def qaqc_world_record(df):
     
     return df
 
-<<<<<<< HEAD
 # flag unusual gaps within the monthly distribution bins
 def qaqc_dist_gaps(df, plots=False):
     '''
@@ -532,7 +531,6 @@ def qaqc_dist_gaps(df, plots=False):
 
     # if data is flagged, print statement and save figure
     print('Unusual gap in monthly distribution identified for {0} in month of {1} - flagged and figure saved for analysis'.format(var, MONTH))
-=======
 
 ## cross-variable logic checks
 # dew point must not exceed air temperature
@@ -589,7 +587,6 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
     else: # station does not report wind direction
         print('station does not report wind direction - bypassing wind cross-variable logic check') # testing
         df = df
->>>>>>> main
 
     return df
     
