@@ -514,23 +514,6 @@ def qaqc_world_record(df):
     
     return df
 
-# flag unusual gaps within the monthly distribution bins
-def qaqc_dist_gaps(df, plots=False):
-    '''
-    Identifies if there are any unusual gaps in the monthly distribution for any variable.
-    Flags if there is a gap in the distribution, and outputs and saves a figure when data is flagged. 
-    '''
-
-    # run through every var, excluding qaqc/duration/method vars
-    vars_to_remove = ['qc', 'duration', 'method', 'lat', 'lon', 'elevation'] # list of var substrings to exclude if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-
-    # first need to set a minimum threshold for # of obs to build distribution check
-
-    print('Checking for gaps in monthly distribution for: {}'.format(var))
-
-    # if data is flagged, print statement and save figure
-    print('Unusual gap in monthly distribution identified for {0} in month of {1} - flagged and figure saved for analysis'.format(var, MONTH))
 
 ## cross-variable logic checks
 # dew point must not exceed air temperature
@@ -590,6 +573,79 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
 
     return df
     
+# flag unusual gaps within the monthly distribution bins
+def qaqc_dist_gaps_part1(df):
+    """
+    Part 1 / monthly check
+        - compare anomalies of monthly median values
+        - standardize against interquartile range
+        - compare stepwise from the middle of the distribution outwards
+        - asymmetries are identified and flagged if severe
+    Goal: identifies individual suspect observations and flags the entire month  
+    """
+    
+    # in order to grab the time information more easily -- would prefer not to do this
+    df = df.reset_index() 
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    
+    # calculate monthly medians
+    df_anom = df.sub(df.resample('M', on='time').transform('median', numeric_only=True))
+    df_anom['time'] = df['time'] # add time column back in to do quantiles
+
+    # standardize against calendar-month IQR range
+    df_q1 = df_anom.resample('M', on='time').transform('quantile', 0.25, numeric_only=True)
+    df_q3 = df_anom.resample('M', on='time').transform('quantile', 0.75, numeric_only=True)
+    df_iqr = df_q3 - df_q1
+    df_anom_iqr = df_anom / df_iqr
+    
+    # run through every var, excluding qaqc/duration/method vars
+    vars_to_remove = ['index','station','qc', 'duration', 'method', 'lat', 'lon', 'elevation', 'time', 'month', 'year'] # list of var substrings to exclude if present in var
+    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
+    
+    for var in vars_to_check:
+        # add _eraqc column for each variable
+        df[var+'_eraqc'] = np.nan # default value of nan
+        
+        # "inflated to 4°C or hPa for those months with very small IQR"
+        # accounts for any seasonal cycle in variance
+        small_iqr_var_check = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'psl_altimeter', 'ps_derived']
+        if var in small_iqr_var_check:
+            if (np.abs(df_anom_iqr[var].max()) + np.abs(df_anom_iqr[var].min())) < 4:
+                print('small var check') # testing for occurrence 
+                df_anom_iqr[var] = np.linspace(-2, 2, len(df)) # unsure this is the correct way to do this - come back
+
+        # standardized anomalies are ranked (necessary?) and calculate median
+        std_med = df_anom_iqr.median() # will be 0 if inflated to range of 4
+
+        # add standardized anomaly median to IQR-standardized data
+        df_std_med = df_anom_iqr + std_med
+        df_std_med['time'] = df['time'] # add time columns back in... again
+        df_std_med['year'] = df['year']
+        df_std_med['month'] = df['month']
+
+        # identify where any obs are +/- 5 IQR away from standardized anomaly median
+        if len(df_std_med.loc[np.abs(df_std_med[var]) > 5]) != 0:
+
+            bad_idxs = df_std_med.loc[np.abs(df_std_med[var]) > 5].index.tolist() # grab indices of suspect obs
+            print('{} suspicious {} observations present, flagging appropriate months'.format(len(bad_idxs), var))
+
+            for i in bad_idxs:
+                bad_yr = df.iloc[df.index == i]['year'].values[0]
+                bad_mon = df.iloc[df.index == i]['month'].values[0]
+                print('Flagging: {0}/{1}'.format(bad_mon, bad_yr))
+
+                # identify all indices for months encapsulating suspect obs
+                bad_obs_per_month = df.loc[(df['year'] == bad_yr) & (df['month'] == bad_mon)]
+                all_idx_to_flag = bad_obs_per_month.index
+
+                for i in all_idx_to_flag: # flag all indices in those months
+                    df.loc[df.index == i, var+'_eraqc'] = 18 # see era_qaqc_flag_meanings.csv # DOUBLE CHECK VALUE
+
+        else:
+            print('Part 1: PASS. All {} obs are within +/- 5 IQR range'.format(var))
+
+    return df
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate
