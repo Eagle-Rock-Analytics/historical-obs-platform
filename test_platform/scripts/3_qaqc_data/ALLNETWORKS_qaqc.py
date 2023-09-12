@@ -20,7 +20,6 @@ import boto3
 import s3fs
 from io import BytesIO, StringIO
 
-
 ## Import qaqc stage calc functions
 try:
     from calc_qaqc import *
@@ -150,6 +149,19 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Failure on qaqc_elev_range')
                             continue # skipping station
                         print('pass qaqc_elev_range') # testing
+                        
+                        
+                        ## Missing value checks -- convert any lingering missing value codes to NaNs
+                        try:
+                            stn_to_qaqc = qaqc_missing_vals(stn_to_qaqc)
+                            
+                        except:
+                            print('Flagging problem on missing values check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_missing_vals')
+                            continue # skipping station
+                        print('pass qaqc_missing_vals') # testing
 
 
                         ## Variable logic checks
@@ -302,17 +314,11 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
+
     network = "RAWS"
 
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
-
-    # List of all stations for ease of use here:
-    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-    # NDBC, SCAN, SNOTEL
-
-
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving

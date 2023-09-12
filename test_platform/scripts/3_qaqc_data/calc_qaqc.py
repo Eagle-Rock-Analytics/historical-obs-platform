@@ -400,6 +400,30 @@ def qaqc_precip_logic_accum_amounts(df):
     return df
 
 
+## missing value check: double check that all missing value observations are converted to NA before QA/QC
+def qaqc_missing_vals(df):
+    '''
+    Checks data to be qaqc'ed for any errant missing values that made it through cleaning
+    Converts those missing values to NAs
+    Searches for missing values in 2_clean_data/missing_data_flags.csv
+    '''
+
+    missing_vals = pd.read_csv('missing_data_flags.csv')
+    
+    all_vars = [col for col in df.columns if 'qc' not in col]
+    obs_vars = [var for var in all_vars if var not in ['lon','lat']]
+    
+    for item in obs_vars:
+        # pull missing values which are appropriate for the range of real values for each variable 
+        missing_codes = missing_vals.loc[missing_vals['variable'].str.contains(item) | missing_vals['variable'].str.contains('all')]
+        
+        # values in column that == missing_flag values, replace with NAs
+        # note numerical vals converted to strings first to match missing_flag formatting
+        df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
+        
+        print(item)
+        
+    return df
 
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df):
