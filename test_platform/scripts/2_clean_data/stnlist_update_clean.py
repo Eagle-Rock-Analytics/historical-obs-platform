@@ -340,9 +340,44 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
         else:
             s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
 
+
+# Merge CWOP stationlists together, overwrites full stationlist file
+def cwop_stnlist_merge(network):
+    # Check network is CWOP
+    if network != "CWOP":
+        print("Incorrect network ({}) provided to cwop_stnlist_merge! Please pass 'CWOP' as network.".format(network))
+        return
     
+    # As of 6/23, should be (A, B, C, D, E, F, G, other) -- assumes that no groupings were applied (i.e., "AB + other")
+    station_files = []
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix = "2_clean_wx/CWOP/"):
+        file = str(item.key)
+        station_files += [file]
+
+    station_files = [file for file in station_files if "station" in file] # grabbing only station files
+    station_files = [file for file in station_files if len(file) > 45] # grabbing only the subset lists
+
+    all_df = pd.DataFrame()
+    for item in station_files:
+        obj = s3_cl.get_object(Bucket = bucket_name, Key = item) # gets file
+        body = obj['Body'].read()
+        df = pd.read_csv(BytesIO(body), encoding='utf8')
+        all_df = pd.concat([all_df, df], ignore_index = True)
+
+    all_df = all_df.sort_values('ERA-ID', ascending=True).reset_index(drop = True) # sorts alphabetically and resets the index
+    print(all_df)
+
+    # save to s3 bucket
+    csv_buffer = StringIO()
+    all_df.to_csv(csv_buffer)
+    content = csv_buffer.getvalue()
+    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=clean_wx+network+"/stationlist_{}_cleaned.csv".format(network))
+
+
+
 if __name__ == "__main__":
     clean_qa('CWOP', clean_var_add = False, cwop_letter = None)
+    # cwop_stnlist_merge("CWOP")  # Use once all CWOP stationlist(s) are updated with variable coverage
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO

@@ -1,12 +1,18 @@
-﻿Flag_value,Flag_meaning
-1,Suspect
-2,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
-3,Elevation infilled from DEM (USGS 3DEP)
-4,Elevation infilled from station
-5,Elevation manually infilled for buoy out-of-range of DEM (check if not buoy)
-6,Thermometer height missing
-7,Thermometer height not 2 meters
-8,Anemometer height missing
-9,Anemometer height not 10 meters
-10,Precipitation value reported below 0 (negative value)
-11,Value outside of world record range
+Flag_value,QAQC_function,Flag_meaning
+1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
+2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
+3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
+4,qaqc_elev_infill,Elevation infilled from station
+5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM (check if not buoy)
+6,qaqc_sensor_height_t,Thermometer height missing
+7,qaqc_sensor_height_t,Thermometer height not 2 meters
+8,qaqc_sensor_height_w,Anemometer height missing
+9,qaqc_sensor_height_w,Anemometer height not 10 meters
+10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
+11,qaqc_world_record,Value outside of world record range
+12,qaqc_crossvar_logic_tdps_to_tas,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
+13,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
+15,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
+16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
+17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight

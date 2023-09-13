@@ -20,7 +20,6 @@ import boto3
 import s3fs
 from io import BytesIO, StringIO
 
-
 ## Import qaqc stage calc functions
 try:
     from calc_qaqc import *
@@ -38,7 +37,6 @@ except:
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
-
 
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
@@ -151,13 +149,43 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                             errors['Error'].append('Failure on qaqc_elev_range')
                             continue # skipping station
                         print('pass qaqc_elev_range') # testing
+                        
+                        
+                        ## Missing value checks -- convert any lingering missing value codes to NaNs
+                        try:
+                            stn_to_qaqc = qaqc_missing_vals(stn_to_qaqc)
+                            
+                        except:
+                            print('Flagging problem on missing values check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_missing_vals')
+                            continue # skipping station
+                        print('pass qaqc_missing_vals') # testing
 
 
                         ## Variable logic checks
                         # precipitation is not negative
-                        stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_nonegvals(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with negative precipitation values for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_nonegvals: {0}'.format(e))
+                            continue # skipping station
                         print('pass qaqc_precip_logic_nonegvals') # testing
 
+                        ## precipitation duration logic
+                        try:
+                            stn_to_qaqc = qaqc_precip_logic_accum_amounts(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with precip duration logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_precip_logic_accum_ammounts: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_precip_logic_accum_amounts') # testing
 
                         ## Buoys with known issues with specific qaqc flags
                         if network == 'MARITIME' or network == 'NDBC':
@@ -208,6 +236,30 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print(stn_to_qaqc.head(10)) # testing
 
 
+                        ## Variable cross-logic checks
+                        # dew point temp cannot exceed air temperature
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with temperature cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_tdps_to_tas: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_tdps_to_tas') # testing
+
+                        # wind direction should be 0 when wind speed is also 0
+                        try:
+                            stn_to_qaqc = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with wind cross-variable logic check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_crossvar_logic_calm_wind_dir: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_crossvar_logic_calm_wind_dir') # testing
+
+
                 except Exception as e:
                     print(e) # testing
                     errors['File'].append(station)
@@ -239,7 +291,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                 #     # Push file to AWS with correct file name
                 #     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
 
-                #     print('Saving {} with dims {}'.format(filename, ds.dims))
+                #     print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
                 #     ds.close() # Close dataframe
 
                 # except Exception as e:
@@ -256,22 +308,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) # Make sure error files save to correct directory
+        print('errors_{0}_{1}.csv saved to {2}'.format(network, end_api, bucket_name + "/" + qaqcdir))
 
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
 if __name__ == "__main__":
-    network = "VCAPCD"
+
+    network = "RAWS"
 
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir)
-
-    # List of all stations for ease of use here:
-    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-    # NDBC, SCAN, SNOTEL
-
-
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
