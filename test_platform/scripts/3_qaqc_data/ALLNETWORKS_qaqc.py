@@ -19,7 +19,7 @@ import xarray as xr
 import boto3
 import s3fs
 from io import BytesIO, StringIO
-
+import argparse
 
 ## Import qaqc stage calc functions
 try:
@@ -44,7 +44,7 @@ bucket_name = "wecc-historical-wx"
 
 
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir):
+def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
 
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
@@ -73,8 +73,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
     else: # if files successfully read in
         # for station in stations: # full run
-        for station in stations.sample(1): # TESTING SUBSET
-        # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
+#         for station in stations.sample(sample): # TESTING SUBSET
+        for station in stations.iloc[:sample]: # TESTING SUBSET for timing analysis
+       # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -248,17 +249,17 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_crossvar_logic_calm_wind_dir') # testing
 
 
-                        # Distribution checks
-                        # unusual gaps (part 1)
-                        try:
-                            stn_to_qaqc = qaqc_dist_gaps_part1(stn_to_qaqc)
-                        except Exception as e:
-                            print('Flagging problem with unusual gap distribution function for {0}, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_dist_gaps_part1: {0}'.format(e))
-                            continue # skipping station
-                        print('pass qaqc_dist_gaps_part1') # testing
+#                         # Distribution checks
+#                         # unusual gaps (part 1)
+#                         try:
+#                             stn_to_qaqc = qaqc_dist_gaps_part1(stn_to_qaqc)
+#                         except Exception as e:
+#                             print('Flagging problem with unusual gap distribution function for {0}, skipping'.format(station)) # testing
+#                             errors['File'].append(station)
+#                             errors['Time'].append(end_api)
+#                             errors['Error'].append('Failure on qaqc_dist_gaps_part1: {0}'.format(e))
+#                             continue # skipping station
+#                         print('pass qaqc_dist_gaps_part1') # testing
 
 
                 except Exception as e:
@@ -271,36 +272,37 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
                 # last step is to reassign df back to xarray object
                 # Sort by time and remove any overlapping timesteps
-                # stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
-                # stn_to_qaqc = stn_to_qaqc.drop_duplicates()
-                # ds = stn_to_qaqc.to_xarray()
+                stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
+                stn_to_qaqc = stn_to_qaqc.drop_duplicates()
+                ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
-                # ds = ds.assign_attrs(title = network+" quality controlled")
-                # ds = ds.assign_attrs(history = 'ALLNETWORKS_qaqc.py script run on {} UTC'.format(timestamp))
-                # ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
-                ## need to reassign attributes from cleaning stage here? -- check
+                ds = ds.assign_attrs(title = network+" quality controlled")
+                ds = ds.assign_attrs(history = 'ALLNETWORKS_qaqc.py script run on {} UTC'.format(timestamp))
+                ds = ds.assign_attrs(comment = 'Intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.')
+                # need to reassign attributes from cleaning stage here? -- check
 
-                # # Write station file to netcdf format
-                # try:
-                #     filename = station + ".nc" # Make file name
-                #     filepath = qaqcdir + filename # Writes file path
+                # Write station file to netcdf format
+                try:
+                    filename = station + ".nc" # Make file name
+                    filepath = qaqcdir + filename # Writes file path
 
-                #     # Write locally
-                #     ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
+                    # Write locally
+                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
 
-                #     # Push file to AWS with correct file name
-                #     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
+                    # Push file to AWS with correct file name
+                    s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
+                    os.system("mv temp/temp.nc temp/{}_pandas.nc".format(station))
 
-                #     print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
-                #     ds.close() # Close dataframe
+                    print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
+                    ds.close() # Close dataframe
 
-                # except Exception as e:
-                #     print(filename, e)
-                #     errors['File'].append(filename)
-                #     errors['Time'].append(end_api)
-                #     errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
-                #     continue
+                except Exception as e:
+                    print(filename, e)
+                    errors['File'].append(filename)
+                    errors['Time'].append(end_api)
+                    errors['Error'].append('Error saving ds as .nc file to AWS bucket: {}'.format(e))
+                    continue
 
     # Write errors to csv
     finally:
@@ -313,19 +315,49 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Run function
+# # Run function
+# if __name__ == "__main__":
+#     network = "RAWS"
+
+#     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
+#     whole_station_qaqc(network, cleandir, qaqcdir)
+
+#     # List of all stations for ease of use here:
+#     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+#     # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+#     # NDBC, SCAN, SNOTEL
+
 if __name__ == "__main__":
-    network = "RAWS"
 
+    # Create parser
+    parser = argparse.ArgumentParser(
+        prog="ALLNETWORKS_qaqc",
+        description="""This script performs qa/qc protocols for cleaned station data for ingestion into the Historical 
+                       observations Platform, and is independent of network.""",
+        epilog="""Possible stations:
+                  [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
+                   HOLFUY, HPWREN, LOXWFOMAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
+                   RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
+               """
+    )
+    
+    # Define arguments for the program
+    parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
+    parser.add_argument('-v', '--verbose', default=True, help="printing statemets throughout script", type=bool)
+    parser.add_argument('-s', '--sample', default=1, help="number of stations within network to test", type=int)
+    parser.add_argument('-f', '--full', default=False, help="if True, test all stations in network", type=bool)
+    
+    # Parse arguments
+    args = parser.parse_args()
+    network = args.network
+    verbose = args.verbose
+    sample = args.sample
+    full = args.full
+    if full:
+        sample = None
+        
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir)
-
-    # List of all stations for ease of use here:
-    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-    # NDBC, SCAN, SNOTEL
-
-
+    whole_station_qaqc(network, cleandir, qaqcdir, sample=sample)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
