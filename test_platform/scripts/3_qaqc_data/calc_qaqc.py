@@ -574,14 +574,16 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
     return df
     
 # flag unusual gaps within the monthly distribution bins
-def qaqc_dist_gaps_part1(df):
+def qaqc_dist_gaps_part1(df, plot_flags=True):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
         - standardize against interquartile range
         - compare stepwise from the middle of the distribution outwards
         - asymmetries are identified and flagged if severe
-    Goal: identifies individual suspect observations and flags the entire month  
+    Goal: identifies individual suspect observations and flags the entire month 
+
+    NOTE: Code is preliminary at present, and does not necessarily reflect the final IQR threshold 
     """
     
     # in order to grab the time information more easily -- would prefer not to do this
