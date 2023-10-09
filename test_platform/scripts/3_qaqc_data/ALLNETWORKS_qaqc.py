@@ -44,7 +44,7 @@ bucket_name = "wecc-historical-wx"
 
 
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
+def whole_station_qaqc(network, cleandir, qaqcdir):
 
     # Set up error handling.
     errors = {'File':[], 'Time':[], 'Error':[]} # Set up error handling
@@ -72,10 +72,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
         errors['Error'].append("Error in whole network: {}".format(e))
 
     else: # if files successfully read in
-        # for station in stations: # full run
-#         for station in stations.sample(sample): # TESTING SUBSET
-        for station in stations.iloc[:sample]: # TESTING SUBSET for timing analysis
-       # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
+        for station in stations.sample(1): # TESTING SUBSET
+        # for station in ['ASOSAWOS_72676324198']: # this is the smallest ASOSAWOS file and takes ~10 seconds to run for Victoria
             file_name = cleandir+station+".nc"
 
             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -92,8 +90,10 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj, engine="h5netcdf") # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
-
+                        ds = xr.open_dataset(fileOb) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
+                        # Drop time duplicates
+                        ds = ds.drop_duplicates(dim="time")
+                        
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
                         exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
                         raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
@@ -272,8 +272,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
 
                 # last step is to reassign df back to xarray object
                 # Sort by time and remove any overlapping timesteps
+                # stn_to_qaqc = stn_to_qaqc.drop_duplicates()
+                stn_to_qaqc = stn_to_qaqc.reset_index().drop_duplicates(subset="time")
                 stn_to_qaqc = stn_to_qaqc.sort_values(by='time')
-                stn_to_qaqc = stn_to_qaqc.drop_duplicates()
                 ds = stn_to_qaqc.to_xarray()
 
                 # Update global attributes
@@ -288,7 +289,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
                     filepath = qaqcdir + filename # Writes file path
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine="h5netcdf") # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc') # Save station file.
 
                     # Push file to AWS with correct file name
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
@@ -312,6 +313,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
         content = csv_buffer.getvalue()
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) # Make sure error files save to correct directory
         print('errors_{0}_{1}.csv saved to {2}'.format(network, end_api, bucket_name + "/" + qaqcdir))
+
 
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -344,20 +346,14 @@ if __name__ == "__main__":
     # Define arguments for the program
     parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
     parser.add_argument('-v', '--verbose', default=True, help="printing statemets throughout script", type=bool)
-    parser.add_argument('-s', '--sample', default=1, help="number of stations within network to test", type=int)
-    parser.add_argument('-f', '--full', default=False, help="if True, test all stations in network", type=bool)
     
     # Parse arguments
     args = parser.parse_args()
     network = args.network
     verbose = args.verbose
-    sample = args.sample
-    full = args.full
-    if full:
-        sample = None
         
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, sample=sample)
+    whole_station_qaqc(network, cleandir, qaqcdir)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving

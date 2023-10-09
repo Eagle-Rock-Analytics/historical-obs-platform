@@ -4,13 +4,13 @@ import argparse
 
 # Import qaqc stage calc functions
 try:
-    from calc_qaqc_xarray import *
+    from calc_qaqc_pandas import *
 except:
     print("Error importing calc_qaqc.py")
 
 # Import qaqc stage calc functions
 try:
-    from QAQC_pipeline_xarray import *
+    from QAQC_pipeline_pandas import *
 except:
     print("Error importing QAQC_pipeline.py")
 
