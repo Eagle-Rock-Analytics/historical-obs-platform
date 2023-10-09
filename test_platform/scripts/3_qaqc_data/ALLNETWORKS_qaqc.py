@@ -90,7 +90,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileOb) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
+                        ds = xr.open_dataset(fileObj) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
                         # Drop time duplicates
                         ds = ds.drop_duplicates(dim="time")
                         
