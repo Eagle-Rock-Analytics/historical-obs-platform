@@ -77,6 +77,10 @@ if __name__ == "__main__":
         file_name = cleandir+station+".nc"
         local_file_name = '{}/{}.nc'.format(train_dir, station)
 
-        t0 = time.time()
-        bucket.download_file(file_name, local_file_name)
-        print("{} downloaded. Time ellapsed: {:.2f}".format(local_file_name, time.time()-t0))
+        if not os.path.exists(local_file_name):
+            t0 = time.time()
+            try:
+                bucket.download_file(file_name, local_file_name)
+                print("{} downloaded. Time ellapsed: {:.2f}".format(local_file_name, time.time()-t0))
+            except Exception as e: 
+                print("Failed to download {} with error: {}".format(file_name, e))
