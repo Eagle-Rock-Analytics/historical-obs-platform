@@ -92,7 +92,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
                     aws_url = "s3://wecc-historical-wx/"+file_name
 
                     with fs.open(aws_url) as fileObj:
-                        ds = xr.open_dataset(fileObj) # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
+                        ds = xr.open_dataset(fileObj, engine="h5netcdf") # CHECK THE ENGINE HERE -- setting to default which operates on best with dependencies, previously 'h5netcdf'
 
                         ## Add qc_flag variable for all variables, including elevation; defaulting to nan for fill value that will be replaced with qc flag
                         exclude_qaqc = ["time", "station", "lat", "lon", "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
@@ -288,11 +288,11 @@ def whole_station_qaqc(network, cleandir, qaqcdir, sample=1):
                     filepath = qaqcdir + filename # Writes file path
 
                     # Write locally
-                    ds.to_netcdf(path = 'temp/temp.nc', engine = 'netcdf4') # Save station file.
+                    ds.to_netcdf(path = 'temp/temp.nc', engine="h5netcdf") # Save station file.
 
                     # Push file to AWS with correct file name
                     s3.Bucket(bucket_name).upload_file('temp/temp.nc', filepath)
-                    os.system("mv temp/temp.nc temp/{}_pandas.nc".format(station))
+                    os.system("mv temp/temp.nc temp/{}_pandas_orig.nc".format(station))
 
                     print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
                     ds.close() # Close dataframe

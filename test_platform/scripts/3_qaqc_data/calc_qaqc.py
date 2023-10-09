@@ -49,7 +49,7 @@ def get_wecc_poly(terrpath, marpath):
 ## Part 1 functions (whole station/network)
 
 ## missing spatial coords (lat-lon)
-def qaqc_missing_latlon(df):
+def qaqc_missing_latlon(df, verbose=True):
     """
     Checks if latitude and longitude is missing for a station.
     If missing, station is flagged to not proceed through QA/QC.
@@ -70,7 +70,7 @@ def qaqc_missing_latlon(df):
     return df
 
 ## in bounds of WECC
-def qaqc_within_wecc(df):
+def qaqc_within_wecc(df, verbose=True):
     """
     Checks if station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
@@ -95,7 +95,7 @@ def qaqc_within_wecc(df):
     return df
 
 ## elevation
-def _grab_dem_elev_m(lat_to_check, lon_to_check):
+def _grab_dem_elev_m(lat_to_check, lon_to_check, verbose=True):
     """
     Pulls elevation value from the USGS Elevation Point Query Service, lat lon must be in decimal degrees (which it is after cleaning)
     Modified from: https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
@@ -119,15 +119,16 @@ def _grab_dem_elev_m(lat_to_check, lon_to_check):
     return dem_elev_short
 
 
-def qaqc_elev_infill(df):
+def qaqc_elev_infill(df, verbose=True):
     """
     Checks if elevation is NA/missing. If missing, fill in elevation from either DEM or station.
     Some stations have all nan elevation values (e.g., NDBC, MARITIME)
     Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
 
-    print('Elevation values pre-infilling: {}'.format(df['elevation'].unique()))
-    print('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique())) # testing
+    if verbose:
+        print('Elevation values pre-infilling: {}'.format(df['elevation'].unique()))
+        print('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique())) # testing
 
     # first check to see if any elev value is missing
     if df['elevation'].isnull().any() == True: 
@@ -197,7 +198,7 @@ def qaqc_elev_infill(df):
     return df
 
 
-def qaqc_elev_range(df):
+def qaqc_elev_range(df, verbose=True):
     """
     Checks valid values to identify suspicious elevation values that are larger than 10m in difference
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
@@ -231,9 +232,10 @@ def qaqc_elev_range(df):
                         dem_elev_value = _grab_dem_elev_m(ilat, ilon)
                         df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                         df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
-    
-    print('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique())) # testing
-    print('Elevation qaqc values post-infilling/correcting: {}'.format(df['elevation_eraqc'].unique())) # testing
+
+    if verbose:
+        print('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique())) # testing
+        print('Elevation qaqc values post-infilling/correcting: {}'.format(df['elevation_eraqc'].unique())) # testing
 
     # then check for in range
     # if value is present but outside of reasonable value range
@@ -259,7 +261,7 @@ def qaqc_elev_range(df):
 
 ## NDBC and MARITIME only
 
-def spurious_buoy_check(station, df, qc_vars):
+def spurious_buoy_check(station, df, qc_vars, verbose=True):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
@@ -270,7 +272,8 @@ def spurious_buoy_check(station, df, qc_vars):
                         'NDBC_46230', 'NDBC_46234', 'NDBC_46245', 'NDBC_46250']
                         
     if station in known_issues:
-        print('{0} is flagged as suspect, checking data coverage'.format(station)) # testing
+        # if verbose:
+        #     print('{0} is flagged as suspect, checking data coverage'.format(station)) # testing
 
         # buoys with "data" past their disestablishment dates
         if station == 'NDBC_46023': # disestablished 9/8/2010
@@ -327,7 +330,8 @@ def spurious_buoy_check(station, df, qc_vars):
         # other stations have partial coverage of their full data records as well as disestablishment dates
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
-        print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
+        if verbose:
+            print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
         for i in range(df.shape[0]):
             for j in qc_vars:
                 df.loc[df.index[i], j] = 2  # see era_qaqc_flag_meanings.csv
@@ -339,7 +343,7 @@ def spurious_buoy_check(station, df, qc_vars):
     
 
 ## logic check: precip accumulation amounts balance for time period
-def qaqc_precip_logic_accum_amounts(df):
+def qaqc_precip_logic_accum_amounts(df, verbose=True):
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
     Only needs to be applied when 2 or more precipitation duration specific
@@ -362,11 +366,13 @@ def qaqc_precip_logic_accum_amounts(df):
     pr_vars = [item for item in pr_vars if "duration" not in item] # excludes duration variable (if provided)
 
     if len(pr_vars) == 0: # if station does not report any precipitation values, bypass
-        print('station does not report a precipitation duration variable - bypassing precip logic check') # testing
+        if verbose:
+            print('station does not report a precipitation duration variable - bypassing precip logic check') # testing
         df = df
 
     elif len(pr_vars) == 1: # no need for amount check
-        print('station does not report multiple precipitation duration variables - bypassing precip logic check') # testing
+        if verbose:
+            print('station does not report multiple precipitation duration variables - bypassing precip logic check') # testing
         df = df
         
     elif len(pr_vars) >= 1: 
@@ -378,14 +384,16 @@ def qaqc_precip_logic_accum_amounts(df):
                 df.loc[df['pr_5min'] > df['pr_1h'], 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
             if 'pr_24h' in pr_vars:
                 df.loc[df['pr_5min'] > df['pr_24h'], 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv 
-            print('Precip 5min eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_5min_eraqc'].unique())) # testing
+            if verbose:
+                print('Precip 5min eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_5min_eraqc'].unique())) # testing
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
                 df.loc[df['pr_1h'] < df['pr_5min'], 'pr_1h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
             if 'pr_24h' in pr_vars:
                 df.loc[df['pr_1h'] > df['pr_24h'], 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv   
-            print('Precip 1h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_1h_eraqc'].unique())) # testing
+            if verbose:
+                print('Precip 1h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_1h_eraqc'].unique())) # testing
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
@@ -395,14 +403,15 @@ def qaqc_precip_logic_accum_amounts(df):
             # checks pr_24h against pr_localmid, catches an issue in pr_24h
             if 'pr_localmid' in pr_vars:
                 df.loc[df['pr_24h'] < df['pr_localmid'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
-            print('Precip 24h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_24h_eraqc'].unique())) # testing
+            if verbose:
+                print('Precip 24h eraqc flags (any other value than nan is an active flag!): {}'.format(df['pr_24h_eraqc'].unique())) # testing
 
     return df
 
 
 
 ## logic check: precip does not have any negative values
-def qaqc_precip_logic_nonegvals(df):
+def qaqc_precip_logic_nonegvals(df, verbose=True):
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data. 
@@ -421,21 +430,23 @@ def qaqc_precip_logic_nonegvals(df):
 
     if len(pr_vars) != 0: # precipitation variable(s) is present
         for item in pr_vars:
-            print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
+            if verbose:
+                print('Precip range: ', df[item].min(), '-', df[item].max()) # testing
             if (df[item] < 0).any() == True:
                 df.loc[df[item] < 0, item+'_eraqc'] = 10 # see era_qaqc_flag_meanings.csv
-
-            print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
+            if verbose:
+                print('Precipitation eraqc flags (any other value than nan is an active flag!): {}'.format(df[item+'_eraqc'].unique())) # testing
 
     else: # station does not report precipitation
-        print('station does not report precipitation - bypassing precip logic check') # testing
+        if verbose:
+            print('station does not report precipitation - bypassing precip logic check') # testing
         df = df
 
     return df
 
   
 ## sensor height - air temperature
-def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
+def qaqc_sensor_height_t(xr_ds, file_to_qaqc, verbose=True):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
@@ -457,7 +468,7 @@ def qaqc_sensor_height_t(xr_ds, file_to_qaqc):
     return file_to_qaqc
 
 ## sensor height - wind
-def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
+def qaqc_sensor_height_w(xr_ds, file_to_qaqc, verbose=True):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
@@ -482,7 +493,7 @@ def qaqc_sensor_height_w(xr_ds, file_to_qaqc):
 
 ## flag values outside world records for North America
 # temp, dewpoint, windspeed, sea level pressure
-def qaqc_world_record(df):
+def qaqc_world_record(df, verbose=True):
     '''
     Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
     If outside minimum or maximum records, flags values
@@ -517,7 +528,7 @@ def qaqc_world_record(df):
 
 ## cross-variable logic checks
 # dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas(df):
+def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -532,16 +543,18 @@ def qaqc_crossvar_logic_tdps_to_tas(df):
             # check values for physical constraint
             df.loc[df[dew_var] > df['tas'], dew_var+"_eraqc"] = 12  # see qaqc_flag_meanings.csv
 
-            print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.format(dew_var, df[dew_var+'_eraqc'].unique())) # testing
+            if verbose:
+                print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.format(dew_var, df[dew_var+'_eraqc'].unique())) # testing
 
     else: # station does not report dew point temperature
-        print('station does not report dew point temperature - bypassing temperature cross-variable logic check') # testing
+        if verbose:
+            print('station does not report dew point temperature - bypassing temperature cross-variable logic check') # testing
         df = df
 
     return df
 
 # wind direction must be 0 if wind speed is 0
-def qaqc_crossvar_logic_calm_wind_dir(df):
+def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
     """
     Checks that wind direction is zero when wind speed is also zero.
     If fails, wind direction is flagged. # only flag wind direction?
@@ -565,10 +578,12 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
             (df['sfcWind_dir'].isnull() == False), # exclude directions that are null/nan
             'sfcWind_dir_eraqc'] = 14 # see era_qaqc_flag_meanings.csv
 
-        print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.format(df['sfcWind_dir_eraqc'].unique()))
+        if verbose:
+            print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.format(df['sfcWind_dir_eraqc'].unique()))
 
     else: # station does not report wind direction
-        print('station does not report wind direction - bypassing wind cross-variable logic check') # testing
+        if verbose:
+            print('station does not report wind direction - bypassing wind cross-variable logic check') # testing
         df = df
 
     return df

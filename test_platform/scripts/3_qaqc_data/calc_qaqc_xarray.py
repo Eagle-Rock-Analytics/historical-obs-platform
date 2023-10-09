@@ -51,7 +51,7 @@ def get_wecc_poly(terrpath, marpath):
 
 #----------------------------------------------------------------------
 # missing spatial coords (lat-lon)
-def qaqc_missing_latlon(ds):
+def qaqc_missing_latlon(ds, verbose=True):
     """
     Checks if latitude and longitude is missing for a station.
     If missing, station is flagged to not proceed through QA/QC.
@@ -60,30 +60,34 @@ def qaqc_missing_latlon(ds):
     variables = list(ds.variables.keys())
     if "lon" not in variables or "lat" not in variables:
         return None
-    elif bool(ds.lon.isnull().any()) or bool(ds.lat.isnull().any()):
+    isLatLonNan = np.logical_or(np.isnan(ds.lat).any(),
+                                np.isnan(ds.lon).any())
+    if isLatLonNan:
         return None
-    else:
-        ds['lon'] = ds.lon.interpolate_na(method="linear", dim="time")
-        ds['lat'] = ds.lat.interpolate_na(method="linear", dim="time")
-        return ds
-
+        
+    ds['lon'] = ds.lon.interpolate_na(method="linear", dim="time")
+    ds['lat'] = ds.lat.interpolate_na(method="linear", dim="time")
+    
+    return ds
+        
 #----------------------------------------------------------------------
 # in bounds of WECC
-def qaqc_within_wecc(ds):
+def qaqc_within_wecc(ds, verbose=True):
     """
     Checks if station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
     """
-    t, m, bbox = get_wecc_poly(wecc_terr, wecc_mar) # Call get_wecc_poly
+    t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
+    m = gp.read_file(wecc_mar).iloc[0].geometry   ## Read in marine WECC shapefile.
     pxy = shapely.Point(ds.lon.mean(),ds.lat.mean())
-    if pxy.within(t.geometry[0]) or pxy.within(m.geometry[0]):
+    if pxy.within(t) or pxy.within(m):
         return ds
     else:
         return None
 
 #----------------------------------------------------------------------
 # elevation
-def _grab_dem_elev_m(lats_to_check, lons_to_check):
+def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=True):
     """
     Pulls elevation value from the USGS Elevation Point Query Service, 
     lat lon must be in decimal degrees (which it is after cleaning)
@@ -107,47 +111,57 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check):
         result = requests.get((url + urllib.parse.urlencode(params)))
         dem_elev_long = float(result.json()['value'])
         # make sure to round off lat-lon values so they are not improbably precise for our needs
-        dem_elev_short[i] = '{:.2f}'.format(dem_elev_long) 
+        # dem_elev_short[i] = '{:.2f}'.format(dem_elev_long) 
+        dem_elev_short[i] = np.round(dem_elev_long, decimals=2) 
 
     return dem_elev_short.astype("float")
 
 #----------------------------------------------------------------------
-def qaqc_elev_infill(ds):
+def qaqc_elev_infill(ds, verbose=True):
     """
     Checks if elevation is NA/missing. If missing, fill in elevation from either DEM or station.
     Some stations have all nan elevation values (e.g., NDBC, MARITIME)
     Some stations have single/few but not all nan elevation values (e.g., otherisd, asosawos)
     """
-    print('Elevation values pre-infilling: {}'.format(np.unique(ds['elevation'])))
-    print('Elevation eraqc values pre-infilling: {}'.format(np.unique(ds['elevation_eraqc']))) # testing
+    if verbose:
+        print('Elevation values pre-infilling: {}'.format(np.unique(ds['elevation'])))
+        print('Elevation eraqc values pre-infilling: {}'.format(np.unique(ds['elevation_eraqc']))) # testing
 
-    # first check to see if any elev value is missing
-    isNan = ds.elevation.squeeze().isnull()
+    # elev values missing
+    isNan = ds.elevation[0,:].isnull()
 
-    # check if lat-lon has changed over time
-    isOneLatLon = len(np.unique(ds.lon))==1 and len(np.unique(ds.lat))==1
+    # if all are missing
+    if isNan.all():
+        dem_elev_values = _grab_dem_elev_m([ds.lat[0,0]], 
+                                           [ds.lon[0,0]],
+                                           vervose=verbose)    
+        ds['elevation'][0,:] = dem_elev_values[0]    
 
-    if isNan.any():
-        # in-fill if value is missing
+        # if some missing
         try:
-            if isOneLatLon:
-                dem_elev_values = _grab_dem_elev_m([ds.lat[0,:].where(isNan, drop=True).values[0]], 
-                                                   [ds.lon[0,:].where(isNan, drop=True).values[0]])
-                dem_elev_values = np.repeat(dem_elev_values, len(np.where(isNan)[0]))
-            else:    
-                dem_elev_values = _grab_dem_elev_m(ds.lat[0,:].where(isNan, drop=True).values, 
-                                                   ds.lon[0,:].where(isNan, drop=True).values)
-            ds['elevation'][0,isNan] = dem_elev_values
-            ds['elevation_eraqc'][0,isNan] = 3
-
+            if isNan.any():
+                if len(np.unique(ds.lon))==1 and len(np.unique(ds.lat))==1:
+                    dem_elev_values = _grab_dem_elev_m([ds.lat[0,0]], 
+                                                       [ds.lon[0,0]],
+                                                       vervose=verbose)
+                    ds['elevation'][0,:] = dem_elev_values[0]
+                else:
+                    dem_elev_values = _grab_dem_elev_m([ds.lat[0,isNan]], 
+                                                       [ds.lon[0,isNan]],
+                                                        vervose=verbose)
+                    ds['elevation'][0,isNan] = dem_elev_values
+                return ds
+            
         # elevation cannot be obtained from DEM
         except:
             return None
     else:
+        if verbose:
+            print("qaqc_elev_infill bypass")
         return ds
 
 #----------------------------------------------------------------------
-def qaqc_elev_range(ds):
+def qaqc_elev_range(ds, verbose=True):
     """
     Checks valid values to identify suspicious elevation values that are larger than 10m in difference
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
@@ -186,9 +200,10 @@ def qaqc_elev_range(ds):
         # elevation cannot be obtained from DEM
         except:
             return None
-        
-    print('Elevation values post-infilling/correcting: {}'.format(np.unique(ds['elevation']))) # testing
-    print('Elevation qaqc values post-infilling/correcting: {}'.format(np.unique(ds['elevation_eraqc']))) # testing
+
+    if verbose:
+        print('Elevation values post-infilling/correcting: {}'.format(np.unique(ds['elevation']))) # testing
+        print('Elevation qaqc values post-infilling/correcting: {}'.format(np.unique(ds['elevation_eraqc']))) # testing
     
     # then check for in range if value is present but outside of reasonable value range
     # death valley is 282 feet (85.9 m) below sea level, denali is ~6190 m
@@ -207,7 +222,7 @@ def qaqc_elev_range(ds):
 
 #-----------------------------------------------------------------------------
 ## logic check: precip does not have any negative values
-def qaqc_precip_logic_nonegvals(ds):
+def qaqc_precip_logic_nonegvals(ds, verbose=True):
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data. 
@@ -229,19 +244,20 @@ def qaqc_precip_logic_nonegvals(ds):
         return None
     else:
         for item in pr_vars:
-            print('Precip range: ', ds[item].min().values, '-', ds[item].max().values) # testing
+            if verbose:
+                print('Precip range: ', ds[item].min().values, '-', ds[item].max().values) # testing
             isNeg = ds[item][0,:] < 0
             
             ds[item+'_eraqc'][0,isNeg] = 10 # see era_qaqc_flag_meanings.csv
-
-            print('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
+            if verbose:
+                print('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
                       '{}'.format(np.unique(ds[item+'_eraqc']))) # testing
 
     return ds
 
 #----------------------------------------------------------------------
 ## logic check: precip accumulation amounts balance for time period
-def qaqc_precip_logic_accum_amounts(ds):
+def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
     Only needs to be applied when 2 or more precipitation duration specific
@@ -315,7 +331,7 @@ def qaqc_precip_logic_accum_amounts(ds):
             ds['pr_24h_eraqc'][0, isBad] = 16 # see era_qaqc_flag_meanings.csv        
         
         if 'pr_localmid' in pr_vars:
-            isBad = ds['pr_24h'][0,:] < df['pr_localmid'][0,:]
+            isBad = ds['pr_24h'][0,:] < ds['pr_localmid'][0,:]
             ds['pr_24h_eraqc'][0, isBad] = 17 # see era_qaqc_flag_meanings.csv
             
         print('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
@@ -328,7 +344,7 @@ def qaqc_precip_logic_accum_amounts(ds):
 ## NDBC and MARITIME only
 
 #----------------------------------------------------------------------
-def spurious_buoy_check(ds, qc_vars):
+def spurious_buoy_check(ds, qc_vars, verbose=True):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
@@ -415,7 +431,7 @@ def spurious_buoy_check(ds, qc_vars):
 
 #-----------------------------------------------------------------------------
 ## sensor height - wind
-def qaqc_sensor_height_w(ds):
+def qaqc_sensor_height_w(ds, verbose=True):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
@@ -444,7 +460,7 @@ def qaqc_sensor_height_w(ds):
 
 #-----------------------------------------------------------------------------
 ## sensor height - air temperature
-def qaqc_sensor_height_t(ds):
+def qaqc_sensor_height_t(ds, verbose=True):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
