@@ -87,7 +87,7 @@ def qaqc_within_wecc(ds, verbose=True):
 
 #----------------------------------------------------------------------
 # elevation
-def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=True):
+def _grab_dem_elev_m(lat_to_check, lon_to_check, verbose=True):
     """
     Pulls elevation value from the USGS Elevation Point Query Service, 
     lat lon must be in decimal degrees (which it is after cleaning)
@@ -96,25 +96,19 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=True):
     """
     url = r'https://epqs.nationalmap.gov/v1/json?'
 
-    dem_elev_short = np.ones_like(lats_to_check)*np.nan
-    
-    for i,lat,lon in zip(range(len(lats_to_check)), lats_to_check, lons_to_check):
-        # define rest query params
-        params = {
-            'output': 'json',
-            'x': lon,
-            'y': lat,
-            'units': 'Meters'
-        }
+    # define rest query params
+    params = {
+        'output': 'json',
+        'x': lon_to_check,
+        'y': lat_to_check,
+        'units': 'Meters'
+    }
 
-        # format query string and return value
-        result = requests.get((url + urllib.parse.urlencode(params)))
-        dem_elev_long = float(result.json()['value'])
-        # make sure to round off lat-lon values so they are not improbably precise for our needs
-        # dem_elev_short[i] = '{:.2f}'.format(dem_elev_long) 
-        dem_elev_short[i] = np.round(dem_elev_long, decimals=2) 
-
-    return dem_elev_short.astype("float")
+    # format query string and return value
+    result = requests.get((url + urllib.parse.urlencode(params)))
+    dem_elev_long = float(result.json()['value'])
+    # make sure to round off lat-lon values so they are not improbably precise for our needs
+    return np.round(dem_elev_long, decimals=2)
 
 #----------------------------------------------------------------------
 def qaqc_elev_infill(ds, verbose=True):
@@ -132,24 +126,28 @@ def qaqc_elev_infill(ds, verbose=True):
 
     # if all are missing
     if isNan.all():
-        dem_elev_values = _grab_dem_elev_m([ds.lat[0]], 
-                                           [ds.lon[0]],
+        dem_elev_values = _grab_dem_elev_m(ds.lat[0], 
+                                           ds.lon[0],
                                            vervose=verbose)    
-        ds['elevation'][0,:] = dem_elev_values[0]    
+        ds['elevation'][:] = dem_elev_values    
 
         # if some missing
         try:
             if isNan.any():
-                if len(np.unique(ds.lon))==1 and len(np.unique(ds.lat))==1:
-                    dem_elev_values = _grab_dem_elev_m([ds.lat[0]], 
-                                                       [ds.lon[0]],
-                                                       vervose=verbose)
-                    ds['elevation'][:] = dem_elev_values[0]
-                else:
-                    dem_elev_values = _grab_dem_elev_m([ds.lat[isNan]], 
-                                                       [ds.lon[isNan]],
-                                                        vervose=verbose)
-                    ds['elevation'][isNan] = dem_elev_values
+                # if len(np.unique(ds.lon))==1 and len(np.unique(ds.lat))==1:
+                #     dem_elev_values = _grab_dem_elev_m([ds.lat[0]], 
+                #                                        [ds.lon[0]],
+                #                                        vervose=verbose)
+                #     ds['elevation'][:] = dem_elev_values[0]
+                # else:
+                #     dem_elev_values = _grab_dem_elev_m([ds.lat[isNan]], 
+                #                                        [ds.lon[isNan]],
+                #                                         vervose=verbose)
+                dem_elev_values = _grab_dem_elev_m(ds.lat[0], 
+                                                   ds.lon[0],
+                                                   verbose=verbose)
+                ds['elevation'][isNan] = dem_elev_values
+                
                 return ds
             
         # elevation cannot be obtained from DEM
