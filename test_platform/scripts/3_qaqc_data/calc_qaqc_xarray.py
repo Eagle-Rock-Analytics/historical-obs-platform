@@ -128,12 +128,12 @@ def qaqc_elev_infill(ds, verbose=True):
         print('Elevation eraqc values pre-infilling: {}'.format(np.unique(ds['elevation_eraqc']))) # testing
 
     # elev values missing
-    isNan = ds.elevation[0,:].isnull()
+    isNan = ds.elevation[:].isnull()
 
     # if all are missing
     if isNan.all():
-        dem_elev_values = _grab_dem_elev_m([ds.lat[0,0]], 
-                                           [ds.lon[0,0]],
+        dem_elev_values = _grab_dem_elev_m([ds.lat[0]], 
+                                           [ds.lon[0]],
                                            vervose=verbose)    
         ds['elevation'][0,:] = dem_elev_values[0]    
 
@@ -141,15 +141,15 @@ def qaqc_elev_infill(ds, verbose=True):
         try:
             if isNan.any():
                 if len(np.unique(ds.lon))==1 and len(np.unique(ds.lat))==1:
-                    dem_elev_values = _grab_dem_elev_m([ds.lat[0,0]], 
-                                                       [ds.lon[0,0]],
+                    dem_elev_values = _grab_dem_elev_m([ds.lat[0]], 
+                                                       [ds.lon[0]],
                                                        vervose=verbose)
-                    ds['elevation'][0,:] = dem_elev_values[0]
+                    ds['elevation'][:] = dem_elev_values[0]
                 else:
-                    dem_elev_values = _grab_dem_elev_m([ds.lat[0,isNan]], 
-                                                       [ds.lon[0,isNan]],
+                    dem_elev_values = _grab_dem_elev_m([ds.lat[isNan]], 
+                                                       [ds.lon[isNan]],
                                                         vervose=verbose)
-                    ds['elevation'][0,isNan] = dem_elev_values
+                    ds['elevation'][isNan] = dem_elev_values
                 return ds
             
         # elevation cannot be obtained from DEM
@@ -172,30 +172,30 @@ def qaqc_elev_range(ds, verbose=True):
 
     # elevation values flagged as incorrectly coded
     # uses a threshold of 10m different from the station elevation to identify suspicious elevations
-    isOff = np.logical_or(ds['elevation'][0,:] > ds['elevation'][0,0] + 10,
-                          ds['elevation'][0,:] < ds['elevation'][0,0] - 10)
-    
+    isOff = np.logical_or(ds['elevation'][:] > ds['elevation'][0] + 10,
+                          ds['elevation'][:] < ds['elevation'][0] - 10)
+    display(isOff)
     # check if lat-lon has changed over time
-    isOneLatLon = len(np.unique(ds.lon[0,isOff]))==1 and len(np.unique(ds.lat[0,isOff]))==1
+    isOneLatLon = len(np.unique(ds.lon[isOff]))==1 and len(np.unique(ds.lat[isOff]))==1
     
     if isOff.any():
         # in-fill if value is missing
         try:
             if isOneLatLon:
-                if ds.lat[0,isOff][0] == ds.lat[0,0] and ds.lon[0,isOff][0] == ds.lon[0,0]:
-                    ds['elevation'][0,isOff] = df['elevation'][0,0]
-                    ds['elevation_eraqc'][0,isOff] = 4
+                if ds.lat[isOff][0] == ds.lat[0] and ds.lon[isOff][0] == ds.lon[0]:
+                    ds['elevation'][isOff] = df['elevation'][0]
+                    ds['elevation_eraqc'][isOff] = 4
                 else:
-                    dem_elev_values = _grab_dem_elev_m([ds.lat[0,:].where(isOff, drop=True).values[0]], 
-                                                   [ds.lon[0,:].where(isOff, drop=True).values[0]])
+                    dem_elev_values = _grab_dem_elev_m([ds.lat[:].where(isOff, drop=True).values[0]], 
+                                                   [ds.lon[:].where(isOff, drop=True).values[0]])
                     dem_elev_values = np.repeat(dem_elev_values, len(np.where(isNan)[0]))
-                    ds['elevation'][0,isOff] = dem_elev_values
-                    ds['elevation_eraqc'][0,isOff] = 3
+                    ds['elevation'][isOff] = dem_elev_values
+                    ds['elevation_eraqc'][isOff] = 3
             else:    
-                dem_elev_values = _grab_dem_elev_m(ds.lat[0,:].where(isOff, drop=True).values, 
-                                                   ds.lon[0,:].where(isOff, drop=True).values)
-                ds['elevation'][0,isOff] = dem_elev_values
-                ds['elevation_eraqc'][0,isOff] = 3
+                dem_elev_values = _grab_dem_elev_m(ds.lat[:].where(isOff, drop=True).values, 
+                                                   ds.lon[:].where(isOff, drop=True).values)
+                ds['elevation'][isOff] = dem_elev_values
+                ds['elevation_eraqc'][isOff] = 3
 
         # elevation cannot be obtained from DEM
         except:
@@ -208,7 +208,7 @@ def qaqc_elev_range(ds, verbose=True):
     # then check for in range if value is present but outside of reasonable value range
     # death valley is 282 feet (85.9 m) below sea level, denali is ~6190 m
     
-    isOut = np.logical_or(ds.elevation[0,:] < -86.0, ds.elevation[0,:]>6200.0)
+    isOut = np.logical_or(ds.elevation[:] < -86.0, ds.elevation[:]>6200.0)
     if isOut.any():
         return None
     else:
@@ -246,9 +246,9 @@ def qaqc_precip_logic_nonegvals(ds, verbose=True):
         for item in pr_vars:
             if verbose:
                 print('Precip range: ', ds[item].min().values, '-', ds[item].max().values) # testing
-            isNeg = ds[item][0,:] < 0
+            isNeg = ds[item][:] < 0
             
-            ds[item+'_eraqc'][0,isNeg] = 10 # see era_qaqc_flag_meanings.csv
+            ds[item+'_eraqc'][isNeg] = 10 # see era_qaqc_flag_meanings.csv
             if verbose:
                 print('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
                       '{}'.format(np.unique(ds[item+'_eraqc']))) # testing
@@ -297,12 +297,12 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_5min' in pr_vars:
         if 'pr_1h' in pr_vars:
-            isBad = ds['pr_5min'][0,:] > df['pr_1h'][0,:]
-            ds['pr_5min_eraqc'][0, isBad] = 15 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_5min'][:] > df['pr_1h'][:]
+            ds['pr_5min_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
-            isBad = ds['pr_5min'][0,:] > df['pr_24h'][0,:]
-            ds['pr_5min_eraqc'][0, isBad] = 15 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_5min'][:] > df['pr_24h'][:]
+            ds['pr_5min_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         print('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
               '{}'.format(np.unique(ds['pr_5min_eraqc']))) # testing
@@ -310,12 +310,12 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_1h' in pr_vars:
         if 'pr_5min' in pr_vars:
-            isBad = ds['pr_1h'][0,:] < df['pr_5min'][0,:]
-            ds['pr_1h_eraqc'][0, isBad] = 16 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_1h'][:] < df['pr_5min'][:]
+            ds['pr_1h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
-            isBad = ds['pr_1h'][0,:] > df['pr_24h'][0,:]
-            ds['pr_1h_eraqc'][0, isBad] = 15 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_1h'][:] > df['pr_24h'][:]
+            ds['pr_1h_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         print('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
               '{}'.format(np.unique(ds['pr_1h_eraqc']))) # testing
@@ -323,16 +323,16 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_24h' in pr_vars:
         if 'pr_5min' in pr_vars:
-            isBad = ds['pr_24h'][0,:] < df['pr_5min'][0,:]
-            ds['pr_24h_eraqc'][0, isBad] = 16 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_24h'][:] < df['pr_5min'][:]
+            ds['pr_24h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv
         
         if 'pr_1h' in pr_vars:
-            isBad = ds['pr_24h'][0,:] < df['pr_1h'][0,:]
-            ds['pr_24h_eraqc'][0, isBad] = 16 # see era_qaqc_flag_meanings.csv        
+            isBad = ds['pr_24h'][:] < df['pr_1h'][:]
+            ds['pr_24h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv        
         
         if 'pr_localmid' in pr_vars:
-            isBad = ds['pr_24h'][0,:] < ds['pr_localmid'][0,:]
-            ds['pr_24h_eraqc'][0, isBad] = 17 # see era_qaqc_flag_meanings.csv
+            isBad = ds['pr_24h'][:] < ds['pr_localmid'][:]
+            ds['pr_24h_eraqc'][isBad] = 17 # see era_qaqc_flag_meanings.csv
             
         print('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
               '{}'.format(np.unique(ds['pr_24h_eraqc']))) # testing
@@ -366,21 +366,21 @@ def spurious_buoy_check(ds, qc_vars, verbose=True):
             for new_var in qc_vars:
                 # Retrieve original var name
                 var = new_var.split("_eraqc")[0]
-                ds[new_var][0,isBad] = 2 # see era_qaqc_flag_meanings.csv
+                ds[new_var][isBad] = 2 # see era_qaqc_flag_meanings.csv
             
         elif station == "NDBC_46045": # disestablished 11/1997
             isBad = ds['time'] >= np.datetime64("1997-12-01")
             for new_var in qc_vars:
                 # Retrieve original var name
                 var = new_var.split("_eraqc")[0]
-                ds[new_var][0,isBad] = 2 # see era_qaqc_flag_meanings.csv
+                ds[new_var][isBad] = 2 # see era_qaqc_flag_meanings.csv
 
         elif station == "NDBC_46051": # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
             isBad = ds['time'] >= np.datetime64("1996-05-01")
             for new_var in qc_vars:
                 # Retrieve original var name
                 var = new_var.split("_eraqc")[0]
-                ds[new_var][0,isBad] = 2 # see era_qaqc_flag_meanings.csv
+                ds[new_var][isBad] = 2 # see era_qaqc_flag_meanings.csv
 
         elif station == "MARITIME_PTAC1": # data currently available 1984-2012, but disestablished 2/9/2022
             # only flag if new data is added after 2022 in a new data pull
@@ -388,7 +388,7 @@ def spurious_buoy_check(ds, qc_vars, verbose=True):
             for new_var in qc_vars:
                 # Retrieve original var name
                 var = new_var.split("_eraqc")[0]
-                ds[new_var][0,isBad] = 2 # see era_qaqc_flag_meanings.csv
+                ds[new_var][isBad] = 2 # see era_qaqc_flag_meanings.csv
 
         # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
         elif station == "NDBC_46044":
@@ -397,7 +397,7 @@ def spurious_buoy_check(ds, qc_vars, verbose=True):
             for new_var in qc_vars:
                 # Retrieve original var name
                 var = new_var.split("_eraqc")[0]
-                ds[new_var][0,isBad] = 2 # see era_qaqc_flag_meanings.csv
+                ds[new_var][isBad] = 2 # see era_qaqc_flag_meanings.csv
                 
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
@@ -405,8 +405,8 @@ def spurious_buoy_check(ds, qc_vars, verbose=True):
             isBad = np.logical_and(ds['time'] >= np.datetime64("1900-01-01 06:00:00"),
                                    ds['time'] <= np.datetime64("1900-01-01 20:00:00"))
             
-            ds["sfcWind_eraqc"][0,isBad] = 1
-            ds["sfcWind_dir_eraqc"][0,isBad] = 1 # see era_qaqc_flag_meanings.csv
+            ds["sfcWind_eraqc"][isBad] = 1
+            ds["sfcWind_dir_eraqc"][isBad] = 1 # see era_qaqc_flag_meanings.csv
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
@@ -511,10 +511,10 @@ def qaqc_world_record(ds, verbose=True):
 
         for var in wr_vars:
             if var in list(ds.data_vars):
-                isOffRecord = np.logical_or(ds[var][0,:] < mins[var]['North_America'],
-                                            ds[var][0,:] > maxes[var]['North_America'])
+                isOffRecord = np.logical_or(ds[var][:] < mins[var]['North_America'],
+                                            ds[var][:] > maxes[var]['North_America'])
                 if isOffRecord.any():
-                    ds[var + '_eraqc'][0,isOffRecord] = 11
+                    ds[var + '_eraqc'][isOffRecord] = 11
         return ds
     except Exception as e:
         print("qaqc_world_record failed with Exception: {}".format(e))
@@ -540,8 +540,8 @@ def qaqc_crossvar_logic_tdps_to_tas(ds, verbose=True):
         # dew point is present
         else:
             for var in all_dew_vars: 
-                isBad = ds[var][0,:] > ds['tas'][0,:]
-                ds[var + '_eraqc'][0,isBad] = 12 # see qaqc_flag_meanings.csv
+                isBad = ds[var][:] > ds['tas'][:]
+                ds[var + '_eraqc'][isBad] = 12 # see qaqc_flag_meanings.csv
                 if verbose:
                     print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.
                           format(var, np.unique(ds[var + '_eraqc'])))
@@ -569,20 +569,20 @@ def qaqc_crossvar_logic_calm_wind_dir(ds, verbose=True):
                 return ds
             
         # First, identify calm winds but with incorrect wind directions
-        isCalm = ds['sfcWind'][0,:] == 0
-        isDirNotZero = ds['sfcWind_dir'][0,:] != 0
-        isNotNan = np.logical_not(ds['sfcWind_dir'][0,:].isnull())
+        isCalm = ds['sfcWind'][:] == 0
+        isDirNotZero = ds['sfcWind_dir'][:] != 0
+        isNotNan = np.logical_not(ds['sfcWind_dir'][:].isnull())
         isBad = isCalm & isDirNotZero & isNotNan
         
         ds['sfcWind_dir_eraqc'][0,isBad] = 13 # see qaqc_flag_meanings.csv
         
         # Next, identify non-zero winds but with incorrect wind directions
         # Non-zero northerly winds should be coded as 360 deg, not 0 deg
-        isNotCalm = ds['sfcWind'][0,:] != 0
-        isDirZero = ds['sfcWind_dir'][0,:] == 0
+        isNotCalm = ds['sfcWind'][:] != 0
+        isDirZero = ds['sfcWind_dir'][:] == 0
         isBad = isNotCalm & isDirZero & isNotNan
         
-        ds['sfcWind_dir_eraqc'][0,isBad] = 14 # see qaqc_flag_meanings.csv
+        ds['sfcWind_dir_eraqc'][isBad] = 14 # see qaqc_flag_meanings.csv
         
         if verbose:
             print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.

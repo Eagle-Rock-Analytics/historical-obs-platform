@@ -436,7 +436,10 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                         if verbose:
                             print("Reading {}".format(aws_url), flush=True)
                         t0 = time.time()
-                        ds = xr.open_dataset(fileObj).load()
+                        # Drop station dimension
+                        ds = xr.open_dataset(fileObj).isel(station=0)
+                        # Load data to speed up analysis
+                        ds = ds.load()
                         # Drop time duplicates
                         ds = ds.drop_duplicates(dim="time")
                         if verbose:
@@ -456,6 +459,10 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                                   format(time.time()-t0), flush=True) 
                         ## Assign ds attributes and save .nc file
                         if ds is not None:
+                            # Re-load station coordinate
+                            ds = ds.assign_coords({"station":station}).expand_dims({"station":1})
+
+                            # Process output
                             t0 = time.time()
                             process_output_ds(ds, network, timestamp, station, qaqcdir, 
                                               errors, end_api, verbose=verbose)
