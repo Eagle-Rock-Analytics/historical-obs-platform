@@ -174,7 +174,6 @@ def qaqc_elev_range(ds, verbose=True):
     # uses a threshold of 10m different from the station elevation to identify suspicious elevations
     isOff = np.logical_or(ds['elevation'][:] > ds['elevation'][0] + 10,
                           ds['elevation'][:] < ds['elevation'][0] - 10)
-    display(isOff)
     # check if lat-lon has changed over time
     isOneLatLon = len(np.unique(ds.lon[isOff]))==1 and len(np.unique(ds.lat[isOff]))==1
     
