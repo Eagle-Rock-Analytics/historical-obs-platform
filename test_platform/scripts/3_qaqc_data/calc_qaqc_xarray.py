@@ -294,11 +294,11 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_5min' in pr_vars:
         if 'pr_1h' in pr_vars:
-            isBad = ds['pr_5min'][:] > df['pr_1h'][:]
+            isBad = ds['pr_5min'][:] > ds['pr_1h'][:]
             ds['pr_5min_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
-            isBad = ds['pr_5min'][:] > df['pr_24h'][:]
+            isBad = ds['pr_5min'][:] > ds['pr_24h'][:]
             ds['pr_5min_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         print('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
@@ -307,11 +307,11 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_1h' in pr_vars:
         if 'pr_5min' in pr_vars:
-            isBad = ds['pr_1h'][:] < df['pr_5min'][:]
+            isBad = ds['pr_1h'][:] < ds['pr_5min'][:]
             ds['pr_1h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
-            isBad = ds['pr_1h'][:] > df['pr_24h'][:]
+            isBad = ds['pr_1h'][:] > ds['pr_24h'][:]
             ds['pr_1h_eraqc'][isBad] = 15 # see era_qaqc_flag_meanings.csv
             
         print('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
@@ -320,11 +320,11 @@ def qaqc_precip_logic_accum_amounts(ds, verbose=True):
     #:::::
     if 'pr_24h' in pr_vars:
         if 'pr_5min' in pr_vars:
-            isBad = ds['pr_24h'][:] < df['pr_5min'][:]
+            isBad = ds['pr_24h'][:] < ds['pr_5min'][:]
             ds['pr_24h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv
         
         if 'pr_1h' in pr_vars:
-            isBad = ds['pr_24h'][:] < df['pr_1h'][:]
+            isBad = ds['pr_24h'][:] < ds['pr_1h'][:]
             ds['pr_24h_eraqc'][isBad] = 16 # see era_qaqc_flag_meanings.csv        
         
         if 'pr_localmid' in pr_vars:
