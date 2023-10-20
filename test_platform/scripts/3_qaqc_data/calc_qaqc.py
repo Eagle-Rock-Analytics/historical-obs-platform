@@ -573,81 +573,364 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
 
     return df
     
+
 # flag unusual gaps within the monthly distribution bins
-def qaqc_dist_gaps_part1(df, plot_flags=True):
+## distribution gap function helpers
+def monthly_med(df):
+    """Part 1: Calculates the monthly median"""
+    return df.resample('M', on='time').median(numeric_only=True)
+
+
+def iqr_range(df, month, var):
+    """Part 1: Calculates the monthly interquartile range"""
+    q1 = df.groupby('month').quantile(0.25, numeric_only=True)
+    q3 = df.groupby('month').quantile(0.75, numeric_only=True)
+    iqr_df = q3 - q1
+    
+    iqr_val = iqr_df.loc[iqr_df.index == month]
+    
+    # inflated to 4°C or 4 hPa for months with very small IQR
+    var_check = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'psl_altimeter']
+    if iqr_val[var].values < 4:
+        if var in var_check:
+            iqr_val[var].values = 4
+    
+    return iqr_val[var].values
+
+def standardized_anom(df, month, var):
+    """
+    Part 1: Calculates the monthly anomalies standardized by IQR range
+    
+    Returns:
+        arr_std_anom: array of monthly standardized anomalies for var
+    """
+    
+    df_monthly_med = monthly_med(df)
+    df_clim_med = clim_med(df)
+    
+    arr_anom = (df_monthly_med.loc[df_monthly_med['month'] == month][var].values -
+                df_clim_med.loc[df_clim_med.index == month][var].values)
+        
+    arr_std_anom = arr_anom / iqr_range(df, month, var)
+    
+    return arr_std_anom
+    
+def standardized_median_bounds(df, month, var, iqr_thresh=5):
+    """Part 1: Calculates the standardized median"""
+    std_med = df.loc[df['month'] == month][var].median() # climatological median for that month
+    
+    lower_bnd = std_med - (iqr_thresh * iqr_range(df, month, var))
+    upper_bnd = std_med + (iqr_thresh * iqr_range(df, month, var))
+    
+    return (std_med, lower_bnd[0], upper_bnd[0])
+
+def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
+    """Part 1: Checks the number of valid observation months in order to proceed through monthly distribution checks. Identifies whether a station record has too 
+    few months and produces a fail pass flag. 
+    """
+    
+    # set up df
+    df = df.reset_index() 
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+             
+    # set up a "pass_flag" to determine if station proceeds through distribution function
+    pass_flag = 'pass'
+    
+    for var in vars_to_check:
+        # add _eraqc column for each variable
+        df[var+'_eraqc'] = np.nan # default value of nan    
+    
+        for month in range(1,13):
+
+            # first check num of months in order to continue
+            month_to_check = df.loc[df['month'] == month]
+
+            # check for number of obs years
+            if (len(month_to_check.year.unique()) < 5):
+                df[var+'_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
+                pass_flag = 'fail'
+
+    err_statement = '{} has too short of an observation record to proceed through the monthly distribution qa/qc checks -- bypassing station'.format(
+                    df['station'].unique()[0])
+    
+    if pass_flag == 'fail':
+        print(err_statement)
+                
+    return (df, pass_flag) 
+
+
+def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
+    """
+    Part 1: Checks the number of valid observation months per variable to proceed through monthly distribution checks.
+    Primarily assesses whether if null values persist for a month
+    """
+        
+    for var in vars_to_check:
+        for month in range(1,13):
+            monthly_df = df.loc[df['month']==month]
+            
+            # if all values are null for that month across years
+            if monthly_df[var].isnull().all() == True:
+                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
+            
+            # if not all months have nans, need to assess how many years do
+            elif monthly_med(df).loc[monthly_med(df)['month'] == month][var].isna().sum() > min_num_months:
+                print('{} has less than {} months of valid {} observations -- bypassing check'.format(
+                df['station'].unique()[0], min_num_months, var))
+                
+                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
+        
+    return df
+
+def standardize_iqr(df, var):
+    """Part 2: Standardizes data against the interquartile range
+
+    Returns:
+        array
+    """
+    q1 = df[var].quantile(0.25)
+    q3 = df[var].quantile(0.75)
+    iqr = q3 - q1
+    
+    return (df[var].values - df[var].median()) / iqr
+
+## distribution gap plotting helpers
+def create_bins(data, bin_size=0.25):
+    '''Create bins from data covering entire data range'''
+
+    # set up bins
+    b_min = np.floor(np.nanmin(data))
+    b_max = np.ceil(np.nanmax(data))
+    bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
+
+    return bins
+
+def _plot_format_helper(var):
+    """Helper function for plots"""
+
+    pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
+    ps_vars = ['ps', 'psl', 'psl_altimeter']
+    
+    if var == 'tas':
+        ylab = 'Air Temperature at 2m'
+        unit = 'K'
+        
+    elif var == 'tdps' or var == 'tdps_derived':
+        ylab = 'Dewpoint Temperature'
+        unit = 'K'
+        
+    elif var == 'sfcWind':
+        ylab = 'Surface Wind Speed'
+        unit = '${m s^-1}$'
+        
+    elif var == 'sfcWind_dir':
+        ylab = 'Surface Wind Direction'
+        unit = 'degrees'
+        
+    elif var == 'rsds':
+        ylab = 'Surface Radiation'
+        unit = '${W m^-2}$'
+        
+    elif var in pr_vars:
+        ylab = 'Precipitation' # should be which precip var it is
+        unit = 'mm'
+
+    elif var in ps_vars:
+        ylab = var # should eventually be what pressure var it is
+        unit = 'Pa'
+        
+    return (ylab, unit)
+
+
+## distribution gap flagging functions
+def qaqc_dist_gaps_part1(df, iqr_thresh=5, plot=True):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
         - standardize against interquartile range
         - compare stepwise from the middle of the distribution outwards
         - asymmetries are identified and flagged if severe
-    Goal: identifies individual suspect observations and flags the entire month 
-
+    Goal: identifies suspect months and flags all obs within month
+    
     NOTE: Code is preliminary at present, and does not necessarily reflect the final IQR threshold 
     """
     
-    # in order to grab the time information more easily -- would prefer not to do this
-    df = df.reset_index() 
-    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
-    
-    # calculate monthly medians
-    df_anom = df.sub(df.resample('M', on='time').transform('median', numeric_only=True))
-    df_anom['time'] = df['time'] # add time column back in to do quantiles
-
-    # standardize against calendar-month IQR range
-    df_q1 = df_anom.resample('M', on='time').transform('quantile', 0.25, numeric_only=True)
-    df_q3 = df_anom.resample('M', on='time').transform('quantile', 0.75, numeric_only=True)
-    df_iqr = df_q3 - df_q1
-    df_anom_iqr = df_anom / df_iqr
-    
     # run through every var, excluding qaqc/duration/method vars
-    vars_to_remove = ['index','station','qc', 'duration', 'method', 'lat', 'lon', 'elevation', 'time', 'month', 'year'] # list of var substrings to exclude if present in var
+    vars_to_remove = ['index','station','qc','duration','method','lat','lon','elevation','time','month','year','sfcWind_dir'] # list of var substrings to exclude if present in var
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-    
-    for var in vars_to_check:
-        # add _eraqc column for each variable
-        df[var+'_eraqc'] = np.nan # default value of nan
         
-        # "inflated to 4°C or hPa for those months with very small IQR"
-        # accounts for any seasonal cycle in variance
-        small_iqr_var_check = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'psl_altimeter', 'ps_derived']
-        if var in small_iqr_var_check:
-            if (np.abs(df_anom_iqr[var].max()) + np.abs(df_anom_iqr[var].min())) < 4:
-                print('small var check') # testing for occurrence 
-                df_anom_iqr[var] = np.linspace(-2, 2, len(df)) # unsure this is the correct way to do this - come back
+    # whole station bypass check first
+    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
+    
+    if pass_flag != 'fail':
+        
+        for var in vars_to_check:
+            for month in range(1,13):
+                
+                # per variable bypass check
+                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
+                if 19 in df[var+'_eraqc']:
+                    continue # skip variable 
+                
+                # station has above min_num_months number of valid observations, proceed with dist gap check
+                else:
+                    # calculate monthly climatological median, and bounds
+                    mid, low, high = standardized_median_bounds(df, month, var, iqr_thresh=iqr_thresh)
 
-        # standardized anomalies are ranked (necessary?) and calculate median
-        std_med = df_anom_iqr.median() # will be 0 if inflated to range of 4
+                    # calculate monthly median per month
+                    df_month = monthly_med(df)
 
-        # add standardized anomaly median to IQR-standardized data
-        df_std_med = df_anom_iqr + std_med
-        df_std_med['time'] = df['time'] # add time columns back in... again
-        df_std_med['year'] = df['year']
-        df_std_med['month'] = df['month']
+                    for i in df_month.loc[df_month['month'] == month][var]:
+                        if (i < low) or (i > high):
+                            year_to_flag = (df_month.loc[(df_month[var]==i) & 
+                                               (df_month['month']==month)]['year'].values[0])
+                            print('Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month'.format(
+                                var,
+                                month, 
+                                int(year_to_flag),
+                                iqr_thresh)
+                            )
 
-        # identify where any obs are +/- 5 IQR away from standardized anomaly median
-        if len(df_std_med.loc[np.abs(df_std_med[var]) > 5]) != 0:
+                            # flag all obs in that month
+                            df.loc[(df['month']==month) & 
+                                   (df['year']==year_to_flag), var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
 
-            bad_idxs = df_std_med.loc[np.abs(df_std_med[var]) > 5].index.tolist() # grab indices of suspect obs
-            print('{} suspicious {} observations present, flagging appropriate months'.format(len(bad_idxs), var))
-
-            for i in bad_idxs:
-                bad_yr = df.iloc[df.index == i]['year'].values[0]
-                bad_mon = df.iloc[df.index == i]['month'].values[0]
-                print('Flagging: {0}/{1}'.format(bad_mon, bad_yr))
-
-                # identify all indices for months encapsulating suspect obs
-                bad_obs_per_month = df.loc[(df['year'] == bad_yr) & (df['month'] == bad_mon)]
-                all_idx_to_flag = bad_obs_per_month.index
-
-                for i in all_idx_to_flag: # flag all indices in those months
-                    df.loc[df.index == i, var+'_eraqc'] = 18 # see era_qaqc_flag_meanings.csv # DOUBLE CHECK VALUE
-
-        else:
-            print('Part 1: PASS. All {} obs are within +/- 5 IQR range'.format(var))
-
+        if plot==True:
+            for month in range(1,13):
+                for var in vars_to_check:
+                    if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                        dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
+                                            network=df['station'].unique()[0].split('_')[0])
+                
     return df
+
+def qaqc_dist_gaps_part2():
+
+
+## distribution gap plotting functions
+def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
+        
+    # grab data by months
+    df = df.loc[df['month'] == month]
+        
+    # grab flagged data
+    flag_vals = df.loc[df[var + '_eraqc'] == flagval]
+    
+    # plot valid data
+    ax = df.plot.scatter(x='time', y=var, label='Pass')
+    
+    # plot flagged data
+    flag_vals.plot.scatter(ax=ax, x='time', y=var, color='r', label='Flagged')
+    # should be consistent with other plots - I like Hector's open circles around flagged values
+
+    # plot climatological median and threshold * IQR range
+    mid, low_bnd, high_bnd = standardized_median_bounds(df, month, var, iqr_thresh=5)
+    
+    plt.axhline(y=mid, color='k', lw=0.5, label='Climatological monthly median')
+    plt.fill_between(x=df['time'],
+                    y1=low_bnd,
+                    y2=high_bnd,
+                    alpha=0.25, color='0.75', 
+                    label='{} * IQR range'.format(iqr_thresh))
+    
+    # plot aesthetics
+    plt.legend(loc='best')
+    ylab = _plot_format_helper(var)
+    plt.ylabel('{} [{}]'.format(ylab[0], ylab[1]));
+    plt.xlabel('')
+    plt.title('Distribution gap check pt 1: {0} / month: {1}'.format(
+        df['station'].unique()[0],
+        month), 
+              fontsize=10);
+    
+    # save to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png')
+    img_data.seek(0)
+    
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    figname = 'qaqc_dist_gap_check_part1_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                 Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                 directory, network, figname))
+    
+    # close figures to save memory
+    plt.close()
+
+def dist_gap_part2_plot(df, month, var, network):
+    '''
+    Produces a histogram of the monthly standardized distribution
+    with PDF overlay and threshold lines where pdf falls below y=0.1.
+    Any bin that is outside of the threshold is visually flagged
+    ''' 
+
+    # select month
+    df = df.loc[df['month'] == month]
+    
+    # standardize against IQR range
+    df_month_iqr = standardize_iqr(df, var)
+    
+    # determine number of bins
+    bins = create_bins(df_month_iqr)
+    
+    # plot histogram
+    ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, alpha=0.3);
+    xmin, xmax = plt.xlim()
+    plt.ylim(ymin=0.1)
+
+    # plot pdf
+    mu = np.nanmean(df_month_iqr)
+    sigma = np.nanstd(df_month_iqr)
+    y = stats.norm.pdf(bins, mu, sigma)
+    l = plt.plot(bins, y, 'k--', linewidth=1)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] -1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd - 1, right_bnd + 1)
+
+    plt.axvline(thresholds[1], color='r') # right tail
+    plt.axvline(thresholds[0], color='r') # left tail
+    
+    # flag (visually) obs that are beyond threshold
+    for bar in ax[2].patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x > thresholds[1]: # left tail
+            bar.set_color('r')
+        elif x < thresholds[0]: # right tail
+            bar.set_color('r')
+
+    # title and useful annotations
+    plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.ylabel('Frequency (obs)')
+    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png')
+    img_data.seek(0)
+    
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    figname = 'qaqc_dist_gap_check_part2_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                     Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                     directory, network, figname))
+
+    # close figures to save memory
+    plt.close()
+
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate
