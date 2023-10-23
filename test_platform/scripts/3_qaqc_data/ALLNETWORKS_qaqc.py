@@ -249,27 +249,16 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 
                         # Monthly distribution checks
-                        # unusual gaps (part 1)
+                        # unusual gaps (part 1 and part 2)
                         try:
-                            stn_to_qaqc = qaqc_dist_gaps_part1(stn_to_qaqc)
+                            stn_to_qaqc = qaqc_unusual_gaps(stn_to_qaqc)
                         except Exception as e:
                             print('Flagging problem with unusual gap distribution function for {0}, skipping'.format(station)) # testing
                             errors['File'].append(station)
                             errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_dist_gaps_part1: {0}'.format(e))
+                            errors['Error'].append('Failure on qaqc_unusual_gaps: {0}'.format(e))
                             continue # skipping station
-                        print('pass qaqc_dist_gaps_part1') # testing
-
-                        # unusual gaps (part 2)
-                        try:
-                            stn_to_qaqc = qaqc_dist_gaps_part2(stn_to_qaqc)
-                        except Exception as e:
-                            print('Flagging problem with unusual gap distribution function for {0}, skipping'.format(station)) # testing
-                            errors['File'].append(station)
-                            errors['Time'].append(end_api)
-                            errors['Error'].append('Failure on qaqc_dist_gaps_part2: {0}'.format(e))
-                            continue # skipping station
-                        print('pass qaqc_dist_gaps_part2') # testing
+                        print('pass qaqc_unusual_gaps') # testing
 
 
                 except Exception as e:
