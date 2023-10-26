@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 import urllib
 import datetime
+import math
 
 
 ## Set AWS credentials
@@ -601,32 +602,202 @@ def qaqc_crossvar_logic_calm_wind_dir(df):
 
 ## distribution checks
 # flag unusually frequent values - if any one value has more than 50% of data in the bin
-def qaqc_dist_frequent_vals(df, plots=False):
+def bins_to_flag(bins, bar_counts, bin_main_thresh=30, secondary_bin_main_thresh=30):
+    '''Returns the specific bins to flag as suspect'''
+    bins_to_flag = [] # list of bins that will be flagged
+    
+    for i in range(0, len(bar_counts)):
+        # identify main bin + 3 on either side
+        bin_start = i-3
+        bin_end = i+4
+
+        # need handling for first 3 blocks as there is no front
+        if i < 3:
+            bin_start = 0
+
+        bin_block_sum = bar_counts[bin_start:bin_end].sum() # num of obs in the 7-bin block
+        bin_main_sum = bar_counts[i] # num of obs in main bin
+
+        # determine whether main bin is more than half sum in 7-block bin
+        bin_block_50 = bin_block_sum * 0.5 # primary check at 50%
+        bin_block_90 = bin_block_sum * 0.9 # secondary check at 90%
+
+        if (bin_main_sum > bin_block_50) == True:            
+            # ensure that bin_main_sum is greater than bin_main_thresh
+            if bin_main_sum > bin_main_thresh:
+                bins_to_flag.append(bins[i])
+                
+                # annual/seasonal check
+                if (bin_main_sum > bin_block_90) == True:
+                    if bin_main_sum > secondary_bin_main_thresh:
+                        bins_to_flag.append(bins[i]) 
+                
+            else: # less than bin_main_thresh obs in bin_main_sum, do not indicate as suspect
+                continue
+                
+    return bins_to_flag # returns a list of values that are suspicious
+
+def frequent_bincheck(df, data_group):
+    '''Approach: 
+        - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
+        - each bin compared to the three on either side
+        - if this bin contains more than half the total population of the seven bins combined
+        - and more than 30 observations over the station record (20 for seasonal)
+        - then histogram bin is highlighted for further investigation
+        - minimum number limit imposted to avoid removing true tails of distribution
     '''
-    Checks for values occurring more frequently than would be expected
+    
+    if data_group == 'all':
+        bins = create_bins(df[var], bin_size=1) # using 1 degC/hPa bin width
+        bar_counts, bins = np.histogram(df[var], bins=bins)
+        flagged_bins = bins_to_flag(bins, bar_counts)
+        
+        # flag values in that bin as suspect
+        if len(flagged_bins) != 0:
+            for sus_bin in flagged_bins:
+                # indicate as suspect bins
+                    # DECISION: preliminary flag? and then remove if okay/reset to nan?
+                df.loc[(df[var]==bins[i]) & (df[var]==bins[i+1]), var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
+        
+    elif data_group == 'annual':
+        for yr in df.year.unique():
+            df_yr = df.loc[df['year'] == yr]
+            bins = create_bins(df_yr[var], bin_size=1) # using 1 degC/hPa bin width
+            bar_counts, bins = np.histogram(df_yr[var], bins=bins)
+            flagged_bins = bins_to_flag(df_yr, bin_main_thresh=20, secondary_bin_main_thresh=10)
+            
+            if flagged_bins !=0:
+                for sus_bin in flagged_bins:
+                    df.loc[(df[var]==bins[i]) & (df[var]==bins[i+1]), var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                
+    return df
+
+def qaqc_frequent_vals(df, plots=True):
+    '''Frequent values check:
+        - Two phases:
+            - Phase 1/ All data:
+                - All obs, checked to see if >50% of obs than in bins +/- 3 bins, values preliminarily flagged
+                - Proceeds to annual basis, where prelim flagged bins with >50% of obs and 20+ obs OR 90% of obs and 10+ obs are flagged
+            - Phase 2/ Seasonal check:
+                - All obs in that season
+                - Proceeds to annual basis
+        
+        Note: tas and tdps are synergistic
+        - if tas is bad, tdps is also flagged, and vice versa
     '''
+    
+    # this check is only done on air temp, dewpoint temp, and pressure
+    vars_to_remove = ['qc', 'duration', 'method']
+    vars_to_include = ['tas', 'tdps', 'ps'] # list of var substrings to remove if present in var
+    vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
-    # run through every var, excluding qaqc/duration vars
-    vars_to_remove = ['station', 'qc', 'duration', 'method', 'lat', 'lon', 'elevation'] # list of var substrings to remove if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    df = df.reset_index() 
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    
+    for var in vars_to_check:
+        
+        # set-up flag vars
+        df[var+'_eraqc'] = np.nan
+        
+        # first scans suspect values using entire record
+        # all years
+        df = frequent_bincheck(df, data_group='all')
+
+        # if no values are flagged as suspect, end function, no need to proceed
+        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
+            print('No unusually frequent values detected for entire {} observation record'.format(var))
+            # goes to seasonal check
+
+        else:
+            # year by year
+            # then scans for each value on a year-by-year basis to flag if they are a problem within that year
+                # DECISION: the annual check uses the unfiltered data
+                # previously flagged values are included here -- this would interfere with our entire workflow
+            df = frequent_bincheck(df, data_group='annual')
+
+        # seasonal scan (JF+D, MAM, JJA, SON) 
+        # each season is scanned over entire record to identify problem values
+        # only flags applied on annual basis using the three months on their own
+        # NOTE: HadISD approach is to use the current year's december, rather than the preceeding december
+
+        # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
+        # all years
+        szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] ## DECISION: December is from the current year
+        for szn in szns:
+            df_szn = df.loc[(df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])]
+
+            df_szn = frequent_bincheck(df_szn, data_group='all')
+            if len(df_szn.loc[df_szn[var+'_eraqc'] == 100]) == 0:
+                print('No unusually frequent values detected for seasonal {} observation record'.format(var))
+                continue # bypasses to next variable
+
+            else:
+                # year by year --> December selection will be problematic
+                df_szn = frequent_bincheck(df_szn, data_group='annual')
+
+        # remove any lingering preliminary flags, data passed check
+        df.loc[df[var+'_eraqc'] == 100, var+'_eraqc'] == np.nan
+        
+        # plots item
+        if plots==True:
+            for var in vars_to_check:
+                if 22 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+                    # histogram
+                    frequent_vals_plot(df, var)
+
+                    # entire timeseries figure
+                    flagged_timeseries_plot(df, flag_to_viz=[22])  
+        
+    return df
 
 
-    # need to set a minimum length of record to calculate distribution? some stations will have long records, some will have just a years amount of data
-        # how do we run this on the CW3E stations which are broken up by year
-    # daily would be 29-31 per month
-    # hourly would be ~720 per month
+def frequent_vals_plot(df, var):
+    '''
+    Produces a histogram of the diagnostic histogram per variable, 
+    and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
+    is visually flagged
+    ''' 
+    bins = create_bins(df[var], 1)
+    ax = df.plot.hist(column=var, bins=bins, alpha=0.5)
+    
+    # plot flagged values
+    
+    # first identify which values are flagged
+    vals_to_flag = df.loc[df[var+'_eraqc'] == 22][var].unique()
+    bars_to_flag = []
+    for i in vals_to_flag:
+        if math.isnan(i) == False:
+            bars_to_flag.append(math.floor(i))
 
-    # what threshold do we use for unusually frequent - 50% in bin?
-        # how would this work for sfcWind, which might be the exception here
-        # exclude wind direction? 
+    # flag bars if too frequent
+    for bar in ax.patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x in bars_to_flag: # right tail
+            bar.set_color('r')
 
-        # identify "bad bins", then check each year in that bin
+    # plot aesthetics
+    plt.xlabel('Temperature [K]')
+    plt.title('Frequent value check: {}'.format(df['station'].unique()[0]),
+             fontsize=10);
+    
+    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png')
+    img_data.seek(0)
 
-    # do we produce plots that are saved? have optional plots=true/false call where plots are saved if true
-        # do we have a separate folder for these plots
-        # produce plots only when data is flagged? 
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    figname = 'qaqc_frequent_value_check_{0}_{1}'.format(df['station'].unique()[0], var)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                     Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                     directory, network, figname))
 
-    # how to flag data if bad - or throw out station if severe enough? 
+    # close figures to save memory
+    plt.close()
 
     
 #----------------------------------------------------------------------

@@ -260,6 +260,18 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
                         print('pass qaqc_crossvar_logic_calm_wind_dir') # testing
 
 
+                        # Frequent values cehck
+                        try:
+                            stn_to_qaqc = qaqc_frequent_vals(stn_to_qaqc)
+                        except Exception as e:
+                            print('Flagging problem with frequent values check for {0}, skipping'.format(station)) # testing
+                            errors['File'].append(station)
+                            errors['Time'].append(end_api)
+                            errors['Error'].append('Failure on qaqc_frequent_vals: {0}'.format(e))
+                            continue # skipping station
+                        print('pass qaqc_frequent_vals') # testing
+
+
                 except Exception as e:
                     print(e) # testing
                     errors['File'].append(station)
