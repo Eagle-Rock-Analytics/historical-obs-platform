@@ -803,7 +803,7 @@ def qaqc_dist_gap_part1(df, iqr_thresh=5, plot=True):
         if plot==True:
             for month in range(1,13):
                 for var in vars_to_check:
-                    if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                    if 19 in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
                         dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
                                             network=df['station'].unique()[0].split('_')[0])
                 
@@ -891,7 +891,7 @@ def qaqc_dist_gap_part2(df, min_num_months=5, plot=False):
     if plot==True:
         for month in range(1,13):
             for var in vars_to_check:
-                if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                if 19 in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
                     dist_gap_part2_plot(df, month, var, network=df['station'].unique()[0].split('_')[0])
 
     
