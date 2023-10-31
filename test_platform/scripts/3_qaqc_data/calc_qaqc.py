@@ -82,7 +82,7 @@ def qaqc_within_wecc(df, verbose=True):
 
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
     m = gp.read_file(wecc_mar).iloc[0].geometry   ## Read in marine WECC shapefile.
-    pxy = shapely.Point(df['lon'].mean(), df['lat'].mean())
+    pxy = shapely.geometry.Point(df['lon'].mean(), df['lat'].mean())
     if pxy.within(t) or pxy.within(m):
         return df
     else:
@@ -138,7 +138,7 @@ def qaqc_elev_infill(df, verbose=True):
         if isNan.all():
             dem_elev_values = _grab_dem_elev_m([df['lat'].iloc[0]], 
                                                [df['lon'].iloc[0]],
-                                               vervose=verbose)    
+                                               verbose=verbose)    
             df.loc[:, 'elevation'] = dem_elev_values[0]    
             df.loc[:, 'elevation_eraqc'] = 3    
         else:
@@ -147,13 +147,13 @@ def qaqc_elev_infill(df, verbose=True):
                 if df['lon'].is_unique and df['lat'].is_unique:
                     dem_elev_values = _grab_dem_elev_m([df['lat'].iloc[0]], 
                                                        [df['lon'].iloc[0]],
-                                                       vervose=verbose)
+                                                       verbose=verbose)
                     df.loc[:, 'elevation'] = dem_elev_values[0]
                     df.loc[:, 'elevation_eraqc'] = 3
                 else:
                     dem_elev_values = _grab_dem_elev_m([df.loc[isNan, 'lat']], 
                                                        [df.loc[isNan, 'lon']],
-                                                        vervose=verbose)
+                                                        verbose=verbose)
                     df.loc[isNan, 'elevation'] = dem_elev_values
                     df.loc[isNan, 'elevation_eraqc'] = 3
                 return df
@@ -365,7 +365,7 @@ def spurious_buoy_check(df, qc_vars, verbose=True):
         qc_vars.remove("elevation_eraqc") 
     
     # Extract station name from dataset encoding
-    station = df['station'].iloc[0]
+    station = df.index[0][0]
     
     if station in known_issues:
         if verbose:

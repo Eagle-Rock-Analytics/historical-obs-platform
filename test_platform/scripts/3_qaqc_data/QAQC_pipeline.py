@@ -108,18 +108,22 @@ def process_output_ds(df, attrs, var_attrs,
         ds[var] = ds[var].assign_attrs(value)
 
     # Update ancillary variables
+    
     for eraqc_var in list(ds.data_vars.keys()):
         if "_eraqc" in eraqc_var:
             var = eraqc_var.split("_eraqc")[0]
-            if 'ancillary_variables' in list(ds[var].attrs.keys()):
-                ds[var].attrs['ancillary_variables'] = ds[var].attrs['ancillary_variables'] + ", {}".format(eraqc_var)
-            else:
-                ds[var].attrs['ancillary_variables'] = "{}".format(eraqc_var)
+            # sfcWind_eraqc is added to dataset by (`qaqc_sensor_height_w`) even if sfcWind is not.
+            # We need to account this to avoid errors in ds[var] for sfcWind
+            if var in list(ds.data_vars.keys()): # Only if var was originally present in dataset
+                if 'ancillary_variables' in list(ds[var].attrs.keys()):
+                    ds[var].attrs['ancillary_variables'] = ds[var].attrs['ancillary_variables'] + ", {}".format(eraqc_var)
+                else:
+                    ds[var].attrs['ancillary_variables'] = "{}".format(eraqc_var)
     # Overwrite file title
     ds = ds.assign_attrs(title = network + " quality controlled")
 
     # Append qaqc to the file history and comments (https://docs.unidata.ucar.edu/netcdf-c/current/attribute_conventions.html)
-    ds.attrs['history'] = ds.attrs['history'] + ' \nALLNETWORKS_qaqc_pandas.py script run on {} UTC'.format(timestamp)
+    ds.attrs['history'] = ds.attrs['history'] + ' \nALLNETWORKS_qaqc.py script run on {} UTC'.format(timestamp)
     ds.attrs['comment'] = ds.attrs['comment'] + ' \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.'.format(timestamp)
     # # Flag meaninng attribute
     # ds = ds.assign_attrs(flags_meaning = flags_attrs)
@@ -517,7 +521,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         # Make sure error files save to correct directory
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}_pandas_new.csv".format(network, end_api)) 
+        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
         if verbose:
             print('errors_{0}_{1}.csv saved to {2}'.format(network, end_api, bucket_name + "/" + qaqcdir))
     return
