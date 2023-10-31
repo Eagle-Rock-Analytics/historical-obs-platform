@@ -657,10 +657,10 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     pass_flag = 'pass'
     
     for var in vars_to_check:
-        for month in range(1,13):
+        # add _eraqc column for each variable
+        df[var+'_eraqc'] = np.nan # default value of nan
 
-            # add _eraqc column for each variable
-            df[var+'_eraqc'] = np.nan # default value of nan
+        for month in range(1,13):
 
             # first check num of months in order to continue
             month_to_check = df.loc[df['month'] == month]
