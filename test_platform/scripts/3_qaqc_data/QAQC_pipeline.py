@@ -403,11 +403,11 @@ def run_qaqc_pipeline(ds, network, file_name,
                                     verbose=verbose
                                     )
     else:
-        stn_to_qaqc = new_ds
+        stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_unusual_gaps')
                 
-        #-----------------------------------------------------------------
+    #-----------------------------------------------------------------
 
     return stn_to_qaqc, attrs, var_attrs
 
