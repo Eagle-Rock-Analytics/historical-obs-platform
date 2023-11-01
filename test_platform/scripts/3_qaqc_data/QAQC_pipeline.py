@@ -395,8 +395,8 @@ def run_qaqc_pipeline(ds, network, file_name,
     #-----------------------------------------------------------------
     # Distribution checks
     # unusual gaps (part 1)
-    new_ds = qaqc_unusual_gaps(stn_to_qaqc)
-    if new_ds is None:
+    new_df = qaqc_unusual_gaps(stn_to_qaqc)
+    if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                     message="Flagging problem with unusual gap distribution function for", 
                                     test="qaqc_unusual_gaps",
