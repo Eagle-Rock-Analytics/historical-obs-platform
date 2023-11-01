@@ -15,6 +15,7 @@ import shapely
 import xarray as xr
 import matplotlib.pyplot as plt
 import math
+from io import BytesIO, StringIO
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
