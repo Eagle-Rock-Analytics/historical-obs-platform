@@ -13,6 +13,8 @@ import urllib
 import datetime
 import shapely
 import xarray as xr
+import matplotlib.pyplot as plt
+import math
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
