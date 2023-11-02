@@ -98,8 +98,30 @@ def process_output_ds(df, attrs, var_attrs,
     """
     """
     # df back to xarray object, Sort by time and remove any overlapping timesteps
-    df = df.sort_values(by='time')
-    df = df.reset_index().drop_duplicates(subset="time")
+    MultiIndex = df.index
+    try:
+        df.drop(columns="station", inplace=True)
+    except:
+        pass
+    try:
+        df.drop(columns="time", inplace=True)
+    except:
+        pass
+
+    df.reset_index(inplace=True)
+    df.sort_values(by='time', inplace=True)
+    # df.sort_index(inplace=True)
+    # In principle, duplicate time values have already been dropped during cleaning?
+    df.drop_duplicates(subset="time", inplace=True)
+    df.set_index(MultiIndex, inplace=True)
+    try:
+        df.drop(columns="station", inplace=True)
+    except:
+        pass
+    try:
+        df.drop(columns="time", inplace=True)
+    except:
+        pass    
     ds = df.to_xarray()
 
     # Inherit variable attributes
@@ -392,22 +414,36 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_crossvar_logic_calm_wind_dir')        
 
-        #-----------------------------------------------------------------
-        # Distribution checks
-        # unusual gaps (part 1)
-#         new_ds = qaqc_dist_gaps_part1(stn_to_qaqc)
-#         if new_ds is None:
-#             errors = print_qaqc_failed(errors, station, end_api, 
-#                                        message="Flagging problem with unusual gap distribution function for", 
-#                                        test="qaqc_dist_gaps_part1",
-#                                        verbose=verbose
-#                                       )
-#         else:
-#             stn_to_qaqc = new_ds
-#             if verbose:
-#                 print('pass qaqc_dist_gaps_part1')
-                
-        #-----------------------------------------------------------------
+    #-----------------------------------------------------------------
+    # # Distribution checks
+    # # unusual gaps (part 1)
+    # new_df = qaqc_unusual_gaps(stn_to_qaqc)
+    # if new_df is None:
+    #     errors = print_qaqc_failed(errors, station, end_api, 
+    #                                 message="Flagging problem with unusual gap distribution function for", 
+    #                                 test="qaqc_unusual_gaps",
+    #                                 verbose=verbose
+    #                                 )
+    # else:
+    #     stn_to_qaqc = new_df
+    #     if verbose:
+    #         print('pass qaqc_unusual_gaps')
+
+    #-----------------------------------------------------------------
+    # wind direction should be 0 when wind speed is also 0
+    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                   message="Flagging problem with unusual large jumps (spike check) check for", 
+                                   test="qaqc_unusual_large_jumps",
+                                   verbose=verbose
+                                  )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_unusual_large_jumps')     
+            
+    #-----------------------------------------------------------------
 
     return stn_to_qaqc, attrs, var_attrs
 
