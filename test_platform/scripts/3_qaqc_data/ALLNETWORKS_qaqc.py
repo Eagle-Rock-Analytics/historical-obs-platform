@@ -1,38 +1,20 @@
-"""
-This script performs qa/qc protocols for cleaned station data for ingestion into the Historical Observations Platform, and is
-independent of network. 
-Approach:
-(1) Remove duplicate stations
-(2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
-(3) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
-(4) Case study analysis for accuracy -- SHOULD THIS BE A SEPARATE SCRIPT/PROCESS?
-Inputs: Cleaned data for an individual network
-Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
-"""
-
-# Step 0: Environment set-up
-# Import libraries
 import os
-import datetime
-import pandas as pd
-import xarray as xr
-import boto3
-import s3fs
-from io import BytesIO, StringIO
+import tempfile
+import argparse 
 
-## Import qaqc stage calc functions
+# Import qaqc stage calc functions
 try:
     from calc_qaqc import *
 except:
     print("Error importing calc_qaqc.py")
 
-
-## Set up directory to save files temporarily, if it doesn't already exist.
+# Import qaqc stage calc functions
 try:
-    os.mkdir('temp') # Make the directory to save data in. Except used to pass through code if folder already exists.
+    from QAQC_pipeline import *
 except:
-    pass
+    print("Error importing QAQC_pipeline.py")
 
+<<<<<<< HEAD
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -325,12 +307,35 @@ def whole_station_qaqc(network, cleandir, qaqcdir):
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Run function
+=======
+# =================================================================================================
+# Main Function
+>>>>>>> main
 if __name__ == "__main__":
 
-    network = "RAWS"
-
+    # Create parser
+    parser = argparse.ArgumentParser(
+        prog="ALLNETWORKS_qaqc",
+        description="""This script performs qa/qc protocols for cleaned station data for ingestion into the Historical 
+                       observations Platform, and is independent of network.""",
+        epilog="""Possible stations:
+                  [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
+                   HOLFUY, HPWREN, LOXWFOMAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
+                   RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
+               """
+    )
+    
+    # Define arguments for the program
+    parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
+    parser.add_argument('-v', '--verbose', default=True, help="printing statemets throughout script", type=bool)
+    
+    # Parse arguments
+    args = parser.parse_args()
+    network = args.network
+    verbose = args.verbose
+        
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir)
+    whole_station_qaqc(network, cleandir, qaqcdir, verbose=verbose)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
