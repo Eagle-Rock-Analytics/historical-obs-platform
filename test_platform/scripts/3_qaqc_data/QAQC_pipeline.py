@@ -392,22 +392,22 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_crossvar_logic_calm_wind_dir')        
 
-        #-----------------------------------------------------------------
-        # Distribution checks
-        # unusual gaps (part 1)
-#         new_ds = qaqc_dist_gaps_part1(stn_to_qaqc)
-#         if new_ds is None:
-#             errors = print_qaqc_failed(errors, station, end_api, 
-#                                        message="Flagging problem with unusual gap distribution function for", 
-#                                        test="qaqc_dist_gaps_part1",
-#                                        verbose=verbose
-#                                       )
-#         else:
-#             stn_to_qaqc = new_ds
-#             if verbose:
-#                 print('pass qaqc_dist_gaps_part1')
-                
-        #-----------------------------------------------------------------
+    #-----------------------------------------------------------------
+    # Distribution checks
+    # frequent values
+    new_df = qaqc_frequent_vals(stn_to_qaqc)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with unusual gap distribution function for", 
+                                    test="qaqc_frequent_vals",
+                                    verbose=verbose
+                                    )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_frequent_vals')
+            
+    #-----------------------------------------------------------------
 
     return stn_to_qaqc, attrs, var_attrs
 
