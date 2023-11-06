@@ -1484,6 +1484,11 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
     Flag meaninig:
     -------------
         22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
+
+    NOTES (TODO:)
+    iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
+    min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
+    HadISD uses 100, this can be modified and twaked in future development
     """
     
     try:
