@@ -97,11 +97,10 @@ def process_output_ds(df, attrs, var_attrs,
                       errors, end_api, verbose=True):
     """
     """
-    # df back to xarray object, Sort by time and remove any overlapping timesteps
-    df = df.sort_values(by='time')
-    df = df.reset_index().drop_duplicates(subset="time")
+    
+    # Convert back to dataset
     ds = df.to_xarray()
-
+    
     # Inherit variable attributes
     ds = ds.assign_attrs(attrs)
     for var,value in var_attrs.items():
@@ -155,6 +154,10 @@ def process_output_ds(df, attrs, var_attrs,
         if verbose:
             print("Pushing {} to AWS s3 bucket".format(filepath))
         s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
+        
+        # TODO:
+        # This line should be removed if don't want to save file locally
+        # It's here now for testing
         os.system("mv {} temp/{}.nc".format(tmpFile.name, station))
         
         if verbose:
@@ -162,7 +165,8 @@ def process_output_ds(df, attrs, var_attrs,
                   
         print('Saving {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir))
 
-#     else:
+        ds.close()
+        del(ds)
     except Exception as e:
         if verbose:
             print("netCDF writing failed for {} with Error: {}".format(filename, e))
@@ -171,6 +175,9 @@ def process_output_ds(df, attrs, var_attrs,
                                    test="process_output_ds",
                                    verbose=verbose
                                   )
+        ds.close()
+        del(ds)
+        
         return
 
 #----------------------------------------------------------------------------
@@ -208,6 +215,18 @@ def run_qaqc_pipeline(ds, network, file_name,
     df = ds.to_dataframe()
     df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
     df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    
+    # Save station/time multiindex
+    MultiIndex = df.index
+    station = df.index.get_level_values(0)
+    df['station'] = station
+    
+    # Station pd.Series to str
+    station = station.unique().values[0]
+    
+    # Convert time/station index to columns and reset index
+    df = df.droplevel(0).reset_index()
+    
     ##########################################################
     ## QAQC Functions
 
@@ -392,23 +411,45 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_crossvar_logic_calm_wind_dir')        
 
-        #-----------------------------------------------------------------
-        # Distribution checks
-        # unusual gaps (part 1)
-#         new_ds = qaqc_dist_gaps_part1(stn_to_qaqc)
-#         if new_ds is None:
-#             errors = print_qaqc_failed(errors, station, end_api, 
-#                                        message="Flagging problem with unusual gap distribution function for", 
-#                                        test="qaqc_dist_gaps_part1",
-#                                        verbose=verbose
-#                                       )
-#         else:
-#             stn_to_qaqc = new_ds
-#             if verbose:
-#                 print('pass qaqc_dist_gaps_part1')
-                
-        #-----------------------------------------------------------------
+#     #-----------------------------------------------------------------
+#     # Distribution checks
+#     # unusual gaps
+#     new_df = qaqc_unusual_gaps(stn_to_qaqc)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api, 
+#                                     message="Flagging problem with unusual gap distribution function for", 
+#                                     test="qaqc_unusual_gaps",
+#                                     verbose=verbose
+#                                     )
+#     else:
+#         stn_to_qaqc = new_df
+#         if verbose:
+#             print('pass qaqc_unusual_gaps')
 
+#     #-----------------------------------------------------------------
+#     # Time series check (unusual large jumps)
+#     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api, 
+#                                    message="Flagging problem with unusual large jumps (spike check) check for", 
+#                                    test="qaqc_unusual_large_jumps",
+#                                    verbose=verbose
+#                                   )
+#     else:
+#         stn_to_qaqc = new_df
+#         if verbose:
+#             print('pass qaqc_unusual_large_jumps')  
+                
+    #-----------------------------------------------------------------
+    
+    # Re-index to original time/station values
+    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
+    
+    # Sort by time and remove any overlapping timesteps
+    # TODO: Is this necessary? Probably done in the cleaning step
+    # Check back to see if this can or needs to be removed
+    stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
+        
     return stn_to_qaqc, attrs, var_attrs
 
 #==============================================================================
@@ -477,8 +518,14 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                             print("Reading {}".format(aws_url), flush=True)
                         t0 = time.time()
                         ds = xr.open_dataset(fileObj).load()
+
+                        # TODO: 
+                        # Same issue than in the pipeline:
+                        # Probably not needed to drop time duplicates here, if they were properly
+                        # dropped in the cleaning process?
                         # Drop time duplicates
                         ds = ds.drop_duplicates(dim="time")
+                        
                         if verbose:
                             print("Done reading. Ellapsed time: {:.2f} s.".
                                   format(time.time()-t0), flush=True)
@@ -500,8 +547,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                             process_output_ds(df, attrs, var_attrs, 
                                               network, timestamp, station, qaqcdir, 
                                               errors, end_api, verbose=verbose)
-                            ds.close()
-                        del(ds)
+                            # ds.close()
+                        # del(ds)
                         
                     else:
                     # except Exception as e:
