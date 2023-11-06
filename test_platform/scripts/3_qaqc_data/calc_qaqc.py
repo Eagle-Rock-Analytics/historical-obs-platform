@@ -1479,6 +1479,12 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
     Output:
     ------
             df [pandas dataframe] : input df with added columns for spike check
+            
+            
+    NOTES (TODO:)
+    iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
+    min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
+    HadISD uses 100, this can be modified and twaked in future development
     """
     
     # Make a copy of the original dataframe
@@ -1533,7 +1539,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
     Test for unusual large jumps or ''spikes'', given the statistics of the series. Analysis for each individual month in 
     time series to account for seasonal cycles in different regions.
     
-    This test is done for ["tas", "tdps", "ps", "slp"]
+    This test is done for ["tas", "tdps", "ps", "psl", "ps_altimeter"]
     Should it be done for more vars?
     
     Input:
@@ -1562,7 +1568,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
         df = df.droplevel(level="station")
 
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp"]
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_altimeter"]
         variables = [var for var in check_vars if var in df.columns]
 
         if verbose:
