@@ -249,7 +249,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
     pr_vars = [var for var in pr_vars if 'duration' not in var]
 
     if not pr_vars: # precipitation variable(s) is not present
-        print('station does not report precipitation - bypassing precip logic check')
+        print('station does not report precipitation - bypassing precip logic nonnegvals check')
         return None
     else:
         for item in pr_vars:
@@ -271,7 +271,6 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     Only needs to be applied when 2 or more precipitation duration specific
     variables are present (pr_5min, pr_1h, pr_24h)
     For example: pr_5min should not be larger than pr_1h
-    """
     
     # pr: Precipitation accumulated since last record
     # pr_5min: Precipitation accumulated in last 5 minutes
@@ -282,7 +281,18 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     # rules
     # pr_5min < pr_1h < pr_24h
     # pr_localmid should never exceed pr_24h
+    """
 
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
+
+    if not pr_vars: # precipitation variable(s) is not present
+        print('station does not report precipitation - bypassing precip logic accum check')
+        return None
+    
     # identify which precipitation vars are reported by a station
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
     pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
@@ -368,8 +378,8 @@ def spurious_buoy_check(df, qc_vars, verbose=True):
     if "elevation_eraqc" in qc_vars:
         qc_vars.remove("elevation_eraqc") 
     
-    # Extract station name from dataset encoding
-    station = df.index[0][0]
+    # Extract station name
+    station = df['station'].unique()[0]
     
     if station in known_issues:
         if verbose:
@@ -694,9 +704,8 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     """Part 1: Checks the number of valid observation months in order to proceed through monthly distribution checks. Identifies whether a station record has too 
     few months and produces a fail pass flag. 
     """
-    
-    # set up df
-    df = df.reset_index() 
+
+    # in order to grab the time information more easily -- would prefer not to do this
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
              
