@@ -11,13 +11,9 @@ import pandas as pd
 import requests
 import urllib
 import datetime
-<<<<<<< HEAD
 import math
-
-=======
 import shapely
 import xarray as xr
->>>>>>> main
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -632,18 +628,16 @@ def synergistic_flag(df, num_temp_vars):
     # 24 for all seasons/years check
     flags_to_set = [23, 24]
 
-    if 'tas' in num_temp_vars and 'tdps' in num_temp_vars:
-        for flag_to_set in flags_to_set:
+    for flag_to_set in flags_to_set:
+        if 'tas' in num_temp_vars and 'tdps' in num_temp_vars:
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_eraqc'] = flag_to_set
             df.loc[df['tdps_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set
 
-    if 'tas' in num_temp_vars and 'tdps_derived' in num_temp_vars:
-        for flag_to_set in flags_to_set:
+        if 'tas' in num_temp_vars and 'tdps_derived' in num_temp_vars:
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_derived_eraqc'] = flag_to_set
             df.loc[df['tdps_derived_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set    
 
-    if 'tas' in num_temp_vars and 'tdps' in num_temp_vars and 'tdps_derived' in num_temp_vars:
-        for flag_to_set in flags_to_set:
+        if 'tas' in num_temp_vars and 'tdps' in num_temp_vars and 'tdps_derived' in num_temp_vars:
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_eraqc'] = flag_to_set
             df.loc[df['tdps_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_derived_eraqc'] = flag_to_set
@@ -769,7 +763,7 @@ def frequent_vals_plot(df, var):
     
     # plot flagged values
     # first identify which values are flagged by which flag
-    vals_to_flag = df.loc[df[var+'_eraqc'] == 22][var].unique()
+    vals_to_flag = df.loc[(df[var+'_eraqc'] == 23) | (df[var+'_eraqc'] == 24)][var].unique()
     bars_to_flag = []
     for i in vals_to_flag:
         if math.isnan(i) == False:
