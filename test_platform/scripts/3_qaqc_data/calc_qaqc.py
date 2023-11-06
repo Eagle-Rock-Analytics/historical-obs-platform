@@ -13,10 +13,10 @@ import urllib
 import datetime
 import shapely
 import xarray as xr
-from scipy import stats
 import matplotlib.pyplot as plt
-import boto3
-from io import BytesIO
+import math
+from io import BytesIO, StringIO
+import scipy.stats as stats
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -249,7 +249,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
     pr_vars = [var for var in pr_vars if 'duration' not in var]
 
     if not pr_vars: # precipitation variable(s) is not present
-        print('station does not report precipitation - bypassing precip logic check')
+        print('station does not report precipitation - bypassing precip logic nonnegvals check')
         return None
     else:
         for item in pr_vars:
@@ -271,7 +271,6 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     Only needs to be applied when 2 or more precipitation duration specific
     variables are present (pr_5min, pr_1h, pr_24h)
     For example: pr_5min should not be larger than pr_1h
-    """
     
     # pr: Precipitation accumulated since last record
     # pr_5min: Precipitation accumulated in last 5 minutes
@@ -282,7 +281,18 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     # rules
     # pr_5min < pr_1h < pr_24h
     # pr_localmid should never exceed pr_24h
+    """
 
+    # identify which precipitation vars are reported by a station
+    all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
+    pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    pr_vars = [var for var in pr_vars if 'method' not in var]
+    pr_vars = [var for var in pr_vars if 'duration' not in var]
+
+    if not pr_vars: # precipitation variable(s) is not present
+        print('station does not report precipitation - bypassing precip logic accum check')
+        return None
+    
     # identify which precipitation vars are reported by a station
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
     pr_vars = [var for var in all_pr_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
@@ -368,8 +378,8 @@ def spurious_buoy_check(df, qc_vars, verbose=True):
     if "elevation_eraqc" in qc_vars:
         qc_vars.remove("elevation_eraqc") 
     
-    # Extract station name from dataset encoding
-    station = df.index[0][0]
+    # Extract station name
+    station = df['station'].unique()[0]
     
     if station in known_issues:
         if verbose:
@@ -606,82 +616,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         print("qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e))
         return None
     
-#-----------------------------------------------------------------------------------------
-# flag unusual gaps within the monthly distribution bins
-def qaqc_dist_gaps_part1(df):
-    """
-    Part 1 / monthly check
-        - compare anomalies of monthly median values
-        - standardize against interquartile range
-        - compare stepwise from the middle of the distribution outwards
-        - asymmetries are identified and flagged if severe
-    Goal: identifies individual suspect observations and flags the entire month  
-    """
-    
-    # in order to grab the time information more easily -- would prefer not to do this
-    df = df.reset_index() 
-    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
-    
-    # calculate monthly medians
-    df_anom = df.sub(df.resample('M', on='time').transform('median', numeric_only=True))
-    df_anom['time'] = df['time'] # add time column back in to do quantiles
-
-    # standardize against calendar-monIQR range
-    df_q1 = df_anom.resample('M', on='time').transform('quantile', 0.25, numeric_only=True)
-    df_q3 = df_anom.resample('M', on='time').transform('quantile', 0.75, numeric_only=True)
-    df_iqr = df_q3 - df_q1
-    df_anom_iqr = df_anom / df_iqr
-    
-    # run through every var, excluding qaqc/duration/method vars
-    vars_to_remove = ['index','station','qc', 'duration', 'method', 'lat', 'lon', 'elevation', 'time', 'month', 'year'] # list of var substrings to exclude if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-    
-    for var in vars_to_check:
-        # add _eraqc column for each variable
-        df[var+'_eraqc'] = np.nan # default value of nan
-        
-        # "inflated to 4°C or hPa for those months with very small IQR"
-        # accounts for any seasonal cycle in variance
-        small_iqr_var_check = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'psl_altimeter', 'ps_derived']
-        if var in small_iqr_var_check:
-            if (np.abs(df_anom_iqr[var].max()) + np.abs(df_anom_iqr[var].min())) < 4:
-                print('small var check') # testing for occurrence 
-                df_anom_iqr[var] = np.linspace(-2, 2, len(df)) # unsure this is the correct way to do this - come back
-
-        # standardized anomalies are ranked (necessary?) and calculate median
-        std_med = df_anom_iqr.median() # will be 0 if inflated to range of 4
-
-        # add standardized anomaly median to IQR-standardized data
-        df_std_med = df_anom_iqr + std_med
-        df_std_med['time'] = df['time'] # add time columns back in... again
-        df_std_med['year'] = df['year']
-        df_std_med['month'] = df['month']
-
-        # identify where any obs are +/- 5 IQR away from standardized anomaly median
-        if len(df_std_med.loc[np.abs(df_std_med[var]) > 5]) != 0:
-
-            bad_idxs = df_std_med.loc[np.abs(df_std_med[var]) > 5].index.tolist() # grab indices of suspect obs
-            print('{} suspicious {} observations present, flagging appropriate months'.format(len(bad_idxs), var))
-
-            for i in bad_idxs:
-                bad_yr = df.iloc[df.index == i]['year'].values[0]
-                bad_mon = df.iloc[df.index == i]['month'].values[0]
-                print('Flagging: {0}/{1}'.format(bad_mon, bad_yr))
-
-                # identify all indices for months encapsulating suspect obs
-                bad_obs_per_month = df.loc[(df['year'] == bad_yr) & (df['month'] == bad_mon)]
-                all_idx_to_flag = bad_obs_per_month.index
-
-                for i in all_idx_to_flag: # flag all indices in those months
-                    df.loc[df.index == i, var+'_eraqc'] = 18 # see era_qaqc_flag_meanings.csv # DOUBLE CHECK VALUE
-
-        else:
-            print('Part 1: PASS. All {} obs are within +/- 5 IQR range'.format(var))
-
-    return df
-
-#===================================================================================================
+#=========================================================================================
 ## Part 4: Distribution functions
 ## distribution gap function helpers
 
@@ -769,9 +704,8 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     """Part 1: Checks the number of valid observation months in order to proceed through monthly distribution checks. Identifies whether a station record has too 
     few months and produces a fail pass flag. 
     """
-    
-    # set up df
-    df = df.reset_index() 
+
+    # in order to grab the time information more easily -- would prefer not to do this
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
              
@@ -780,7 +714,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     
     for var in vars_to_check:
         # add _eraqc column for each variable
-        df[var+'_eraqc'] = np.nan # default value of nan
+        # df[var+'_eraqc'] = np.nan # default value of nan
 
         for month in range(1,13):
 
@@ -817,10 +751,7 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
                 df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
             
             # if not all months have nans, need to assess how many years do
-            elif monthly_med(df).loc[monthly_med(df)['month'] == month][var].isna().sum() > min_num_months:
-                print('{} has less than {} months of valid {} observations -- bypassing check'.format(
-                df['station'].unique()[0], min_num_months, var))
-                
+            elif monthly_med(df).loc[monthly_med(df)['month'] == month][var].isna().sum() > min_num_months:                
                 df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
         
     return df
@@ -883,7 +814,7 @@ def _plot_format_helper(var):
 #-----------------------------------------------------------------------------------------
 
 ## distribution gap flagging functions
-def qaqc_dist_gap_part1(df, iqr_thresh=5, plot=True):
+def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh=5, plot=True):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
@@ -895,11 +826,7 @@ def qaqc_dist_gap_part1(df, iqr_thresh=5, plot=True):
     Note: PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
-    
-    # run through every var, excluding qaqc/duration/method vars
-    vars_to_remove = ['index','station','qc','duration','method','lat','lon','elevation','time','month','year','sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-    
+        
     for var in vars_to_check:
         for month in range(1,13): 
 
@@ -935,14 +862,15 @@ def qaqc_dist_gap_part1(df, iqr_thresh=5, plot=True):
             for month in range(1,13):
                 for var in vars_to_check:
                     if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                        dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
-                                            network=df['station'].unique()[0].split('_')[0])
+                        if 20 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                            dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
+                                                network=df['station'].unique()[0].split('_')[0])
                 
     return df
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_dist_gap_part2(df, plot=True):
+def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
     """
     Part 2 / monthly check
         - compare all obs in a single month, all years
@@ -951,12 +879,12 @@ def qaqc_dist_gap_part2(df, plot=True):
         - rounds outwards to next integer plus one
         - going outwards from center, distribution is scanned for gaps which occur outside threshold
         - obs beyond gap are flagged
-    Goal: identifies individual suspect observations and flags the entire month  
+    Goal: identifies individual suspect observations and flags the entire month 
+
+    Note: PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
+        - iqr_thresh preliminarily set to 5 years, pending revision 
     """
-    # run through every var, excluding qaqc/duration/method vars
-    vars_to_remove = ['index','station','qc','duration','method','lat','lon','elevation','time','month','year','sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-        
+
     # whole station bypass check first
     df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
     
@@ -1020,13 +948,13 @@ def qaqc_dist_gap_part2(df, plot=True):
                                 vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
                                 df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
                     
-    ## Question: Do we need "all", "flagged_only", "none" options instead?
     if plot==True:
         for month in range(1,13):
             for var in vars_to_check:
                 if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                    dist_gap_part2_plot(df, month, var,
-                                        network=df['station'].unique()[0].split('_')[0])
+                    if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                        dist_gap_part2_plot(df, month, var,
+                                            network=df['station'].unique()[0].split('_')[0])
     
     return df  
 
@@ -1034,8 +962,10 @@ def qaqc_dist_gap_part2(df, plot=True):
 
 ## distribution gap plotting functions
 def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
-    '''Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
-    Any variable that is flagged is noted'''
+    '''
+    Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
+    Any variable that is flagged is noted
+    '''
 
     # grab data by months
     df = df.loc[df['month'] == month]
@@ -1085,7 +1015,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
                  directory, network, figname))
     
     # close figures to save memory
-    plt.close()
+    # plt.close()
 
 #-----------------------------------------------------------------------------------------
 
@@ -1157,15 +1087,13 @@ def dist_gap_part2_plot(df, month, var, network):
                      directory, network, figname))
 
     # close figures to save memory
-    plt.close()
+    # plt.close()
 
 #-----------------------------------------------------------------------------------------
 
-def flagged_timeseries_plot(df, flag_to_viz):
-    
-    vars_to_remove = ['index','station','qc','duration','method','lat','lon','elevation','time','month','year','sfcWind_dir'] # list of var substrings to exclude if present in var
-    vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-    
+def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
+    '''Produces a scatterplot timeseries figure of variables that have flags placed'''
+
     # can pass a list of flags
     for flag in flag_to_viz:
     
@@ -1190,22 +1118,22 @@ def flagged_timeseries_plot(df, flag_to_viz):
             plt.xlabel('')
             plt.title('{0}'.format(df['station'].unique()[0]), fontsize=10);
 
-        # save to AWS
-        bucket_name = 'wecc-historical-wx'
-        directory = '3_qaqc_wx'
-        img_data = BytesIO()
-        plt.savefig(img_data, format='png')
-        img_data.seek(0)
+            # save to AWS
+            bucket_name = 'wecc-historical-wx'
+            directory = '3_qaqc_wx'
+            img_data = BytesIO()
+            plt.savefig(img_data, format='png')
+            img_data.seek(0)
 
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket(bucket_name)
-        figname = 'flagged_timeseries_{0}_{1}'.format(df['station'].unique()[0], var)
-    bucket.put_object(Body=img_data, ContentType='image/png',
-                 Key='{0}/{1}/qaqc_figs/{2}.png'.format(
-                 directory, network, figname))
+            s3 = boto3.resource('s3')
+            bucket = s3.Bucket(bucket_name)
+            figname = 'flagged_timeseries_{0}_{1}'.format(df['station'].unique()[0], var)
+            bucket.put_object(Body=img_data, ContentType='image/png',
+                        Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                        directory, network, figname))
     
-    # close figures to save memory
-    plt.close()
+            # close figures to save memory
+            # plt.close()
 
 #-----------------------------------------------------------------------------------------
 
@@ -1218,7 +1146,10 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
     '''
 
     # bypass check
-    vars_to_remove = ['index','station','qc','duration','method','lat','lon','elevation','time','month','year','sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
+    vars_to_remove = ['index','station','qc','duration','method',
+                        'anemometer_height_m','thermometer_height_m',
+                        'lat','lon','elevation','time','month','year',
+                        'sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
         
     # whole station bypass check first
@@ -1227,19 +1158,15 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
     if pass_flag == 'fail':
         return df
     else:
-        df_part1 = qaqc_dist_gap_part1(df, iqr_thresh, plots)
-        df_part2 = qaqc_dist_gap_part2(df_part1, plots)
+        df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
+        df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots)
 
         if plots == True:
             for var in vars_to_check:
-                if (19 not in df[var+'_eraqc'].values) and (20 in df[var+'_eraqc'].values or 21 in df[var+'_eraqc']): # don't plot a figure if it's all nans/not enough months
-                    flagged_timeseries_plot(df_part2, flag_to_viz = [19, 20, 21])
+                if (19 not in df[var+'_eraqc'].values) and (20 in df[var+'_eraqc'].values or 21 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
+                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [20, 21])
     
     return df_part2
-
-## Part 4: Distribution functions
-## distribution gap function helpers
-#===================================================================================================
 
 #===================================================================================================
 # UNUSUAL LARGE JUMPS DEV
