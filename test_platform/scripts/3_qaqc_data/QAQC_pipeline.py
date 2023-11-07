@@ -413,33 +413,20 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #-----------------------------------------------------------------
     # Distribution checks
-<<<<<<< HEAD
+
     # frequent values
-    new_df = qaqc_frequent_vals(stn_to_qaqc)
+    new_df = qaqc_frequent_vals(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                     message="Flagging problem with unusual gap distribution function for", 
                                     test="qaqc_frequent_vals",
-=======
-    # unusual gaps (part 1)
-    new_df = qaqc_unusual_gaps(stn_to_qaqc)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function for", 
-                                    test="qaqc_unusual_gaps",
->>>>>>> main
                                     verbose=verbose
                                     )
     else:
         stn_to_qaqc = new_df
         if verbose:
-<<<<<<< HEAD
             print('pass qaqc_frequent_vals')
             
-=======
-            print('pass qaqc_unusual_gaps')
-                
->>>>>>> main
     #-----------------------------------------------------------------
 
 #     #-----------------------------------------------------------------

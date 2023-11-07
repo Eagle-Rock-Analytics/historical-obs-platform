@@ -1357,22 +1357,23 @@ def qaqc_frequent_vals(df, plots=True):
     if verbose:
         print("Running {} on {}".format("qaqc_frequent_vals", vars_to_check))
 
-    ## CHECK IF MONTH AND YEAR ARE NOW NEEDED FOR THIS CHECK
+    # df set-up with month and year
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
     for var in vars_to_check:
 
         # only use valid values previously not flagged by QAQC tests
-        valid = np.where(np.isnan(df[var+'_eraqc']))[0]
-        df = df.iloc[valid] ###### CORRECT THIS TO ENSURE THAT FLAGS ARE PLACED CORRECTLY
+        new_df = df.copy(deep=True)
+        valid = np.where(np.isnan(new_df[var+'_eraqc']))[0]
+        new_df = new_df.iloc[valid]
         
         # first scans suspect values using entire record
         # all years
-        df = frequent_bincheck(df, var, data_group='all')
+        new_df = frequent_bincheck(new_df, var, data_group='all')
 
         # if no values are flagged as suspect, end function, no need to proceed
-        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
+        if len(new_df.loc[new_df[var+'_eraqc'] == 100]) == 0:
             print('No unusually frequent values detected for entire {} observation record'.format(var))
             # goes to seasonal check, no bypass
 
@@ -1381,7 +1382,7 @@ def qaqc_frequent_vals(df, plots=True):
             # then scans for each value on a year-by-year basis to flag if they are a problem within that year
                 # DECISION: the annual check uses the unfiltered data
                 # previously flagged values are included here -- this would interfere with our entire workflow
-            df = frequent_bincheck(df, var, data_group='annual')
+            new_df = frequent_bincheck(new_df, var, data_group='annual')
 
         # seasonal scan (JF+D, MAM, JJA, SON) 
         # each season is scanned over entire record to identify problem values
@@ -1390,18 +1391,18 @@ def qaqc_frequent_vals(df, plots=True):
 
         # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
         # all years
-        df = frequent_bincheck(df, var, data_group='seasonal_all') ## DECISION: December is from the current year
-        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
+        new_df = frequent_bincheck(new_df, var, data_group='seasonal_all') ## DECISION: December is from the current year
+        if len(new_df.loc[new_df[var+'_eraqc'] == 100]) == 0:
             print('No unusually frequent values detected for seasonal {} observation record'.format(var))
             continue # bypasses to next variable
 
         else:
             print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
             # year by year --> December selection must be specific
-            df = frequent_bincheck(df, var, data_group='seasonal_annual')    
+            new_df = frequent_bincheck(new_df, var, data_group='seasonal_annual')    
                       
         # remove any lingering preliminary flags, data passed check
-        df.loc[df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
+        new_df.loc[new_df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
         
     # synergistic flag on tas and tdps/tdps_derived
     # first establish at least tas and one tdps var present
@@ -1409,19 +1410,19 @@ def qaqc_frequent_vals(df, plots=True):
     num_temp_vars = [var for var in vars_to_check if var in temp_vars]
     if len(num_temp_vars) != 1 and 'tas' in num_temp_vars:
         # proceed to synergistic check
-        df = synergistic_flag(df, num_temp_vars, flag_to_set)
+        new_df = synergistic_flag(new_df, num_temp_vars, flag_to_set)
     
     # plots item
     if plots==True:
         for var in vars_to_check:
-            if 23 in df[var+'_eraqc'].values or 24 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+            if 23 in new_df[var+'_eraqc'].values or 24 in new_df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                 # histogram
-                frequent_vals_plot(df, var)
+                frequent_vals_plot(new_df, var)
 
                 # entire timeseries figure
-                flagged_timeseries_plot(df, flag_to_viz=[23,24])
+                flagged_timeseries_plot(new_df, flag_to_viz=[23,24])
         
-    return df
+    return new_df
 
 #-----------------------------------------------------------------------------------------
 
