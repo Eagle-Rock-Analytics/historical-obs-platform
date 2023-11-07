@@ -1042,6 +1042,8 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
 
+    # close figure for memory
+    plt.close()
 
 #-----------------------------------------------------------------------------------------
 
@@ -1112,6 +1114,9 @@ def dist_gap_part2_plot(df, month, var, network):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
+    # close figure for memory
+    plt.close()
+
 #-----------------------------------------------------------------------------------------
 
 def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
@@ -1155,6 +1160,9 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
             bucket.put_object(Body=img_data, ContentType='image/png',
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
+
+            # close figure for memory
+            plt.close()
 
 
 #-----------------------------------------------------------------------------------------
@@ -1520,6 +1528,9 @@ def frequent_plot_helper(df, var, bins, flag, yr):
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
+
+    # close figure for memory
+    plt.close()
 
 #-----------------------------------------------------------------------------------------    
     
