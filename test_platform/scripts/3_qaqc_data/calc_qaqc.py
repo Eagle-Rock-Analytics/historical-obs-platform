@@ -1239,7 +1239,7 @@ def _plot_format_helper_spikes(var):
     return ylab, unit, miny, maxy
 
 #---------------------------------------------------------------------------------------------------
-def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True):
+def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True, date=None):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
@@ -1258,7 +1258,10 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True):
     flag_vals = df.loc[df[var + '_eraqc'] == flagval]   
     
     # Create figure
-    fig,ax = plt.subplots(figsize=(10,3))
+    if date is not None:
+        fig,ax = plt.subplots(figsize=(7,3))
+    else:
+        fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
     df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
@@ -1279,9 +1282,13 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True):
     ax.set_xlabel('')
     
     # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
-    miny = max(miny, df[var].min())
-    maxy = min(maxy, df[var].max())
-    ax.set_ylim(miny,maxy)
+    if date is not None:
+        timestamp = str(date).split(":")[0].replace(" ","T")
+    else:
+        timestamp = "full_series"
+        miny = max(miny, df[var].min())
+        maxy = min(maxy, df[var].max())
+        ax.set_ylim(miny,maxy)
     
     title = 'Unusual large jumps check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
@@ -1289,7 +1296,7 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True):
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}'.format(station, var)
+    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}'.format(station, var, timestamp)
     key = '{0}/{1}/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
@@ -1492,15 +1499,17 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
     """
     
     try:
+    # if True:
         # Save original df multiindex and create station column
-        MultiIndex = df.index
-        df['station'] = df.index.get_level_values(0)
+        df = df.copy(deep=True)
+        df.set_index(df['time'], inplace=True)
+        df.drop(columns=['time'], inplace=True)
 
         # Drop station index
-        df = df.droplevel(level="station")
+        # df = df.droplevel(level="station")
 
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_altimeter"]
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp"]
         variables = [var for var in check_vars if var in df.columns]
 
         if verbose:
@@ -1523,11 +1532,12 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
 
             if plot:
                 unusual_jumps_plot(df, var, flagval=22)
+                for i in ind:
+                    subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
+                                        df.index<=i + np.timedelta64(48,'h'))
+                    unusual_jumps_plot(df[subset], var, flagval=22, date=i)
 
-        # Reassign original MultiIndex
-        df.set_index(MultiIndex, inplace=True)
-
-        return df
+        return df.reset_index()
     except Exception as e:
         print("qaqc_unusual_large_jumps failed with Exception: {}".format(e))
         return None

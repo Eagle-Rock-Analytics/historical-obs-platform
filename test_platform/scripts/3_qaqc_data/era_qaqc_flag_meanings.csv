@@ -1,4 +1,4 @@
-Flag_value,QAQC_function,Flag_meaning
+﻿Flag_value,QAQC_function,Flag_meaning
 1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
 2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
 3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
@@ -16,3 +16,8 @@ Flag_value,QAQC_function,Flag_meaning
 15,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
 16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
 17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
+18,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality.
+19,qaqc_unusual_gaps,Warning: Variable has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality.
+20,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
+21,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
+22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
