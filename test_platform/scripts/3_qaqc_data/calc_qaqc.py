@@ -1217,7 +1217,6 @@ def frequent_bincheck(df, var, data_group):
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
                            var+'_eraqc'] = 23 # see era_qaqc_flag_meanings.csv
     
-    
     #============================================================================================================
     # seasonal checks require special handling
     elif data_group == 'seasonal_all':
@@ -1234,7 +1233,6 @@ def frequent_bincheck(df, var, data_group):
                     df.loc[((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) & 
                            (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                            var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
-                    
                     
     #============================================================================================================
                 
@@ -1467,7 +1465,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
                 frequent_vals_plot(df, var)
 
                 # entire timeseries figure
-                flagged_timeseries_plot(df, flag_to_viz=[23,24])
+                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[23,24])
         
     return df
 
