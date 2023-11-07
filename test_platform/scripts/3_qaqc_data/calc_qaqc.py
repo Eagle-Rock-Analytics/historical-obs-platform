@@ -765,7 +765,8 @@ def create_bins(data, bin_size=0.25):
     # set up bins
     b_min = np.floor(np.nanmin(data))
     b_max = np.ceil(np.nanmax(data))
-    bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
+    # bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
+    bins = np.arange(b_min, b_max, bin_size)
 
     return bins
 
@@ -1176,12 +1177,13 @@ def frequent_bincheck(df, var, data_group):
     ps_vars = ['ps', 'ps_altimeter', 'psl']
     
     ## TEMPORARY BUG FIX ON PSL UNIT ==================================================================
-    if len(str(df.loc[df.index == df['psl'].first_valid_index(), 'psl'].values[0]).split('.')[0]) <= 4:
-        df['psl'] = df['psl'] * 100
+    if var=='psl':
+        if len(str(df.loc[df.index == df['psl'].first_valid_index(), 'psl'].values[0]).split('.')[0]) <= 4:
+            df['psl'] = df['psl'] * 100
     ## END TEMPORARY FIX ==============================================================================
     
     if var in ps_vars: 
-        bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size for 1 hPa bin size
+        bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
     else:
         bin_s = 1 
     
@@ -1189,12 +1191,13 @@ def frequent_bincheck(df, var, data_group):
     if data_group == 'all':
         bins = create_bins(df[var], bin_size=bin_s) 
         bar_counts, bins = np.histogram(df[var], bins=bins)
-        flagged_bins = bins_to_flag(bins, bar_counts)
+        flagged_bins = bins_to_flag(bar_counts, bins)
         
         # flag values in that bin as suspect
         if len(flagged_bins) != 0:
             for sus_bin in flagged_bins:
                 # indicate as suspect bins
+                    # DECISION: preliminary flag? and then remove if okay/reset to nan?
                 df.loc[(df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
                        var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
     
@@ -1205,13 +1208,14 @@ def frequent_bincheck(df, var, data_group):
             df_yr = df.loc[df['year'] == yr]
             bins = create_bins(df_yr[var], bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_yr[var], bins=bins)
-            flagged_bins = bins_to_flag(df_yr, bar_counts, bin_main_thresh=20, secondary_bin_main_thresh=10)
+            flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=10)
             
             if len(flagged_bins) != 0:
                 for sus_bin in flagged_bins:
                     print('Flagging bin: ', sus_bin)
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
                            var+'_eraqc'] = 23 # see era_qaqc_flag_meanings.csv
+    
     
     #============================================================================================================
     # seasonal checks require special handling
@@ -1220,7 +1224,7 @@ def frequent_bincheck(df, var, data_group):
             df_szn = df.loc[(df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])]
             bins = create_bins(df_szn[var], bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_szn[var], bins=bins)
-            flagged_bins = bins_to_flag(df_szn[var], bar_counts, bin_main_thresh=20, secondary_bin_main_thresh=20)
+            flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=20)
             
             if len(flagged_bins) != 0:
                 for sus_bin in flagged_bins:
@@ -1228,24 +1232,26 @@ def frequent_bincheck(df, var, data_group):
                            (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                            var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
                     
+                    
     #============================================================================================================
                 
     elif data_group == 'seasonal_annual':        
         for yr in df.year.unique():
             for szn in szns:
+                  
                 # all seasons except winter
                 if szn != [12,1,2]:
                     df_szn = df.loc[(df['year']==yr) & 
                                     ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2]))]                    
-                    
+
                     if yr==df.loc[df.index[-1],'year']:
                         if len(df_szn)==0:
                             break # after last season in last year
-                    
+
                     bins = create_bins(df_szn[var], bin_size=bin_s) # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_szn[var], bins=bins)
-                    flagged_bins = bins_to_flag(df_szn[var], bar_counts, bin_main_thresh=15, secondary_bin_main_thresh=10)
-                    
+                    flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
+
                     if len(flagged_bins) != 0:
                         for sus_bin in flagged_bins:
                             print('Flagging bin: ', sus_bin)
@@ -1257,7 +1263,7 @@ def frequent_bincheck(df, var, data_group):
                 # special handling for winter because of december
                 else:
                     df_yr = df.loc[df['year'] == yr] # that year's jan, feb, and wrong dec            
-                    df_jf = df_yr.loc[df['month'] != 12] # that specific year's jan and feb
+                    df_jf = df_yr.loc[(df_yr['month']==1) | (df_yr['month']==2)] # that specific year's jan and feb
 
                     df_d = df.loc[(df['year'] == yr-1) & (df['month'] == 12)] # previous year's dec
                     if len(df_d) == 0: # catching very first year instance
@@ -1267,10 +1273,10 @@ def frequent_bincheck(df, var, data_group):
                     else:
                         print('Winter season: concatenating previous Dec')
                         df_djf = pd.concat([df_d, df_jf])
-                    
+                                        
                     bins = create_bins(df_djf[var], bin_size=bin_s) # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_djf[var], bins=bins)
-                    flagged_bins = bins_to_flag(df_djf[var], bar_counts, bin_main_thresh=15, secondary_bin_main_thresh=10)
+                    flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
 
                     if len(flagged_bins) != 0:
                         for sus_bin in flagged_bins:
@@ -1284,8 +1290,9 @@ def frequent_bincheck(df, var, data_group):
                             df.loc[((df['year']==yr-1) & (df['month']==szn[0])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
                                    var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
-                
+
     return df
+
 
 #-----------------------------------------------------------------------------------------
 
@@ -1320,7 +1327,45 @@ def synergistic_flag(df, num_temp_vars):
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_frequent_vals(df, plots=True):
+def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh=30):
+    '''Returns the specific bins to flag as suspect'''
+    bins_to_flag = [] # list of bins that will be flagged
+        
+    for i in range(0, len(bar_counts)):
+        # identify main bin + 3 on either side
+        bin_end = i+4
+
+        # need handling for first 3 blocks as there is no front
+        if i < 3:
+            bin_start = 0
+        else:
+            bin_start = i-3
+
+        bin_block_sum = bar_counts[bin_start:bin_end].sum() # num of obs in the 7-bin block
+        bin_main_sum = bar_counts[i] # num of obs in main bin
+
+        # determine whether main bin is more than half sum in 7-block bin
+        bin_block_50 = bin_block_sum * 0.5 # primary check at 50%
+        bin_block_90 = bin_block_sum * 0.9 # secondary check at 90%
+        
+        if (bin_main_sum > bin_block_50) == True: 
+            # ensure that bin_main_sum is greater than bin_main_thresh
+            if bin_main_sum > bin_main_thresh:
+                bins_to_flag.append(math.floor(bins[i]))
+                
+                # annual/seasonal check
+                if (bin_main_sum > bin_block_90) == True:
+                    if bin_main_sum > secondary_bin_main_thresh:
+                        bins_to_flag.append(math.floor(bins[i])) 
+                
+            else: # less than bin_main_thresh obs in bin_main_sum, do not indicate as suspect
+                continue
+                                
+    return bins_to_flag # returns a list of values that are suspicious
+
+#-----------------------------------------------------------------------------------------
+
+def qaqc_frequent_vals(df, plots=True, verbose=True):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -1443,8 +1488,8 @@ def frequent_plot_helper(df, var, bins, flag, yr):
 
     # flag bars if too frequent
     for bar in _plot.patches:
-        x = bar.get_x() + 0.5 * bar.get_width()
-        if x+0.5 in bars_to_flag: # right tail
+        x = bar.get_x()
+        if x in bars_to_flag: # right tail
             bar.set_color('r')
             
     # plot aesthetics
@@ -1541,43 +1586,6 @@ def frequent_vals_plot(df, var):
                 df_jf = df_year[(df_year['month']==1) | (df_year['month']==2)] # current year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
                 _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter')
-
-#-----------------------------------------------------------------------------------------
-
-def bins_to_flag(bins, bar_counts, bin_main_thresh=30, secondary_bin_main_thresh=30):
-    '''Returns the specific bins to flag as suspect'''
-    bins_to_flag = [] # list of bins that will be flagged
-    
-    for i in range(0, len(bar_counts)):
-        # identify main bin + 3 on either side
-        bin_start = i-3
-        bin_end = i+4
-
-        # need handling for first 3 blocks as there is no front
-        if i < 3:
-            bin_start = 0
-
-        bin_block_sum = bar_counts[bin_start:bin_end].sum() # num of obs in the 7-bin block
-        bin_main_sum = bar_counts[i] # num of obs in main bin
-
-        # determine whether main bin is more than half sum in 7-block bin
-        bin_block_50 = bin_block_sum * 0.5 # primary check at 50%
-        bin_block_90 = bin_block_sum * 0.9 # secondary check at 90%
-
-        if (bin_main_sum > bin_block_50) == True: 
-            # ensure that bin_main_sum is greater than bin_main_thresh
-            if bin_main_sum > bin_main_thresh:
-                bins_to_flag.append(math.floor(bins.values[i]))
-                
-                # annual/seasonal check
-                if (bin_main_sum > bin_block_90) == True:
-                    if bin_main_sum > secondary_bin_main_thresh:
-                        bins_to_flag.append(math.floor(bins.values[i])) 
-                
-            else: # less than bin_main_thresh obs in bin_main_sum, do not indicate as suspect
-                continue
-                
-    return bins_to_flag # returns a list of values that are suspicious 
 
 #-----------------------------------------------------------------------------------------
 
