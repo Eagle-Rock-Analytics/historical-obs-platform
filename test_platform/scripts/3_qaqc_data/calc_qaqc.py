@@ -1150,6 +1150,7 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
 
             s3 = boto3.resource('s3')
             bucket = s3.Bucket(bucket_name)
+            network = df['station'].unique()[0].split('_')[0]
             figname = 'flagged_timeseries_{0}_{1}'.format(df['station'].unique()[0], var)
             bucket.put_object(Body=img_data, ContentType='image/png',
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
