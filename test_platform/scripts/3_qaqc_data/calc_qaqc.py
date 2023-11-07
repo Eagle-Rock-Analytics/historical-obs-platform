@@ -1239,7 +1239,7 @@ def _plot_format_helper_spikes(var):
     return ylab, unit, miny, maxy
 
 #---------------------------------------------------------------------------------------------------
-def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=True, date=None):
+def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
