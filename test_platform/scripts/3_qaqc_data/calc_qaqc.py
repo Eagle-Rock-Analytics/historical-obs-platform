@@ -1425,35 +1425,42 @@ def qaqc_frequent_vals(df, plots=True):
 
 #-----------------------------------------------------------------------------------------
 
-def frequent_vals_plot(df, var):
-    '''
-    Produces a histogram of the diagnostic histogram per variable, 
-    and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
-    is visually flagged
-    ''' 
-    bins = create_bins(df[var], 1)
-    ax = df.plot.hist(column=var, bins=bins, alpha=0.5)
+def frequent_plot_helper(df, var, bins, flag, yr):
+    '''Plotting helper with common plotting elements for all 3 versions of this plot'''
+    
+    # plot all valid data within year/season
+    _plot = df.plot.hist(column=var, bins=bins, legend=False, alpha=0.5)
     
     # plot flagged values
-    # first identify which values are flagged by which flag
-    vals_to_flag = df.loc[(df[var+'_eraqc'] == 23) | (df[var+'_eraqc'] == 24)][var].unique()
+    # first identify which values are flagged
+    vals_to_flag = df.loc[df[var+'_eraqc'] == flag][var].unique()
+        
     bars_to_flag = []
     for i in vals_to_flag:
         if math.isnan(i) == False:
             bars_to_flag.append(math.floor(i))
-            
-    # flag bars if too frequent
-    for bar in ax.patches:
-        x = bar.get_x() + 0.5 * bar.get_width()
-        if x+0.5 in bars_to_flag:
-            bar.set_color('r')
 
+    # flag bars if too frequent
+    for bar in _plot.patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x+0.5 in bars_to_flag: # right tail
+            bar.set_color('r')
+            
     # plot aesthetics
+    x_lab, unit = _plot_format_helper(var)
+    plt.xlabel('{0} [{1}]'.format(x_lab, unit))
+    yr_formatted = yr.replace('_', ' ') # simple formatting for plot aesthetic
+    plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10);
     plt.title('Frequent value check: {}'.format(df['station'].unique()[0]),
              fontsize=10);
-    
+    plt.legend(('Valid', 'Flagged'), loc='upper right')
+    ax = plt.gca()
+    leg = ax.get_legend()
+    leg.legend_handles[1].set_color('r') # set flagged bar to red
+        
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
+    
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
@@ -1462,7 +1469,77 @@ def frequent_vals_plot(df, var):
 
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
-    figname = 'qaqc_frequent_value_check_{0}_{1}'.format(df['station'].unique()[0], var)
+    figname = 'qaqc_frequent_value_check_{0}_{1}_{2}'.format(df['station'].unique()[0], var, yr)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                     Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                     directory, network, figname))
+
+#-----------------------------------------------------------------------------------------    
+    
+def frequent_vals_plot(df, var):
+    '''
+    Produces a histogram of the diagnostic histogram per variable, 
+    and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
+    is visually flagged
+    ''' 
+    bins = create_bins(df[var], 1)
+    
+    # first identify which values are flagged and "where"
+    
+    ## Year-by-year flag (23): plot all data for that year
+    flag_df = df.loc[df[var+'_eraqc'] == 23]
+    
+    if len(flag_df) != 0:
+        
+        # identify year(s) with flagged data
+        plot_yrs = flag_df['year'].unique()
+        
+        for y in plot_yrs:
+            df_to_plot = df.loc[df['year']==y]
+            _plot = frequent_plot_helper(df_to_plot, var, bins, flag=23, yr=y)
+            
+    ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
+    flag_df = df.loc[df[var+'_eraqc'] == 24]
+    
+    if len(flag_df) != 0:
+        
+        # identify unique years with flagged seasonal data
+        plot_yrs = flag_df['year'].unique()
+        
+        for y in plot_yrs:
+            df_year = df.loc[df['year']==y] # grab the entire year
+            
+            flagged_szns = df_year.loc[df_year[var+'_eraqc'] == 24]['month'].unique() # identify flagged months in that year
+            
+            if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns: # Spring - MAM
+                df_to_plot = df_year.loc[(df_year['month']==3) | (df_year['month']==4) | (df_year['month']==5)]
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_spring')
+                
+            if 6 in flagged_szns or 7 in flagged_szns or 8 in flagged_szns: # Summer - JJA
+                df_to_plot = df_year.loc[(df_year['month']==6) | (df_year['month']==7) | (df_year['month']==8)]
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_summer')
+
+            if 9 in flagged_szns or 10 in flagged_szns or 11 in flagged_szns: # Autumn - SON
+                df_to_plot = df_year.loc[(df_year['month']==9) | (df_year['month']==10) | (df_year['month']==11)]
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_autumn')
+           
+            if 12 in flagged_szns: # Winter - current year D + next year JF
+                # special handling as follows
+                # if the next year has flagged jan/feb, this will overwrite, but will be identical figure
+                # some years will not have current year december and next year jan/feb so need this edge case                
+                df_d = df_year.loc[df_year['month']==12] # current year dec
+                df_jf = df.loc[(df['year']==y+1) & ((df['month']==1) | (df['month']==2))] # next year jan+feb
+                df_to_plot = pd.concat([df_d, df_jf])
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y+1)+'_winter')
+                
+            if 1 in flagged_szns or 2 in flagged_szns: # Winter - previous year D + current year JF
+                # special handling as follows
+                # if the previous year has flagged december, this will overwrite, but will be identical figure
+                # some years will not have previous year december and current jan/feb so need this edge case
+                df_d = df.loc[(df['year']==y-1) & (df['month']==12)] # previous year dec
+                df_jf = df_year[(df_year['month']==1) | (df_year['month']==2)] # current year jan+feb
+                df_to_plot = pd.concat([df_d, df_jf])
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter')
 
 #-----------------------------------------------------------------------------------------
 
