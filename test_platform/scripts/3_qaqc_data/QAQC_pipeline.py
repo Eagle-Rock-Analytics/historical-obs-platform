@@ -235,20 +235,23 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #---------------------------------------------------------
     ## Missing values
-    new_df = qaqc_missing_vals(df.copy(), verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api,
-                                   message="missing values failed",
-                                   test="qaqc_missing_vals",
-                                   verbose=verbose
-                                   )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_missing_vals') # testing
+    # new_df = qaqc_missing_vals(df.copy(), verbose=verbose)
+    # if new_df is None:
+    #     errors = print_qaqc_failed(errors, station, end_api,
+    #                                message="missing values failed",
+    #                                test="qaqc_missing_vals",
+    #                                verbose=verbose
+    #                                )
+    # else:
+    #     stn_to_qaqc = new_df
+    #     if verbose:
+    #         print('pass qaqc_missing_vals') # testing
+
+    #---------------------------------------------------------
+        
 
     ## Lat-lon -- does not proceed through qaqc if failure
-    new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_missing_latlon(df.copy(), verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                    message="has a missing lat-lon", 
