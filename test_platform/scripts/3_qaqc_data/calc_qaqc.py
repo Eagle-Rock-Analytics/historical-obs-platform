@@ -1300,12 +1300,13 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     key = '{0}/{1}/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
-    fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     plt.close()
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
     return 
 
@@ -1468,7 +1469,7 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
     return df
 
 #---------------------------------------------------------------------------------------------------
-def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, verbose=True):
+def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=True):
     """
     Test for unusual large jumps or ''spikes'', given the statistics of the series. Analysis for each individual month in 
     time series to account for seasonal cycles in different regions.
@@ -1481,6 +1482,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
             df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
             iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
             min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
+            local [bool] : if True, saves the plot to local directory
             plot [bool] : if True, produces plot and uploads it to AWS
     Output:
     ------
@@ -1531,11 +1533,11 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, ver
             df.loc[ind, var+"_eraqc"] = 22
 
             if plot:
-                unusual_jumps_plot(df, var, flagval=22)
+                unusual_jumps_plot(df, var, flagval=22, local=local)
                 for i in ind:
                     subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
                                         df.index<=i + np.timedelta64(48,'h'))
-                    unusual_jumps_plot(df[subset], var, flagval=22, date=i)
+                    unusual_jumps_plot(df[subset], var, flagval=22, date=i, local=local)
 
         return df.reset_index()
     except Exception as e:
