@@ -1159,7 +1159,6 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
 #-----------------------------------------------------------------------------------------
 ## Frequent values check
 # flag unusually frequent values - if any one value has more than 50% of data in the bin
-
 def frequent_bincheck(df, var, data_group):
     '''Approach: 
         - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
@@ -1206,6 +1205,8 @@ def frequent_bincheck(df, var, data_group):
     elif data_group == 'annual':
         for yr in df.year.unique():
             df_yr = df.loc[df['year'] == yr]
+            if df_yr[var].isna().all() == True: # some vars will have nan years
+                continue
             bins = create_bins(df_yr[var], bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_yr[var], bins=bins)
             flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=10)
@@ -1222,6 +1223,8 @@ def frequent_bincheck(df, var, data_group):
     elif data_group == 'seasonal_all':
         for szn in szns:
             df_szn = df.loc[(df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])]
+            if df_szn[var].isna().all() == True: # some vars will have nans years
+                continue 
             bins = create_bins(df_szn[var], bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_szn[var], bins=bins)
             flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=20)
@@ -1242,7 +1245,10 @@ def frequent_bincheck(df, var, data_group):
                 # all seasons except winter
                 if szn != [12,1,2]:
                     df_szn = df.loc[(df['year']==yr) & 
-                                    ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2]))]                    
+                                    ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2]))] 
+                    
+                    if df_szn[var].isna().all() == True: # some vars will have nan years
+                        continue
 
                     if yr==df.loc[df.index[-1],'year']:
                         if len(df_szn)==0:
@@ -1273,6 +1279,9 @@ def frequent_bincheck(df, var, data_group):
                     else:
                         print('Winter season: concatenating previous Dec')
                         df_djf = pd.concat([df_d, df_jf])
+                        
+                    if df_djf[var].isna().all() == True: # some vars will have nan years
+                        continue
                                         
                     bins = create_bins(df_djf[var], bin_size=bin_s) # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_djf[var], bins=bins)
@@ -1293,7 +1302,6 @@ def frequent_bincheck(df, var, data_group):
 
     return df
 
-
 #-----------------------------------------------------------------------------------------
 
 def synergistic_flag(df, num_temp_vars):  
@@ -1303,10 +1311,12 @@ def synergistic_flag(df, num_temp_vars):
     '''
 
     # need to identify which flag is placed
-    # 23 for all obs/years check | 24 for all seasons/years check
+    # 23 for all obs/years check
+    # 24 for all seasons/years check
     flags_to_set = [23, 24]
-
+    
     for flag_to_set in flags_to_set:
+
         if 'tas' in num_temp_vars and 'tdps' in num_temp_vars:
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_eraqc'] = flag_to_set
             df.loc[df['tdps_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set
@@ -1314,14 +1324,6 @@ def synergistic_flag(df, num_temp_vars):
         if 'tas' in num_temp_vars and 'tdps_derived' in num_temp_vars:
             df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_derived_eraqc'] = flag_to_set
             df.loc[df['tdps_derived_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set    
-
-        if 'tas' in num_temp_vars and 'tdps' in num_temp_vars and 'tdps_derived' in num_temp_vars:
-            df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_eraqc'] = flag_to_set
-            df.loc[df['tdps_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set
-            df.loc[df['tas_eraqc'] == flag_to_set, 'tdps_derived_eraqc'] = flag_to_set
-            df.loc[df['tdps_derived_eraqc'] == flag_to_set, 'tas_eraqc'] = flag_to_set
-            df.loc[df['tdps_eraqc'] == flag_to_set, 'tdps_derived_eraqc'] = flag_to_set
-            df.loc[df['tdps_derived_eraqc'] == flag_to_set, 'tdps_eraqc'] = flag_to_set
             
     return df
 
@@ -1408,17 +1410,17 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
     
     for var in vars_to_check:
 
-        # only use valid values previously not flagged by QAQC tests
-        new_df = df.copy(deep=True)
-        valid = np.where(np.isnan(new_df[var+'_eraqc']))[0]
-        new_df = new_df.iloc[valid]
+        # TO DO: still to implement -- only using non-flagged data, previous attempts were causing problems with resetting final index again
         
         # first scans suspect values using entire record
         # all years
-        new_df = frequent_bincheck(new_df, var, data_group='all')
+        if df[var].isna().all() == True:
+            continue # bypass to next variable if all obs are nans 
+
+        df = frequent_bincheck(df, var, data_group='all')
 
         # if no values are flagged as suspect, end function, no need to proceed
-        if len(new_df.loc[new_df[var+'_eraqc'] == 100]) == 0:
+        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
             print('No unusually frequent values detected for entire {} observation record'.format(var))
             # goes to seasonal check, no bypass
 
@@ -1427,7 +1429,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
             # then scans for each value on a year-by-year basis to flag if they are a problem within that year
                 # DECISION: the annual check uses the unfiltered data
                 # previously flagged values are included here -- this would interfere with our entire workflow
-            new_df = frequent_bincheck(new_df, var, data_group='annual')
+            df = frequent_bincheck(df, var, data_group='annual')
 
         # seasonal scan (JF+D, MAM, JJA, SON) 
         # each season is scanned over entire record to identify problem values
@@ -1436,18 +1438,18 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
 
         # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
         # all years
-        new_df = frequent_bincheck(new_df, var, data_group='seasonal_all') ## DECISION: December is from the current year
-        if len(new_df.loc[new_df[var+'_eraqc'] == 100]) == 0:
+        df = frequent_bincheck(df, var, data_group='seasonal_all') ## DECISION: December is from the current year
+        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
             print('No unusually frequent values detected for seasonal {} observation record'.format(var))
             continue # bypasses to next variable
 
         else:
             print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
             # year by year --> December selection must be specific
-            new_df = frequent_bincheck(new_df, var, data_group='seasonal_annual')    
+            df = frequent_bincheck(df, var, data_group='seasonal_annual')    
                       
         # remove any lingering preliminary flags, data passed check
-        new_df.loc[new_df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
+        df.loc[df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
         
     # synergistic flag on tas and tdps/tdps_derived
     # first establish at least tas and one tdps var present
@@ -1455,19 +1457,19 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
     num_temp_vars = [var for var in vars_to_check if var in temp_vars]
     if len(num_temp_vars) != 1 and 'tas' in num_temp_vars:
         # proceed to synergistic check
-        new_df = synergistic_flag(new_df, num_temp_vars, flag_to_set)
+        df = synergistic_flag(df, num_temp_vars)
     
     # plots item
     if plots==True:
         for var in vars_to_check:
-            if 23 in new_df[var+'_eraqc'].values or 24 in new_df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+            if 23 in df[var+'_eraqc'].values or 24 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                 # histogram
-                frequent_vals_plot(new_df, var)
+                frequent_vals_plot(df, var)
 
                 # entire timeseries figure
-                flagged_timeseries_plot(new_df, flag_to_viz=[23,24])
+                flagged_timeseries_plot(df, flag_to_viz=[23,24])
         
-    return new_df
+    return df
 
 #-----------------------------------------------------------------------------------------
 
@@ -1495,7 +1497,7 @@ def frequent_plot_helper(df, var, bins, flag, yr):
     # plot aesthetics
     x_lab, unit = _plot_format_helper(var)
     plt.xlabel('{0} [{1}]'.format(x_lab, unit))
-    yr_formatted = yr.replace('_', ' ') # simple formatting for plot aesthetic
+    yr_formatted = str(yr).replace('_', ' ') # simple formatting for plot aesthetic
     plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10);
     plt.title('Frequent value check: {}'.format(df['station'].unique()[0]),
              fontsize=10);
