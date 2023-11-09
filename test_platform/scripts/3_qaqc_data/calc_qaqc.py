@@ -1168,6 +1168,382 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
     
     return df_part2
 
+#===================================================================================================
+# UNUSUAL LARGE JUMPS DEV
+#---------------------------------------------------------------------------------------------------
+# Plot helper for unusual large jumps plots
+def _plot_format_helper_spikes(var):
+    """
+    Helper function for unusual large jumps plots
+    
+    Input:
+    -----
+        var [str] : variable name being plotted
+    Ouput:
+    ----- ylab, unit, mins[var]['North_America'], maxes[var]['North_America'])
+        ylab [str] : variable name for y-axis
+        unit [str] : units of variable
+        miny [float] : min var value for y axis
+        maxy [float] : max var value for y axis      
+    """
+
+    pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
+    ps_vars = ['ps', 'psl', 'psl_altimeter']
+    
+    if var == 'tas':
+        ylab = 'Air Temperature at 2m'
+        unit = 'K'
+        
+    elif var == 'tdps' or var == 'tdps_derived':
+        ylab = 'Dewpoint Temperature'
+        unit = 'K'
+        
+    elif var == 'sfcWind':
+        ylab = 'Surface Wind Speed'
+        unit = '${m s^-1}$'
+        
+    elif var == 'sfcWind_dir':
+        ylab = 'Surface Wind Direction'
+        unit = 'degrees'
+        
+    elif var == 'rsds':
+        ylab = 'Surface Radiation'
+        unit = '${W m^-2}$'
+        
+    elif var == 'hurs':
+        ylab = 'Humidity'
+        unit = '%'
+        
+    elif var in pr_vars:
+        ylab = 'Precipitation' # should be which precip var it is
+        unit = 'mm'
+
+    elif var in ps_vars:
+        ylab = 'Pressure' # should eventually be what pressure var it is
+        unit = 'Pa'
+        
+    T_X = {"North_America":329.92} #K
+    T_N = {"North_America":210.15} #K
+    D_X = {"North_America":329.85} #K
+    D_N = {"North_America":173.15} #K
+    W_X = {"North_America":113.2}  #m/s
+    W_N = {"North_America":0.}     #m/s
+    S_X = {"North_America":108330} #Pa
+    S_N = {"North_America":87000}  #Pa
+
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X, "ps": S_X}
+    mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "ps": S_N}
+    miny = mins[var]['North_America']
+    maxy = maxes[var]['North_America']
+    
+    return ylab, unit, miny, maxy
+
+#---------------------------------------------------------------------------------------------------
+def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
+    """
+    Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
+    Input:
+    -----
+        df [pd.Dataframe] : station pd.DataFrame from qaqc pipeline
+        var [str] : variable name
+        flagval [int] : flag value to plot (22 for unusual large jumps)
+        dpi [int] : resolution for png plots
+        local [bool] : if True, saves plot locally, else: only saves plot to AWS
+    Ouput:
+    ----- 
+        None
+    """
+    
+    # grab flagged data
+    flag_vals = df.loc[df[var + '_eraqc'] == flagval]   
+    
+    # Create figure
+    if date is not None:
+        fig,ax = plt.subplots(figsize=(7,3))
+    else:
+        fig,ax = plt.subplots(figsize=(10,3))
+
+    # Plot variable and flagged data
+    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    
+    flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==22, var])/len(df))
+    df.loc[df[var+"_eraqc"]==22, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
+    
+    legend = ax.legend(loc=0, prop={'size': 8})    
+        
+    station = df['station'].unique()[0]
+    network = station.split('_')[0]
+    
+    # Plot aesthetics
+    ylab, units, miny, maxy = _plot_format_helper_spikes(var)
+    ylab = '{} [{}]'.format(ylab, units)
+    
+    ax.set_ylabel(ylab)
+    ax.set_xlabel('')
+    
+    # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
+    if date is not None:
+        timestamp = str(date).split(":")[0].replace(" ","T")
+    else:
+        timestamp = "full_series"
+        miny = max(miny, df[var].min())
+        maxy = min(maxy, df[var].max())
+        ax.set_ylim(miny,maxy)
+    
+    title = 'Unusual large jumps check: {0}'.format(station)
+    ax.set_title(title, fontsize=10)
+    
+    # save to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}'.format(station, var, timestamp)
+    key = '{0}/{1}/{2}.png'.format(directory, network, figname)
+    img_data = BytesIO()
+    fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
+    img_data.seek(0)
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
+    plt.close()
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+    
+    return 
+
+#---------------------------------------------------------------------------------------------------
+def potential_spike_check(potential_spike, diff, crit, hours_diff):
+    """
+    Checks for neccessary conditions for a potential spike to be an actual spike:
+     - Spikes are considered 1-value spike up to 3-values spike
+     - Difference right before the spike should be lower than half the critical value
+     - Difference at the actual spike must be higher than the critical value
+     - Differences within the multi-value spike must lower than half the critical value
+     - Difference right after (spike exit) the spike should be higher than the critical value and
+       of opposite sign of the actual spike
+
+    Input:
+    -----
+            potential_spike [pandas series] : bool pd.Series with True on potential spike location
+            diff [pandas series] : float pd.Series with differences in the test variable
+            crit [pandas series] : float pd.Series with the critical value for the differences in the test variable
+            crit [pandas series] : float pd.Series with the hour differences between data points in the test variable
+    Output:
+    ------
+            df [pandas dataframe] : input df with added `var`_spike column True where data matches the spike conditions
+    """
+
+    potential_spike = potential_spike.copy(deep=True)
+    
+    ind = np.where(potential_spike)[0]
+    spikes = pd.Series(np.zeros_like(potential_spike).astype("bool"), index=potential_spike.index)
+    dates = pd.Series(potential_spike.index.values)
+    # print(len(ind))
+    # print(dates[ind])
+    
+    for i in ind:
+        
+        #Ignore edges for now
+        if i==1 or i>=len(potential_spike)-4:
+            continue
+        # Indices, critical values, and values before and after potential spike
+        im1, i0, ip1, ip2, ip3, ip4 = [i-1, i, i+1, i+2, i+3, i+4]
+        tm1, t0, tp1, tp2, tp3, tp4 = diff.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
+        cm1, c0, cp1, cp2, cp3, cp4 = crit.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
+        # print(dates.iloc[[i0,ip1]])
+        # print(" sgn(t0)[{}] != sgn(tm1)[{}] \n abs(tm1)[{}] < cm1[{}] \n abs(tp1)[{}] > cp1[{}] \n abs(tp2)[{}] < cp2[{}]".format(np.sign(t0),np.sign(tp1), np.abs(tm1), cm1, np.abs(tp1), cp1, np.abs(tp2), cp2))
+        # print()
+        # Three-values spike
+        if (
+            np.sign(t0) != np.sign(tp2) and 
+            np.abs(tm1) < 0.5*cm1 and 
+            np.abs(tp1) < 0.5*cp1 and 
+            np.abs(tp2) < 0.5*cp2 and 
+            np.abs(tp3) > cp3 and 
+            np.abs(tp4) < 0.5*cp4
+        ):
+            # print(dates.iloc[i0])
+            spikes.iloc[[i0,ip1,ip2]] = True
+            # i += 3
+            # continue
+            
+        # Two-values spike
+        elif (
+            np.sign(t0) != np.sign(tp2) and 
+            np.abs(tm1) < 0.5*cm1 and 
+            np.abs(tp1) < 0.5*cp1 and 
+            np.abs(tp2) > cp2 and 
+            np.abs(tp3) < 0.5*cp3
+        ):
+            # print(dates.iloc[i0])
+            spikes.iloc[[i0,ip1]] = True
+            # i += 2
+            # continue
+        
+        # One-value spike
+        elif( 
+            np.sign(t0) != np.sign(tp1) and 
+            np.abs(tm1) < 1.0*cm1 and 
+            np.abs(tp1) > cp1 and 
+            np.abs(tp2) < 1.0*cp2
+        ):
+            # print(dates.iloc[i0])
+            spikes.iloc[i0] = True
+            # i += 1
+            # continue
+        
+    return spikes
+
+#---------------------------------------------------------------------------------------------------
+def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
+    """
+    Detect  unusual large jumps or ''spikes'' in the time series for `var`:
+      1- Find potential unusual large jumps or ''spikes'' by comparing the differences in `var` to each 
+         month's critical value (crit = iqr_thresh * IQR)
+      2- `potential_spike_check` checks for neccessary conditions for a potential spike to be an actual
+          spike
+    
+    This test is done for ["tas", "tdps", "ps", "slp"]
+    Should it be done for more vars?
+    
+    Input:
+    -----
+            df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
+            var [str] : variable to test
+            iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
+            min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
+    Output:
+    ------
+            df [pandas dataframe] : input df with added columns for spike check
+            
+            
+    NOTES (TODO:)
+    iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
+    min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
+    HadISD uses 100, this can be modified and twaked in future development
+    """
+    
+    # Make a copy of the original dataframe
+    df = df.copy(deep=True)
+    
+    # Calculate difference in var values
+    df[var+'_difference'] = df[var].diff().fillna(0)
+    
+    # Calculate dates
+    df['date'] = df.index.values
+    
+    # Calculate time difference
+    df['time_diff'] = df['date'].diff().fillna(pd.Timedelta(0))
+    
+    # Calculate time differece in hours
+    df['hours_diff'] = df['time_diff']/np.timedelta64(1, 'h')
+    df = df[np.logical_and(df['hours_diff'] > 0, df['hours_diff'] <= 12)]
+    
+    # Group by month to avoid strong seasonal cycle
+    # grouped = df.groupby([pd.Grouper(freq='M'), df['hours_diff']]) 
+    grouped = df.groupby(pd.Grouper(freq='M')) 
+
+    # Count number of data per month
+    counts = grouped[var+'_difference'].transform("count")
+    df[var+'_counts'] = counts
+    # Keep only months with more than 50 values to be statistically valid
+    df = df[df[var+'_counts']>min_datapoints]
+
+    # Define modified IQR 
+    # kwargs = {'rng':(20, 80),}
+    kwargs = {}
+    
+    # Calculate iqr
+    iqr = grouped[var+'_difference'].transform(stats.iqr, **kwargs)
+    df[var+'_iqr'] = iqr
+
+    # Calculate critical value as rounded-up 6 (or defined by argument) times IQR
+    df[var+'_critical'] = np.ceil(iqr_thresh*df[var+'_iqr'])
+    
+    # Find potential spike values where var diff is higher than the critical value
+    df[var+'_potential_spikes'] = np.abs(df[var+'_difference'])>df[var+'_critical']
+
+    # Filter real spikes using `potential_spike_check` function
+    spikes = potential_spike_check(df[var+'_potential_spikes'], df[var+'_difference'], df[var+'_critical'], df['hours_diff'])
+    df[var+'_spikes'] = spikes
+    
+    return df
+
+#---------------------------------------------------------------------------------------------------
+def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=True):
+    """
+    Test for unusual large jumps or ''spikes'', given the statistics of the series. Analysis for each individual month in 
+    time series to account for seasonal cycles in different regions.
+    
+    This test is done for ["tas", "tdps", "ps", "psl", "ps_altimeter"]
+    Should it be done for more vars?
+    
+    Input:
+    -----
+            df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
+            iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
+            min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
+            local [bool] : if True, saves the plot to local directory
+            plot [bool] : if True, produces plot and uploads it to AWS
+    Output:
+    ------
+            if qaqc succeded:
+                 df [pandas dataframe] : QAQC dataframe with flagged values (see below for flag meaning).
+            else if qaqc failed:
+                 None
+    Flag meaninig:
+    -------------
+        22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
+
+    NOTES (TODO:)
+    iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
+    min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
+    HadISD uses 100, this can be modified and twaked in future development
+    """
+    
+    try:
+    # if True:
+        # Save original df multiindex and create station column
+        df = df.copy(deep=True)
+        df.set_index(df['time'], inplace=True)
+        df.drop(columns=['time'], inplace=True)
+
+        # Drop station index
+        # df = df.droplevel(level="station")
+
+        # Define test variables and check if they are in the dataframe
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp"]
+        variables = [var for var in check_vars if var in df.columns]
+
+        if verbose:
+            print("Running {} on {}".format("qaqc_unusual_large_jumps", variables))
+
+        # Loop through test variables
+        for var in variables:
+            # Create a copy of the original dataframe and drop NaNs in the testing variable
+            new_df = df.copy(deep=True)
+            new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
+            # Use only values that have not been flagged by previous QAQC tests
+            valid = np.where(np.isnan(new_df[var+"_eraqc"]))[0]
+            new_df = new_df.iloc[valid]
+            # Detect spikes
+            new_df = detect_spikes(new_df, var=var, iqr_thresh=iqr_thresh, min_datapoints=min_datapoints)
+            # Retrieve location of spikes
+            ind = new_df.index[np.where(new_df[var+"_spikes"])[0]]
+            # Flag _eraqc variable
+            df.loc[ind, var+"_eraqc"] = 22
+
+            if plot:
+                unusual_jumps_plot(df, var, flagval=22, local=local)
+                for i in ind:
+                    subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
+                                        df.index<=i + np.timedelta64(48,'h'))
+                    unusual_jumps_plot(df[subset], var, flagval=22, date=i, local=local)
+
+        return df.reset_index()
+    except Exception as e:
+        print("qaqc_unusual_large_jumps failed with Exception: {}".format(e))
+        return None
+
 #----------------------------------------------------------------------
 # To do
 # establish false positive rate
