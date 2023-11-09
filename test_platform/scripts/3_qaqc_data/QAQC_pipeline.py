@@ -428,19 +428,19 @@ def run_qaqc_pipeline(ds, network, file_name,
                 
     #-----------------------------------------------------------------
 
-    #-----------------------------------------------------------------
-    # Time series check (unusual large jumps)
-    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with unusual large jumps (spike check) check for", 
-                                   test="qaqc_unusual_large_jumps",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_unusual_large_jumps')  
+#     #-----------------------------------------------------------------
+#     # Time series check (unusual large jumps)
+#     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api, 
+#                                    message="Flagging problem with unusual large jumps (spike check) check for", 
+#                                    test="qaqc_unusual_large_jumps",
+#                                    verbose=verbose
+#                                   )
+#     else:
+#         stn_to_qaqc = new_df
+#         if verbose:
+#             print('pass qaqc_unusual_large_jumps')  
                 
     #-----------------------------------------------------------------
     
