@@ -425,9 +425,7 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_unusual_gaps')
-                
-    #-----------------------------------------------------------------
-
+    
     #-----------------------------------------------------------------
     # Time series check (unusual large jumps)
     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
@@ -441,7 +439,7 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_unusual_large_jumps')  
-                
+
     #-----------------------------------------------------------------
     
     # Re-index to original time/station values

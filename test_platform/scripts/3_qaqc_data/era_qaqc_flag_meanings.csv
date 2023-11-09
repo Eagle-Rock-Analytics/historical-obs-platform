@@ -1,4 +1,4 @@
-Flag_value,QAQC_function,Flag_meaning
+﻿Flag_value,QAQC_function,Flag_meaning
 1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
 2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
 3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
