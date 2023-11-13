@@ -1223,7 +1223,7 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
 #-----------------------------------------------------------------------------------------
 ## Frequent values check
 # flag unusually frequent values - if any one value has more than 50% of data in the bin
-def frequent_bincheck(df, var, data_group):
+def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
     '''Approach: 
         - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
         - each bin compared to the three on either side
@@ -1249,6 +1249,26 @@ def frequent_bincheck(df, var, data_group):
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
     else:
         bin_s = 1 
+        
+        
+    # radiation schemes for assessment
+    if var == 'rsds':
+        if rad_scheme == 'all_hours':
+            # all valid observations included -- frequent flag will likely set on 0/nighttime hours
+            print('Radiation frequent value check scheme: all_hours selected, will likely flag nighttime')
+            df = df
+        
+        elif rad_scheme == "day_hours":
+            # only day hours -- 7am-8pm as "day"
+            print('Radiation frequent value check scheme: day_hours selected, day set to 7am - 8pm')
+            # 6am PST ~ 1400 UTC, 8pm PST ~ 4000 UTC
+            df = df.loc[(df.time.dt.hour >= 14) | (df.time.dt.hour <=4)]
+            
+        elif rad_scheme == "remove_zeros":
+            # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
+            print('Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions')
+            df = df.loc[df[var] != 0]
+    
     
     # all data/annual checks
     if data_group == 'all':
@@ -1429,7 +1449,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_frequent_vals(df, plots=True, verbose=True):
+def qaqc_frequent_vals(df, , rad_scheme='all_hours', plots=True, verbose=True):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -1479,7 +1499,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
         if df[var].isna().all() == True:
             continue # bypass to next variable if all obs are nans 
 
-        df = frequent_bincheck(df, var, data_group='all')
+        df = frequent_bincheck(df, var, data_group='all', rad_scheme=rad_scheme)
 
         # if no values are flagged as suspect, end function, no need to proceed
         if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
@@ -1491,7 +1511,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
             # then scans for each value on a year-by-year basis to flag if they are a problem within that year
                 # DECISION: the annual check uses the unfiltered data
                 # previously flagged values are included here -- this would interfere with our entire workflow
-            df = frequent_bincheck(df, var, data_group='annual')
+            df = frequent_bincheck(df, var, data_group='annual', rad_scheme=rad_scheme)
 
         # seasonal scan (JF+D, MAM, JJA, SON) 
         # each season is scanned over entire record to identify problem values
@@ -1500,7 +1520,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
 
         # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
         # all years
-        df = frequent_bincheck(df, var, data_group='seasonal_all') ## DECISION: December is from the current year
+        df = frequent_bincheck(df, var, data_group='seasonal_all', rad_scheme=rad_scheme) ## DECISION: December is from the current year
         if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
             print('No unusually frequent values detected for seasonal {} observation record'.format(var))
             continue # bypasses to next variable
@@ -1508,7 +1528,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
         else:
             print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
             # year by year --> December selection must be specific
-            df = frequent_bincheck(df, var, data_group='seasonal_annual')    
+            df = frequent_bincheck(df, var, data_group='seasonal_annual', rad_scheme=rad_scheme)    
                       
         # remove any lingering preliminary flags, data passed check
         df.loc[df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
@@ -1526,7 +1546,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
         for var in vars_to_check:
             if 23 in df[var+'_eraqc'].values or 24 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                 # histogram
-                frequent_vals_plot(df, var)
+                frequent_vals_plot(df, var, rad_scheme)
 
                 # entire timeseries figure
                 flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[23,24])
@@ -1535,7 +1555,7 @@ def qaqc_frequent_vals(df, plots=True, verbose=True):
 
 #-----------------------------------------------------------------------------------------
 
-def frequent_plot_helper(df, var, bins, flag, yr):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
     '''Plotting helper with common plotting elements for all 3 versions of this plot'''
     
     # plot all valid data within year/season
@@ -1549,7 +1569,7 @@ def frequent_plot_helper(df, var, bins, flag, yr):
     for i in vals_to_flag:
         if math.isnan(i) == False:
             bars_to_flag.append(math.floor(i))
-
+            
     # flag bars if too frequent
     for bar in _plot.patches:
         x = bar.get_x()
@@ -1567,6 +1587,9 @@ def frequent_plot_helper(df, var, bins, flag, yr):
     ax = plt.gca()
     leg = ax.get_legend()
     leg.legend_handles[1].set_color('r') # set flagged bar to red
+    
+    if var == 'rsds':
+        plt.annotate('Sfc. Radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.9), xycoords='axes fraction', fontsize=10)
         
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
@@ -1589,7 +1612,7 @@ def frequent_plot_helper(df, var, bins, flag, yr):
 
 #-----------------------------------------------------------------------------------------    
     
-def frequent_vals_plot(df, var):
+def frequent_vals_plot(df, var, rad_scheme):
     '''
     Produces a histogram of the diagnostic histogram per variable, 
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
@@ -1609,8 +1632,9 @@ def frequent_vals_plot(df, var):
         
         for y in plot_yrs:
             df_to_plot = df.loc[df['year']==y]
-            _plot = frequent_plot_helper(df_to_plot, var, bins, flag=23, yr=y)
+            _plot = frequent_plot_helper(df_to_plot, var, bins, flag=23, yr=y, rad_scheme=rad_scheme)
             
+
     ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
     flag_df = df.loc[df[var+'_eraqc'] == 24]
     
@@ -1626,15 +1650,15 @@ def frequent_vals_plot(df, var):
             
             if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns: # Spring - MAM
                 df_to_plot = df_year.loc[(df_year['month']==3) | (df_year['month']==4) | (df_year['month']==5)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_spring')
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_spring', rad_scheme=rad_scheme)
                 
             if 6 in flagged_szns or 7 in flagged_szns or 8 in flagged_szns: # Summer - JJA
                 df_to_plot = df_year.loc[(df_year['month']==6) | (df_year['month']==7) | (df_year['month']==8)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_summer')
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_summer', rad_scheme=rad_scheme)
 
             if 9 in flagged_szns or 10 in flagged_szns or 11 in flagged_szns: # Autumn - SON
                 df_to_plot = df_year.loc[(df_year['month']==9) | (df_year['month']==10) | (df_year['month']==11)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_autumn')
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_autumn', rad_scheme=rad_scheme)
            
             if 12 in flagged_szns: # Winter - current year D + next year JF
                 # special handling as follows
@@ -1643,7 +1667,7 @@ def frequent_vals_plot(df, var):
                 df_d = df_year.loc[df_year['month']==12] # current year dec
                 df_jf = df.loc[(df['year']==y+1) & ((df['month']==1) | (df['month']==2))] # next year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y+1)+'_winter')
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y+1)+'_winter', rad_scheme=rad_scheme)
                 
             if 1 in flagged_szns or 2 in flagged_szns: # Winter - previous year D + current year JF
                 # special handling as follows
@@ -1652,7 +1676,7 @@ def frequent_vals_plot(df, var):
                 df_d = df.loc[(df['year']==y-1) & (df['month']==12)] # previous year dec
                 df_jf = df_year[(df_year['month']==1) | (df_year['month']==2)] # current year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter')
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter', rad_scheme=rad_scheme)
 
 #-----------------------------------------------------------------------------------------
 
