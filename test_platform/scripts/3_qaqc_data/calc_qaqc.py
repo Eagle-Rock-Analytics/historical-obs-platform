@@ -28,8 +28,8 @@ bucket_name = "wecc-historical-wx"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-#----------------------------------------------------------------------
-## QA/QC Helper functions
+#======================================================================
+# QA/QC Helper functions
 def get_file_paths(network):
     rawdir = "1_raw_wx/{}/".format(network)
     cleandir = "2_clean_wx/{}/".format(network)
@@ -37,6 +37,7 @@ def get_file_paths(network):
     mergedir = "4_merge_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir, mergedir
 
+#----------------------------------------------------------------------
 
 def get_wecc_poly(terrpath, marpath):
     """
@@ -75,6 +76,35 @@ def qaqc_missing_vals(df, verbose=True):
         df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
 
         print(item)
+
+    return df
+
+#----------------------------------------------------------------------
+# missing value cehck: double check that all missing value observations are converted to NA before QA/QC
+def qaqc_missing_vals(df, verbose=True):
+    '''
+    Checks data to be qaqc'ed for any errant missing values that made it through cleaning
+    Converts those missing values to NAs
+    Searches for missing values in 3_qaqc_data/missing_data_flags.csv
+    '''
+
+    missing_vals = pd.read_csv('missing_data_flags.csv')
+
+    all_vars = [col for col in df.columns if 'qc' not in col]
+    obs_vars = [var for var in all_vars if var not in ['lon','lat','time','elevation','station','anemometer_height_m','thermometer_height_m']]
+    
+    try:
+        for item in obs_vars:
+            # pull missing values which are appropriate for the range of real values for each variable 
+            missing_codes = missing_vals.loc[missing_vals['variable'].str.contains(item) | missing_vals['variable'].str.contains('all')]
+
+            # values in column that == missing_flag values, replace with NAs
+            # note numerical vals converted to strings first to match missing_flag formatting
+            df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
+
+            print('Updating missing values for: {}'.format(item))
+    except:
+        return None
 
     return df
 
