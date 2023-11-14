@@ -1449,7 +1449,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_frequent_vals(df, , rad_scheme='all_hours', plots=True, verbose=True):
+def qaqc_frequent_vals(df, rad_scheme='all_hours', plots=True, verbose=True):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
