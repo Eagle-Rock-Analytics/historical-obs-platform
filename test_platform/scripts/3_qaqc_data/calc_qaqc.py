@@ -54,31 +54,6 @@ def get_wecc_poly(terrpath, marpath):
 #======================================================================
 ## PART 1 functions (whole station/network)
 
-## missing value check: double check that all missing value observations are converted to NA before QA/QC
-def qaqc_missing_vals(df, verbose=True):
-    '''
-    Checks data to be qaqc'ed for any errant missing values that made it through cleaning
-    Converts those missing values to NAs
-    Searches for missing values in 2_clean_data/missing_data_flags.csv
-    '''
-
-    missing_vals = pd.read_csv('missing_data_flags.csv')
-
-    all_vars = [col for col in df.columns if 'qc' not in col]
-    obs_vars = [var for var in all_vars if var not in ['lon','lat']]
-
-    for item in obs_vars:
-        # pull missing values which are appropriate for the range of real values for each variable 
-        missing_codes = missing_vals.loc[missing_vals['variable'].str.contains(item) | missing_vals['variable'].str.contains('all')]
-
-        # values in column that == missing_flag values, replace with NAs
-        # note numerical vals converted to strings first to match missing_flag formatting
-        df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
-
-        print(item)
-
-    return df
-
 #----------------------------------------------------------------------
 # missing value cehck: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=True):
@@ -702,7 +677,7 @@ def iqr_range(df, month, var):
 
 #-----------------------------------------------------------------------------------------
 
-def standardize_iqr(df, var):
+def standardized_iqr(df, var):
     """Part 2: Standardizes data against the interquartile range
 
     Returns:
@@ -826,6 +801,30 @@ def create_bins(data, bin_size=0.25):
     return bins
 
 #-----------------------------------------------------------------------------------------
+
+def create_bins_frequent(df, var, bin_size=0.25):
+    '''Create bins from data covering entire data range'''
+
+    # ideally shouldn't have to have a separate function for this
+    
+    # grab data
+    data = df[var]
+    
+    # radiation handling
+    if var != 'rsds':
+        # set up bins
+        b_min = np.floor(np.nanmin(data))
+        b_max = np.ceil(np.nanmax(data))
+        bins = np.arange(b_min, b_max + 1, bin_size)
+        
+    else: 
+        b_min = 0
+        b_max = int(np.ceil(np.nanmax(data / 100))) * 100 # rounds up to next hundred
+        bins = np.arange(b_min, b_max + 50, bin_size)
+   
+    return bins
+
+#-----------------------------------------------------------------------------------------
 ## distribution gap flagging functions
 
 def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh=5, plot=True):
@@ -922,7 +921,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
                     df = df.loc[df['month'] == month]
                     
                     # standardize against IQR range
-                    df_month_iqr = iqr_standardize(df, var)
+                    df_month_iqr = standardized_iqr(df, var)
 
                     # determine number of bins
                     bins = create_bins(df_month_iqr)
@@ -1032,7 +1031,7 @@ def _plot_format_helper(var):
         
     elif var == 'rsds':
         ylab = 'Surface Radiation'
-        unit = '${W m^-2}$'
+        unit = '$W m{^-2}$'
 
     elif var == 'hurs':
         ylab = 'Humidity'
@@ -1113,7 +1112,7 @@ def dist_gap_part2_plot(df, month, var, network):
     df = df.loc[df['month'] == month]
     
     # standardize against IQR range
-    df_month_iqr = standardize_iqr(df, var)
+    df_month_iqr = standardized_iqr(df, var)
     
     # determine number of bins
     bins = create_bins(df_month_iqr)
@@ -1223,7 +1222,7 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
 #-----------------------------------------------------------------------------------------
 ## Frequent values check
 # flag unusually frequent values - if any one value has more than 50% of data in the bin
-def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
+def frequent_bincheck(df, var, data_group, rad_scheme):
     '''Approach: 
         - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
         - each bin compared to the three on either side
@@ -1247,33 +1246,35 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
     
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
+    elif var == 'rsds':
+        bin_s = 50
     else:
         bin_s = 1 
-        
-        
+         
     # radiation schemes for assessment
     if var == 'rsds':
         if rad_scheme == 'all_hours':
             # all valid observations included -- frequent flag will likely set on 0/nighttime hours
             print('Radiation frequent value check scheme: all_hours selected, will likely flag nighttime')
-            df = df
+            df_to_test = df
         
         elif rad_scheme == "day_hours":
             # only day hours -- 7am-8pm as "day"
             print('Radiation frequent value check scheme: day_hours selected, day set to 7am - 8pm')
             # 6am PST ~ 1400 UTC, 8pm PST ~ 4000 UTC
-            df = df.loc[(df.time.dt.hour >= 14) | (df.time.dt.hour <=4)]
+            df_to_test = df.loc[(df.time.dt.hour >= 14) | (df.time.dt.hour <=4)]
             
         elif rad_scheme == "remove_zeros":
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
             print('Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions')
-            df = df.loc[df[var] != 0]
-    
+            df_to_test = df.loc[df[var] >= bin_s]
+    else: # all other variables
+        df_to_test = df
     
     # all data/annual checks
     if data_group == 'all':
-        bins = create_bins(df[var], bin_size=bin_s) 
-        bar_counts, bins = np.histogram(df[var], bins=bins)
+        bins = create_bins_frequent(df_to_test, var, bin_size=bin_s) 
+        bar_counts, bins = np.histogram(df_to_test[var], bins=bins)
         flagged_bins = bins_to_flag(bar_counts, bins)
         
         # flag values in that bin as suspect
@@ -1283,21 +1284,22 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
                     # DECISION: preliminary flag? and then remove if okay/reset to nan?
                 df.loc[(df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
                        var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
-    
+
     #============================================================================================================
        
     elif data_group == 'annual':
-        for yr in df.year.unique():
-            df_yr = df.loc[df['year'] == yr]
+        for yr in df_to_test.year.unique():
+            df_yr = df_to_test.loc[df_to_test['year'] == yr]
             if df_yr[var].isna().all() == True: # some vars will have nan years
                 continue
-            bins = create_bins(df_yr[var], bin_size=bin_s) # using 1 degC/hPa bin width
+            bins = create_bins_frequent(df_yr, var, bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_yr[var], bins=bins)
             flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=10)
             
             if len(flagged_bins) != 0:
+                print('Flagging bin: ', flagged_bins)
+
                 for sus_bin in flagged_bins:
-                    print('Flagging bin: ', sus_bin)
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
                            var+'_eraqc'] = 23 # see era_qaqc_flag_meanings.csv
     
@@ -1305,10 +1307,10 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
     # seasonal checks require special handling
     elif data_group == 'seasonal_all':
         for szn in szns:
-            df_szn = df.loc[(df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])]
-            if df_szn[var].isna().all() == True: # some vars will have nans years
-                continue 
-            bins = create_bins(df_szn[var], bin_size=bin_s) # using 1 degC/hPa bin width
+            df_szn = df_to_test.loc[(df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2])]
+            if df_szn[var].isna().all() == True:
+                continue
+            bins = create_bins_frequent(df_szn, var, bin_size=bin_s) # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_szn[var], bins=bins)
             flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=20)
             
@@ -1321,28 +1323,29 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
     #============================================================================================================
                 
     elif data_group == 'seasonal_annual':        
-        for yr in df.year.unique():
+        for yr in df_to_test.year.unique():
             for szn in szns:
                   
                 # all seasons except winter
                 if szn != [12,1,2]:
-                    df_szn = df.loc[(df['year']==yr) & 
-                                    ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2]))] 
+                    df_szn = df_to_test.loc[(df_to_test['year']==yr) & 
+                                    ((df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2]))] 
                     
                     if df_szn[var].isna().all() == True: # some vars will have nan years
                         continue
 
-                    if yr==df.loc[df.index[-1],'year']:
+                    if yr==df_szn.loc[df_szn.index[-1],'year']:
                         if len(df_szn)==0:
                             break # after last season in last year
 
-                    bins = create_bins(df_szn[var], bin_size=bin_s) # using 1 degC/hPa bin width
+                    bins = create_bins_frequent(df_szn, var, bin_size=bin_s) # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_szn[var], bins=bins)
                     flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
 
                     if len(flagged_bins) != 0:
+                        print('Flagging bins: ', flagged_bins)
+
                         for sus_bin in flagged_bins:
-                            print('Flagging bin: ', sus_bin)
                             df.loc[(df['year']==yr) & 
                                   ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) &
                                    (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
@@ -1350,10 +1353,10 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
 
                 # special handling for winter because of december
                 else:
-                    df_yr = df.loc[df['year'] == yr] # that year's jan, feb, and wrong dec            
+                    df_yr = df_to_test.loc[df_to_test['year'] == yr] # that year's jan, feb, and wrong dec            
                     df_jf = df_yr.loc[(df_yr['month']==1) | (df_yr['month']==2)] # that specific year's jan and feb
 
-                    df_d = df.loc[(df['year'] == yr-1) & (df['month'] == 12)] # previous year's dec
+                    df_d = df_to_test.loc[(df_to_test['year'] == yr-1) & (df_to_test['month'] == 12)] # previous year's dec
                     if len(df_d) == 0: # catching very first year instance
                         df_djf = df_jf 
                         print('Winter season: proceeding with just Jan/Feb, no previous Dec') ## DECISION
@@ -1365,13 +1368,14 @@ def frequent_bincheck(df, var, data_group, rad_scheme='all_hours'):
                     if df_djf[var].isna().all() == True: # some vars will have nan years
                         continue
                                         
-                    bins = create_bins(df_djf[var], bin_size=bin_s) # using 1 degC/hPa bin width
+                    bins = create_bins_frequent(df_djf, var, bin_size=bin_s) # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_djf[var], bins=bins)
                     flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
 
                     if len(flagged_bins) != 0:
+                        print('Flagging bins: ', flagged_bins)
+
                         for sus_bin in flagged_bins:
-                            print('Flagging bin: ', sus_bin)
                             # flag jan feb
                             df.loc[(df['year']==yr) & 
                                    ((df['month']==szn[1]) | (df['month']==szn[2])) &
@@ -1449,7 +1453,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_frequent_vals(df, rad_scheme='all_hours', plots=True, verbose=True):
+def qaqc_frequent_vals(df, rad_scheme='remove_zeros', plots=True, verbose=True):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -1463,6 +1467,7 @@ def qaqc_frequent_vals(df, rad_scheme='all_hours', plots=True, verbose=True):
     Input:
     -----
         df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        rad_scheme [str]: radiation handling for frequent occurence of valid zeros
         plots [bool]: if True, produces plots of any flagged data and saved to AWS
 
     Returns:
@@ -1491,6 +1496,7 @@ def qaqc_frequent_vals(df, rad_scheme='all_hours', plots=True, verbose=True):
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
     for var in vars_to_check:
+        print('Running frequent values check on: {}'.format(var))
 
         # TO DO: still to implement -- only using non-flagged data, previous attempts were causing problems with resetting final index again
         
@@ -1559,7 +1565,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
     '''Plotting helper with common plotting elements for all 3 versions of this plot'''
     
     # plot all valid data within year/season
-    _plot = df.plot.hist(column=var, bins=bins, legend=False, alpha=0.5)
+    _plot = df.plot.hist(column=var, bins=bins, color='k', legend=False, alpha=0.5)
     
     # plot flagged values
     # first identify which values are flagged
@@ -1586,10 +1592,11 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
     plt.legend(('Valid', 'Flagged'), loc='upper right')
     ax = plt.gca()
     leg = ax.get_legend()
-    leg.legend_handles[1].set_color('r') # set flagged bar to red
+    leg.legend_handles[0].set_color('k') # set valid to blue
+    leg.legend_handles[-1].set_color('r') # set flagged bar to red
     
     if var == 'rsds':
-        plt.annotate('Sfc. Radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.9), xycoords='axes fraction', fontsize=10)
+        plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
         
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
@@ -1618,7 +1625,17 @@ def frequent_vals_plot(df, var, rad_scheme):
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
     is visually flagged
     ''' 
-    bins = create_bins(df[var], 1)
+    # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
+    ps_vars = ['ps', 'ps_altimeter', 'psl']
+        
+    if var in ps_vars: 
+        bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
+    elif var == 'rsds':
+        bin_s = 50
+    else:
+        bin_s = 1 
+        
+    bins = create_bins_frequent(df, var, bin_s)
     
     # first identify which values are flagged and "where"
     
@@ -1634,7 +1651,6 @@ def frequent_vals_plot(df, var, rad_scheme):
             df_to_plot = df.loc[df['year']==y]
             _plot = frequent_plot_helper(df_to_plot, var, bins, flag=23, yr=y, rad_scheme=rad_scheme)
             
-
     ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
     flag_df = df.loc[df[var+'_eraqc'] == 24]
     

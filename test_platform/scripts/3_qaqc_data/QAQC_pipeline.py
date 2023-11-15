@@ -226,6 +226,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
+
     
     ##########################################################
     ## QAQC Functions
@@ -429,11 +430,25 @@ def run_qaqc_pipeline(ds, network, file_name,
     #-----------------------------------------------------------------
     # Distribution checks
 
+    # unusual gaps
+    new_df = qaqc_unusual_gaps(stn_to_qaqc)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with unusual gap distribution function for", 
+                                    test="qaqc_unusual_gaps",
+                                    verbose=verbose
+                                    )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_unusual_gaps')
+
+    #-----------------------------------------------------------------
     # frequent values
     new_df = qaqc_frequent_vals(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function for", 
+                                    message="Flagging problem with frequent values function for", 
                                     test="qaqc_frequent_vals",
                                     verbose=verbose
                                     )
@@ -441,7 +456,8 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_frequent_vals')
-            
+
+    
     #-----------------------------------------------------------------
 
 #     #-----------------------------------------------------------------
