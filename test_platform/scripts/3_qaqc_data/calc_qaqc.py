@@ -1198,7 +1198,54 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
     
     return df_part2
 
-#----------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
+
+# climatological outlier check
+def qaqc_climatological_outlier(df, plot=True, verbose=True):
+    '''
+    Test for climatological outlier obsevations, as individual gross outliers from climatological distribution.
+    Only applied to air temperature and dew point temperature
+    
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        plots [bool]: if True, produces plots of any flagged data and saved to AWS
+            
+    Returns:
+    --------
+        qaqc success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        qaqc failure:
+            None
+            
+    Flag meaning:
+    -------------
+        25,qaqc_climatological_outlier,Value flagged as a climatological outlier
+        26,qaqc_climatological_outlier,Value flagged as a tentative climatological outlier. Review in neighboring stations check.
+    '''
+
+
+    return df
+
+#-----------------------------------------------------------------------------------------
+
+def winsorise_data(df, var, percent=0.05):
+    '''
+    Winsorising: all values beyond a threshold value from the mean are set to that threshold value
+        - Removes initial effect of outliers
+        - HadISD uses 5% and 95%
+        - Result: Population size remains the same, instead of trimming those observations from data
+    '''
+    
+    # find observations beyond these thresholds and set to the percentile value at that point
+    p_low = np.nanpercentile(df[var], percent)
+    p_high = np.nanpercentile(df[var], 1-percent)
+    print(p_low, p_high)
+        
+    df.loc[df[var] < p_low, var] = p_low
+    df.loc[df[var] > p_high, var] = p_high
+            
+    return df
 # To do
 # establish false positive rate
 # unit tests on each of these functions(?)
