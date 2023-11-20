@@ -184,7 +184,7 @@ def process_output_ds(df, attrs, var_attrs,
 ## Run full QA/QC pipeline
 def run_qaqc_pipeline(ds, network, file_name, 
                       errors, station, end_api, 
-                      verbose=True):
+                      rad_scheme, verbose=True):
     """
     """
 
@@ -445,7 +445,7 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #-----------------------------------------------------------------
     # frequent values
-    new_df = qaqc_frequent_vals(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                     message="Flagging problem with frequent values function for", 
@@ -488,7 +488,7 @@ def run_qaqc_pipeline(ds, network, file_name,
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
+def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
     """
     """    
     print()
@@ -512,7 +512,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
         -----------------------------------
         for station in ['ASOSAWOS_72676324198']: 
         this is the smallest ASOSAWOS file
-        takes ~10 seconds to run for Victoria
         -----------------------------------
         """
         # TESTING SUBSET
@@ -571,7 +570,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                         if verbose:
                             print("Running QA/QC pipeline on {}".format(aws_url), flush=True)
                         df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                 station, end_api, verbose=verbose)
+                                                                 station, end_api, rad_scheme, verbose=verbose)
                         if verbose:
                             print("Done running QA/QC pipeline. Ellapsed time: {:.2f} s.".
                                   format(time.time()-t0), flush=True) 

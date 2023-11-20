@@ -1268,6 +1268,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
             print('Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions')
             df_to_test = df.loc[df[var] >= bin_s]
+            
     else: # all other variables
         df_to_test = df
     
@@ -1453,7 +1454,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 #-----------------------------------------------------------------------------------------
 
-def qaqc_frequent_vals(df, rad_scheme='remove_zeros', plots=True, verbose=True):
+def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
