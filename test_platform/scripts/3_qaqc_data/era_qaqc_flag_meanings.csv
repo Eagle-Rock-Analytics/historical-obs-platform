@@ -20,3 +20,4 @@
 19,qaqc_unusual_gaps,Warning: Variable has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality.
 20,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
 21,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
+25,qaqc_climatological_outlier,Value flagged as a climatological outlier for specific month and hour
