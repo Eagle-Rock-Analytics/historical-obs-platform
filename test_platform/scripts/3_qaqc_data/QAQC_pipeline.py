@@ -471,7 +471,6 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     #-----------------------------------------------------------------
 
-    
     # Re-index to original time/station values
     stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
     

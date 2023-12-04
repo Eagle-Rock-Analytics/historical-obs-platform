@@ -29,5 +29,8 @@ MM,NDBC,all,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/meas
 -9999.0,NOS-PORTS,all,,https://tidesandcurrents.noaa.gov/publications/tech_rpt_026.pdf
 -30479.6952,ASOSAWOS,elevation,elevation bad value,in cleaned data
 -99900.0,VCAPCD,ps,,in cleaned data
--725.86,VCAPCD,tas,,in cleaned data
+-725.86,VCAPCD,tas;tdps;tdps_derived,,in cleaned data
+-725.85,VCAPCD,tas;tdps;tdps_derived,,in cleaned data
+61.25,VCACPD,tdps;tdps_derived,,in cleaned data
+73.33,VCAPCD,tas,,in cleaned data
 -998.36,VCAPCD,sfcWind,,in cleaned data
