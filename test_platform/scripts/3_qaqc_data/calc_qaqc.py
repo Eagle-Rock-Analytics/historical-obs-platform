@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import math
 from io import BytesIO, StringIO
 import scipy.stats as stats
+from scipy.stats.mstats import winsorize
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -1637,14 +1638,16 @@ def winsorize_temps(df, vars_to_anom, winz_limits):
     for var in vars_to_anom:
         for m in range(1,13,1):
             for h in range(0,24,1):
-                
-                df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
-                
-                # winsorize only vars in vars_to_anom
-                df_w = winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
-                
-                df2.loc[(df.time.dt.month == m) & (df.time.dt.hour == h),
-                       var] = df_w
+                if h not in df.loc[df.time.dt.hour == h]:
+                    continue # some stations only report some hours
+                else:
+                    df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
+
+                    # winsorize only vars in vars_to_anom
+                    df_w = winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
+
+                    df2.loc[(df.time.dt.month == m) & (df.time.dt.hour == h),
+                           var] = df_w
                 
     return df2
 
