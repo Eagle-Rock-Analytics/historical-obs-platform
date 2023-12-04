@@ -785,6 +785,22 @@ def create_bins(data, bin_size=0.25):
     return bins
 
 #-----------------------------------------------------------------------------------------
+def pdf_bounds(df, mu, sigma, bins):
+    '''Calculate pdf distribution, return pdf and threshold bounds'''
+
+    y = stats.norm.pdf(bins, mu, sigma)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] -1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd - 1, right_bnd + 1)
+    
+    return (y, left_bnd - 1, right_bnd + 1)
+
+#-----------------------------------------------------------------------------------------
 def _plot_format_helper(var):
     """Helper function for plots"""
 
@@ -1554,7 +1570,315 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         return None
 
 #-----------------------------------------------------------------------------------------
+# climatological outlier check
+def clim_mon_mean_hourly(df, var, month, hour):
+    '''Calculate the monthly mean climatology for each of the day'''
+    
+    df_m_h = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)]
+    clim_value = df_m_h[var].mean(numeric_only = True)
+    
+    # special handling if value is nan? 
+    
+    return clim_value
 
+#----------------------------------------------------------------------
+def iqr_range_monhour(df, var, month, hour):
+    '''Calculates the monthly interquartile range per hour'''
+    
+    q1 = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)].quantile(0.25, numeric_only=True)
+    q3 = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)].quantile(0.75, numeric_only=True)
+    
+    iqr_df = q3 - q1
+    iqr_df_val = iqr_df[var]
+    
+    # iqr cannot be less than 1.5°C in order to preserve low variance stations
+    if iqr_df_val < 1.5:
+        iqr_df_val = 1.5
+    else:
+        iqr_df_val = iqr_df_val
+            
+    return iqr_df_val
+
+#----------------------------------------------------------------------
+def clim_standardized_anom(df, vars_to_anom):
+    '''
+    First anomalizes data by monthly climatology for each hour, then
+    standardizes by the monthly climatological anomaly IQR for each hour
+    '''
+    
+    df2 = df.copy()
+    
+    for var in vars_to_anom:
+        for m in range(1,13,1):
+            for h in range(0,24,1):
+                # each hour in each month
+                anom_value = clim_mon_mean_hourly(df, var, month=m, hour=h)
+                iqr_value = iqr_range_monhour(df, var, month=m, hour=h)
+                
+                # locate obs within specific month/hour
+                df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
+                
+                # calculate the monthly climatological anomaly by hour and standardize by iqr
+                df2.loc[(df.time.dt.month == m) & 
+                        (df.time.dt.hour == h), 
+                        var] = (df_m_h[var] - anom_value) / iqr_value
+                
+    return df2
+
+#----------------------------------------------------------------------
+def winsorize_temps(df, vars_to_anom, winz_limits):
+    '''
+    Replaces potential spurious outliers by limiting the extreme values
+    using the winz_limits set (default is 5% and 95% percentiles)
+    '''
+    
+    df2 = df.copy()
+    
+    for var in vars_to_anom:
+        for m in range(1,13,1):
+            for h in range(0,24,1):
+                
+                df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
+                
+                # winsorize only vars in vars_to_anom
+                df_w = winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
+                
+                df2.loc[(df.time.dt.month == m) & (df.time.dt.hour == h),
+                       var] = df_w
+                
+    return df2
+
+#----------------------------------------------------------------------
+def median_yr_anom(df, var):
+    '''Get median anomaly per year'''
+    
+    monthly_anoms = []
+    
+    # identify years in data
+    years = df.time.dt.year.unique()
+    
+    for yr in years:
+        df_yr = df.loc[df.time.dt.year == yr]
+
+        ann_anom = df_yr[var].median()
+        monthly_anoms.append(ann_anom)
+        
+    return monthly_anoms
+
+#----------------------------------------------------------------------
+def low_pass_filter_weights(median_anoms, month_low, month_high, filter_low, filter_high):
+    '''Calculates weights for low pass filter'''
+    
+    filter_wgts = [1, 2, 3, 2, 1]
+    
+    if np.sum(filter_wgts[filter_low:filter_high] * 
+              np.ceil(median_anoms[month_low:month_high] - 
+                      np.floor(median_anoms[month_low:month_high]))) == 0:
+        weight = 0
+    
+    else:
+        weight = (
+            np.sum(filter_wgts[filter_low:filter_high] * np.ceil(median_anoms[month_low:month_high])) / 
+            np.sum(filter_wgts[filter_low:filter_high] * np.ceil(median_anoms[month_low:month_high] - 
+                                                                 np.floor(median_anoms[month_low:month_high])))
+        )
+        
+    return weight
+
+#----------------------------------------------------------------------
+def low_pass_filter(df, vars_to_anom):
+    '''
+    Low pass filtering on observations to remove any climate change signal 
+    causing overzealous removal at ends of time series
+    '''
+    # identify years in data
+    years = df.time.dt.year.unique()
+    
+    for var in vars_to_anom:
+        
+        median_anoms = median_yr_anom(df, var)
+    
+        for yr in range(len(years)):
+            if yr == 0:
+                month_low, month_high = 0, 3
+                filter_low, filter_high = 2, 5
+                
+            elif yr == 1:
+                month_low, month_high = 0, 4
+                filter_low, filter_high = 1, 5
+                
+            elif yr == len(years)-2:
+                month_low, month_high = -4, -1
+                filter_low, filter_high = 0, 3
+
+            elif yr == len(years)-1:
+                month_low, month_high = -3, -1
+                filter_low, filter_high = 0, 2
+
+            else:
+                month_low, month_high = yr-2, yr+3
+                filter_low, filter_high = 0, 5
+                            
+            if np.sum(np.abs(median_anoms[month_low:month_high])) != 0:
+                weights = low_pass_filter_weights(median_anoms, month_low, month_high, filter_low, filter_high)
+                      
+            # want to return specific year of data at a specific variable, the variable minus weight value
+            df.loc[(df.time.dt.year == years[yr]), var] = df.loc[df.time.dt.year == years[yr]][var] - weights
+            
+    return df
+
+#----------------------------------------------------------------------
+def clim_outlier_plot(df, var, month, network):
+    '''
+    Produces a histogram of monthly standardized distribution
+    with PDF overlay and threshold lines where pdf falls below y=0.1.
+    Any bin that is outside of the threshold is visually flagged.
+    
+    Differs from dist_gap_part2_plot for the climatological outlier
+    as IQR standardization does not occur within plotting
+    '''
+    
+    # select month
+    df = df.loc[df.time.dt.month == month]
+    
+    # determine number of bins
+    bins = create_bins(df)
+    
+    # plot histogram
+    ax = plt.hist(df, bins=bins, log=False, density=True, alpha=0.3)
+    xmin, xmax = plt.xlim()
+    plt.ylim(ymin=0.1)
+    
+    # plot pdf
+    mu = np.nanmean(df)
+    sigma = np.nanmean(df)
+    y = stats.norm.pdf(bins, mu, sigma)
+    l = plt.plot(bins, y, 'k--', linewidth=1)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+    
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] - 1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd - 1, right_bnd + 1)
+    
+    plt.axvline(thresholds[1], color='r') # right tail
+    plt.axvline(thresholds[0], color='r') # left tail
+    
+    # flag visually obs that are beyond threshold
+    for bar in ax[2].patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x > thresholds[1]: # right tail
+            bar.set_color('r')
+        elif x < thresholds[0]: # left tail
+            bar.set_color('r')
+            
+    # title and useful annotations
+    plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.ylabel('Frequency (obs)')
+    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png')
+    img_data.seek(0)
+    
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    figname = 'qaqc_climatological_outlier_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                     Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                     directory, network, figname))
+    
+    # close figures to save memory
+    plt.close()
+
+#----------------------------------------------------------------------
+def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=True):
+    '''
+    Flags individual gross outliers from climatological distribution.
+    Only applied to air temperature and dew point temperature
+    
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        plots [bool]: if True, produces plots of any flagged data and saved to AWS
+        winsorize [bool]: if True, raw observations are winsorized to remove spurious outliers first
+        winz_limits [list]: if winsorize is True, values represent the low and high percentiles to standardize to
+            
+    Returns:
+    --------
+        qaqc success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        qaqc failure:
+            None
+            
+    Flag meaning:
+    -------------
+        25,qaqc_climatological_outlier,Value flagged as a climatological outlier
+    ''' 
+    
+    vars_to_check = ['tas', 'tdps', 'tdps_derived']
+    vars_to_anom = [v for v in vars_to_check if v in df.columns]
+    
+    # TO DO: filter to only use non-flagged data
+
+    # winsorize data by percentiles
+    if winsorize == True:
+        df_std = winsorize_temps(df, vars_to_anom, winz_limits)
+    else:
+        df_std = df
+        
+    # standardize data by monthly climatological anomalies by hour
+    df_std = clim_standardized_anom(df_std, vars_to_anom)
+
+    # apply low pass filter
+    df_std = low_pass_filter(df_std, vars_to_anom)
+    
+    # gaussian is fitted to the histogram of anomalies for each month
+    # similar to distributional gap check
+    # FUTURE DEV (v2 of product):
+        # HadISD: obs that fall between critical threshold value and gap or critical threshold and end of distribution are tentatively flagged
+        # May be later reinstated on comparison with good data from neighboring stations
+            
+    for var in vars_to_anom:
+        for month in range(1,13):
+            print('Searching for outliers in {0} in month {1}...'.format(var, month))
+            df_m = df_std.loc[df_std.time.dt.month == month]
+            
+            # determine number of bins
+            bins = create_bins(df_m[var])
+
+            # pdf
+            mu = np.nanmean(df_m[var])
+            sigma = np.nanstd(df_m[var])
+
+            y, left_bnd, right_bnd = pdf_bounds(df_m[var], mu, sigma, bins)
+
+            # identify gaps as below y=0.1 from histogram, not pdf
+            y_hist, bins = np.histogram(df_m[var], bins=bins, density=True)
+            
+            # identify bin indices outside of thresholds and check if bin is above 0.1
+            bins_to_check = [i for i, n in enumerate(bins) if n <= left_bnd or n >= right_bnd][:-1] # remove last item due to # of bins exceeding hist by 1
+            if len(bins_to_check) != 0:
+                for b in bins_to_check:
+                    if y_hist[b] > 0.1:
+                        print('Flagging {0} bins in {1}'.format(len(b), var))
+                        # list of index of full df to flag, not standardized df
+                        idx_to_flag = [i for i in df_m.loc[(df[var] >= bins[b]) & (df2[var] < bins[b+1])].index]  
+                        df.loc[df.index == idx_to_flag, var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv 
+                
+    if plot == True:
+        for var in vars_to_anom:
+            if 25 in df[var+'_eraqc'].values: # only plot a figure if flag is present
+                clim_outlier_plot(df, var, network=df['station'].unique()[0])
+                
+    return df
 
 #----------------------------------------------------------------------
 # To do

@@ -455,6 +455,21 @@ def run_qaqc_pipeline(ds, network, file_name,
             print('pass qaqc_unusual_large_jumps')  
 
     #-----------------------------------------------------------------
+    # Climatological outlier check
+    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api,
+                                   message="Flagging problem with climatological outlier check for",
+                                   test="qaqc_climatological_outlier",
+                                   verbose=verbose
+                                   )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_climatological_outlier')
+    
+    #-----------------------------------------------------------------
+
     
     # Re-index to original time/station values
     stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
