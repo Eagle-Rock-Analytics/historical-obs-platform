@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="ALLNETWORKS_qaqc",
         description="""This script performs qa/qc protocols for cleaned station data for ingestion into the Historical 
-                       observations Platform, and is independent of network.""",
+                       Observations Platform, and is independent of network.""",
         epilog="""Possible stations:
                   [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
                    HOLFUY, HPWREN, LOXWFOMAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
@@ -32,15 +32,17 @@ if __name__ == "__main__":
     
     # Define arguments for the program
     parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
-    parser.add_argument('-v', '--verbose', default=True, help="printing statemets throughout script", type=bool)
+    parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options", type=str)
+    parser.add_argument('-v', '--verbose', default=True, help="Print statements throughout script", type=bool)
     
     # Parse arguments
     args = parser.parse_args()
     network = args.network
+    rad_scheme = args.rad_scheme
     verbose = args.verbose
         
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, verbose=verbose)
+    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
