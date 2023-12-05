@@ -38,7 +38,6 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir, mergedir
 
 #----------------------------------------------------------------------
-
 def get_wecc_poly(terrpath, marpath):
     """
     Identifies a bbox of WECC area to filter stations against
@@ -280,7 +279,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
     pr_vars = [var for var in pr_vars if 'duration' not in var]
 
     if not pr_vars: # precipitation variable(s) is not present
-        print('station does not report precipitation - bypassing precip logic nonnegvals check')
+        print('Station does not report precipitation - bypassing precip logic nonnegvals check')
         return None
     else:
         for item in pr_vars:
@@ -321,7 +320,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     pr_vars = [var for var in pr_vars if 'duration' not in var]
 
     if not pr_vars: # precipitation variable(s) is not present
-        print('station does not report precipitation - bypassing precip logic accum check')
+        print('Station does not report precipitation - bypassing precip logic accum check')
         return None
     
     # if station does not report any precipitation values, or only one, bypass
@@ -483,6 +482,7 @@ def qaqc_sensor_height_w(df, verbose=True):
         if isHeightMissing:
             # df.loc[:,'sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
             # df.loc[:,'sfcWind_dir_eraqc'] = 8
+            print('Station anemometer height is missing - wind variables will not proceed through QA/QC')
             df['sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
             df['sfcWind_dir_eraqc'] = 8
 
@@ -491,6 +491,7 @@ def qaqc_sensor_height_w(df, verbose=True):
             isHeightWithin = df['anemometer_height_m'][0] >= (10 - 1/3) and df['anemometer_height_m'][0] <= (10 + 1/3)
             # Anemometer height present but outside 10m +/- tolerance
             if not isHeightWithin:
+                print('Station anemometer height is outside range - wind variables will not proceed through QA/QC ')
                 df['sfcWind_eraqc'] = 9
                 df['sfcWind_dir_eraqc'] = 9 
         return df
@@ -514,6 +515,7 @@ def qaqc_sensor_height_t(df, verbose=True):
 
         if isHeightMissing:
             # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
+            print('Station thermometer height is missing - air temperature will not proceed through QA/QC')
             df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
         else:
             isHeightWithin = np.logical_and(df['thermometer_height_m'] >= (2 - 1/3),
@@ -522,6 +524,7 @@ def qaqc_sensor_height_t(df, verbose=True):
             # Thermometer height present but outside 10m +/- tolerance
             if not isHeightWithin:
                 # df.loc[:, 'tas_eraqc'] = 7
+                print('Station thermometer height is outside range - air temperature will not proceed through QA/QC')
                 df['tas_eraqc'] = 7
 
         return df
@@ -584,15 +587,19 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
         # dew point is not present
         if not all_dew_vars:
             if verbose:
-                print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+                print('Station does not report dew point temperature - bypassing temperature cross-variable logic check')
         # dew point is present
         else:
-            for var in all_dew_vars: 
-                isBad = df[var] > df['tas']
-                df.loc[isBad, var + '_eraqc'] = 12 # see qaqc_flag_meanings.csv
-                if verbose:
-                    print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.
-                          format(var, df[var + '_eraqc'].unique()))
+            for var in all_dew_vars:
+                # Skip check if temp sensor flag placed
+                if (6 in df['tas_eraqc'].unique()) or (7 in df['tas_eraqc'].unique()):
+                    return df
+                else:
+                    isBad = df[var] > df['tas']
+                    df.loc[isBad, var + '_eraqc'] = 12 # see qaqc_flag_meanings.csv
+                    if verbose:
+                        print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.
+                            format(var, df[var + '_eraqc'].unique()))
         return df
     
     except Exception as e:
@@ -604,7 +611,7 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
 def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
     """
     Checks that wind direction is zero when wind speed is also zero.
-    If fails, wind direction is flagged. # only flag wind direction?
+    If fails, wind direction is flagged.
     """
     try:
         # Noting that a wind direction value of 0 is a valid value
@@ -613,24 +620,28 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         # First check that wind direction is provided
         if 'sfcWind_dir' not in df.columns:
             if verbose:
-                print('station does not report wind direction - bypassing wind cross-variable logic check')
+                print('Station does not report wind direction - bypassing wind cross-variable logic check')
                 return df
+
+        # Skip check if aneomemter sensor flag placed
+        if (8 in df['sfcWind_eraqc'].unique()) or (9 in df['sfcWind_eraqc'].unique()):
+            return df
+        else:
+            # First, identify calm winds but with incorrect wind directions
+            isCalm = df['sfcWind'] == 0
+            isDirNotZero = df['sfcWind_dir'] != 0
+            isNotNan = ~df['sfcWind_dir'].isnull()
+            isBad = isCalm & isDirNotZero & isNotNan
             
-        # First, identify calm winds but with incorrect wind directions
-        isCalm = df['sfcWind'] == 0
-        isDirNotZero = df['sfcWind_dir'] != 0
-        isNotNan = ~df['sfcWind_dir'].isnull()
-        isBad = isCalm & isDirNotZero & isNotNan
-        
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
-        
-        # Next, identify non-zero winds but with incorrect wind directions
-        # Non-zero northerly winds should be coded as 360 deg, not 0 deg
-        isNotCalm = df['sfcWind'] != 0
-        isDirZero = df['sfcWind_dir'] == 0
-        isBad = isNotCalm & isDirZero & isNotNan
-        
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
+            df.loc[isBad, 'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
+            
+            # Next, identify non-zero winds but with incorrect wind directions
+            # Non-zero northerly winds should be coded as 360 deg, not 0 deg
+            isNotCalm = df['sfcWind'] != 0
+            isDirZero = df['sfcWind_dir'] == 0
+            isBad = isNotCalm & isDirZero & isNotNan
+            
+            df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
         
         if verbose:
             print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.
@@ -732,6 +743,11 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     pass_flag = 'pass'
     
     for var in vars_to_check:
+        if var == 'tas':
+            # sensor height check - skip check if temp sensor flag placed
+            if (6 in df['tas_eraqc'].unique()) or (7 in df['tas_eraqc'].unique()):
+                pass_flag = 'fail'
+
         for month in range(1,13):
             # first check num of months in order to continue
             month_to_check = df.loc[df['month'] == month]
@@ -910,68 +926,68 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
 
-    # whole station bypass check first
-    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
+    # # whole station bypass check first
+    # df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
     
-    if pass_flag != 'fail':
+    # if pass_flag != 'fail':
         
-        for var in vars_to_check:
-            for month in range(1,13):
+    for var in vars_to_check:
+        for month in range(1,13):
+            
+            # per variable bypass check
+            df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
+            if 19 in df[var+'_eraqc']:
+                continue # skip variable 
+            
+            # station has above min_num_months number of valid observations, proceed with dist gap check
+            else:
+                # from center of distribution, scan for gaps (where bin = 0)
+                # when gap is found, and it is at least 2x bin width
+                # any bins beyond end of gap + beyond threshold value are flagged
                 
-                # per variable bypass check
-                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
-                if 19 in df[var+'_eraqc']:
-                    continue # skip variable 
+                # subset by month
+                df = df.loc[df['month'] == month]
                 
-                # station has above min_num_months number of valid observations, proceed with dist gap check
-                else:
-                    # from center of distribution, scan for gaps (where bin = 0)
-                    # when gap is found, and it is at least 2x bin width
-                    # any bins beyond end of gap + beyond threshold value are flagged
-                    
-                    # subset by month
-                    df = df.loc[df['month'] == month]
-                    
-                    # standardize against IQR range
-                    df_month_iqr = iqr_standardize(df, var)
+                # standardize against IQR range
+                df_month_iqr = iqr_standardize(df, var)
 
-                    # determine number of bins
-                    bins = create_bins(df_month_iqr)
-                    
-                    # pdf
-                    mu = np.nanmean(df_month_iqr)
-                    sigma = np.nanstd(df_month_iqr)
+                # determine number of bins
+                bins = create_bins(df_month_iqr)
+                
+                # pdf
+                mu = np.nanmean(df_month_iqr)
+                sigma = np.nanstd(df_month_iqr)
 
-                    y, left_bnd, right_bnd = pdf_bounds(df_month_iqr, mu, sigma, bins)
-                    
-                    # identify gaps as below y=0.1 from histogram, not pdf                    
-                    y_hist, bins = np.histogram(df_iqr, bins=bins, density=True)
-                    
-                    # identify climatology and iqr baselines in order to flag
-                    iqr_baseline = iqr_range(df, month=month, var=var)
-                    clim = median_clim(df, month=month, var=var)
-                                        
-                    # gaps are only flagged for values beyond left_bnd, right_bnd, as long as gap is 2*bin_width (2*0.25)
-                    # considering that the # of bins for threshold is (4,7) from y=0.1
-                    # safe to assume that gap is present if values >0.1 outside of left_bnd, right_bnd
-                    bins_beyond_left_bnd = np.argwhere(bins <= left_bnd)
-                    if len(bins_beyond_left_bnd) != 0: 
-                        for data in bins_beyond_left_bnd:
-                            if y_hist[data] > 0.1: # bins with data > 0.1 beyond left_bnd
-                                
-                                # identify values beyond left bnd
-                                vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
-                                df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                y, left_bnd, right_bnd = pdf_bounds(df_month_iqr, mu, sigma, bins)
+                
+                # identify gaps as below y=0.1 from histogram, not pdf                    
+                y_hist, bins = np.histogram(df_iqr, bins=bins, density=True)
+                
+                # identify climatology and iqr baselines in order to flag
+                iqr_baseline = iqr_range(df, month=month, var=var)
+                clim = median_clim(df, month=month, var=var)
+                                    
+                # gaps are only flagged for values beyond left_bnd, right_bnd, as long as gap is 2*bin_width (2*0.25)
+                # considering that the # of bins for threshold is (4,7) from y=0.1
+                # safe to assume that gap is present if values >0.1 outside of left_bnd, right_bnd
+                bins_beyond_left_bnd = np.argwhere(bins <= left_bnd)
+                if len(bins_beyond_left_bnd) != 0: 
+                    for data in bins_beyond_left_bnd:
+                        if y_hist[data] > 0.1: # bins with data > 0.1 beyond left_bnd
+                            
+                            # identify values beyond left bnd
+                            vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
+                            df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
 
 
-                    bins_beyond_right_bnd = np.argwhere(bins >= right_bnd)
-                    if len(bins_beyond_right_bnd) != 0:
-                        for data in bins_beyond_right_bnd:
-                            if y_hist[data] > 0.1: # bins with data > 0.1 beyond right_bnd
-                                
-                                # identify values beyond right bnd
-                                vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                                df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                bins_beyond_right_bnd = np.argwhere(bins >= right_bnd)
+                if len(bins_beyond_right_bnd) != 0:
+                    for data in bins_beyond_right_bnd:
+                        if y_hist[data] > 0.1: # bins with data > 0.1 beyond right_bnd
+                            
+                            # identify values beyond right bnd
+                            vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
+                            df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
                     
     if plot==True:
         for month in range(1,13):
@@ -1545,6 +1561,9 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             new_df = df.copy(deep=True)
             new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
             # Use only values that have not been flagged by previous QAQC tests
+            # sensor height check - skip check if temp sensor flag placed
+            if (6 in df['tas_eraqc'].unique()) or (7 in df['tas_eraqc'].unique()):
+                continue # skip to next variable
             valid = np.where(np.isnan(new_df[var+"_eraqc"]))[0]
             new_df = new_df.iloc[valid]
             # Detect spikes
@@ -1833,9 +1852,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     else:
         for var in vars_to_anom:      
             # only work with non-flagged values
-            valid = np.where(np.isnan(df[var+'_eraqc']))[0]
-            df_valid = df.iloc[valid]
-            print(len(df_valid))
+            print(var)
+            df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
 
             # winsorize data by percentiles
             if winsorize == True:
@@ -1858,7 +1876,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             for month in range(1,13):
 
                 df_m = df_std.loc[df_valid.time.dt.month == month]
-                print(var, month, len(df_m))
+
                 # determine number of bins
                 bins = create_bins(df_m[var])
 
