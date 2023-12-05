@@ -185,7 +185,7 @@ def process_output_ds(df, attrs, var_attrs,
 ## Run full QA/QC pipeline
 def run_qaqc_pipeline(ds, network, file_name, 
                       errors, station, end_api, 
-                      verbose=True):
+                      rad_scheme, verbose=True):
     """
     """
 
@@ -227,6 +227,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
+
     
     ##########################################################
     ## QAQC Functions
@@ -249,6 +250,7 @@ def run_qaqc_pipeline(ds, network, file_name,
             print('pass qaqc_missing_vals') # testing
 
     #---------------------------------------------------------
+
     ## Lat-lon -- does not proceed through qaqc if failure
     new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
     if new_df is None:
@@ -428,7 +430,8 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #-----------------------------------------------------------------
     # Distribution checks
-    # unusual gaps (part 1)
+
+    # unusual gaps
     new_df = qaqc_unusual_gaps(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
@@ -440,6 +443,20 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_unusual_gaps')
+
+    #-----------------------------------------------------------------
+    # frequent values
+    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with frequent values function for", 
+                                    test="qaqc_frequent_vals",
+                                    verbose=verbose
+                                    )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_frequent_vals')
     
     #-----------------------------------------------------------------
     # Time series check (unusual large jumps)
@@ -483,7 +500,7 @@ def run_qaqc_pipeline(ds, network, file_name,
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
+def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
     """
     """    
     print()
@@ -507,7 +524,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
         -----------------------------------
         for station in ['ASOSAWOS_72676324198']: 
         this is the smallest ASOSAWOS file
-        takes ~10 seconds to run for Victoria
         -----------------------------------
         """
         # TESTING SUBSET
@@ -566,7 +582,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, verbose=True):
                         if verbose:
                             print("Running QA/QC pipeline on {}".format(aws_url), flush=True)
                         df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                 station, end_api, verbose=verbose)
+                                                                 station, end_api, rad_scheme, verbose=verbose)
                         if verbose:
                             print("Done running QA/QC pipeline. Ellapsed time: {:.2f} s.".
                                   format(time.time()-t0), flush=True) 
