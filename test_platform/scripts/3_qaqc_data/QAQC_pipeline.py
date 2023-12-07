@@ -231,12 +231,13 @@ def run_qaqc_pipeline(ds, network, file_name,
     ##########################################################
     ## QAQC Functions
     # Order of operations
-    # Part 1: Whole station checks - if failure, entire station does not proceed through QA/QC
+    # Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
+    # Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
     # Part 2: Logic checks
     # Part 3: Distribution & time series checks
 
     #=========================================================
-    ## PART 1: Whole station checks
+    ## Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
 
     #---------------------------------------------------------
     ## Missing values -- does not proceed through qaqc if failure
@@ -305,6 +306,9 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         if verbose:
             print('pass qaqc_elev_range')
+
+    #=========================================================
+    ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
 
     #---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
