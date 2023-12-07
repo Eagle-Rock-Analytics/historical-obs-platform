@@ -570,8 +570,8 @@ def qaqc_world_record(df, verbose=True):
 
 #-----------------------------------------------------------------------------------------
 ## cross-variable logic checks
-# dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
+# dew point must not exceed air temperature (supersaturation)
+def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -585,6 +585,7 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
         if not all_dew_vars:
             if verbose:
                 print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+        
         # dew point is present
         else:
             for var in all_dew_vars: 
@@ -596,7 +597,36 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
         return df
     
     except Exception as e:
-        print("qaqc_crossvar_logic_tdps_to_tas failed with Exception: {}".format(e))
+        print("qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e))
+        return None
+
+#-----------------------------------------------------------------------------------------
+## logic: wet-bulb reservoir drying
+def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
+    '''
+    Checks for extended periods of a dewpoint depression of 0°C.
+    If fails, only dewpoint temperature is flagged.
+    '''
+    try:
+        # First check that tdps and/or tdps_derived are provided
+        dew_vars = [col for col in df.columns if 'tdps' in col]
+        all_dew_vars = [var for var in dew_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc
+
+        # dew point is not present
+        if not all_dew_vars:
+            if verbose:
+                print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+        
+        # dew point is present
+        else:
+            for var in all_dew_vars:
+                dew_depression = df['tas'] - df[var]
+
+                # looking for a long string of dew point depression values = 0
+                # hadisd uses 24 it looks like (1 day?)
+
+    except Exception as e:
+        print("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
         return None
 
 #-----------------------------------------------------------------------------------------
