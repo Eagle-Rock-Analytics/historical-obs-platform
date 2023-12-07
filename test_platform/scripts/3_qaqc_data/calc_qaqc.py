@@ -842,7 +842,7 @@ def _plot_format_helper(var):
     """Helper function for plots"""
 
     pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
-    ps_vars = ['ps', 'psl', 'psl_altimeter']
+    ps_vars = ['ps', 'psl', 'psl_altimeter', 'ps_derived']
     
     if var == 'tas':
         ylab = 'Air Temperature at 2m'
@@ -1715,7 +1715,7 @@ def _plot_format_helper_spikes(var):
     """
 
     pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
-    ps_vars = ['ps', 'psl', 'psl_altimeter']
+    ps_vars = ['ps', 'psl', 'psl_altimeter', 'ps_derived']
     
     if var == 'tas':
         ylab = 'Air Temperature at 2m'
