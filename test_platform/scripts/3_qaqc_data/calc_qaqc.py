@@ -51,6 +51,9 @@ def get_wecc_poly(terrpath, marpath):
     return t,m, bbox
 
 
+
+
+
 #======================================================================
 ## PART 1 functions (whole station/network)
 
