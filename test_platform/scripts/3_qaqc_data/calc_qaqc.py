@@ -341,11 +341,11 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_5min' in pr_vars:
         if 'pr_1h' in pr_vars:
             isBad = df['pr_5min'] > df['pr_1h']
-            df.loc[isBad, 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
             isBad = df['pr_5min'] > df['pr_24h']
-            df.loc[isBad, 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
         if verbose:
             print('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
                   '{}'.format(df['pr_5min_eraqc'].unique())) # testing
@@ -354,11 +354,11 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_1h' in pr_vars:
         if 'pr_5min' in pr_vars:
             isBad = df['pr_1h'] < df['pr_5min']
-            df.loc[isBad, 'pr_1h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
             isBad = df['pr_1h'] > df['pr_24h']
-            df.loc[isBad, 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_1h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
         if verbose:
             print('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
                   '{}'.format(df['pr_1h_eraqc'].unique())) # testing
@@ -367,15 +367,15 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_24h' in pr_vars:
         if 'pr_5min' in pr_vars:
             isBad = df['pr_24h'] < df['pr_5min']
-            df.loc[isBad, 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
         
         if 'pr_1h' in pr_vars:
             isBad = df['pr_24h'] < df['pr_1h']
-            df.loc[isBad, 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv        
+            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv        
         
         if 'pr_localmid' in pr_vars:
             isBad = df['pr_24h'] < df['pr_localmid']
-            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
             
         if verbose:
             print('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
@@ -605,6 +605,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
 def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
     '''
     Checks for extended periods of a dewpoint depression of 0°C.
+    Extended period is defined as a 24-hour period
     If fails, only dewpoint temperature is flagged.
     '''
     try:
@@ -620,10 +621,19 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
         # dew point is present
         else:
             for var in all_dew_vars:
-                dew_depression = df['tas'] - df[var]
+                df['dew_depression'] = df['tas'] - df[var]
+                df_to_check = df.loc[df['dew_depression'] == 0]
+                
+                # identify and flag long streak of dew point depression values = 0
+                for t in df_to_check.time:
+                    dpd_to_check = df.loc[(df.time >= t) & (df.time <= (t + timedelta(days=1)))]['dew_depression']
 
-                # looking for a long string of dew point depression values = 0
-                # hadisd uses 24 it looks like (1 day?)
+                    if all(v == 0 for v in dpd_to_check):
+                        print('Flagging extended streak in dewpoint depression')
+                        df.loc[(df.time >= t) & (df.time <= (t + timedelta(days=1))),
+                        var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
+        
+        return df
 
     except Exception as e:
         print("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
@@ -652,7 +662,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         isNotNan = ~df['sfcWind_dir'].isnull()
         isBad = isCalm & isDirNotZero & isNotNan
         
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
+        df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
         
         # Next, identify non-zero winds but with incorrect wind directions
         # Non-zero northerly winds should be coded as 360 deg, not 0 deg
@@ -660,7 +670,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         isDirZero = df['sfcWind_dir'] == 0
         isBad = isNotCalm & isDirZero & isNotNan
         
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
+        df.loc[isBad, 'sfcWind_dir_eraqc'] = 15 # see qaqc_flag_meanings.csv
         
         if verbose:
             print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.
@@ -858,7 +868,7 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh=5, plot=True):
         for month in range(1,13): 
 
             # per variable bypass check
-            df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
+            df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 20
             if 19 in df[var+'_eraqc']:
                 continue # skip variable 
 
@@ -883,14 +893,14 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh=5, plot=True):
 
                         # flag all obs in that month
                         df.loc[(df['month']==month) & 
-                               (df['year']==year_to_flag), var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
+                               (df['year']==year_to_flag), var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
 
         if plot==True:
             for month in range(1,13):
                 for var in vars_to_check:
-                    if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                        if 20 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
-                            dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
+                    if 20 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                        if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                            dist_gap_part1_plot(df, month, var, flagval=21, iqr_thresh=iqr_thresh,
                                                 network=df['station'].unique()[0].split('_')[0])
                 
     return df
@@ -920,8 +930,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
             for month in range(1,13):
                 
                 # per variable bypass check
-                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
-                if 19 in df[var+'_eraqc']:
+                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 20
+                if 20 in df[var+'_eraqc']:
                     continue # skip variable 
                 
                 # station has above min_num_months number of valid observations, proceed with dist gap check
@@ -962,7 +972,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
                                 
                                 # identify values beyond left bnd
                                 vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
-                                df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                                df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
 
 
                     bins_beyond_right_bnd = np.argwhere(bins >= right_bnd)
@@ -972,13 +982,13 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
                                 
                                 # identify values beyond right bnd
                                 vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                                df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                                df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
                     
     if plot==True:
         for month in range(1,13):
             for var in vars_to_check:
-                if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                    if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                if 20 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                    if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part2_plot(df, month, var,
                                             network=df['station'].unique()[0].split('_')[0])
     
@@ -1011,8 +1021,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
         if plots == True:
             for var in vars_to_check:
-                if (19 not in df[var+'_eraqc'].values) and (20 in df[var+'_eraqc'].values or 21 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
-                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [20, 21])
+                if (20 not in df[var+'_eraqc'].values) and (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
+                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
     
     return df_part2
 
@@ -1310,7 +1320,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                 for sus_bin in flagged_bins:
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
-                           var+'_eraqc'] = 23 # see era_qaqc_flag_meanings.csv
+                           var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
     
     #============================================================================================================
     # seasonal checks require special handling
@@ -1358,7 +1368,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                             df.loc[(df['year']==yr) & 
                                   ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) &
                                    (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
-                                  var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                  var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
                 # special handling for winter because of december
                 else:
@@ -1389,11 +1399,11 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                             df.loc[(df['year']==yr) & 
                                    ((df['month']==szn[1]) | (df['month']==szn[2])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
-                                  var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                  var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
                             # flag correct dec
                             df.loc[((df['year']==yr-1) & (df['month']==szn[0])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
-                                   var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
     return df
 
@@ -1405,9 +1415,9 @@ def synergistic_flag(df, num_temp_vars):
     '''
 
     # need to identify which flag is placed
-    # 23 for all obs/years check
-    # 24 for all seasons/years check
-    flags_to_set = [23, 24]
+    # 24 for all obs/years check
+    # 25 for all seasons/years check
+    flags_to_set = [24, 25]
     
     for flag_to_set in flags_to_set:
 
@@ -1485,8 +1495,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     
     Flag meaning:
     -------------
-        23,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
-        24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+        24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+        25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     '''
     
     # this check is only done on air temp, dewpoint temp, and pressure
@@ -1556,12 +1566,12 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     # plots item
     if plots==True:
         for var in vars_to_check:
-            if 23 in df[var+'_eraqc'].values or 24 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+            if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                 # histogram
                 frequent_vals_plot(df, var, rad_scheme)
 
                 # entire timeseries figure
-                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[23,24])
+                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
         
     return df
 
@@ -2020,7 +2030,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             None
     Flag meaninig:
     -------------
-        22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
+        23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 
     NOTES (TODO:)
     iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
@@ -2058,14 +2068,14 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             # Retrieve location of spikes
             ind = new_df.index[np.where(new_df[var+"_spikes"])[0]]
             # Flag _eraqc variable
-            df.loc[ind, var+"_eraqc"] = 22
+            df.loc[ind, var+"_eraqc"] = 23
 
             if plot:
-                unusual_jumps_plot(df, var, flagval=22, local=local)
+                unusual_jumps_plot(df, var, flagval=23, local=local)
                 for i in ind:
                     subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
                                         df.index<=i + np.timedelta64(48,'h'))
-                    unusual_jumps_plot(df[subset], var, flagval=22, date=i, local=local)
+                    unusual_jumps_plot(df[subset], var, flagval=23, date=i, local=local)
 
         return df.reset_index()
     except Exception as e:
