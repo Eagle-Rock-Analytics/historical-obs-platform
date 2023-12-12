@@ -621,16 +621,17 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
         # dew point is present
         else:
             for var in all_dew_vars:
-                df['dew_depression'] = df['tas'] - df[var]
-                df_to_check = df.loc[df['dew_depression'] == 0]
+                df2 = df.copy(deep=True)
+                df2['dew_depression'] = df2['tas'] - df2[var]
+                df_to_check = df2.loc[df2['dew_depression'] == 0]
                 
                 # identify and flag long streak of dew point depression values = 0
                 for t in df_to_check.time:
-                    dpd_to_check = df.loc[(df.time >= t) & (df.time <= (t + timedelta(days=1)))]['dew_depression']
+                    dpd_to_check = df2.loc[(df2.time >= t) & (df2.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
 
                     if all(v == 0 for v in dpd_to_check):
                         print('Flagging extended streak in dewpoint depression')
-                        df.loc[(df.time >= t) & (df.time <= (t + timedelta(days=1))),
+                        df.loc[(df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))),
                         var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
         
         return df
