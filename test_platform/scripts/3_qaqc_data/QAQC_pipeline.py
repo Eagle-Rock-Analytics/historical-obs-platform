@@ -21,11 +21,20 @@ from io import BytesIO, StringIO
 import time
 import tempfile
 
-# Import qaqc stage calc functions
+# Import all qaqc script functions
 try:
-    from calc_qaqc import *
-except:
-    print("Error importing calc_qaqc.py")
+    from qaqc_wholestation import *
+    from qaqc_sensor import *
+    from qaqc_utils import *
+    from qaqc_buoy_check import *
+    from qaqc_frequent import *
+    from qaqc_unusual_gaps import *
+    from qaqc_unusual_large_jumps import *
+
+except Exception as e:
+    print("Error importing qaqc script: {}".format(e))
+
+
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
 dirs = ["./temp/", "./timing/"]
