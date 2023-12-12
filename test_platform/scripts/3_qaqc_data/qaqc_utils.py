@@ -1,0 +1,56 @@
+"""
+This is a script where Stage 3: QA/QC related common functions, conversions, and operations is stored for ease of use
+for the Historical Observations Platform.
+"""
+
+## Import Libraries
+import boto3
+import geopandas as gp
+import numpy as np
+import pandas as pd
+import requests
+import urllib
+import datetime
+import math
+import shapely
+import xarray as xr
+import matplotlib.pyplot as plt
+import math
+from io import BytesIO, StringIO
+import scipy.stats as stats
+
+## Import plotting functions
+try:
+    from calc_plot import *
+except:
+    print("Error importing calc_plot.py")
+
+## Set AWS credentials
+s3 = boto3.resource("s3")
+s3_cl = boto3.client('s3') # for lower-level processes
+
+## Set relative paths to other folders and objects in repository.
+bucket_name = "wecc-historical-wx"
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
+## QA/QC helper functions
+#-----------------------------------------------------------------------------
+def get_file_paths(network):
+    rawdir = "1_raw_wx/{}/".format(network)
+    cleandir = "2_clean_wx/{}/".format(network)
+    qaqcdir = "3_qaqc_wx/{}/".format(network)
+    mergedir = "4_merge_wx/{}/".format(network)
+    return rawdir, cleandir, qaqcdir, mergedir
+
+#-----------------------------------------------------------------------------
+def get_wecc_poly(terrpath, marpath):
+    """
+    Identifies a bbox of WECC area to filter stations against
+    Input vars: shapefiles for maritime and terrestrial WECC boundaries
+    Returns: spatial objects for each shapefile, and bounding box for their union.
+    """
+    t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
+    m = gp.read_file(marpath)   ## Read in marine WECC shapefile.
+    bbox = t.union(m).bounds    ## Combine polygons and get bounding box of union.
+    return t,m, bbox

@@ -5,15 +5,8 @@ for the Historical Observations Platform.
 
 ## Import Libraries
 import boto3
-import geopandas as gp
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import datetime
-import math
-import shapely
-import xarray as xr
 import matplotlib.pyplot as plt
 import math
 from io import BytesIO, StringIO
