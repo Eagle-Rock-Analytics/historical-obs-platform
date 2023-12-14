@@ -7,7 +7,6 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
-#----------------------------------------------------------------------
 # missing value cehck: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=True):
     '''
@@ -287,7 +286,6 @@ def qaqc_elev_range(df, verbose=True):
 ## Part 1b functions (whole station/network)
 ## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
 
-#----------------------------------------------------------------------
 ## flag values outside world records for North America
 def qaqc_world_record(df, verbose=True):
     '''

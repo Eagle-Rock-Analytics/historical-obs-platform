@@ -8,6 +8,12 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
+## Import plotting functions
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")
+
 #-----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=True):

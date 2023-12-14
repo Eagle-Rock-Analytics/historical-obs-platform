@@ -9,6 +9,12 @@ import pandas as pd
 import datetime
 import math
 
+## Import plotting functions
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")
+
 ## frequent values + helper functions
 # Note: create_bins_frequent lives in calc_plot.py
 #-----------------------------------------------------------------------------

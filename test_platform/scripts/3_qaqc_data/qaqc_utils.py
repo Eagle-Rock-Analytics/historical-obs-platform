@@ -8,12 +8,6 @@ import boto3
 import geopandas as gp
 import numpy as np
 
-## Import plotting functions
-try:
-    from calc_plot import *
-except:
-    print("Error importing calc_plot.py")
-
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes

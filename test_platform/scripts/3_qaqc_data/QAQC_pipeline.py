@@ -25,6 +25,7 @@ import tempfile
 
 # Import all qaqc script functions
 try:
+    from qaqc_plot import *
     from qaqc_utils import *
     from qaqc_wholestation import *
     from qaqc_sensor import *

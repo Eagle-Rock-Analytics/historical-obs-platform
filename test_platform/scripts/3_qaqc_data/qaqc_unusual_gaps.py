@@ -8,6 +8,12 @@ import numpy as np
 import pandas as pd
 import datetime
 
+## Import plotting functions
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")
+
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
 def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):

@@ -7,6 +7,12 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 import numpy as np
 import datetime
 
+## Import plotting functions
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")
+
 ## NDBC and MARITIME only
 #-----------------------------------------------------------------------------
 def spurious_buoy_check(df, qc_vars, verbose=True):
