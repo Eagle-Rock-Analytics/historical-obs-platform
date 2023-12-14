@@ -7,6 +7,16 @@ for the Historical Observations Platform.
 import boto3
 import geopandas as gp
 import numpy as np
+import pandas as pd
+import requests
+import urllib
+import datetime
+import math
+import shapely
+import xarray as xr
+import matplotlib.pyplot as plt
+from io import BytesIO, StringIO
+import scipy.stats as stats
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")

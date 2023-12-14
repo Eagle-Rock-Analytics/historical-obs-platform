@@ -3,6 +3,24 @@ This is a script where Stage 3: QA/QC function(s) whole station checks.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
+## Import Libraries
+import boto3
+import geopandas as gp
+import numpy as np
+import pandas as pd
+import requests
+import urllib
+import datetime
+import math
+import shapely
+import xarray as xr
+import matplotlib.pyplot as plt
+from io import BytesIO, StringIO
+import scipy.stats as stats
+
+wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+
 #======================================================================
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs

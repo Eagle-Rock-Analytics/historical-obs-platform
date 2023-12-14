@@ -4,10 +4,19 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
+import boto3
+import geopandas as gp
 import numpy as np
 import pandas as pd
+import requests
+import urllib
 import datetime
 import math
+import shapely
+import xarray as xr
+import matplotlib.pyplot as plt
+from io import BytesIO, StringIO
+import scipy.stats as stats
 
 ## Import plotting functions
 try:
