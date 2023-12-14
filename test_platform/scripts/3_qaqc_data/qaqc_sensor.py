@@ -12,7 +12,23 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        12,qaqc_crossvar_logic_tdps_to_tas,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
     """ 
+
     try:
         # First check that tdps and/or tdps_derived are provided
         dew_vars = [col for col in df.columns if 'tdps' in col]
@@ -41,13 +57,23 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
 def qaqc_precip_logic_nonegvals(df, verbose=True):
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
-    Provides handling for the multiple precipitation variables presently in the cleaned data. 
+    Provides handling for the multiple precipitation variables presently in the cleaned data.
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
     """
-    # pr_24h: Precipitation accumulated from last 24 hours
-    # pr_localmid: Precipitation accumulated from local midnight
-    # pr: Precipitation accumulated since last record
-    # pr_1h: Precipitation accumulated in last hour
-    # pr_5min: Precipitation accumulated in last 5 minutes
     
     # identify which precipitation vars are reported by a station
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
@@ -75,19 +101,30 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
 def qaqc_precip_logic_accum_amounts(df, verbose=True):
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
-    Only needs to be applied when 2 or more precipitation duration specific
-    variables are present (pr_5min, pr_1h, pr_24h)
+    Only needs to be applied when 2 or more precipitation duration specific variables are present (pr_5min, pr_1h, pr_24h)
     For example: pr_5min should not be larger than pr_1h
-    
-    # pr: Precipitation accumulated since last record
-    # pr_5min: Precipitation accumulated in last 5 minutes
-    # pr_1h: Precipitation accumulated in last hour
-    # pr_24h: Precipitation accumulated from last 24 hours
-    # pr_localmid: Precipitation accumulated from local midnight
-        
-    # rules
-    # pr_5min < pr_1h < pr_24h
-    # pr_localmid should never exceed pr_24h
+
+    Rules:
+    ------
+    1 - pr_5min < pr_1h < pr_24h
+    2 - pr_localmid should never exceed pr_24h
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        15,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
+        16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
+        17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
     """
 
     # identify which precipitation vars are reported by a station
@@ -164,7 +201,23 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
 def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
     """
     Checks that wind direction is zero when wind speed is also zero.
-    If fails, wind direction is flagged. # only flag wind direction?
+    If fails, wind direction is flagged. 
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        13,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+        14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
     try:
         # Noting that a wind direction value of 0 is a valid value

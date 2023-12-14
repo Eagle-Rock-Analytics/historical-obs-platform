@@ -120,13 +120,25 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
 
 #-----------------------------------------------------------------------------
 def frequent_bincheck(df, var, data_group, rad_scheme):
-    '''Approach: 
+    '''
+    Approach: 
         - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
         - each bin compared to the three on either side
         - if this bin contains more than half the total population of the seven bins combined
         - and more than 30 observations over the station record (20 for seasonal)
         - then histogram bin is highlighted for further investigation
         - minimum number limit imposted to avoid removing true tails of distribution
+
+    Input:
+    -----
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        var [str]: variable to run check on
+        data_group [str]: annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
+        rad_scheme [str]: radiation handling for frequent occurence of valid zeros
+
+    Returns:
+    -------
+        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     '''    
     
     # seasons
@@ -291,6 +303,15 @@ def synergistic_flag(df, num_temp_vars):
     '''
     In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
     Applies appropriate flag in corresponding vars
+
+    Input:
+    -----
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        num_temp_vars [list]: list of temperature vars
+
+    Returns:
+    -------
+        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     '''
 
     # need to identify which flag is placed

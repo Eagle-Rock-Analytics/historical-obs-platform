@@ -25,17 +25,21 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
         local [bool] : if True, saves the plot to local directory
         plot [bool] : if True, produces plot and uploads it to AWS
+
     Output:
     ------
         if qaqc succeded:
             df [pandas dataframe] : QAQC dataframe with flagged values (see below for flag meaning).
         else if qaqc failed:
             None
+
     Flag meaninig:
     -------------
         22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 
-    NOTES (TODO:)
+    Notes:
+    ------
+    To Do:
     - iqr_thresh is something can be modified of tweaked down the line (6 is what HadISD uses)
     - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
     - HadISD uses 100, this can be modified and tweaked in future development
@@ -102,6 +106,7 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
         diff [pandas series] : float pd.Series with differences in the test variable
         crit [pandas series] : float pd.Series with the critical value for the differences in the test variable
         crit [pandas series] : float pd.Series with the hour differences between data points in the test variable
+
     Output:
     ------
         df [pandas dataframe] : input df with added `var`_spike column True where data matches the spike conditions
@@ -186,14 +191,17 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
         var [str] : variable to test
         iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
         min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
+
     Output:
     ------
         df [pandas dataframe] : input df with added columns for spike check
                  
-    NOTES (TODO:)
-    iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
-    min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
-    HadISD uses 100, this can be modified and twaked in future development
+    Notes:
+    ------
+    To Do:
+    - iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
+    - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
+    - HadISD uses 100, this can be modified and twaked in future development
     """
     
     # Make a copy of the original dataframe

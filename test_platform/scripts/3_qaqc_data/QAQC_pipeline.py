@@ -6,9 +6,11 @@ Approach:
 (2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
 (3) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
 (4) Case study analysis for accuracy -- SHOULD THIS BE A SEPARATE SCRIPT/PROCESS?
+
 Inputs: Cleaned data for an individual network
 Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
+
 # Step 0: Environment set-up
 # Import libraries
 import os
@@ -23,9 +25,9 @@ import tempfile
 
 # Import all qaqc script functions
 try:
+    from qaqc_utils import *
     from qaqc_wholestation import *
     from qaqc_sensor import *
-    from qaqc_utils import *
     from qaqc_buoy_check import *
     from qaqc_frequent import *
     from qaqc_unusual_gaps import *
@@ -33,8 +35,6 @@ try:
 
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
-
-
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
 dirs = ["./temp/", "./timing/"]
