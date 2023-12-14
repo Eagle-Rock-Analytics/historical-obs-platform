@@ -160,6 +160,19 @@ day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
 WIND_MIN_VALUE = {1:1.0, 0.5:0.5, 0.1:0.5}
 
 #---------------------------------------------------------------------------------------------------
+# Function to create a new column for consecutive months
+def consecutive_months(series):
+    
+    indices = np.where(np.diff(series.values) > 1)[0] + 1
+    clusters = np.split(series.values, indices)
+    isin = [series.isin(c) for c in clusters]
+    groups = np.zeros_like(series.values, dtype="int")
+    
+    for i,ind in enumerate(isin):
+        groups[ind.values] = int(i)
+    return pd.Series(groups, index=series.index)
+
+#---------------------------------------------------------------------------------------------------
 def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_sequence_length=10):
     """
     Test for repeated streaks/unusual spell frequenc. 
@@ -198,8 +211,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
     min_sequence_length can be tweaked, althought HadISD uses 10
     """
 
-    try:
-    # if True:
+    # try:
+    if True:
         
         # Infere resolution from data
         resolutions = infere_res(df)
@@ -217,6 +230,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         
         # Loop through test variables
         for var in variables:
+            print(var)
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             new_df = df.copy(deep=True)
             new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
@@ -228,44 +242,96 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             # Choose resolution
             res = resolutions[var]
             
-            # --------------------------------------------------------
-            # Hour repeat streak criteria
-            threshold = hour_repeat_criteria[var][res]
-            bad = hourly_repeats(new_df, var, threshold)            
-            ind = df['time'].isin(bad)
-            df.loc[ind, var+"_eraqc"] = 27    # Flag _eraqc variable
+            # Create plotting dataframe
+            plotdf = df.copy()[[var+"_eraqc", var]]
+            plotdf = plotdf.set_index(df['time'])
             
             # --------------------------------------------------------
+            # Hour repeat streak criteria
+            print("hourly")
+            threshold = hour_repeat_criteria[var][res]
+            bad_hourly = hourly_repeats(new_df, var, threshold)            
+            ind = df['time'].isin(bad_hourly['time']) 
+            df.loc[ind, var+"_eraqc"] = 27    # Flag _eraqc variable
+
+            # --------------------------------------------------------
             # Straight repeat streak criteria
+            print("straight")
             threshold = straight_repeat_criteria[var][res]
             if var=="sfcWind":
                 wind_min_value = WIND_MIN_VALUE[res]
             else:
                 wind_min_value = None
-            bad = consecutive_repeats(new_df, var, threshold, 
-                                      wind_min_value, 
-                                      min_sequence_length=min_sequence_length)
-            ind = df['time'].isin(bad)
+            bad_straight = consecutive_repeats(new_df, var, threshold, 
+                                               wind_min_value, 
+                                               min_sequence_length=min_sequence_length)
+            ind = df['time'].isin(bad_straight['time']) 
             df.loc[ind, var+"_eraqc"] = 28    # Flag _eraqc variable
-            
+        
             # --------------------------------------------------------
-            # Whole day replica- tion for a streak of days
+            # Whole day replication for a streak of days
+            print("whole")
             threshold = day_repeat_criteria[var][res]
-            bad = consecutive_fullDay_repeats(new_df, var, threshold)
-            ind = df['time'].isin(bad)
+            bad_whole = consecutive_fullDay_repeats(new_df, var, threshold)
+            ind = df['time'].isin(bad_whole['time']) 
             df.loc[ind, var+"_eraqc"] = 29    # Flag _eraqc variable
-            
+           
             # --------------------------------------------------------
-            # if plot:
-            #     unusual_streaks_plot(df, var, flagval=22, local=local)
-            #     for i in ind:
-            #         subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
-            #                             df.index<=i + np.timedelta64(48,'h'))
-            #         unusual_jumps_plot(df[subset], var, flagval=22, date=i, local=local)
+            # Groups for zoom plots
+            bad_months = np.concatenate((bad_hourly['month'].values,
+                                         bad_straight['month'].values,
+                                         bad_whole['month'].values))
+            bad_years = np.concatenate((bad_hourly['year'].values,
+                                        bad_straight['year'].values,
+                                        bad_whole['year'].values))
+            bad_times = np.concatenate((bad_hourly['time'].values,
+                                        bad_straight['time'].values,
+                                        bad_whole['time'].values))
+            
+            bad = pd.DataFrame({"year":bad_years, "month":bad_months, "time":bad_times})
+            # import pdb; pdb.set_trace()
+            bad['consecutive_month_group'] = bad.copy().groupby('year')['month'].transform(consecutive_months)
+            # display(bad)
+            bad_min = bad.groupby(by=["year","consecutive_month_group"])['time'].min()
+            bad_max = bad.groupby(by=["year","consecutive_month_group"])['time'].max()
+            bad = pd.DataFrame(data = {"min_date":bad_min.values,
+                                       "max_date":bad_max.values})
+            # display(bad)        
+            
+#             # --------------------------------------------------------
+#             if plot:
+#                 unusual_streaks_plot(df, var, local=local)
+                
+#                 for i in bad.index:
+                    
+#                     da = bad.loc[i]
+                    
+#                     min_date = da.min_date - np.timedelta64(3,'D')
+#                     max_date = da.min_date + np.timedelta64(3,'D')
+#                     subset = np.logical_and(df['time'] >= min_date, 
+#                                             df['time'] <= max_date)
+#                     unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
+                
+# #                 for y in bad.year:
+# #                     bad_year = bad[bad.year==y]
+# #                     groups = bad_year.consecutive_month_group.unique()
+# #                     for i,g in enumerate(groups):
+# #                         bad_group = bad[np.logical_and(bad.year==y, bad.consecutive_month_group==g)]
+                        
+# #                         # min_date = "{}-{}".format(str(y).zfill(4), str(bad_group.month.min()).zfill(2))
+# #                         min_date = bad_group["time"].min()
+# #                         min_date = np.datetime64(min_date) - np.timedelta64(3,'D')
+# #                         # max_date = "{}-{}".format(str(y).zfill(4), str(bad_group.month.max()).zfill(2))
+# #                         max_date = bad_group["time"].max()
+# #                         max_date = np.datetime64(max_date) + np.timedelta64(3,'D')
+                        
+# #                         subset = np.logical_and(df['time'] >= min_date, 
+# #                                                 df['time'] <= max_date)
+# #                         unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
         return df
-    except Exception as e:
-        print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
-        return None
+    # except Exception as e:
+    #     print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
+    #     return None
 
 #---------------------------------------------------------------------------------------------------
 # Find clusters of equal values
@@ -322,17 +388,23 @@ def hourly_repeats(df, var, threshold):
                   
     NOTES (TODO:)
     """
-
-    # df['hours'] = pd.Series(df.index).dt.hour.values
+    
+    df = df.copy()
     df['hours'] = pd.Series(df['time']).dt.hour.values
-    # df['times'] = df.index.values
-    # counts = pd.DataFrame(df.groupby(by=["hours",var]).apply(lambda x: np.array(x.index.tolist())).rename("dates"))
     counts = pd.DataFrame(df.groupby(by=["hours",var]).apply(lambda x: np.array(x['time'].tolist())).rename("dates"))
     counts['date_diff'] = counts['dates'].transform(lambda x: pd.Series(x).diff().values.astype("timedelta64[D]"))
     counts['streak_index'] = counts['date_diff'].apply(find_streaks_index, args=(7,))
     counts['streaks'] = counts.apply(lambda x: select_streaks(x.dates, x.streak_index), axis=1)
     
-    bad = np.concatenate(counts['streaks'].values)
+    groups = counts[counts['streaks'].apply(len)>0]
+    if len(groups)>0:
+        bad = pd.DataFrame({"time"  : np.concatenate(groups['streaks'].values)})
+        bad['month'] = bad.loc[:, 'time'].dt.month.values
+        bad['year']  = bad.loc[:, 'time'].dt.year.values
+    else:
+        bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
+                            "month" : np.array([], dtype=np.int64),
+                            "year"  : np.array([], dtype=np.int64)})  
     return bad
 
 #---------------------------------------------------------------------------------------------------
@@ -362,15 +434,16 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     NOTES (TODO:)
     """
 
-    da = df[[var,"time"]].copy()
+    da = df.copy()[[var,"time"]]
     
-    if var=="sfcWind": print(len(da))
+    # if var=="sfcWind": print(len(da))
     
     # If variable is wind, only use values above min wind value
     if wind_min_value is not None:
-        print(wind_min_value)
+        # print(wind_min_value)
         da = da[da[var]>wind_min_value]
-    if var=="sfcWind": print(len(da))
+    # if var=="sfcWind":
+    #     print(len(da))
     # Identify sequences of similar values
     da.loc[:, 'group'] = (da[var] != da[var].shift()).cumsum()
     # da.loc[:, 'start_date'] = da.index.values
@@ -401,9 +474,35 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     
     # Find bad groups and index in the original dataset
     bad_groups = filtered_sequences[condition].group.values
-    bad = da[da['group'].isin(bad_groups)]['time'].values
+    # bad = da[da['group'].isin(bad_groups)]['time'].values
+    bad = da[da['group'].isin(bad_groups)].copy()
+    
+    if len(bad)>0:
+        bad['month'] = bad.loc[:, 'time'].dt.month.values
+        bad['year']  = bad.loc[:, 'time'].dt.year.values
+    else:
+        bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
+                            "month" : np.array([], dtype=np.int64),
+                            "year"  : np.array([], dtype=np.int64)})    
+    return bad[['time', 'month', 'year']]
 
-    return bad
+#---------------------------------------------------------------------------------------------------
+def full_day_compare(series0,series1):
+    
+    ind = []
+    groups = []
+    g = 0
+    for a,b in zip(series0.values, series1.values):
+        if type(a)==np.ndarray and type(b)==np.ndarray and len(a)==len(b):
+            if ((a==b).all()):
+                groups.append(g)
+            else:
+                groups.append(-1)
+                g += 1
+        else:
+            groups.append(-1)
+            g += 1
+    return np.array(groups)-np.max(groups)
 
 #---------------------------------------------------------------------------------------------------
 def consecutive_fullDay_repeats(df, var, threshold):
@@ -427,33 +526,68 @@ def consecutive_fullDay_repeats(df, var, threshold):
     Output:
     ------
         bad [numpy array] : dates that mark the flagged values (from df.index)
-                  
+                  (A==B).all()
     NOTES (TODO:)
     """
 
-    da = df[[var, 'time']].copy()
-    # da['date'] = pd.Series(da.index).dt.date.values
+    # Temporary dataframe to work with
+    da = df.copy()[[var, 'time','year','month','day', 'hours']].dropna()
+    # print(len(da))
+    datavar = da.groupby(by=['year','month','day','hours'])[var].apply(np.nanmean)
+    othervars = da.drop(columns=var).groupby(by=['year','month','day','hours']).first()
+    data = {"hours":othervars.index.get_level_values(-1), 
+            var:datavar.values,
+            "time":othervars.time.values}
+    da = pd.DataFrame(data)
     da['date'] = pd.Series(da['time']).dt.date.values
+    # print(len(da))
 
-    whole_days = da.groupby(by=['date'])[var].apply(lambda x: " ".join(map(str, np.array(np.round(x.values, decimals=1)))))
-    whole_days = pd.DataFrame({var:whole_days, 'date':whole_days.index.values}) 
+    # display(da)
     
-    # TODO: Please comment or delete this line, just for testing
-    whole_days.loc[:, 'group'] = (whole_days[var] != whole_days[var].shift()).cumsum()
+    # Whole days to analysis
+    whole_days = da.groupby(by=['date'])[var].apply(lambda x: np.round(x.values, decimals=1))
+    whole_days = pd.DataFrame({var:whole_days, 'date':whole_days.index.values})
+    whole_days['group'] = full_day_compare(whole_days[var], whole_days[var].shift())
+    
+    # display(whole_days)
+    
+    sequence_lengths = whole_days.groupby(['group']).size().reset_index(name='length').sort_values(by="group")
+    
+    # display(sequence_lengths)
 
-    # Calculate the length of each sequence
-    sequence_lengths = whole_days.copy().groupby([var, 'group']).size().reset_index(name='sequence_length').sort_values(by="group")
+    sequence_lengths = sequence_lengths[sequence_lengths['group']>=0]
+    
+    # display(sequence_lengths)
+    
+    # print(threshold)
+    
+    # display(whole_days)
+    
+    bad_groups = np.array([g for g,l in 
+                           zip(sequence_lengths['group'].values, 
+                               sequence_lengths['length'].values) 
+                           if l>threshold])
+    
+    # display(bad_groups)
+    
+    bad_dates = whole_days[whole_days['group'].isin(bad_groups)][['date','group']]
+    
+    # display(bad_dates)
+        
+    bad = df.copy()[df['date'].isin(bad_dates['date'])]
+    bad['group'] = [bad_dates['group'].loc[d] for d in bad['date']]
+    bad['group'] = [bad_dates['group'].loc[d] for d in bad['date']]
 
-    # Filter sequences with a minimum length
-    filtered_sequences = sequence_lengths.copy()[sequence_lengths.loc[:, 'sequence_length'] >= threshold]
-
-    bad_groups = filtered_sequences.group
-    bad_dates = whole_days[whole_days['group'].isin(bad_groups)]['date']
-
-    # bad = da[da['date'].isin(bad_dates)].index.values
-    bad = da[da['date'].isin(bad_dates)]['time'].values
-
-    return bad
+    display(bad)
+    
+    if len(bad)>0:
+        bad['month'] = bad.loc[:, 'time'].dt.month.values
+        bad['year']  = bad.loc[:, 'time'].dt.year.values
+    else:
+        bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
+                            "month" : np.array([], dtype=np.int64),
+                            "year"  : np.array([], dtype=np.int64)})    
+    return bad[['time', 'month', 'year']]
 
 #---------------------------------------------------------------------------------------------------
 def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
@@ -483,7 +617,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
     
     # Amount of data flagged
     nflags = len(flag_vals_0) + len(flag_vals_1) + len(flag_vals_2)
@@ -491,9 +625,9 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     flag_label_0 = "Same hour replication"
     flag_label_1 = "Consecutive replication"
     flag_label_2 = "Whole-day replication"
-    df.loc[df[var+"_eraqc"]==flagvals[0], var].plot(ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
-    df.loc[df[var+"_eraqc"]==flagvals[1], var].plot(ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
-    df.loc[df[var+"_eraqc"]==flagvals[2], var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label=flag_label_2)    
+    df.loc[df[var+"_eraqc"]==flagvals[0]].plot("time", var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
+    df.loc[df[var+"_eraqc"]==flagvals[1]].plot("time", var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
+    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label=flag_label_2)    
     legend = ax.legend(loc=0, prop={'size': 8})    
     title = ax.set_title(title)    
         
@@ -552,6 +686,7 @@ def _plot_format_helper_spikes(var):
         miny [float] : min var value for y axis
         maxy [float] : max var value for y axis      
     """
+    from calc_qaqc import _plot_format_helper_spikes
 
     pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
     ps_vars = ['ps', 'psl', 'psl_altimeter']

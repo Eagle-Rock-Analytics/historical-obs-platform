@@ -216,6 +216,9 @@ def run_qaqc_pipeline(ds, network, file_name,
     df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
     df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
     
+    # De-duplicate time axis
+    df = df[~df.index.duplicated()].sort_index()
+    
     # Save station/time multiindex
     MultiIndex = df.index
     station = df.index.get_level_values(0)
