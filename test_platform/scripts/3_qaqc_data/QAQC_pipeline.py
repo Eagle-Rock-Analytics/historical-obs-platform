@@ -251,7 +251,8 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #---------------------------------------------------------
     ## Missing values -- does not proceed through qaqc if failure
-    new_df = qaqc_missing_vals(df.copy(), verbose=verbose)
+    stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case 
+    new_df = qaqc_missing_vals(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api,
         message="has an unchecked missing value",
