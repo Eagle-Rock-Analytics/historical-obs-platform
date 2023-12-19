@@ -20,7 +20,7 @@ import scipy.stats as stats
 
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
+def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -38,7 +38,7 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
 
     Flag meaning:
     -------------
-        12,qaqc_crossvar_logic_tdps_to_tas,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
+        12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
     """ 
 
     try:
@@ -50,6 +50,7 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
         if not all_dew_vars:
             if verbose:
                 print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+        
         # dew point is present
         else:
             for var in all_dew_vars: 
@@ -61,8 +62,62 @@ def qaqc_crossvar_logic_tdps_to_tas(df, verbose=True):
         return df
     
     except Exception as e:
-        print("qaqc_crossvar_logic_tdps_to_tas failed with Exception: {}".format(e))
-        return None    
+        print("qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e))
+        return None
+
+#----------------------------------------------------------------------
+def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
+    '''
+    Checks for extended periods of a dewpoint depression of 0°C.
+    Extended period is defined as a 24-hour period
+    If fails, only dewpoint temperature is flagged.
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        13,qaqc_crossvar_logic_tdps_to_tas_wetbulb,Cross-variable logic check failure: extended streak of a zero dewpoint depression (indicative of instrument failure)
+    '''
+    try:
+        # First check that tdps and/or tdps_derived are provided
+        dew_vars = [col for col in df.columns if 'tdps' in col]
+        all_dew_vars = [var for var in dew_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc
+
+        # dew point is not present
+        if not all_dew_vars:
+            if verbose:
+                print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+        
+        # dew point is present
+        else:
+            for var in all_dew_vars:
+                df2 = df.copy(deep=True)
+                df2['dew_depression'] = df2['tas'] - df2[var]
+                df_to_check = df2.loc[df2['dew_depression'] == 0]
+                
+                # identify and flag long streak of dew point depression values = 0
+                for t in df_to_check.time:
+                    dpd_to_check = df2.loc[(df2.time >= t) & (df2.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
+
+                    if all(v == 0 for v in dpd_to_check):
+                        print('Flagging extended streak in dewpoint depression')
+                        df.loc[(df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))),
+                        var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
+        
+        return df
+
+    except Exception as e:
+        print("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
+        return None
 
 #----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
@@ -134,9 +189,9 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
 
     Flag meaning:
     -------------
-        15,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
-        16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
-        17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
+        16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
+        17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
+        18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
     """
 
     # identify which precipitation vars are reported by a station
@@ -166,11 +221,11 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_5min' in pr_vars:
         if 'pr_1h' in pr_vars:
             isBad = df['pr_5min'] > df['pr_1h']
-            df.loc[isBad, 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
             isBad = df['pr_5min'] > df['pr_24h']
-            df.loc[isBad, 'pr_5min_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
         if verbose:
             print('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
                   '{}'.format(df['pr_5min_eraqc'].unique())) # testing
@@ -179,11 +234,11 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_1h' in pr_vars:
         if 'pr_5min' in pr_vars:
             isBad = df['pr_1h'] < df['pr_5min']
-            df.loc[isBad, 'pr_1h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
             
         if 'pr_24h' in pr_vars:
             isBad = df['pr_1h'] > df['pr_24h']
-            df.loc[isBad, 'pr_1h_eraqc'] = 15 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
         if verbose:
             print('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
                   '{}'.format(df['pr_1h_eraqc'].unique())) # testing
@@ -192,15 +247,15 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
     if 'pr_24h' in pr_vars:
         if 'pr_5min' in pr_vars:
             isBad = df['pr_24h'] < df['pr_5min']
-            df.loc[isBad, 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
         
         if 'pr_1h' in pr_vars:
             isBad = df['pr_24h'] < df['pr_1h']
-            df.loc[isBad, 'pr_24h_eraqc'] = 16 # see era_qaqc_flag_meanings.csv        
+            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv        
         
         if 'pr_localmid' in pr_vars:
             isBad = df['pr_24h'] < df['pr_localmid']
-            df.loc[isBad, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
+            df.loc[isBad, 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
             
         if verbose:
             print('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
@@ -228,8 +283,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
 
     Flag meaning:
     -------------
-        13,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
-        14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
+        14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+        15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
     try:
         # Noting that a wind direction value of 0 is a valid value
@@ -247,7 +302,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         isNotNan = ~df['sfcWind_dir'].isnull()
         isBad = isCalm & isDirNotZero & isNotNan
         
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 13 # see qaqc_flag_meanings.csv
+        df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
         
         # Next, identify non-zero winds but with incorrect wind directions
         # Non-zero northerly winds should be coded as 360 deg, not 0 deg
@@ -255,7 +310,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         isDirZero = df['sfcWind_dir'] == 0
         isBad = isNotCalm & isDirZero & isNotNan
         
-        df.loc[isBad, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
+        df.loc[isBad, 'sfcWind_dir_eraqc'] = 15 # see qaqc_flag_meanings.csv
         
         if verbose:
             print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.

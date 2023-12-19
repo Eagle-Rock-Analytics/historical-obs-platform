@@ -371,17 +371,31 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     #---------------------------------------------------------
     ## dew point temp cannot exceed air temperature
-    new_df = qaqc_crossvar_logic_tdps_to_tas(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                    message="Flagging problem with temperature cross-variable logic check for", 
-                                   test="qaqc_crossvar_logic_tdps_to_tas",
+                                   test="qaqc_crossvar_logic_tdps_to_tas_supersat",
                                    verbose=verbose
                                   )
     else:
         stn_to_qaqc = new_df
         if verbose:
-            print('pass qaqc_crossvar_logic_tdps_to_tas') 
+            print('pass qaqc_crossvar_logic_tdps_to_tas_supersat') 
+
+    #---------------------------------------------------------
+    ## dew point temp cannot exceed air temperature (wet bulb drying)  
+    new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                   message="Flagging problem with temperature cross-variable logic check for", 
+                                   test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
+                                   verbose=verbose
+                                  )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_crossvar_logic_tdps_to_tas_wetbulb')
 
     #---------------------------------------------------------
     ## precipitation is not negative

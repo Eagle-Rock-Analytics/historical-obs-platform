@@ -51,7 +51,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
 
     Flag meaninig:
     -------------
-        22,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
+        23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 
     Notes:
     ------
@@ -91,14 +91,14 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             # Retrieve location of spikes
             ind = new_df.index[np.where(new_df[var+"_spikes"])[0]]
             # Flag _eraqc variable
-            df.loc[ind, var+"_eraqc"] = 22
+            df.loc[ind, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
 
             if plot:
-                unusual_jumps_plot(df, var, flagval=22, local=local)
+                unusual_jumps_plot(df, var, flagval=23, local=local)
                 for i in ind:
                     subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
                                         df.index<=i + np.timedelta64(48,'h'))
-                    unusual_jumps_plot(df[subset], var, flagval=22, date=i, local=local)
+                    unusual_jumps_plot(df[subset], var, flagval=23, date=i, local=local)
 
         return df.reset_index()
     except Exception as e:

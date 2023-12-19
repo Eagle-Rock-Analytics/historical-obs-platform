@@ -44,8 +44,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
     Flag meaning:
     -------------
-        20,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
-        21,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
+        21,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
+        22,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
     
     Notes:
     ------
@@ -71,8 +71,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
         if plots == True:
             for var in vars_to_check:
-                if (19 not in df[var+'_eraqc'].values) and (20 in df[var+'_eraqc'].values or 21 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
-                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [20, 21])
+                if (19 not in df[var+'_eraqc'].values) and (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
+                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
     
     return df_part2
 
@@ -96,7 +96,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
 
     Flag meaning:
     -------------
-        18,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
+        19,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
     """
 
     # in order to grab the time information more easily -- would prefer not to do this
@@ -114,7 +114,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
 
             # check for number of obs years
             if (len(month_to_check.year.unique()) < 5):
-                df[var+'_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
+                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
                 pass_flag = 'fail'
 
     err_statement = '{} has too short of an observation record to proceed through the monthly distribution qa/qc checks -- bypassing station'.format(
@@ -143,7 +143,7 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
 
     Flag meaning:
     -------------
-        19,qaqc_unusual_gaps,Warning: Variable has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
+        20,qaqc_unusual_gaps,Warning: Variable has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
     """
         
     for var in vars_to_check:
@@ -152,11 +152,11 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
             
             # if all values are null for that month across years
             if monthly_df[var].isnull().all() == True:
-                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
+                df[var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
             
             # if not all months have nans, need to assess how many years do
             elif monthly_med(df).loc[monthly_med(df)['month'] == month][var].isna().sum() > min_num_months:                
-                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
+                df[var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
         
     return df
 
@@ -190,8 +190,8 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
         for month in range(1,13): 
 
             # per variable bypass check
-            df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
-            if 19 in df[var+'_eraqc']:
+            df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 20
+            if 20 in df[var+'_eraqc']:
                 continue # skip variable 
 
             # station has above min_num_months number of valid observations, proceed with dist gap check
@@ -215,14 +215,14 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
 
                         # flag all obs in that month
                         df.loc[(df['month']==month) & 
-                               (df['year']==year_to_flag), var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
+                               (df['year']==year_to_flag), var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
 
         if plot==True:
             for month in range(1,13):
                 for var in vars_to_check:
                     if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                        if 20 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
-                            dist_gap_part1_plot(df, month, var, flagval=20, iqr_thresh=iqr_thresh,
+                        if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                            dist_gap_part1_plot(df, month, var, flagval=21, iqr_thresh=iqr_thresh,
                                                 network=df['station'].unique()[0].split('_')[0])
                 
     return df
@@ -263,8 +263,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
             for month in range(1,13):
                 
                 # per variable bypass check
-                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 19
-                if 19 in df[var+'_eraqc']:
+                df = qaqc_dist_var_bypass_check(df, vars_to_check) # flag here is 20
+                if 20 in df[var+'_eraqc']:
                     continue # skip variable 
                 
                 # station has above min_num_months number of valid observations, proceed with dist gap check
@@ -305,7 +305,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
                                 
                                 # identify values beyond left bnd
                                 vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
-                                df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                                df.loc[df[var] <= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
 
                     bins_beyond_right_bnd = np.argwhere(bins >= right_bnd)
                     if len(bins_beyond_right_bnd) != 0:
@@ -314,13 +314,13 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
                                 
                                 # identify values beyond right bnd
                                 vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                                df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
+                                df.loc[df[var] >= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
                     
     if plot==True:
         for month in range(1,13):
             for var in vars_to_check:
-                if 19 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
-                    if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
+                if 20 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
+                    if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part2_plot(df, month, var,
                                             network=df['station'].unique()[0].split('_')[0])
     
@@ -375,7 +375,7 @@ def standardized_anom(df, month, var):
     """
     
     df_monthly_med = monthly_med(df)
-    df_clim_med = clim_med(df)
+    df_clim_med = median_clim(df)
     
     arr_anom = (df_monthly_med.loc[df_monthly_med['month'] == month][var].values -
                 df_clim_med.loc[df_clim_med.index == month][var].values)

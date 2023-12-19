@@ -53,8 +53,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     
     Flag meaning:
     -------------
-        23,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
-        24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+        24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+        25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     '''
     
     # this check is only done on air temp, dewpoint temp, and pressure
@@ -124,12 +124,12 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     # plots item
     if plots==True:
         for var in vars_to_check:
-            if 23 in df[var+'_eraqc'].values or 24 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+            if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                 # histogram
                 frequent_vals_plot(df, var, rad_scheme)
 
                 # entire timeseries figure
-                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[23,24])
+                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
         
     return df
 
@@ -226,7 +226,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                 for sus_bin in flagged_bins:
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
-                           var+'_eraqc'] = 23 # see era_qaqc_flag_meanings.csv
+                           var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
     
     #============================================================================================================
     # seasonal checks require special handling
@@ -274,7 +274,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                             df.loc[(df['year']==yr) & 
                                   ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) &
                                    (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
-                                  var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                  var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
                 # special handling for winter because of december
                 else:
@@ -305,11 +305,11 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                             df.loc[(df['year']==yr) & 
                                    ((df['month']==szn[1]) | (df['month']==szn[2])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
-                                  var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                  var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
                             # flag correct dec
                             df.loc[((df['year']==yr-1) & (df['month']==szn[0])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
-                                   var+'_eraqc'] = 24 # see era_qaqc_flag_meanings.csv
+                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
     return df
 
@@ -330,9 +330,9 @@ def synergistic_flag(df, num_temp_vars):
     '''
 
     # need to identify which flag is placed
-    # 23 for all obs/years check
-    # 24 for all seasons/years check
-    flags_to_set = [23, 24]
+    # 24 for all obs/years check
+    # 25 for all seasons/years check
+    flags_to_set = [24, 25]
     
     for flag_to_set in flags_to_set:
 
