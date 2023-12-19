@@ -31,6 +31,6 @@ MM,NDBC,all,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/meas
 -99900.0,VCAPCD,ps,,in cleaned data
 -725.86,VCAPCD,tas;tdps;tdps_derived,,in cleaned data
 -725.85,VCAPCD,tas;tdps;tdps_derived,,in cleaned data
-61.25,VCACPD,tdps;tdps_derived,,in cleaned data
+61.25,VCAPCD,tdps;tdps_derived,,in cleaned data
 73.33,VCAPCD,tas,,in cleaned data
 -998.36,VCAPCD,sfcWind,,in cleaned data

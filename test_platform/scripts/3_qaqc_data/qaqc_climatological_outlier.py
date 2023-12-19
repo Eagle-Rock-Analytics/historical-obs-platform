@@ -66,7 +66,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     else:
         for var in vars_to_anom:      
             # only work with non-flagged values
-            print(var)
+            print('Checking for climatological outliers in: {}'.format(var))
             df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
 
             # winsorize data by percentiles
@@ -91,13 +91,17 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
 
                 df_m = df_std.loc[df_valid.time.dt.month == month]
 
+                # some months will be missing data
+                if len(df_m) == 0:
+                    continue
+
                 # determine number of bins
                 bins = create_bins(df_m[var])
 
                 # pdf
                 mu = np.nanmean(df_m[var])
                 sigma = np.nanstd(df_m[var])
-                y, left_bnd, right_bnd = pdf_bounds(df_m[var], mu, sigma, bins)
+                y, left_bnd, right_bnd = pdf_bounds_clim(df_m[var], mu, sigma, bins)
 
                 # identify gaps as below y=0.1 from histogram, not pdf
                 y_hist, bins = np.histogram(df_m[var], bins=bins, density=True)
@@ -278,3 +282,18 @@ def low_pass_filter(df, vars_to_anom):
             df.loc[(df.time.dt.year == years[yr]), var] = df.loc[df.time.dt.year == years[yr]][var] - weights
             
     return df
+
+#----------------------------------------------------------------------
+def pdf_bounds_clim(df, mu, sigma, bins):
+    '''Calculate pdf distribution, return pdf and threshold bounds'''
+
+    y = stats.norm.pdf(bins, mu, sigma)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+    
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] -1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    
+    return (y, left_bnd - 1, right_bnd)

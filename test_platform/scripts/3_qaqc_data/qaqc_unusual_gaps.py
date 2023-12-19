@@ -403,5 +403,22 @@ def create_bins(data, bin_size=0.25):
     b_max = np.ceil(np.nanmax(data))
     # bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
     bins = np.arange(b_min, b_max, bin_size)
+    print(b_min, b_max, bins)
 
     return bins
+
+#-----------------------------------------------------------------------------
+def pdf_bounds(df, mu, sigma, bins):
+    '''Calculate pdf distribution, return pdf and threshold bounds'''
+
+    y = stats.norm.pdf(bins, mu, sigma)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+    
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] -1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd - 1, right_bnd + 1)
+    
+    return (y, left_bnd - 1, right_bnd + 1)
