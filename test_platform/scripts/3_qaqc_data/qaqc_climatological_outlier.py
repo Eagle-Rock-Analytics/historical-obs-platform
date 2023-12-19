@@ -119,8 +119,9 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
 
         if plot == True:
             for var in vars_to_anom:
-                if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
-                    clim_outlier_plot(df, var, network=df['station'].unique()[0])
+                for month in range(1,13):
+                    if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
+                        clim_outlier_plot(df, var, month, network=df['station'].unique()[0])
 
     return df
 
@@ -197,7 +198,7 @@ def winsorize_temps(df, vars_to_anom, winz_limits):
                     df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
 
                     # winsorize only vars in vars_to_anom
-                    df_w = winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
+                    df_w = stats.mstats.winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
 
                     df2.loc[(df.time.dt.month == m) & (df.time.dt.hour == h),
                            var] = df_w

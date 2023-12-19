@@ -403,7 +403,6 @@ def create_bins(data, bin_size=0.25):
     b_max = np.ceil(np.nanmax(data))
     # bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
     bins = np.arange(b_min, b_max, bin_size)
-    print(b_min, b_max, bins)
 
     return bins
 

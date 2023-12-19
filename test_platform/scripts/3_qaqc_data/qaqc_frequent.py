@@ -25,7 +25,6 @@ except:
     print("Error importing qaqc_plot.py")
 
 ## frequent values + helper functions
-# Note: create_bins_frequent lives in calc_plot.py
 #-----------------------------------------------------------------------------
 def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     '''
