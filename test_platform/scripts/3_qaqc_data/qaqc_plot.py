@@ -18,6 +18,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+try:
+    from qaqc_unusual_gaps import *
+except:
+    print("Error importing qaqc_unusual_gaps.py")
+
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):
@@ -487,3 +492,75 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     return 
 
 #============================================================================================================
+def clim_outlier_plot(df, var, month, network):
+    '''
+    Produces a histogram of monthly standardized distribution
+    with PDF overlay and threshold lines where pdf falls below y=0.1.
+    Any bin that is outside of the threshold is visually flagged.
+    
+    Differs from dist_gap_part2_plot for the climatological outlier
+    as IQR standardization does not occur within plotting
+    '''
+    
+    # select month
+    df_to_plot = df.loc[df.time.dt.month == month][var]
+    
+    # determine number of bins
+    bins = create_bins(df_to_plot)
+    
+    # plot histogram
+    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, alpha=0.3)
+    xmin, xmax = plt.xlim()
+    plt.ylim(ymin=0.1)
+    
+    # # plot pdf
+    # mu = np.nanmean(df_to_plot)
+    # sigma = np.nanmean(df_to_plot)
+    # y = stats.norm.pdf(bins, mu, sigma)
+    # l = plt.plot(bins, y, 'k--', linewidth=1)
+    
+    # # add vertical lines to indicate thresholds where pdf y=0.1
+    # pdf_bounds = np.argwhere(y > 0.1)
+    
+    # # find first index
+    # left_bnd = round(bins[pdf_bounds[0][0] - 1])
+    # right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    # thresholds = (left_bnd, right_bnd)
+    # print(thresholds)
+    
+    # plt.axvline(thresholds[1], color='r') # right tail
+    # plt.axvline(thresholds[0], color='r') # left tail
+    
+    # # flag visually obs that are beyond threshold
+    # for bar in ax[2].patches:
+    #     x = bar.get_x() + 0.5 * bar.get_width()
+    #     if x > thresholds[1]: # right tail
+    #         bar.set_color('r')
+    #     elif x < thresholds[0]: # left tail
+    #         bar.set_color('r')
+            
+    # title and useful annotations
+    plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
+    # plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
+    # plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.ylabel('Frequency (obs)')
+    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png')
+    img_data.seek(0)
+    
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    figname = 'qaqc_climatological_outlier_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
+    bucket.put_object(Body=img_data, ContentType='image/png',
+                     Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                     directory, network, figname))
+    
+    # close figures to save memory
+    plt.close()
+
+    #============================================================================================================

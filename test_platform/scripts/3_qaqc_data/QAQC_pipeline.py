@@ -33,7 +33,7 @@ try:
     from qaqc_frequent import *
     from qaqc_unusual_gaps import *
     from qaqc_unusual_large_jumps import *
-
+    from qaqc_climatological_outlier import *
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
@@ -272,7 +272,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="has a missing lat-lon", 
+                                   message="missing lat-lon, skipping station", 
                                    test="qaqc_missing_latlon",
                                    verbose=verbose
                                   )
@@ -286,7 +286,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_within_wecc(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="lat-lon is out of range for WECC", 
+                                   message="lat-lon is out of range for WECC, skipping station", 
                                    test="qaqc_within_wecc",
                                    verbose=verbose
                                   )
@@ -312,7 +312,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_elev_range(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="elevation out of range for WECC", 
+                                   message="elevation out of range for WECC, skipping station", 
                                    test="qaqc_elev_range",
                                    verbose=verbose
                                   )
@@ -402,7 +402,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_precip_logic_nonegvals(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with negative precipitation values for", 
+                                   message="Flagging problem with negative precipitation values", 
                                    test="qaqc_precip_logic_nonegvals",
                                    verbose=verbose
                                   )
@@ -416,7 +416,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_precip_logic_accum_amounts(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with precip duration logic check for", 
+                                   message="Flagging problem with precip duration logic check", 
                                    test="qaqc_precip_logic_accum_amounts",
                                    verbose=verbose
                                   )
@@ -455,14 +455,14 @@ def run_qaqc_pipeline(ds, network, file_name,
         new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
         if new_df is None:
             errors = print_qaqc_failed(errors, station, end_api, 
-                                       message="Flagging problematic buoy issue for", 
+                                       message="Flagging problematic buoy issue", 
                                        test="spurious_buoy_check",
                                    verbose=verbose
                                   )
         else:
             stn_to_qaqc = new_df
             if verbose:
-                print('pass spurious_buoy_check') # testing
+                print('pass spurious_buoy_check')
 
     #---------------------------------------------------------
     # frequent values
@@ -494,6 +494,17 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     #---------------------------------------------------------
     # climatological outliers
+    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api,
+                                   message="Flagging problem with climatological outlier check",
+                                   test="qaqc_climatological_outlier",
+                                   verbose=verbose
+                                   )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_climatological_outlier')
 
     #---------------------------------------------------------
     # unusual streaks
@@ -503,7 +514,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with unusual large jumps (spike check) check for", 
+                                   message="Flagging problem with unusual large jumps (spike check) check", 
                                    test="qaqc_unusual_large_jumps",
                                    verbose=verbose
                                   )
@@ -565,7 +576,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
             # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        for station in stations_sample:
+        for station in ['VCAPCD_PU']:
             
             file_name = cleandir+station+".nc"
             

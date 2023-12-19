@@ -405,3 +405,19 @@ def create_bins(data, bin_size=0.25):
     bins = np.arange(b_min, b_max, bin_size)
 
     return bins
+
+#-----------------------------------------------------------------------------
+def pdf_bounds(df, mu, sigma, bins):
+    '''Calculate pdf distribution, return pdf and threshold bounds'''
+
+    y = stats.norm.pdf(bins, mu, sigma)
+    
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
+    
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] -1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd - 1, right_bnd + 1)
+    
+    return (y, left_bnd - 1, right_bnd + 1)

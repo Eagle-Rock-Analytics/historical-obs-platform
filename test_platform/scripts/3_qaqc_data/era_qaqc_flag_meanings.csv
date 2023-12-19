@@ -24,3 +24,4 @@
 23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
 25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
+26,qaqc_climatological_outlier,Value flagged as a climatological outlier for specific month and hour
