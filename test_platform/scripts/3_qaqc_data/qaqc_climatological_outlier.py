@@ -48,7 +48,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
         qaqc success:
             df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
         qaqc failure:
-            None
+            FIX ME
             
     Flag meaning:
     -------------
@@ -121,7 +121,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             for var in vars_to_anom:
                 for month in range(1,13):
                     if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
-                        clim_outlier_plot(df, var, month, network=df['station'].unique()[0])
+                        clim_outlier_plot(df, var, month, network=df['station'].unique()[0]) # this is what is producing a wrong directory
 
     return df
 

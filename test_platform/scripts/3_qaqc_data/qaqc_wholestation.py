@@ -25,7 +25,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
-# missing value cehck: double check that all missing value observations are converted to NA before QA/QC
+# missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=True):
     '''
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
@@ -80,7 +80,7 @@ def qaqc_missing_latlon(df, verbose=True):
         if qaqc success:
             df [pd.DataFrame]: QAQC dataframe with missing values replaced
         if qaqc failure:
-            None
+            None: station does not proceed through QA/QC
     '''
 
     # latitude or longitude
@@ -115,7 +115,7 @@ def qaqc_within_wecc(df, verbose=True):
         if qaqc success:
             df [pd.DataFrame]: QAQC dataframe with missing values replaced
         if qaqc failure:
-            None
+            None: station does not proceed through QA/QC
     '''
     
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
@@ -186,13 +186,17 @@ def qaqc_elev_infill(df, verbose=True):
         if QAQC success:
             df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
         if failure:
-            None
+            None: station does not proceed through QA/QC
 
     Flag meaning:
     -------------
         3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
         4,qaqc_elev_infill,Elevation infilled from station
         5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM
+
+    Note:
+    -----
+        Elevation qa/qc flags: observations with these flags should continue through QA/QC
     '''
     
     if verbose:
@@ -300,61 +304,6 @@ def qaqc_elev_range(df, verbose=True):
         
     return df
 
-#======================================================================
-## Part 1b functions (whole station/network)
-## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
-
-## flag values outside world records for North America
-def qaqc_world_record(df, verbose=True):
-    '''
-    Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
-    If outside minimum or maximum records, flags values. 
-
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-
-    Output:
-    -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
-
-    Flag meaning:
-    -------------
-        11,qaqc_world_record,Value outside of world record range
-    '''
-    try:
-        # world records from HadISD protocol, cross-checked with WMO database
-        # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
-        T_X = {"North_America":329.92} #K
-        T_N = {"North_America":210.15} #K
-        D_X = {"North_America":329.85} #K
-        D_N = {"North_America":173.15} #K
-        W_X = {"North_America":113.2} #m/s
-        W_N = {"North_America":0.} #m/s
-        S_X = {"North_America":108330} #Pa
-        S_N = {"North_America":87000} #Pa
-
-        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
-        mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
-
-        # variable names to check against world record limits
-        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
-
-        for var in wr_vars:
-            if var in list(df.columns):
-                isOffRecord = np.logical_or(df[var] < mins[var]['North_America'],
-                                            df[var] > maxes[var]['North_America'])
-                if isOffRecord.any():
-                    df.loc[isOffRecord, var + '_eraqc'] = 11 # see era_qaqc_flag_meanings.csv
-        return df
-    except Exception as e:
-        if verbose:
-            print("qaqc_world_record failed with Exception: {}".format(e))
-        return None
-
 #----------------------------------------------------------------------
 ## sensor height - air temperature
 def qaqc_sensor_height_t(df, verbose=True):
@@ -447,4 +396,59 @@ def qaqc_sensor_height_w(df, verbose=True):
     # except Exception as e:
         if verbose:
             print("qaqc_sensor_height_w failed with Exception: {}".format(e))
+        return None
+
+#======================================================================
+## Part 1b functions (whole station/network)
+## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
+
+## flag values outside world records for North America
+def qaqc_world_record(df, verbose=True):
+    '''
+    Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
+    If outside minimum or maximum records, flags values. 
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        11,qaqc_world_record,Value outside of world record range
+    '''
+    try:
+        # world records from HadISD protocol, cross-checked with WMO database
+        # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
+        T_X = {"North_America":329.92} #K
+        T_N = {"North_America":210.15} #K
+        D_X = {"North_America":329.85} #K
+        D_N = {"North_America":173.15} #K
+        W_X = {"North_America":113.2} #m/s
+        W_N = {"North_America":0.} #m/s
+        S_X = {"North_America":108330} #Pa
+        S_N = {"North_America":87000} #Pa
+
+        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
+        mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
+
+        # variable names to check against world record limits
+        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
+
+        for var in wr_vars:
+            if var in list(df.columns):
+                isOffRecord = np.logical_or(df[var] < mins[var]['North_America'],
+                                            df[var] > maxes[var]['North_America'])
+                if isOffRecord.any():
+                    df.loc[isOffRecord, var + '_eraqc'] = 11 # see era_qaqc_flag_meanings.csv
+        return df
+    except Exception as e:
+        if verbose:
+            print("qaqc_world_record failed with Exception: {}".format(e))
         return None
