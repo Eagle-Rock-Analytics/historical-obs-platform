@@ -65,9 +65,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
         if verbose:
             print("Running {} on {}".format("qaqc_frequent_vals", vars_to_check))
 
-        # df set-up with month and year
-        df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-        df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+        # # df set-up with month and year
+        # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+        # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
         
         for var in vars_to_check:
             print('Running frequent values check on: {}'.format(var))
@@ -237,7 +237,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
     # seasonal checks require special handling
     elif data_group == 'seasonal_all':
         for szn in szns:
-            df_szn = df_to_test.loc[(df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2])]
+            df_szn = df_to_test.loc[(df_to_test['time'].dt.month==szn[0]) | (df_to_test['time'].dt.month==szn[1]) | (df_to_test['time'].dt.month==szn[2])]
             if df_szn[var].isna().all() == True:
                 continue
             bins = create_bins_frequent(df_szn, var, bin_size=bin_s) # using 1 degC/hPa bin width
@@ -246,7 +246,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
             
             if len(flagged_bins) != 0:
                 for sus_bin in flagged_bins:
-                    df.loc[((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) & 
+                    df.loc[((df['time'].dt.month==szn[0]) | (df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) & 
                            (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                            var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
                     
@@ -259,7 +259,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                 # all seasons except winter
                 if szn != [12,1,2]:
                     df_szn = df_to_test.loc[(df_to_test['year']==yr) & 
-                                    ((df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2]))] 
+                                    ((df_to_test['time'].dt.month==szn[0]) | (df_to_test['time'].dt.month==szn[1]) | (df_to_test['time'].dt.month==szn[2]))] 
                     
                     if df_szn[var].isna().all() == True: # some vars will have nan years
                         continue
@@ -277,16 +277,16 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                         for sus_bin in flagged_bins:
                             df.loc[(df['year']==yr) & 
-                                  ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) &
+                                  ((df['time'].dt.month==szn[0]) | (df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) &
                                    (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
                 # special handling for winter because of december
                 else:
-                    df_yr = df_to_test.loc[df_to_test['year'] == yr] # that year's jan, feb, and wrong dec            
-                    df_jf = df_yr.loc[(df_yr['month']==1) | (df_yr['month']==2)] # that specific year's jan and feb
+                    df_yr = df_to_test.loc[df_to_test['time'].dt.year == yr] # that year's jan, feb, and wrong dec            
+                    df_jf = df_yr.loc[(df_yr['time'].dt.month==1) | (df_yr['time'].dt.month==2)] # that specific year's jan and feb
 
-                    df_d = df_to_test.loc[(df_to_test['year'] == yr-1) & (df_to_test['month'] == 12)] # previous year's dec
+                    df_d = df_to_test.loc[(df_to_test['year'] == yr-1) & (df_to_test['time'].dt.month == 12)] # previous year's dec
                     if len(df_d) == 0: # catching very first year instance
                         df_djf = df_jf 
                         print('Winter season: proceeding with just Jan/Feb, no previous Dec') ## DECISION
@@ -307,12 +307,12 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                         for sus_bin in flagged_bins:
                             # flag jan feb
-                            df.loc[(df['year']==yr) & 
-                                   ((df['month']==szn[1]) | (df['month']==szn[2])) &
+                            df.loc[(df['time'].dt.year==yr) & 
+                                   ((df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
                             # flag correct dec
-                            df.loc[((df['year']==yr-1) & (df['month']==szn[0])) &
+                            df.loc[((df['time'].dt.year==yr-1) & (df['time'].dt.month==szn[0])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
                                    var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
