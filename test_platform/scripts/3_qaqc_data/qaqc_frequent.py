@@ -61,76 +61,82 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'rsds'] # list of var substrings to remove if present in var
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
-    if verbose:
-        print("Running {} on {}".format("qaqc_frequent_vals", vars_to_check))
+    try:
+        if verbose:
+            print("Running {} on {}".format("qaqc_frequent_vals", vars_to_check))
 
-    # df set-up with month and year
-    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
-    
-    for var in vars_to_check:
-        print('Running frequent values check on: {}'.format(var))
-
-        # TO DO: still to implement -- only using non-flagged data, previous attempts were causing problems with resetting final index again
+        # df set-up with month and year
+        df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+        df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
         
-        # first scans suspect values using entire record
-        # all years
-        if df[var].isna().all() == True:
-            continue # bypass to next variable if all obs are nans 
-
-        df = frequent_bincheck(df, var, data_group='all', rad_scheme=rad_scheme)
-
-        # if no values are flagged as suspect, end function, no need to proceed
-        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
-            print('No unusually frequent values detected for entire {} observation record'.format(var))
-            # goes to seasonal check, no bypass
-
-        else:
-            # year by year
-            # then scans for each value on a year-by-year basis to flag if they are a problem within that year
-                # DECISION: the annual check uses the unfiltered data
-                # previously flagged values are included here -- this would interfere with our entire workflow
-            df = frequent_bincheck(df, var, data_group='annual', rad_scheme=rad_scheme)
-
-        # seasonal scan (JF+D, MAM, JJA, SON) 
-        # each season is scanned over entire record to identify problem values
-        # only flags applied on annual basis using the three months on their own
-        # NOTE: HadISD approach is to use the current year's december, rather than the preceeding december
-
-        # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
-        # all years
-        df = frequent_bincheck(df, var, data_group='seasonal_all', rad_scheme=rad_scheme) ## DECISION: December is from the current year
-        if len(df.loc[df[var+'_eraqc'] == 100]) == 0:
-            print('No unusually frequent values detected for seasonal {} observation record'.format(var))
-            continue # bypasses to next variable
-
-        else:
-            print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
-            # year by year --> December selection must be specific
-            df = frequent_bincheck(df, var, data_group='seasonal_annual', rad_scheme=rad_scheme)    
-                      
-        # remove any lingering preliminary flags, data passed check
-        df.loc[df[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
-        
-    # synergistic flag on tas and tdps/tdps_derived
-    # first establish at least tas and one tdps var present
-    temp_vars = ['tas', 'tdps', 'tdps_derived']
-    num_temp_vars = [var for var in vars_to_check if var in temp_vars]
-    if len(num_temp_vars) != 1 and 'tas' in num_temp_vars:
-        # proceed to synergistic check
-        df = synergistic_flag(df, num_temp_vars)
-    
-    # plots item
-    if plots==True:
         for var in vars_to_check:
-            if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
-                # histogram
-                frequent_vals_plot(df, var, rad_scheme)
+            print('Running frequent values check on: {}'.format(var))
 
-                # entire timeseries figure
-                flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
+            # TO DO: still to implement -- only using non-flagged data, previous attempts were causing problems with resetting final index again
+            df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
+            
+            # first scans suspect values using entire record
+            # all years
+            if df_valid[var].isna().all() == True:
+                continue # bypass to next variable if all obs are nans 
+
+            df2 = frequent_bincheck(df_valid, var, data_group='all', rad_scheme=rad_scheme)
+
+            # if no values are flagged as suspect, end function, no need to proceed
+            if len(df2.loc[df2[var+'_eraqc'] == 100]) == 0:
+                print('No unusually frequent values detected for entire {} observation record'.format(var))
+                # goes to seasonal check, no bypass
+
+            else:
+                # year by year
+                # then scans for each value on a year-by-year basis to flag if they are a problem within that year
+                    # DECISION: the annual check uses the unfiltered data
+                    # previously flagged values are included here -- this would interfere with our entire workflow
+                df2 = frequent_bincheck(df2, var, data_group='annual', rad_scheme=rad_scheme)
+
+            # seasonal scan (JF+D, MAM, JJA, SON) 
+            # each season is scanned over entire record to identify problem values
+            # only flags applied on annual basis using the three months on their own
+            # NOTE: HadISD approach is to use the current year's december, rather than the preceeding december
+
+            # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
+            # all years
+            df2 = frequent_bincheck(df2, var, data_group='seasonal_all', rad_scheme=rad_scheme) ## DECISION: December is from the current year
+            if len(df2.loc[df2[var+'_eraqc'] == 100]) == 0:
+                print('No unusually frequent values detected for seasonal {} observation record'.format(var))
+                continue # bypasses to next variable
+
+            else:
+                print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
+                # year by year --> December selection must be specific
+                df2 = frequent_bincheck(df2, var, data_group='seasonal_annual', rad_scheme=rad_scheme)    
+                        
+            # remove any lingering preliminary flags, data passed check
+            df2.loc[df2[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
+            
+        # synergistic flag on tas and tdps/tdps_derived
+        # first establish at least tas and one tdps var present
+        temp_vars = ['tas', 'tdps', 'tdps_derived']
+        num_temp_vars = [var for var in vars_to_check if var in temp_vars]
+        if len(num_temp_vars) != 1 and 'tas' in num_temp_vars:
+            # proceed to synergistic check
+            df2 = synergistic_flag(df2, num_temp_vars)
         
-    return df
+        # plots item
+        if plots==True:
+            for var in vars_to_check:
+                if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
+                    # histogram
+                    frequent_vals_plot(df, var, rad_scheme)
+
+                    # entire timeseries figure
+                    flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
+            
+        return df
+    
+    except Exception as e:
+        print("qaqc_frequent_vals failed with Exception: {}".format(e))
+        return None
 
 #-----------------------------------------------------------------------------
 def frequent_bincheck(df, var, data_group, rad_scheme):

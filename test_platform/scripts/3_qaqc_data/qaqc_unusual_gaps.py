@@ -59,22 +59,27 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
                         'lat','lon','elevation','time','month','year',
                         'sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
+    
+    try:
+        # whole station bypass check first
+        df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
         
-    # whole station bypass check first
-    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
-    
-    if pass_flag == 'fail':
-        return df
-    else:
-        df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
-        df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots)
+        if pass_flag == 'fail':
+            return df
+        else:
+            df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
+            df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots)
 
-        if plots == True:
-            for var in vars_to_check:
-                if (19 not in df[var+'_eraqc'].values) and (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
-                    flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
+            if plots == True:
+                for var in vars_to_check:
+                    if (19 not in df[var+'_eraqc'].values) and (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
+                        flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
+        
+        return df_part2
     
-    return df_part2
+    except Exception as e:
+        print("qaqc_unusual_gaps failed with Exception: {}".format(e))
+        return None
 
 
 #-----------------------------------------------------------------------------
