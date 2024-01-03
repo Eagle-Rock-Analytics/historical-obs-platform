@@ -304,6 +304,11 @@ def qaqc_elev_range(df, verbose=True):
         
     return df
 
+
+#======================================================================
+## Part 1b functions (whole station/network)
+## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
+
 #----------------------------------------------------------------------
 ## sensor height - air temperature
 def qaqc_sensor_height_t(df, verbose=True):
@@ -398,10 +403,7 @@ def qaqc_sensor_height_w(df, verbose=True):
             print("qaqc_sensor_height_w failed with Exception: {}".format(e))
         return None
 
-#======================================================================
-## Part 1b functions (whole station/network)
-## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
-
+#----------------------------------------------------------------------
 ## flag values outside world records for North America
 def qaqc_world_record(df, verbose=True):
     '''

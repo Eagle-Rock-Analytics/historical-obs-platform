@@ -321,6 +321,9 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_elev_range')
 
+    #=========================================================
+    ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
+
     #---------------------------------------------------------
     ## Sensor height: air temperature
     new_df = qaqc_sensor_height_t(stn_to_qaqc, verbose=verbose)
@@ -349,9 +352,6 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_sensor_height_w')
 
-    #=========================================================
-    ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-
     #---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
     new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
@@ -374,7 +374,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check for", 
+                                   message="Flagging problem with temperature cross-variable logic check", 
                                    test="qaqc_crossvar_logic_tdps_to_tas_supersat",
                                    verbose=verbose
                                   )
@@ -388,7 +388,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check for", 
+                                   message="Flagging problem with temperature cross-variable logic check", 
                                    test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
                                    verbose=verbose
                                   )
@@ -430,7 +430,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with wind cross-variable logic check for", 
+                                   message="Flagging problem with wind cross-variable logic check", 
                                    test="qaqc_crossvar_logic_calm_wind_dir",
                                    verbose=verbose
                                   )
@@ -469,7 +469,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with frequent values function for", 
+                                    message="Flagging problem with frequent values function", 
                                     test="qaqc_frequent_vals",
                                     verbose=verbose
                                     )
@@ -483,7 +483,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_unusual_gaps(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function for", 
+                                    message="Flagging problem with unusual gap distribution function", 
                                     test="qaqc_unusual_gaps",
                                     verbose=verbose
                                     )

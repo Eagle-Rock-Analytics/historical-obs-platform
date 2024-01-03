@@ -59,13 +59,13 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
                         'lat','lon','elevation','time','month','year',
                         'sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
-    
+
     try:
         # whole station bypass check first
         df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
-        
         if pass_flag == 'fail':
             return df
+
         else:
             df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
             df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots)
@@ -103,10 +103,10 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     -------------
         19,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
     """
-
+             
     # in order to grab the time information more easily -- would prefer not to do this
-    # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
              
     # set up a "pass_flag" to determine if station proceeds through distribution function
     pass_flag = 'pass'
@@ -115,14 +115,15 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
         for month in range(1,13):
 
             # first check num of months in order to continue
-            month_to_check = df.loc[df['time'].dt.month == month]
+            month_to_check = df.loc[df['month'] == month]
 
             # check for number of obs years
             if (len(month_to_check.year.unique()) < 5):
                 df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
                 pass_flag = 'fail'
 
-    err_statement = '{} has too short of an observation record to proceed through the monthly distribution qa/qc checks -- bypassing station'.format(df['station'].unique()[0])
+    err_statement = '{} has too short of an observation record to proceed through the monthly distribution qa/qc checks -- bypassing station'.format(
+                    df['station'].unique()[0])
     
     if pass_flag == 'fail':
         print(err_statement)
@@ -152,14 +153,14 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
         
     for var in vars_to_check:
         for month in range(1,13):
-            monthly_df = df.loc[df['time']dt.month == month]
+            monthly_df = df.loc[df['month']==month]
             
             # if all values are null for that month across years
             if monthly_df[var].isnull().all() == True:
                 df[var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
             
             # if not all months have nans, need to assess how many years do
-            elif monthly_med(df).loc[monthly_med(df)['time']dt.month == month][var].isna().sum() > min_num_months:                
+            elif monthly_med(df).loc[monthly_med(df)['month'] == month][var].isna().sum() > min_num_months:                
                 df[var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
         
     return df
@@ -209,10 +210,10 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
                 # calculate monthly median per month
                 df_month = monthly_med(df_valid)
 
-                for i in df_month.loc[df_month['time'].dt.month == month][var]:
+                for i in df_month.loc[df_month['month'] == month][var]:
                     if (i < low) or (i > high):
                         year_to_flag = (df_month.loc[(df_month[var]==i) & 
-                                           (df_month['time'].dt.month == month)].dt.year.values[0])
+                                           (df_month['month']==month)]['year'].values[0])
                         print('Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month'.format(
                             var,
                             month, 
@@ -386,7 +387,7 @@ def standardized_anom(df, month, var):
     df_monthly_med = monthly_med(df)
     df_clim_med = median_clim(df)
     
-    arr_anom = (df_monthly_med.loc[df_monthly_med['time'].dt.month == month][var].values -
+    arr_anom = (df_monthly_med.loc[df_monthly_med['month'] == month][var].values -
                 df_clim_med.loc[df_clim_med.index == month][var].values)
         
     arr_std_anom = arr_anom / iqr_range(df, month, var)

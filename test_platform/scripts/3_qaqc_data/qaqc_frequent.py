@@ -58,12 +58,16 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     
     # this check is only done on air temp, dewpoint temp, and pressure
     vars_to_remove = ['qc', 'duration', 'method']
-    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'rsds'] # list of var substrings to remove if present in var
+    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] # list of var substrings to remove if present in var
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
         if verbose:
             print("Running {} on {}".format("qaqc_frequent_vals", vars_to_check))
+
+        # df set-up with month and year -- prefer to not do this
+        df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+        df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
         
         for var in vars_to_check:
             print('Running frequent values check on: {}'.format(var))
@@ -103,7 +107,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
                 continue # bypasses to next variable
 
             else:
-                print('Unusually frequent values detected in seasonal distribution, continuining to annual check')
+                print('Unusually frequent values detected in seasonal distribution, continuing to annual check')
                 # year by year --> December selection must be specific
                 df_valid = frequent_bincheck(df_valid, var, data_group='seasonal_annual', rad_scheme=rad_scheme)    
                         
@@ -167,7 +171,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
     szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] 
     
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ['ps', 'ps_altimeter', 'psl']
+    ps_vars = ['ps', 'ps_altimeter', 'psl', 'ps_derived']
     
     ## TEMPORARY BUG FIX ON PSL UNIT ==================================================================
     if var=='psl':
@@ -239,7 +243,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
     # seasonal checks require special handling
     elif data_group == 'seasonal_all':
         for szn in szns:
-            df_szn = df_to_test.loc[(df_to_test['time'].dt.month==szn[0]) | (df_to_test['time'].dt.month==szn[1]) | (df_to_test['time'].dt.month==szn[2])]
+            df_szn = df_to_test.loc[(df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2])]
             if df_szn[var].isna().all() == True:
                 continue
             bins = create_bins_frequent(df_szn, var, bin_size=bin_s) # using 1 degC/hPa bin width
@@ -248,7 +252,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
             
             if len(flagged_bins) != 0:
                 for sus_bin in flagged_bins:
-                    df.loc[((df['time'].dt.month==szn[0]) | (df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) & 
+                    df.loc[((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) & 
                            (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                            var+'_eraqc'] = 100 # highlight for further review flag, either overwritten with real flag or removed in next step
                     
@@ -261,7 +265,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
                 # all seasons except winter
                 if szn != [12,1,2]:
                     df_szn = df_to_test.loc[(df_to_test['year']==yr) & 
-                                    ((df_to_test['time'].dt.month==szn[0]) | (df_to_test['time'].dt.month==szn[1]) | (df_to_test['time'].dt.month==szn[2]))] 
+                                    ((df_to_test['month']==szn[0]) | (df_to_test['month']==szn[1]) | (df_to_test['month']==szn[2]))] 
                     
                     if df_szn[var].isna().all() == True: # some vars will have nan years
                         continue
@@ -279,16 +283,16 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                         for sus_bin in flagged_bins:
                             df.loc[(df['year']==yr) & 
-                                  ((df['time'].dt.month==szn[0]) | (df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) &
+                                  ((df['month']==szn[0]) | (df['month']==szn[1]) | (df['month']==szn[2])) &
                                    (df[var]>=sus_bin) & (df[var]<=sus_bin+1),
                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
                 # special handling for winter because of december
                 else:
-                    df_yr = df_to_test.loc[df_to_test['time'].dt.year == yr] # that year's jan, feb, and wrong dec            
-                    df_jf = df_yr.loc[(df_yr['time'].dt.month==1) | (df_yr['time'].dt.month==2)] # that specific year's jan and feb
+                    df_yr = df_to_test.loc[df_to_test['year'] == yr] # that year's jan, feb, and wrong dec            
+                    df_jf = df_yr.loc[(df_yr['month']==1) | (df_yr['month']==2)] # that specific year's jan and feb
 
-                    df_d = df_to_test.loc[(df_to_test['year'] == yr-1) & (df_to_test['time'].dt.month == 12)] # previous year's dec
+                    df_d = df_to_test.loc[(df_to_test['year'] == yr-1) & (df_to_test['month'] == 12)] # previous year's dec
                     if len(df_d) == 0: # catching very first year instance
                         df_djf = df_jf 
                         print('Winter season: proceeding with just Jan/Feb, no previous Dec') ## DECISION
@@ -309,12 +313,12 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
                         for sus_bin in flagged_bins:
                             # flag jan feb
-                            df.loc[(df['time'].dt.year==yr) & 
-                                   ((df['time'].dt.month==szn[1]) | (df['time'].dt.month==szn[2])) &
+                            df.loc[(df['year']==yr) & 
+                                   ((df['month']==szn[1]) | (df['month']==szn[2])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
                                   var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
                             # flag correct dec
-                            df.loc[((df['time'].dt.year==yr-1) & (df['time'].dt.month==szn[0])) &
+                            df.loc[((df['year']==yr-1) & (df['month']==szn[0])) &
                                    ((df[var]>=sus_bin) & (df[var]<=sus_bin+1)),
                                    var+'_eraqc'] = 25 # see era_qaqc_flag_meanings.csv
 
