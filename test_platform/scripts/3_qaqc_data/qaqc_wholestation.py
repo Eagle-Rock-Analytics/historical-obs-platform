@@ -339,6 +339,7 @@ def qaqc_sensor_height_t(df, verbose=True):
         if isHeightMissing:
             # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
+            print('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks')
         else:
             isHeightWithin = np.logical_and(df['thermometer_height_m'] >= (2 - 1/3),
                                             df['thermometer_height_m'] <= (2 + 1/3))
@@ -347,6 +348,7 @@ def qaqc_sensor_height_t(df, verbose=True):
             if not isHeightWithin:
                 # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
                 df['tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
+                print('Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks')
 
         return df
     except Exception as e:
@@ -387,14 +389,16 @@ def qaqc_sensor_height_w(df, verbose=True):
             # df.loc[:,'sfcWind_dir_eraqc'] = 8
             df['sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
             df['sfcWind_dir_eraqc'] = 8
+            print('Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks')
 
         else: # sensor height present
             # Check if anemometer height is within 10 m +/- 1/3 m
             isHeightWithin = df['anemometer_height_m'][0] >= (10 - 1/3) and df['anemometer_height_m'][0] <= (10 + 1/3)
             # Anemometer height present but outside 10m +/- tolerance
             if not isHeightWithin:
-                df['sfcWind_eraqc'] = 9
-                df['sfcWind_dir_eraqc'] = 9 
+                df['sfcWind_eraqc'] = 9 # see era_qaqc_flag_meanings.csv
+                df['sfcWind_dir_eraqc'] = 9
+                print('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks')
         return df
 
     else:
