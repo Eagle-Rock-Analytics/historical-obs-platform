@@ -60,19 +60,18 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
     - HadISD uses 100, this can be modified and tweaked in future development
     """
-    
+    df = df.copy(deep=True)
+    df.set_index(df['time'], inplace=True)
+    df.drop(columns=['time'], inplace=True)
+
     try:
     # if True:
-        # Save original df multiindex and create station column
-        df = df.copy(deep=True)
-        df.set_index(df['time'], inplace=True)
-        df.drop(columns=['time'], inplace=True)
 
         # Drop station index
         # df = df.droplevel(level="station")
 
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp"]
+        check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
         variables = [var for var in check_vars if var in df.columns]
 
         if verbose:
@@ -80,27 +79,48 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
 
         # Loop through test variables
         for var in variables:
+            print('Running unusual large jumps check on: {}'.format(var))
+
             # Create a copy of the original dataframe and drop NaNs in the testing variable
-            new_df = df.copy(deep=True)
-            new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
+            # new_df = df.copy(deep=True)
+            # new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
+
             # Use only values that have not been flagged by previous QAQC tests
-            valid = np.where(np.isnan(new_df[var+"_eraqc"]))[0]
-            new_df = new_df.iloc[valid]
+            # valid = np.where(np.isnan(df[var+"_eraqc"]))[0]
+            # new_df = df.iloc[valid]
+
+            new_df = df.loc[df[var+'_eraqc'].isnull() == True]
+
+           # first scans suspect values using entire record
+            if new_df[var].isna().all() == True:
+                continue # bypass to next variable if all obs are nans 
+            
             # Detect spikes
             new_df = detect_spikes(new_df, var=var, iqr_thresh=iqr_thresh, min_datapoints=min_datapoints)
+
             # Retrieve location of spikes
             ind = new_df.index[np.where(new_df[var+"_spikes"])[0]]
-            # Flag _eraqc variable
-            df.loc[ind, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
 
+            # Flag _eraqc variable
+            for i in ind:
+                df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
+            
             if plot:
                 unusual_jumps_plot(df, var, flagval=23, local=local)
                 for i in ind:
-                    subset = np.logical_and(df.index>=i - np.timedelta64(48,'h'), 
-                                        df.index<=i + np.timedelta64(48,'h'))
-                    unusual_jumps_plot(df[subset], var, flagval=23, date=i, local=local)
+                    try:
+                        subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) & 
+                                        (df.index <= i + datetime.timedelta(hours=48))]
+                        # subset = np.logical_and(df.index >= i - np.timedelta64(48,'h'), 
+                        #                     df.index <= i + np.timedelta64(48,'h'))
+                        unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
+                    except:
+                        print('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var))
+                        continue
 
         return df.reset_index()
+        # return df
+
     except Exception as e:
         print("qaqc_unusual_large_jumps failed with Exception: {}".format(e))
         return None
@@ -198,7 +218,7 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
       2- `potential_spike_check` checks for neccessary conditions for a potential spike to be an actual
           spike
     
-    This test is done for ["tas", "tdps", "ps", "slp"]
+    This test is done for ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
     Should it be done for more vars?
     
     Input:

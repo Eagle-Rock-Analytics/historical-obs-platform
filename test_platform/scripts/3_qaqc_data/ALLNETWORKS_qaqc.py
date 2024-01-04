@@ -20,7 +20,7 @@ try:
     from qaqc_plot import *
     from qaqc_utils import *
     from qaqc_wholestation import *
-    from qaqc_sensor import *
+    from qaqc_logic_checks import *
     from qaqc_buoy_check import *
     from qaqc_frequent import *
     from qaqc_unusual_gaps import *

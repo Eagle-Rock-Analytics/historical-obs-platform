@@ -25,7 +25,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
-# missing value cehck: double check that all missing value observations are converted to NA before QA/QC
+# missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=True):
     '''
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
@@ -80,7 +80,7 @@ def qaqc_missing_latlon(df, verbose=True):
         if qaqc success:
             df [pd.DataFrame]: QAQC dataframe with missing values replaced
         if qaqc failure:
-            None
+            None: station does not proceed through QA/QC
     '''
 
     # latitude or longitude
@@ -115,7 +115,7 @@ def qaqc_within_wecc(df, verbose=True):
         if qaqc success:
             df [pd.DataFrame]: QAQC dataframe with missing values replaced
         if qaqc failure:
-            None
+            None: station does not proceed through QA/QC
     '''
     
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
@@ -186,13 +186,17 @@ def qaqc_elev_infill(df, verbose=True):
         if QAQC success:
             df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
         if failure:
-            None
+            None: station does not proceed through QA/QC
 
     Flag meaning:
     -------------
         3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
         4,qaqc_elev_infill,Elevation infilled from station
         5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM
+
+    Note:
+    -----
+        Elevation qa/qc flags: observations with these flags should continue through QA/QC
     '''
     
     if verbose:
@@ -300,10 +304,110 @@ def qaqc_elev_range(df, verbose=True):
         
     return df
 
+
 #======================================================================
 ## Part 1b functions (whole station/network)
 ## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
 
+#----------------------------------------------------------------------
+## sensor height - air temperature
+def qaqc_sensor_height_t(df, verbose=True):
+    '''
+    Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        6,qaqc_sensor_height_t,Thermometer height missing
+        7,qaqc_sensor_height_t,Thermometer height not 2 meters
+    '''
+    try:
+        # Check if thermometer height is missing   
+        isHeightMissing = df['thermometer_height_m'].isnull().any()
+
+        if isHeightMissing:
+            # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
+            df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
+            print('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks')
+        else:
+            isHeightWithin = np.logical_and(df['thermometer_height_m'] >= (2 - 1/3),
+                                            df['thermometer_height_m'] <= (2 + 1/3))
+
+            # Thermometer height present but outside 10m +/- tolerance
+            if not isHeightWithin.all():
+                # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
+                df['tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
+                print('Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks')
+
+        return df
+    except Exception as e:
+        if verbose:
+            print("qaqc_sensor_height_t failed with Exception: {}".format(e))
+        return None
+
+#----------------------------------------------------------------------
+## sensor height - wind
+def qaqc_sensor_height_w(df, verbose=True):
+    '''
+    Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
+    If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+
+    Flag meaning:
+    -------------
+        8,qaqc_sensor_height_w,Anemometer height missing
+        9,qaqc_sensor_height_w,Anemometer height not 10 meters
+    '''
+    # try:
+    if True:
+        # Check if anemometer height is missing
+        isHeightMissing = df['anemometer_height_m'].isnull().any()
+
+        if isHeightMissing:
+            # df.loc[:,'sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
+            # df.loc[:,'sfcWind_dir_eraqc'] = 8
+            df['sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
+            df['sfcWind_dir_eraqc'] = 8
+            print('Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks')
+
+        else: # sensor height present
+            # Check if anemometer height is within 10 m +/- 1/3 m
+            isHeightWithin = df['anemometer_height_m'][0] >= (10 - 1/3) and df['anemometer_height_m'][0] <= (10 + 1/3)
+            # Anemometer height present but outside 10m +/- tolerance
+            if not isHeightWithin.all():
+                df['sfcWind_eraqc'] = 9 # see era_qaqc_flag_meanings.csv
+                df['sfcWind_dir_eraqc'] = 9
+                print('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks')
+        return df
+
+    else:
+    # except Exception as e:
+        if verbose:
+            print("qaqc_sensor_height_w failed with Exception: {}".format(e))
+        return None
+
+#----------------------------------------------------------------------
 ## flag values outside world records for North America
 def qaqc_world_record(df, verbose=True):
     '''
@@ -353,98 +457,4 @@ def qaqc_world_record(df, verbose=True):
     except Exception as e:
         if verbose:
             print("qaqc_world_record failed with Exception: {}".format(e))
-        return None
-
-#----------------------------------------------------------------------
-## sensor height - air temperature
-def qaqc_sensor_height_t(df, verbose=True):
-    '''
-    Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
-    If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
-
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-
-    Output:
-    -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
-
-    Flag meaning:
-    -------------
-        6,qaqc_sensor_height_t,Thermometer height missing
-        7,qaqc_sensor_height_t,Thermometer height not 2 meters
-    '''
-    try:
-        # Check if thermometer height is missing   
-        isHeightMissing = df['thermometer_height_m'].isnull().any()
-
-        if isHeightMissing:
-            # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
-            df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
-        else:
-            isHeightWithin = np.logical_and(df['thermometer_height_m'] >= (2 - 1/3),
-                                            df['thermometer_height_m'] <= (2 + 1/3))
-
-            # Thermometer height present but outside 10m +/- tolerance
-            if not isHeightWithin:
-                # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
-                df['tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
-
-        return df
-    except Exception as e:
-        if verbose:
-            print("qaqc_sensor_height_w failed with Exception: {}".format(e))
-        return None
-
-#----------------------------------------------------------------------
-## sensor height - wind
-def qaqc_sensor_height_w(df, verbose=True):
-    '''
-    Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
-    If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
-
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-
-    Output:
-    -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
-
-    Flag meaning:
-    -------------
-        8,qaqc_sensor_height_w,Anemometer height missing
-        9,qaqc_sensor_height_w,Anemometer height not 10 meters
-    '''
-    # try:
-    if True:
-        # Check if anemometer height is missing
-        isHeightMissing = df['anemometer_height_m'].isnull().any()
-
-        if isHeightMissing:
-            # df.loc[:,'sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
-            # df.loc[:,'sfcWind_dir_eraqc'] = 8
-            df['sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
-            df['sfcWind_dir_eraqc'] = 8
-
-        else: # sensor height present
-            # Check if anemometer height is within 10 m +/- 1/3 m
-            isHeightWithin = df['anemometer_height_m'][0] >= (10 - 1/3) and df['anemometer_height_m'][0] <= (10 + 1/3)
-            # Anemometer height present but outside 10m +/- tolerance
-            if not isHeightWithin:
-                df['sfcWind_eraqc'] = 9
-                df['sfcWind_dir_eraqc'] = 9 
-        return df
-
-    else:
-    # except Exception as e:
-        if verbose:
-            print("qaqc_sensor_height_w failed with Exception: {}".format(e))
         return None

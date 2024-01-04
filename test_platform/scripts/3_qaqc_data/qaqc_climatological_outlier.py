@@ -57,73 +57,78 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
-    
-    # whole station bypass check
-    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_anom)
-    
-    if pass_flag == 'fail':
-        return df
-    else:
-        for var in vars_to_anom:      
-            # only work with non-flagged values
-            print('Checking for climatological outliers in: {}'.format(var))
-            df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
 
-            # winsorize data by percentiles
-            if winsorize == True:
-                df_std = winsorize_temps(df_valid, vars_to_anom, winz_limits)
-            else:
-                df_std = df_valid
+    try:
+        # whole station bypass check
+        df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_anom)
+        
+        if pass_flag == 'fail':
+            return df
+        else:
+            for var in vars_to_anom:      
+                # only work with non-flagged values
+                print('Checking for climatological outliers in: {}'.format(var))
+                df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
 
-            # standardize data by monthly climatological anomalies by hour
-            df_std = clim_standardized_anom(df_std, vars_to_anom)
+                # winsorize data by percentiles
+                if winsorize == True:
+                    df_std = winsorize_temps(df_valid, vars_to_anom, winz_limits)
+                else:
+                    df_std = df_valid
 
-            # apply low pass filter
-            df_std = low_pass_filter(df_std, vars_to_anom)
+                # standardize data by monthly climatological anomalies by hour
+                df_std = clim_standardized_anom(df_std, vars_to_anom)
 
-            # gaussian is fitted to the histogram of anomalies for each month
-            # similar to distributional gap check
-            # FUTURE DEV (v2 of product):
-                # HadISD: obs that fall between critical threshold value and gap or critical threshold and end of distribution are tentatively flagged
-                # May be later reinstated on comparison with good data from neighboring stations
+                # apply low pass filter
+                df_std = low_pass_filter(df_std, vars_to_anom)
 
-            for month in range(1,13):
+                # gaussian is fitted to the histogram of anomalies for each month
+                # similar to distributional gap check
+                # FUTURE DEV (v2 of product):
+                    # HadISD: obs that fall between critical threshold value and gap or critical threshold and end of distribution are tentatively flagged
+                    # May be later reinstated on comparison with good data from neighboring stations
 
-                df_m = df_std.loc[df_valid.time.dt.month == month]
-
-                # some months will be missing data
-                if len(df_m) == 0:
-                    continue
-
-                # determine number of bins
-                bins = create_bins(df_m[var])
-
-                # pdf
-                mu = np.nanmean(df_m[var])
-                sigma = np.nanstd(df_m[var])
-                y, left_bnd, right_bnd = pdf_bounds_clim(df_m[var], mu, sigma, bins)
-
-                # identify gaps as below y=0.1 from histogram, not pdf
-                y_hist, bins = np.histogram(df_m[var], bins=bins, density=True)
-
-                # identify bin indices outside of thresholds and check if bin is above 0.1
-                bins_to_check = [i for i, n in enumerate(bins) if n <= left_bnd or n >= right_bnd][:-1] # remove last item due to # of bins exceeding hist by 1
-                if len(bins_to_check) != 0:
-                    for b in bins_to_check:
-                        if y_hist[b] > 0.1:
-                            print('Flagging outliers in {0}, month {1}'.format(var, month))
-                            # list of index of full df to flag, not standardized df
-                            idx_to_flag = [i for i in df_m.loc[(df_m[var] >= bins[b]) & (df_m[var] < bins[b+1])].index]
-                            for i in idx_to_flag:
-                                df.loc[df.index == i, var+'_eraqc'] = 26 # see era_qaqc_flag_meanings.csv 
-
-        if plot == True:
-            for var in vars_to_anom:
                 for month in range(1,13):
-                    if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
-                        clim_outlier_plot(df, var, month, network=df['station'].unique()[0])
 
-    return df
+                    df_m = df_std.loc[df_valid.time.dt.month == month]
+
+                    # some months will be missing data
+                    if len(df_m) == 0:
+                        continue
+
+                    # determine number of bins
+                    bins = create_bins(df_m[var])
+
+                    # pdf
+                    mu = np.nanmean(df_m[var])
+                    sigma = np.nanstd(df_m[var])
+                    y, left_bnd, right_bnd = pdf_bounds_clim(df_m[var], mu, sigma, bins)
+
+                    # identify gaps as below y=0.1 from histogram, not pdf
+                    y_hist, bins = np.histogram(df_m[var], bins=bins, density=True)
+
+                    # identify bin indices outside of thresholds and check if bin is above 0.1
+                    bins_to_check = [i for i, n in enumerate(bins) if n <= left_bnd or n >= right_bnd][:-1] # remove last item due to # of bins exceeding hist by 1
+                    if len(bins_to_check) != 0:
+                        for b in bins_to_check:
+                            if y_hist[b] > 0.1:
+                                print('Flagging outliers in {0}, month {1}'.format(var, month))
+                                # list of index of full df to flag, not standardized df
+                                idx_to_flag = [i for i in df_m.loc[(df_m[var] >= bins[b]) & (df_m[var] < bins[b+1])].index]
+                                for i in idx_to_flag:
+                                    df.loc[df.index == i, var+'_eraqc'] = 26 # see era_qaqc_flag_meanings.csv 
+
+            if plot == True:
+                for var in vars_to_anom:
+                    for month in range(1,13):
+                        if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
+                            clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0]) 
+
+        return df
+    
+    except Exception as e:
+        print("qaqc_climatological_outlier failed with Exception: {}".format(e))
+        return None
 
 #----------------------------------------------------------------------
 def clim_mon_mean_hourly(df, var, month, hour):

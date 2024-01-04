@@ -28,7 +28,7 @@ try:
     from qaqc_plot import *
     from qaqc_utils import *
     from qaqc_wholestation import *
-    from qaqc_sensor import *
+    from qaqc_logic_checks import *
     from qaqc_buoy_check import *
     from qaqc_frequent import *
     from qaqc_unusual_gaps import *
@@ -201,7 +201,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
     exclude_qaqc = ["time", "station", "lat", "lon", 
-                    "qaqc_process", "sfcWind_method"] # lat and lon have a different qc check
+                    "qaqc_process", "sfcWind_method"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
     era_qc_vars = [] # our qc variable
@@ -300,7 +300,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_elev_infill(stn_to_qaqc, verbose=verbose) # nan infilling must be before range check
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="DEM in-filling failed for", 
+                                   message="DEM in-filling failed", 
                                    test="DEM in-filling, may not mean station does not pass qa/qc -- check",
                                    verbose=verbose
                                   )
@@ -323,20 +323,6 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #=========================================================
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-
-    #---------------------------------------------------------
-    ## World record checks: air temperature, dewpoint, wind, pressure
-    new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with world record check", 
-                                   test="qaqc_world_record",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_world_record')
 
     #---------------------------------------------------------
     ## Sensor height: air temperature
@@ -366,6 +352,20 @@ def run_qaqc_pipeline(ds, network, file_name,
         if verbose:
             print('pass qaqc_sensor_height_w')
 
+    #---------------------------------------------------------
+    ## World record checks: air temperature, dewpoint, wind, pressure
+    new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                   message="Flagging problem with world record check", 
+                                   test="qaqc_world_record",
+                                   verbose=verbose
+                                  )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_world_record')
+
     #=========================================================
     ## Part 2: Variable logic checks
     
@@ -374,7 +374,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check for", 
+                                   message="Flagging problem with temperature cross-variable logic check", 
                                    test="qaqc_crossvar_logic_tdps_to_tas_supersat",
                                    verbose=verbose
                                   )
@@ -388,7 +388,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check for", 
+                                   message="Flagging problem with temperature cross-variable logic check", 
                                    test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
                                    verbose=verbose
                                   )
@@ -430,7 +430,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with wind cross-variable logic check for", 
+                                   message="Flagging problem with wind cross-variable logic check", 
                                    test="qaqc_crossvar_logic_calm_wind_dir",
                                    verbose=verbose
                                   )
@@ -469,7 +469,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with frequent values function for", 
+                                    message="Flagging problem with frequent values function", 
                                     test="qaqc_frequent_vals",
                                     verbose=verbose
                                     )
@@ -483,7 +483,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_unusual_gaps(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function for", 
+                                    message="Flagging problem with unusual gap distribution function", 
                                     test="qaqc_unusual_gaps",
                                     verbose=verbose
                                     )
@@ -576,7 +576,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
             # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        for station in ['VCAPCD_PU']:
+        for station in stations_sample:
             
             file_name = cleandir+station+".nc"
             
