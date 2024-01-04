@@ -345,7 +345,7 @@ def qaqc_sensor_height_t(df, verbose=True):
                                             df['thermometer_height_m'] <= (2 + 1/3))
 
             # Thermometer height present but outside 10m +/- tolerance
-            if not isHeightWithin:
+            if not isHeightWithin.all():
                 # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
                 df['tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
                 print('Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks')
@@ -353,7 +353,7 @@ def qaqc_sensor_height_t(df, verbose=True):
         return df
     except Exception as e:
         if verbose:
-            print("qaqc_sensor_height_w failed with Exception: {}".format(e))
+            print("qaqc_sensor_height_t failed with Exception: {}".format(e))
         return None
 
 #----------------------------------------------------------------------
@@ -395,7 +395,7 @@ def qaqc_sensor_height_w(df, verbose=True):
             # Check if anemometer height is within 10 m +/- 1/3 m
             isHeightWithin = df['anemometer_height_m'][0] >= (10 - 1/3) and df['anemometer_height_m'][0] <= (10 + 1/3)
             # Anemometer height present but outside 10m +/- tolerance
-            if not isHeightWithin:
+            if not isHeightWithin.all():
                 df['sfcWind_eraqc'] = 9 # see era_qaqc_flag_meanings.csv
                 df['sfcWind_dir_eraqc'] = 9
                 print('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks')

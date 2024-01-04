@@ -97,7 +97,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
         # dew point is not present
         if not all_dew_vars:
             if verbose:
-                print('station does not report dew point temperature - bypassing temperature cross-variable logic check')
+                print('Station does not report dew point temperature - bypassing temperature cross-variable logic check')
         
         # dew point is present
         else:
@@ -152,7 +152,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
 
     try:
         if not pr_vars: # precipitation variable(s) is not present
-            print('station does not report precipitation - bypassing precip logic nonnegvals check')
+            print('Station does not report precipitation - bypassing precip logic nonnegvals check')
         else:
             for item in pr_vars:
                 # only use valid obs for precip vars
@@ -214,7 +214,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
         
         # if station does not report any precipitation values, or only one, bypass
         if len(pr_vars) == 0 or len(pr_vars) == 1:
-            print('station does not report precipitation - bypassing precip logic accum check')
+            print('Station does not report precipitation - bypassing precip logic accum check')
             return df
 
         # checks accumulated precip vars against each other
@@ -304,7 +304,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         # check that wind direction is provided
         if 'sfcWind_dir' not in df.columns:
             if verbose:
-                print('station does not report wind direction - bypassing wind cross-variable logic check')
+                print('Station does not report wind direction - bypassing wind cross-variable logic check')
                 return df
             
         # use only valid observations
