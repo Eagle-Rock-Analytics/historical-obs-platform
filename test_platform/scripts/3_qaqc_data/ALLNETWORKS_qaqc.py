@@ -53,6 +53,7 @@ if __name__ == "__main__":
     
     # Define arguments for the program
     parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
+    parser.add_argument('-l', '--local', default=False, help="Save files and plots locally", type=bool)
     parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options", type=str)
     parser.add_argument('-v', '--verbose', default=True, help="Print statements throughout script", type=bool)
     
@@ -61,9 +62,10 @@ if __name__ == "__main__":
     network = args.network
     rad_scheme = args.rad_scheme
     verbose = args.verbose
+    local = args.local
         
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose)
+    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
