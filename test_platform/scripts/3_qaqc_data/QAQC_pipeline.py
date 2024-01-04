@@ -194,7 +194,9 @@ def process_output_ds(df, attrs, var_attrs,
 ## Run full QA/QC pipeline
 def run_qaqc_pipeline(ds, network, file_name, 
                       errors, station, end_api, 
-                      rad_scheme, verbose=True):
+                      rad_scheme, verbose=True,
+                      local=False
+                     ):
     """
     """
 
@@ -507,11 +509,22 @@ def run_qaqc_pipeline(ds, network, file_name,
             print('pass qaqc_climatological_outlier')
 
     #---------------------------------------------------------
-    # unusual streaks
-   
+    # unusual streaks (repeated values)
+    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                   message="Flagging problem with unusual streaks (repeated values) check", 
+                                   test="qaqc_unusual_repeated_streaks",
+                                   verbose=verbose
+                                  )
+    else:
+        stn_to_qaqc = new_df
+        if verbose:
+            print('pass qaqc_unusual_repeated_streaks')  
+            
     #---------------------------------------------------------
     # unusual large jumps (spikes)
-    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                    message="Flagging problem with unusual large jumps (spike check) check", 
@@ -538,7 +551,8 @@ def run_qaqc_pipeline(ds, network, file_name,
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
+def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, 
+                       verbose=True, local=False):
     """
     """    
     print()
@@ -620,7 +634,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=True):
                         if verbose:
                             print("Running QA/QC pipeline on {}".format(aws_url), flush=True)
                         df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                 station, end_api, rad_scheme, verbose=verbose)
+                                                                 station, end_api, rad_scheme,
+                                                                 verbose=verbose, local=local)
                         if verbose:
                             print("Done running QA/QC pipeline. Ellapsed time: {:.2f} s.".
                                   format(time.time()-t0), flush=True) 
