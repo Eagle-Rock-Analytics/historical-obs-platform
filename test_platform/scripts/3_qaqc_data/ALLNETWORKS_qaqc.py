@@ -47,7 +47,7 @@ if __name__ == "__main__":
                        Observations Platform, and is independent of network.""",
         epilog="""Possible stations:
                   [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
-                   HOLFUY, HPWREN, LOXWFOMAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
+                   HOLFUY, HPWREN, LOXWFO, MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
                    RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
                """
     )
