@@ -240,8 +240,8 @@ def frequent_vals_plot(df, var, rad_scheme):
     
     # first identify which values are flagged and "where"
     
-    ## Year-by-year flag (23): plot all data for that year
-    flag_df = df.loc[df[var+'_eraqc'] == 23]
+    ## Year-by-year flag (24): plot all data for that year
+    flag_df = df.loc[df[var+'_eraqc'] == 24]
     
     if len(flag_df) != 0:
         
@@ -250,7 +250,7 @@ def frequent_vals_plot(df, var, rad_scheme):
         
         for y in plot_yrs:
             df_to_plot = df.loc[df['year']==y]
-            _plot = frequent_plot_helper(df_to_plot, var, bins, flag=23, yr=y, rad_scheme=rad_scheme)
+            _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=y, rad_scheme=rad_scheme)
             
     ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
     flag_df = df.loc[df[var+'_eraqc'] == 24]
@@ -420,24 +420,21 @@ def dist_gap_part2_plot(df, month, var, network):
 
 #============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
+def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
     -----
         df [pd.Dataframe] : station pd.DataFrame from qaqc pipeline
         var [str] : variable name
-        flagval [int] : flag value to plot (22 for unusual large jumps)
+        flagval [int] : flag value to plot (23 for unusual large jumps)
         dpi [int] : resolution for png plots
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
     Ouput:
     ----- 
         None
     """
-    
-    # grab flagged data
-    flag_vals = df.loc[df[var + '_eraqc'] == flagval]   
-    
+     
     # Create figure
     if date is not None:
         fig,ax = plt.subplots(figsize=(7,3))
@@ -447,8 +444,8 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     # Plot variable and flagged data
     df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
     
-    flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==22, var])/len(df))
-    df.loc[df[var+"_eraqc"]==22, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
+    flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==flagval, var])/len(df))
+    df.loc[df[var+"_eraqc"]==flagval, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
     
     legend = ax.legend(loc=0, prop={'size': 8})    
         
@@ -458,7 +455,6 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper(var)
     ylab = '{0} [{1}]'.format(ylab, units)
-    
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
@@ -478,6 +474,7 @@ def unusual_jumps_plot(df, var, flagval=22, dpi=None, local=False, date=None):
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}'.format(station, var, timestamp)
+
     key = '{0}/{1}/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
