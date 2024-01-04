@@ -34,6 +34,7 @@ try:
     from qaqc_unusual_gaps import *
     from qaqc_unusual_large_jumps import *
     from qaqc_climatological_outlier import *
+    from qaqc_unusual_streaks import *
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
