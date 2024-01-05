@@ -26,24 +26,6 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 #======================================================================
 # QA/QC Helper functions
-def get_file_paths(network):
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    mergedir = "4_merge_wx/{}/".format(network)
-    return rawdir, cleandir, qaqcdir, mergedir
-
-#----------------------------------------------------------------------
-def get_wecc_poly(terrpath, marpath):
-    """
-    Identifies a bbox of WECC area to filter stations against
-    Input vars: shapefiles for maritime and terrestrial WECC boundaries
-    Returns: spatial objects for each shapefile, and bounding box for their union.
-    """
-    t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)   ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds    ## Combine polygons and get bounding box of union.
-    return t,m, bbox
 
 #----------------------------------------------------------------------
 def infere_freq(df):
@@ -70,14 +52,15 @@ def infere_res_var(df, var):
     """
     print(var)
     # If var is tdps_derived, use temp measurements
-    if var == "tdps_derived":
-        var = "tas"
+    # if var == "tdps_derived":
+    #     var = "tas"
     
     # Extract var data   
     data = df.copy()[var]
     
+    #TODO: use function from calc_clean.py
     # Convert from Pa to hPa
-    if data.mean()>10000 and (var=="ps" or var=="slp"):
+    if data.mean()>10000 and (var=="ps" or var=="psl"):
         data = data/100
     
     # Calculate modified mode from avg mode and median
@@ -103,7 +86,7 @@ def infere_res_var(df, var):
 def infere_res(df):
     """
     """
-    check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind", "ps_derived"]
+    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind", "ps_derived"]
     variables = [var for var in check_vars if var in df.columns]
     
     resolutions = {}
@@ -127,7 +110,7 @@ straight_repeat_criteria = {"tas" : {1  : [40, 14],   # 40 values of 14 days
                                       0.5 : [60, 10], # or
                                       0.1 : [48,  7], # or
                                              },
-                            "slp" : {1   : [120, 28],  # of
+                            "psl" : {1   : [120, 28],  # of
                                      0.5 : [100, 21],  # or
                                      0.1 : [ 72, 14]}, # or
          
@@ -137,8 +120,7 @@ straight_repeat_criteria = {"tas" : {1  : [40, 14],   # 40 values of 14 days
                                         },
                            }
 straight_repeat_criteria['tdps_derived'] = straight_repeat_criteria['tdps']
-straight_repeat_criteria['ps'] = straight_repeat_criteria['slp']
-straight_repeat_criteria['sfcWind'] = straight_repeat_criteria['tas']
+straight_repeat_criteria['ps'] = straight_repeat_criteria['psl']
 
 #----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -147,10 +129,11 @@ hour_repeat_criteria = {"tas" : {1   : 25,  # 40 days
                                  0.1 : 15,  # 15 days
                                 }
                        }
+# All variables have the same hourly criteria
 hour_repeat_criteria['tdps'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['tdps_derived'] = hour_repeat_criteria['tdps']
-hour_repeat_criteria['slp'] = hour_repeat_criteria['tas']
-hour_repeat_criteria['ps'] = hour_repeat_criteria['slp']
+hour_repeat_criteria['psl'] = hour_repeat_criteria['tas']
+hour_repeat_criteria['ps'] = hour_repeat_criteria['psl']
 hour_repeat_criteria['sfcWind'] = hour_repeat_criteria['tas']
 
 #----------------------------------------------------------------------
@@ -160,10 +143,11 @@ day_repeat_criteria = {"tas" : {1   : 10,  # 10 days
                                 0.1 :  5,  #  5 days
                                }
                        }
+# All variables have the same daily criteria
 day_repeat_criteria['tdps'] = day_repeat_criteria['tas']
 day_repeat_criteria['tdps_derived'] = day_repeat_criteria['tdps']
-day_repeat_criteria['slp'] = day_repeat_criteria['tas']
-day_repeat_criteria['ps'] = day_repeat_criteria['slp']
+day_repeat_criteria['psl'] = day_repeat_criteria['tas']
+day_repeat_criteria['ps'] = day_repeat_criteria['psl']
 day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
 
 #----------------------------------------------------------------------
@@ -195,7 +179,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
           observations have the same value)
        - Whole day replication for a streak of days
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
     
     Input:
     -----
@@ -229,10 +213,15 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         resolutions = infere_res(df)
         
         # Save original df multiindex and create station column
-        # df = df.copy(deep=True)
-
+        df = df.copy(deep=True)
+        df['hours'] = pd.Series(df['time']).dt.hour.values
+        df['day'] = pd.Series(df['time']).dt.day.values
+        df['month'] = pd.Series(df['time']).dt.month.values
+        df['year'] = pd.Series(df['time']).dt.year.values
+        df['date'] = pd.Series(df['time']).dt.date.values
+        
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind"]
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
         # check_vars = ["ps"]
         variables = [var for var in check_vars if var in df.columns]
         if verbose:
@@ -247,6 +236,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             
             # Use only values that have not been flagged by previous QAQC tests
             valid = np.where(np.isnan(new_df[var+"_eraqc"]))[0]
+            print(len(valid))
             new_df = new_df.iloc[valid]
             
             #TODO: for now, it will skip this qaqc check if the entire record is flagged by another function
@@ -366,7 +356,7 @@ def hourly_repeats(df, var, threshold):
     2 - Count consecutive cluster of repeated values at the same hour of the day
     3 - Select only clusters where count is higher than threshold in dict `hour_repeat_criteria`
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
     
     Input:
     -----
@@ -412,7 +402,7 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     2 - 
     3 - 
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
     
     Input:
     -----
@@ -505,7 +495,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
     2 - 
     3 - 
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "slp", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
     
     Input:
     -----
