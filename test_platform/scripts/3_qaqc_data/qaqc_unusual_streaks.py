@@ -152,6 +152,8 @@ day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
 
 #----------------------------------------------------------------------
 # Min wind value for straight repeat test
+# TODO: HadISD thresholds: does it make sense to change them in future versions?
+# More analysis needs to be done to ensure what is a good threshold for calm wind conditions for this test
 WIND_MIN_VALUE = {1:1.0, 0.5:0.5, 0.1:0.5}
 
 #---------------------------------------------------------------------------------------------------
