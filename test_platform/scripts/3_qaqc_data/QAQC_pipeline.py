@@ -591,8 +591,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        # for station in stations_sample:
-        for station in ["VCAPCD_TO"]:
+        for station in stations_sample:
+        # for station in ["VCAPCD_TO"]:
             
             file_name = cleandir+station+".nc"
             

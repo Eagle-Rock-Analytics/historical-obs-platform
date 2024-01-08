@@ -12,7 +12,12 @@ import urllib
 import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
-from qaqc_plot import _plot_format_helper
+
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")
+
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
@@ -231,7 +236,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         
         # Loop through test variables
         for var in variables:
-            print(var)
+            # print(var)
             
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
@@ -317,7 +322,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
                     unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
                     
         # df = df.drop(['hours','day','month','year','date'])
-        print(list(df.columns))
+        # print(list(df.columns))
         
         return df
     # except Exception as e:
