@@ -137,7 +137,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
 
                     # entire timeseries figure
                     flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
-            
+        # Drop month,year vars used for calculations
+        df = df.drop(columns=['month','year'])
         return df
     
     except Exception as e:

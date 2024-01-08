@@ -123,7 +123,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                     for month in range(1,13):
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0]) 
-
+        # Drop month,year vars used for calculations
+        df = df.drop(columns=['month','year'])
         return df
     
     except Exception as e:

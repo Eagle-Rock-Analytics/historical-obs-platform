@@ -212,7 +212,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         # Infere resolution from data
         resolutions = infere_res(df)
         
-        print(list(df.columns))
+        # print(list(df.columns))
         
         # Save original df multiindex and create station column
         new_df = df.copy()
@@ -236,7 +236,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
             
-            print(list(df.columns))
+            # print(list(df.columns))
         
             # Use only values that have not been flagged by previous QAQC tests
             valid = np.where(np.isnan(test_df[var+"_eraqc"]))[0]
@@ -300,7 +300,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             bad = pd.DataFrame(data = {"min_date":bad_min.values,
                                        "max_date":bad_max.values})
             
-            print(list(df.columns))
+            # print(list(df.columns))
         
             # --------------------------------------------------------
             if plot:

@@ -64,6 +64,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
         # whole station bypass check first
         df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
         if pass_flag == 'fail':
+            # Drop month,year vars used for calculations
+            df = df.drop(columns=['month','year'])
             return df
 
         else:
@@ -74,7 +76,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
                 for var in vars_to_check:
                     if (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
                         flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
-        
+        # Drop month,year vars used for calculations                
+        df_part2 = df_part2.drop(columns=['month','year'])
         return df_part2
     
     except Exception as e:

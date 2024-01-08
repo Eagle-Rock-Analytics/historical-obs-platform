@@ -511,9 +511,6 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #---------------------------------------------------------
     # unusual streaks (repeated values)
-    print("\n====================================================================================\n")
-    print(list(stn_to_qaqc.columns))
-    print("\n====================================================================================\n")
     new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
