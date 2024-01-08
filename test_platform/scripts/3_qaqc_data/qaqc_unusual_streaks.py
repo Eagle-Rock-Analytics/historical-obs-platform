@@ -195,8 +195,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
     Flag meaninig:
     -------------
         27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days
-        28,qaqc_unusual_repeated_streaks,
-        29,qaqc_unusual_repeated_streaks,
+        28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+        29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
 
     NOTES:
     Threshold for different variables/resolutions are noted on: 
