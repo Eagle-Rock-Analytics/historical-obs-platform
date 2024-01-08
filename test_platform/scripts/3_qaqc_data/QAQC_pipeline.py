@@ -110,6 +110,7 @@ def process_output_ds(df, attrs, var_attrs,
     """
     
     # Convert back to dataset
+    
     ds = df.to_xarray()
     
     # Inherit variable attributes
@@ -243,7 +244,6 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
 
-    
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -511,6 +511,9 @@ def run_qaqc_pipeline(ds, network, file_name,
 
     #---------------------------------------------------------
     # unusual streaks (repeated values)
+    print("\n====================================================================================\n")
+    print(list(stn_to_qaqc.columns))
+    print("\n====================================================================================\n")
     new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
@@ -591,7 +594,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        for station in stations_sample:
+        # for station in stations_sample:
+        for station in ["VCAPCD_TO"]:
             
             file_name = cleandir+station+".nc"
             

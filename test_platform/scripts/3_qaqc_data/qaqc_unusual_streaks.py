@@ -13,8 +13,6 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 from qaqc_plot import _plot_format_helper
-from IPython.core.display_functions import display
-
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
@@ -214,18 +212,20 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         # Infere resolution from data
         resolutions = infere_res(df)
         
+        print(list(df.columns))
+        
         # Save original df multiindex and create station column
-        df = df.copy(deep=True)
-        df['hours'] = pd.Series(df['time']).dt.hour.values
-        df['day'] = pd.Series(df['time']).dt.day.values
-        df['month'] = pd.Series(df['time']).dt.month.values
-        df['year'] = pd.Series(df['time']).dt.year.values
-        df['date'] = pd.Series(df['time']).dt.date.values
+        new_df = df.copy()
+        new_df['hours'] = pd.Series(df['time']).dt.hour.values
+        new_df['day'] = pd.Series(df['time']).dt.day.values
+        new_df['month'] = pd.Series(df['time']).dt.month.values
+        new_df['year'] = pd.Series(df['time']).dt.year.values
+        new_df['date'] = pd.Series(df['time']).dt.date.values
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
         # check_vars = ["ps"]
-        variables = [var for var in check_vars if var in df.columns]
+        variables = [var for var in check_vars if var in new_df.columns]
         if verbose:
             print("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables))
         
@@ -234,17 +234,19 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             print(var)
             
             # Create a copy of the original dataframe and drop NaNs in the testing variable
-            new_df = df.copy(deep=True).dropna(subset=var)
+            test_df = new_df.copy().dropna(subset=var)
             
+            print(list(df.columns))
+        
             # Use only values that have not been flagged by previous QAQC tests
-            valid = np.where(np.isnan(new_df[var+"_eraqc"]))[0]
-            print(len(valid))
-            new_df = new_df.iloc[valid]
+            valid = np.where(np.isnan(test_df[var+"_eraqc"]))[0]
+            # print(len(valid))
+            test_df = test_df.iloc[valid]
             
             #TODO: for now, it will skip this qaqc check if the entire record is flagged by another function
             #TODO: should it include an error log? or something else?
             # first scans suspect values using entire record
-            if new_df[var].isna().all() == True:
+            if test_df[var].isna().all() == True:
                 print("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var))
                 continue # bypass to next variable if all obs are nans
                 
@@ -254,7 +256,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             # --------------------------------------------------------
             # Hour repeat streak criteria
             threshold = hour_repeat_criteria[var][res]
-            bad_hourly = hourly_repeats(new_df, var, threshold)            
+            bad_hourly = hourly_repeats(test_df, var, threshold)            
             ind = df['time'].isin(bad_hourly['time']) 
             df.loc[ind, var+"_eraqc"] = 27    # Flag _eraqc variable
 
@@ -265,7 +267,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
                 wind_min_value = WIND_MIN_VALUE[res]
             else:
                 wind_min_value = None
-            bad_straight = consecutive_repeats(new_df, var, threshold, 
+            bad_straight = consecutive_repeats(test_df, var, threshold, 
                                                wind_min_value, 
                                                min_sequence_length=min_sequence_length)
             ind = df['time'].isin(bad_straight['time']) 
@@ -274,7 +276,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             # --------------------------------------------------------
             # Whole day replication for a streak of days
             threshold = day_repeat_criteria[var][res]
-            bad_whole = consecutive_fullDay_repeats(new_df, var, threshold)
+            bad_whole = consecutive_fullDay_repeats(test_df, var, threshold)
             ind = df['time'].isin(bad_whole['time']) 
             df.loc[ind, var+"_eraqc"] = 29    # Flag _eraqc variable
            
@@ -298,6 +300,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             bad = pd.DataFrame(data = {"min_date":bad_min.values,
                                        "max_date":bad_max.values})
             
+            print(list(df.columns))
+        
             # --------------------------------------------------------
             if plot:
                 unusual_streaks_plot(df, var, local=local)
@@ -311,6 +315,10 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
                     subset = np.logical_and(df['time'] >= min_date, 
                                             df['time'] <= max_date)
                     unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
+                    
+        # df = df.drop(['hours','day','month','year','date'])
+        print(list(df.columns))
+        
         return df
     # except Exception as e:
     #     print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
@@ -609,7 +617,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         maxy = min(maxy, df[var].max())
         ax.set_ylim(miny,maxy)
     
-    title = 'Unusual large jumps check: {0}'.format(station)
+    title = 'Unusual repeated streaks check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
     
     # save to AWS
