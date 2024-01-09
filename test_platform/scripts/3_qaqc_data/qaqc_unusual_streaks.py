@@ -25,6 +25,8 @@ bucket_name = "wecc-historical-wx"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+from IPython.display import display
+
 #======================================================================
 #----------------------------------------------------------------------
 def infere_freq(df):
@@ -61,25 +63,29 @@ def infere_res_var(df, var):
     # Convert from Pa to hPa
     if data.mean()>10000 and (var=="ps" or var=="psl"):
         data = data/100
-    
-    # Calculate modified mode from avg mode and median
-    mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
-    mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
-    mode = (mode0+mode1)/2
-    
-    # Round to the nearest 0.5
-    multiplied = round(mode * 2)
-    rounded_to_whole = multiplied / 2
-    
-    # If mode is 0.25 or less, round to 0.1
-    if rounded_to_whole == 0:
-        mode = 0.1
+
+    data_diff = data.sort_values().diff().clip(lower=0.01, upper=1).dropna()
+    if len(data_diff)<=10:
+        return 0.5
     else:
-        mode = rounded_to_whole
-    if mode<=1:
-        return mode
-    else:
-        return 1.0
+        # Calculate modified mode from avg mode and median
+        mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
+        mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        mode = (mode0+mode1)/2
+
+        # Round to the nearest 0.5
+        multiplied = round(mode * 2)
+        rounded_to_whole = multiplied / 2
+
+        # If mode is 0.25 or less, round to 0.1
+        if rounded_to_whole == 0:
+            mode = 0.1
+        else:
+            mode = rounded_to_whole
+        if mode<=1:
+            return mode
+        else:
+            return 1.0
 
 #----------------------------------------------------------------------
 def infere_res(df):
@@ -300,8 +306,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
             bad_max = bad.groupby(by=["year","consecutive_month_group"])['time'].max()
             bad = pd.DataFrame(data = {"min_date":bad_min.values,
                                        "max_date":bad_max.values})
-            
-            # print(list(df.columns))
         
             # --------------------------------------------------------
             if plot:
@@ -316,9 +320,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
                     subset = np.logical_and(df['time'] >= min_date, 
                                             df['time'] <= max_date)
                     unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
-                    
-        # df = df.drop(['hours','day','month','year','date'])
-        # print(list(df.columns))
         
         return df
     except Exception as e:
