@@ -12,20 +12,11 @@ import urllib
 import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
-<<<<<<< Updated upstream
-
 try:
     from qaqc_plot import *
 except:
     print("Error importing qaqc_plot.py")
-
 ## Set AWS credentials
-=======
-try:
-    from qaqc_plot import *
-except:
-    print("Error importing qaqc_plot.py")## Set AWS credentials
->>>>>>> Stashed changes
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
 
