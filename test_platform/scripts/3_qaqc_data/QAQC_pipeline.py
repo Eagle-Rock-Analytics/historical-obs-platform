@@ -237,7 +237,7 @@ def qaqc_ds_to_df(ds):
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
     
-    return df, MultiIndex
+    return df, MultiIndex, attrs, var_attrs
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
@@ -249,7 +249,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     """
     """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex = qaqc_ds_to_df(ds)
+    df, MultiIndex, attrs, var_attrs = qaqc_ds_to_df(ds)
     
     ##########################################################
     ## QAQC Functions
