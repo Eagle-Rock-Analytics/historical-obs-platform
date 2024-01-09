@@ -109,17 +109,19 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                 unusual_jumps_plot(df, var, flagval=23, local=local)
                 for i in ind:
                     try:
+                    # if True:
                         subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) & 
                                         (df.index <= i + datetime.timedelta(hours=48))]
                         # subset = np.logical_and(df.index >= i - np.timedelta64(48,'h'), 
                         #                     df.index <= i + np.timedelta64(48,'h'))
                         unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
                     except:
+                    # else:
                         print('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var))
                         continue
 
         return df.reset_index()
-        # return df
+        return df
 
     except Exception as e:
         print("qaqc_unusual_large_jumps failed with Exception: {}".format(e))
