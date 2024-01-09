@@ -53,10 +53,10 @@ if __name__ == "__main__":
     )
     
     # Define arguments for the program
-    parser.add_argument('-n', '--network', default="VCAPCD", help="Network name", type=str)
-    parser.add_argument('-l', '--local', default=False, help="Save files and plots locally", type=bool)
-    parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options", type=str)
-    parser.add_argument('-v', '--verbose', default=True, help="Print statements throughout script", type=bool)
+    parser.add_argument('-n', '--network', default="VCAPCD", help="Network name (Default=VCAPCD)", type=str)
+    parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (Default=False)", type=bool)
+    parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (Default='remove_zeros'", type=str)
+    parser.add_argument('-v', '--verbose', default=True, help="Print statements throughout script (Default=True)", type=bool)
     
     # Parse arguments
     args = parser.parse_args()
