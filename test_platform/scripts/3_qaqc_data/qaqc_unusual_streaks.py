@@ -12,6 +12,7 @@ import urllib
 import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
+<<<<<<< Updated upstream
 
 try:
     from qaqc_plot import *
@@ -19,6 +20,12 @@ except:
     print("Error importing qaqc_plot.py")
 
 ## Set AWS credentials
+=======
+try:
+    from qaqc_plot import *
+except:
+    print("Error importing qaqc_plot.py")## Set AWS credentials
+>>>>>>> Stashed changes
 s3 = boto3.resource("s3")
 s3_cl = boto3.client('s3') # for lower-level processes
 
@@ -28,8 +35,6 @@ wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Bou
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 #======================================================================
-# QA/QC Helper functions
-
 #----------------------------------------------------------------------
 def infere_freq(df):
     """
@@ -211,8 +216,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
     min_sequence_length can be tweaked, althought HadISD uses 10
     """
 
-    # try:
-    if True:
+    try:
+    # if True:
         
         # Infere resolution from data
         resolutions = infere_res(df)
@@ -325,9 +330,9 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         # print(list(df.columns))
         
         return df
-    # except Exception as e:
-    #     print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
-    #     return None
+    except Exception as e:
+        print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
+        return None
 
 #---------------------------------------------------------------------------------------------------
 # Find clusters of equal values

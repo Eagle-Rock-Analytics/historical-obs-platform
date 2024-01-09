@@ -22,6 +22,7 @@ try:
     from qaqc_unusual_gaps import *
 except:
     print("Error importing qaqc_unusual_gaps.py")
+from IPython.display import display
 
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
@@ -446,6 +447,12 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     
     flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==flagval, var])/len(df))
     df.loc[df[var+"_eraqc"]==flagval, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
+    
+    #plot other flags
+    other_flags = np.logical_and(~df[var+"_eraqc"].isnull(),
+                                 df[var+"_eraqc"]!=flagval)
+    if other_flags.any():
+        df.loc[other_flags, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label="other flags")    
     
     legend = ax.legend(loc=0, prop={'size': 8})    
         
