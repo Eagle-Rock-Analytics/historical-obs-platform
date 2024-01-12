@@ -598,7 +598,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         
         # Loop over stations
         for station in stations_sample:
-        # for station in ["VCAPCD_TO"]:
+        # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
             
             file_name = cleandir+station+".nc"
             
