@@ -193,16 +193,9 @@ def process_output_ds(df, attrs, var_attrs,
         
         return
 
-#----------------------------------------------------------------------------
-## Run full QA/QC pipeline
-def run_qaqc_pipeline(ds, network, file_name, 
-                      errors, station, end_api, 
-                      rad_scheme, verbose=True,
-                      local=False
-                     ):
-    """
-    """
-
+#--------------------------------------------------------------------------------
+## xarray ds for a station to pandas df in the format needed for the pipeline    
+def qaqc_ds_to_df(ds):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
     exclude_qaqc = ["time", "station", "lat", "lon", 
@@ -244,9 +237,23 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
+    
+    return df, MultiIndex, attrs, var_attrs
 
-    df_to_run = [df] #testing
+#----------------------------------------------------------------------------
+## Run full QA/QC pipeline
+def run_qaqc_pipeline(ds, network, file_name, 
+                      errors, station, end_api, 
+                      rad_scheme, verbose=True,
+                      local=False
+                     ):
+    """
+    """
+    # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
+    df, MultiIndex, attrs, var_attrs = qaqc_ds_to_df(ds)
 
+    df_to_run = [df] # testing
+    
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -551,14 +558,6 @@ def run_qaqc_pipeline(ds, network, file_name,
 
         ## END QA/QC ASSESSMENT
         #=========================================================
-        # qaqc failure on whole station checks
-        # if stn_to_qaqc is None:
-        #     print('Station failed whole station QA/QC checks - station not saved to AWS')
-        #     return stn_to_qaqc, attrs, var_attrs
-
-        # # qaqc success / qaqc flags placed
-        # else:
-
         # Re-index to original time/station values
         stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
         
@@ -576,7 +575,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                        verbose=True, local=False):
     """
     """    
-    print()
     # Set up error handling.
     errors, end_api, timestamp = setup_error_handling()
 
@@ -625,8 +623,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                 aws_url = "s3://wecc-historical-wx/"+file_name
 
                 with fs.open(aws_url) as fileObj:
-                    if True:
-                    # try:
+                    # if True:
+                    try:
                         if verbose:
                             print("Reading {}".format(aws_url), flush=True)
                         t0 = time.time()
@@ -668,8 +666,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                         except:
                             print('{} did not pass QA/QC - station not saved.'.format(station))         
                         
-                    else:
-                    # except Exception as e:
+                    except Exception as e:
                         if verbose:
                             print("run_qaqc_pipeline failed with error: {}".format(e))
                             errors = print_qaqc_failed(
