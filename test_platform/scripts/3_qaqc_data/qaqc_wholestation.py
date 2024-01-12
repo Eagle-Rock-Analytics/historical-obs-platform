@@ -52,13 +52,14 @@ def qaqc_missing_vals(df, verbose=True):
         for item in obs_vars:
             # pull missing values which are appropriate for the range of real values for each variable 
             missing_codes = missing_vals.loc[missing_vals['variable'].str.contains(item) | missing_vals['variable'].str.contains('all')]
-
+            
             # values in column that == missing_flag values, replace with NAs
             # note numerical vals converted to strings first to match missing_flag formatting
             df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
 
             print('Updating missing values for: {}'.format(item))
-    except:
+    except Exception as e:
+        print(e)
         return None
 
     return df
