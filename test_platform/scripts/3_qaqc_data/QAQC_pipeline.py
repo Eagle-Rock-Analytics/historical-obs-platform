@@ -76,7 +76,7 @@ def print_qaqc_failed(errors, station=None, end_api=None,
     """
     """
     if verbose:
-        print('{0} {1}, skipping'.format(station, message)) # testing
+        print('{0} {1}, skipping station'.format(station, message)) # testing
     errors['File'].append(station)
     errors['Time'].append(end_api)
     errors['Error'].append('Failure on {}'.format(test))
@@ -179,6 +179,7 @@ def process_output_ds(df, attrs, var_attrs,
 
         ds.close()
         del(ds)
+
     except Exception as e:
         if verbose:
             print("netCDF writing failed for {} with Error: {}".format(filename, e))
@@ -244,6 +245,8 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
 
+    df_to_run = [df] #testing
+
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -255,300 +258,317 @@ def run_qaqc_pipeline(ds, network, file_name,
     #=========================================================
     ## Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
 
-    #---------------------------------------------------------
-    ## Missing values -- does not proceed through qaqc if failure
-    stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case 
-    new_df = qaqc_missing_vals(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api,
-        message="has an unchecked missing value",
-        test="qaqc_missing_vals",
-        verbose=verbose
-        )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_missing_vals') # testing
-
-    #---------------------------------------------------------
-    ## Lat-lon -- does not proceed through qaqc if failure
-    new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="missing lat-lon, skipping station", 
-                                   test="qaqc_missing_latlon",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_missing_latlon') #testing
-
-    #---------------------------------------------------------
-    ## Within WECC -- does not proceed through qaqc if failure
-    new_df = qaqc_within_wecc(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="lat-lon is out of range for WECC, skipping station", 
-                                   test="qaqc_within_wecc",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_within_wecc')
-
-    #---------------------------------------------------------
-    ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-    new_df = qaqc_elev_infill(stn_to_qaqc, verbose=verbose) # nan infilling must be before range check
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="DEM in-filling failed", 
-                                   test="DEM in-filling, may not mean station does not pass qa/qc -- check",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-
-    #---------------------------------------------------------
-    ## Elevation -- range within WECC
-    new_df = qaqc_elev_range(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="elevation out of range for WECC, skipping station", 
-                                   test="qaqc_elev_range",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_elev_range')
-
-    #=========================================================
-    ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-
-    #---------------------------------------------------------
-    ## Sensor height: air temperature
-    new_df = qaqc_sensor_height_t(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with thermometer sensor height", 
-                                   test="qaqc_sensor_height_t",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_sensor_height_t')
-
-    #---------------------------------------------------------
-    ## Sensor height: wind
-    new_df = qaqc_sensor_height_w(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with anemometer sensor height", 
-                                   test="qaqc_sensor_height_w",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_sensor_height_w')
-
-    #---------------------------------------------------------
-    ## World record checks: air temperature, dewpoint, wind, pressure
-    new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with world record check", 
-                                   test="qaqc_world_record",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_world_record')
-
-    #=========================================================
-    ## Part 2: Variable logic checks
-    
-    #---------------------------------------------------------
-    ## dew point temp cannot exceed air temperature
-    new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check", 
-                                   test="qaqc_crossvar_logic_tdps_to_tas_supersat",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_crossvar_logic_tdps_to_tas_supersat') 
-
-    #---------------------------------------------------------
-    ## dew point temp cannot exceed air temperature (wet bulb drying)  
-    new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with temperature cross-variable logic check", 
-                                   test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_crossvar_logic_tdps_to_tas_wetbulb')
-
-    #---------------------------------------------------------
-    ## precipitation is not negative
-    new_df = qaqc_precip_logic_nonegvals(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with negative precipitation values", 
-                                   test="qaqc_precip_logic_nonegvals",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_precip_logic_nonegvals')
-
-    #---------------------------------------------------------
-    ## precipitation duration logic
-    new_df = qaqc_precip_logic_accum_amounts(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with precip duration logic check", 
-                                   test="qaqc_precip_logic_accum_amounts",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_precip_logic_accum_amounts')       
-
-    #---------------------------------------------------------
-    ## wind direction should be 0 when wind speed is also 0
-    new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with wind cross-variable logic check", 
-                                   test="qaqc_crossvar_logic_calm_wind_dir",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_crossvar_logic_calm_wind_dir') 
-
-    #=========================================================
-    ## Part 3: Distribution and timeseries checks - order matters!
-        # buoy check
-        # frequent values check
-        # distributional check (unusual gaps)
-        # climatological outliers check
-        # unusual streaks check
-        # unusual large jumps check (spike)
-
-    #---------------------------------------------------------
-    ## Buoys with known issues with specific qaqc flags
-    ## NDBC and MARITIME only
-    if network == 'MARITIME' or network == 'NDBC':
-        new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
+    for df in df_to_run:
+        #---------------------------------------------------------
+        ## Missing values -- does not proceed through qaqc if failure
+        stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case 
+        new_df = qaqc_missing_vals(stn_to_qaqc, verbose=verbose)
         if new_df is None:
-            errors = print_qaqc_failed(errors, station, end_api, 
-                                       message="Flagging problematic buoy issue", 
-                                       test="spurious_buoy_check",
-                                   verbose=verbose
-                                  )
+            errors = print_qaqc_failed(errors, station, end_api,
+                                    message="has an unchecked missing value",
+                                    test="qaqc_missing_vals",
+                                    verbose=verbose
+                                    )
+            stn_to_qaqc = new_df # None returned, station failed whole station check
+            continue # skip to next station
         else:
             stn_to_qaqc = new_df
             if verbose:
-                print('pass spurious_buoy_check')
+                print('pass qaqc_missing_vals') # testing
 
-    #---------------------------------------------------------
-    # frequent values
-    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with frequent values function", 
-                                    test="qaqc_frequent_vals",
+        #---------------------------------------------------------
+        ## Lat-lon -- does not proceed through qaqc if failure
+        new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="missing lat-lon", 
+                                    test="qaqc_missing_latlon",
                                     verbose=verbose
                                     )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_frequent_vals')
+            stn_to_qaqc = new_df # None returned, station failed whole station check
+            continue # skip to next station
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_missing_latlon') #testing
 
-    #---------------------------------------------------------
-    # distribution / unusual gaps
-    new_df = qaqc_unusual_gaps(stn_to_qaqc)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function", 
-                                    test="qaqc_unusual_gaps",
+        #---------------------------------------------------------
+        ## Within WECC -- does not proceed through qaqc if failure
+        new_df = qaqc_within_wecc(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="lat-lon is out of range for WECC", 
+                                    test="qaqc_within_wecc",
                                     verbose=verbose
                                     )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_unusual_gaps')
+            stn_to_qaqc = new_df # None returned, station failed whole station check
+            continue # skip to next station
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_within_wecc')
+
+        #---------------------------------------------------------
+        ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
+        new_df = qaqc_elev_infill(stn_to_qaqc, verbose=verbose) # nan infilling must be before range check
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="DEM in-filling failed", 
+                                    test="DEM in-filling, may not mean station does not pass qa/qc -- check",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+
+        #---------------------------------------------------------
+        ## Elevation -- range within WECC
+        new_df = qaqc_elev_range(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="elevation out of range for WECC", 
+                                    test="qaqc_elev_range",
+                                    verbose=verbose
+                                    )
+            stn_to_qaqc = new_df # None returned, station failed whole station check
+            continue # skip to next station
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_elev_range')
     
-    #---------------------------------------------------------
-    # climatological outliers
-    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api,
-                                   message="Flagging problem with climatological outlier check",
-                                   test="qaqc_climatological_outlier",
-                                   verbose=verbose
-                                   )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_climatological_outlier')
+        #=========================================================
+        ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
 
-    #---------------------------------------------------------
-    # unusual streaks (repeated values)
-    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with unusual streaks (repeated values) check", 
-                                   test="qaqc_unusual_repeated_streaks",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_unusual_repeated_streaks')  
-            
-    #---------------------------------------------------------
-    # unusual large jumps (spikes)
-    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                   message="Flagging problem with unusual large jumps (spike check) check", 
-                                   test="qaqc_unusual_large_jumps",
-                                   verbose=verbose
-                                  )
-    else:
-        stn_to_qaqc = new_df
-        if verbose:
-            print('pass qaqc_unusual_large_jumps')  
+        #---------------------------------------------------------
+        ## Sensor height: air temperature
+        new_df = qaqc_sensor_height_t(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with thermometer sensor height", 
+                                    test="qaqc_sensor_height_t",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_sensor_height_t')
 
+        #---------------------------------------------------------
+        ## Sensor height: wind
+        new_df = qaqc_sensor_height_w(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with anemometer sensor height", 
+                                    test="qaqc_sensor_height_w",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_sensor_height_w')
 
-    ## END QA/QC ASSESSMENT
-    #=========================================================
-    # Re-index to original time/station values
-    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
-    
-    # Sort by time and remove any overlapping timesteps
-    # TODO: Is this necessary? Probably done in the cleaning step
-    # Check back to see if this can or needs to be removed
-    stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
+        #---------------------------------------------------------
+        ## World record checks: air temperature, dewpoint, wind, pressure
+        new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with world record check", 
+                                    test="qaqc_world_record",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_world_record')
+
+        #=========================================================
+        ## Part 2: Variable logic checks
         
-    return stn_to_qaqc, attrs, var_attrs
+        #---------------------------------------------------------
+        ## dew point temp cannot exceed air temperature
+        new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with temperature cross-variable logic check", 
+                                    test="qaqc_crossvar_logic_tdps_to_tas_supersat",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_crossvar_logic_tdps_to_tas_supersat') 
+
+        #---------------------------------------------------------
+        ## dew point temp cannot exceed air temperature (wet bulb drying)  
+        new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with temperature cross-variable logic check", 
+                                    test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_crossvar_logic_tdps_to_tas_wetbulb')
+
+        #---------------------------------------------------------
+        ## precipitation is not negative
+        new_df = qaqc_precip_logic_nonegvals(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with negative precipitation values", 
+                                    test="qaqc_precip_logic_nonegvals",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_precip_logic_nonegvals')
+
+        #---------------------------------------------------------
+        ## precipitation duration logic
+        new_df = qaqc_precip_logic_accum_amounts(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with precip duration logic check", 
+                                    test="qaqc_precip_logic_accum_amounts",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_precip_logic_accum_amounts')       
+
+        #---------------------------------------------------------
+        ## wind direction should be 0 when wind speed is also 0
+        new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with wind cross-variable logic check", 
+                                    test="qaqc_crossvar_logic_calm_wind_dir",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_crossvar_logic_calm_wind_dir') 
+
+        #=========================================================
+        ## Part 3: Distribution and timeseries checks - order matters!
+            # buoy check
+            # frequent values check
+            # distributional check (unusual gaps)
+            # climatological outliers check
+            # unusual streaks check
+            # unusual large jumps check (spike)
+
+        #---------------------------------------------------------
+        ## Buoys with known issues with specific qaqc flags
+        ## NDBC and MARITIME only
+        if network == 'MARITIME' or network == 'NDBC':
+            new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
+            if new_df is None:
+                errors = print_qaqc_failed(errors, station, end_api, 
+                                        message="Flagging problematic buoy issue", 
+                                        test="spurious_buoy_check",
+                                    verbose=verbose
+                                    )
+            else:
+                stn_to_qaqc = new_df
+                if verbose:
+                    print('pass spurious_buoy_check')
+
+        #---------------------------------------------------------
+        # frequent values
+        new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                        message="Flagging problem with frequent values function", 
+                                        test="qaqc_frequent_vals",
+                                        verbose=verbose
+                                        )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_frequent_vals')
+
+        #---------------------------------------------------------
+        # distribution / unusual gaps
+        new_df = qaqc_unusual_gaps(stn_to_qaqc)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                        message="Flagging problem with unusual gap distribution function", 
+                                        test="qaqc_unusual_gaps",
+                                        verbose=verbose
+                                        )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_unusual_gaps')
+        
+        #---------------------------------------------------------
+        # climatological outliers
+        new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api,
+                                    message="Flagging problem with climatological outlier check",
+                                    test="qaqc_climatological_outlier",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_climatological_outlier')
+
+        #---------------------------------------------------------
+        # unusual streaks (repeated values)
+        new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with unusual streaks (repeated values) check", 
+                                    test="qaqc_unusual_repeated_streaks",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_unusual_repeated_streaks')  
+                
+        #---------------------------------------------------------
+        # unusual large jumps (spikes)
+        new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
+        if new_df is None:
+            errors = print_qaqc_failed(errors, station, end_api, 
+                                    message="Flagging problem with unusual large jumps (spike check) check", 
+                                    test="qaqc_unusual_large_jumps",
+                                    verbose=verbose
+                                    )
+        else:
+            stn_to_qaqc = new_df
+            if verbose:
+                print('pass qaqc_unusual_large_jumps')  
+
+        ## END QA/QC ASSESSMENT
+        #=========================================================
+        # qaqc failure on whole station checks
+        # if stn_to_qaqc is None:
+        #     print('Station failed whole station QA/QC checks - station not saved to AWS')
+        #     return stn_to_qaqc, attrs, var_attrs
+
+        # # qaqc success / qaqc flags placed
+        # else:
+
+        # Re-index to original time/station values
+        stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
+        
+        # Sort by time and remove any overlapping timesteps
+        # TODO: Is this necessary? Probably done in the cleaning step
+        # Check back to see if this can or needs to be removed
+        stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
+        
+        return stn_to_qaqc, attrs, var_attrs
+    
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
@@ -580,19 +600,13 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         -----------------------------------
         """
         # TESTING SUBSET
-#         if sample is None:
-#             stations_sample = list(stations)
-#         else:
-#             if sample>len(stations):
-#                 raise NameError("{} larger than station number in {} ({}).".format(sample, network, len(stations)))
-# #             # Random select sampled stations
         stations_sample = stations.sample(1)
-            # Select stations for timing analysis
-            # stations_sample = list(stations.iloc[:sample])
+        # Select stations for timing analysis
+        # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
         for station in stations_sample:
-        # for station in ["VCAPCD_TO"]:
+        # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
             
             file_name = cleandir+station+".nc"
             
@@ -632,23 +646,27 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                         # setting to default which operates on best with dependencies, previously 'h5netcdf'
                         
                         # Run full QA/QC pipeline
-                        t0 = time.time()
-                        if verbose:
-                            print("Running QA/QC pipeline on {}".format(aws_url), flush=True)
-                        df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                 station, end_api, rad_scheme,
-                                                                 verbose=verbose, local=local)
-                        if verbose:
-                            print("Done running QA/QC pipeline. Ellapsed time: {:.2f} s.".
-                                  format(time.time()-t0), flush=True) 
-                        ## Assign ds attributes and save .nc file
-                        if df is not None:
+                        try:
                             t0 = time.time()
-                            process_output_ds(df, attrs, var_attrs, 
-                                              network, timestamp, station, qaqcdir, 
-                                              errors, end_api, verbose=verbose)
-                            # ds.close()
-                        # del(ds)
+                            if verbose:
+                                print("Running QA/QC pipeline on {}".format(aws_url), flush=True)
+                            df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
+                                                                    station, end_api, rad_scheme,
+                                                                    verbose=verbose, local=local)
+                            if verbose:
+                                print("Done running QA/QC pipeline. Ellapsed time: {:.2f} s.".
+                                    format(time.time()-t0), flush=True)
+
+                            ## Assign ds attributes and save .nc file
+                            if df is not None:
+                                t0 = time.time()
+                                process_output_ds(df, attrs, var_attrs, 
+                                                network, timestamp, station, qaqcdir, 
+                                                errors, end_api, verbose=verbose)
+                                # ds.close()
+                            # del(ds)
+                        except:
+                            print('{} did not pass QA/QC - station not saved.'.format(station))         
                         
                     else:
                     # except Exception as e:

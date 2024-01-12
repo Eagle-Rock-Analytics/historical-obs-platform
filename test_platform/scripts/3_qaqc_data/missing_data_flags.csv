@@ -16,6 +16,7 @@ NULL,MADIS,all,,https://developers.synopticdata.com/about/qc/
 ….,CWOP,all,may get replaced by space character by MADIS qa,
 6////,ASOSAWOS,all,,https://www.weather.gov/media/asos/aum-toc.pdf
 7////,ASOSAWOS,all,,https://www.weather.gov/media/asos/aum-toc.pdf
+M,ASOSAWOS,all,,https://www.weather.gov/media/asos/aum-toc.pdf
 999999.0,MADIS,all,,https://madis-data.ncep.noaa.gov/raobdump.f
 MM,MARITIME,all,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/measdes.shtml
 9999.0,MARITIME,tas;pr;hurs;sfcWind;sfcWind_dir;tdps;ps;rsds,historical data,https://www.ndbc.noaa.gov/measdes.shtml
