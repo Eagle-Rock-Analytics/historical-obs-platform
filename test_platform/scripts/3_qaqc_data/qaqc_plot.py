@@ -84,11 +84,13 @@ def _plot_format_helper(var):
     W_N = {"North_America":0.}     #m/s
     S_X = {"North_America":108330} #Pa
     S_N = {"North_America":87000}  #Pa
+    R_X = {"North_America":1500}   #W/m2
+    R_N = {"North_America":-5}     #W/m2
 
     maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, 
-             "psl": S_X, "ps": S_X, "ps_altimeter": S_X}
+             "psl": S_X, "ps": S_X, "ps_altimeter": S_X, "rsds":R_X}
     mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, 
-             "psl": S_N, "ps": S_N, "ps_altimeter": S_N}
+             "psl": S_N, "ps": S_N, "ps_altimeter": S_N, "rsds": R_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
     
