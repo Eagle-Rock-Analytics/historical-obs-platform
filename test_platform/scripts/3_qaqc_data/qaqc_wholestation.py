@@ -427,13 +427,17 @@ def qaqc_world_record(df, verbose=True):
         if failure:
             None
 
+    References:
+    -----------
+        1. World records from HadISD protocol, cross-checked with WMO database
+        2. https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
+        3. Solar radiation specific: Rupp et al. 2022, Slater 2016
+
     Flag meaning:
     -------------
         11,qaqc_world_record,Value outside of world record range
     '''
     try:
-        # world records from HadISD protocol, cross-checked with WMO database
-        # https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
         T_X = {"North_America":329.92} #K
         T_N = {"North_America":210.15} #K
         D_X = {"North_America":329.85} #K
@@ -442,12 +446,14 @@ def qaqc_world_record(df, verbose=True):
         W_N = {"North_America":0.} #m/s
         S_X = {"North_America":108330} #Pa
         S_N = {"North_America":87000} #Pa
+        R_X = {"North_America":1500} #W/m2
+        R_N = {"North_America":-5} #W/m2
 
-        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X}
-        mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N}
+        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X, "rsds": R_X}
+        mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "rsds": R_N}
 
         # variable names to check against world record limits
-        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl']
+        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds']
 
         for var in wr_vars:
             if var in list(df.columns):
