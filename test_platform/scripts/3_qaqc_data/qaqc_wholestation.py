@@ -35,7 +35,7 @@ def open_log_file_wholestation(file):
     log_file = file
 
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
-def qaqc_missing_vals(df, verbose=True):
+def qaqc_missing_vals(df, verbose=False):
     '''
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
     Searches for missing values in 3_qaqc_data/missing_data_flags.csv. 
@@ -52,8 +52,6 @@ def qaqc_missing_vals(df, verbose=True):
             None
     '''
 
-    print(log_file)
-    
     missing_vals = pd.read_csv('missing_data_flags.csv')
 
     vars_to_remove = ['qc', 'duration', 'method']
@@ -78,7 +76,7 @@ def qaqc_missing_vals(df, verbose=True):
 
 #----------------------------------------------------------------------
 # missing spatial coords (lat-lon)
-def qaqc_missing_latlon(df, verbose=True):
+def qaqc_missing_latlon(df, verbose=False):
     '''
     Test for missing latitude / longitude values for a station. 
     Checks if latitude and longitude is missing for a station.
@@ -114,7 +112,7 @@ def qaqc_missing_latlon(df, verbose=True):
         
 #----------------------------------------------------------------------
 # in bounds of WECC
-def qaqc_within_wecc(df, verbose=True):
+def qaqc_within_wecc(df, verbose=False):
     '''
     Test for whether station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
@@ -141,7 +139,7 @@ def qaqc_within_wecc(df, verbose=True):
 
 #----------------------------------------------------------------------
 # elevation
-def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=True):
+def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
     '''
     If elevation is missing, retrieves elevation value from the USGS Elevation Point Query Service, 
     lat lon must be in decimal degrees (which it is after cleaning). 
@@ -182,7 +180,7 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=True):
     return dem_elev_short.astype("float")
 
 #----------------------------------------------------------------------
-def qaqc_elev_infill(df, verbose=True):
+def qaqc_elev_infill(df, verbose=False):
     '''
     Test if elevation is NA/missing. 
     Three in-fill scenarios:
@@ -278,7 +276,7 @@ def qaqc_elev_infill(df, verbose=True):
         return df
 
 #----------------------------------------------------------------------
-def qaqc_elev_range(df, verbose=True):
+def qaqc_elev_range(df, verbose=False):
     '''
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
@@ -318,7 +316,7 @@ def qaqc_elev_range(df, verbose=True):
 
 #----------------------------------------------------------------------
 ## sensor height - air temperature
-def qaqc_sensor_height_t(df, verbose=True):
+def qaqc_sensor_height_t(df, verbose=False):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
@@ -364,7 +362,7 @@ def qaqc_sensor_height_t(df, verbose=True):
 
 #----------------------------------------------------------------------
 ## sensor height - wind
-def qaqc_sensor_height_w(df, verbose=True):
+def qaqc_sensor_height_w(df, verbose=False):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
@@ -414,7 +412,7 @@ def qaqc_sensor_height_w(df, verbose=True):
 
 #----------------------------------------------------------------------
 ## flag values outside world records for North America
-def qaqc_world_record(df, verbose=True):
+def qaqc_world_record(df, verbose=False):
     '''
     Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
     If outside minimum or maximum records, flags values. 

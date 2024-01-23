@@ -39,7 +39,7 @@ def open_log_file_clim(file):
     log_file = file
 #----------------------------------------------------------------------
 ## climatological outlier check
-def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=True):
+def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=False):
     '''
     Flags individual gross outliers from climatological distribution.
     Only applied to air temperature and dew point temperature
@@ -75,7 +75,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
         else:
             for var in vars_to_anom:      
                 # only work with non-flagged values
-                print('Checking for climatological outliers in: {}'.format(var))
+                printf('Checking for climatological outliers in: {}'.format(var), log_file=log_file, verbose=verbose)
                 df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
 
                 # winsorize data by percentiles
@@ -120,7 +120,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                     if len(bins_to_check) != 0:
                         for b in bins_to_check:
                             if y_hist[b] > 0.1:
-                                print('Flagging outliers in {0}, month {1}'.format(var, month))
+                                printf('Flagging outliers in {0}, month {1}'.format(var, month), log_file=log_file, verbose=verbose)
                                 # list of index of full df to flag, not standardized df
                                 idx_to_flag = [i for i in df_m.loc[(df_m[var] >= bins[b]) & (df_m[var] < bins[b+1])].index]
                                 for i in idx_to_flag:
@@ -136,7 +136,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
         return df
     
     except Exception as e:
-        print("qaqc_climatological_outlier failed with Exception: {}".format(e))
+        printf("qaqc_climatological_outlier failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------

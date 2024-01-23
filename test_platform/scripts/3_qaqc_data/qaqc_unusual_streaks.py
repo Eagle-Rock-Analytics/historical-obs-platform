@@ -57,7 +57,6 @@ def infere_freq(df):
 def infere_res_var(df, var):
     """
     """
-    print(var)
     # If var is tdps_derived, use temp measurements
     # if var == "tdps_derived":
     #     var = "tas"
@@ -181,7 +180,7 @@ def consecutive_months(series):
     return pd.Series(groups, index=series.index)
 
 #---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_sequence_length=10):
+def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min_sequence_length=10):
     """
     Test for repeated streaks/unusual spell frequenc. 
     Three test are conducted here:
@@ -225,8 +224,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         # Infere resolution from data
         resolutions = infere_res(df)
         
-        # print(list(df.columns))
-        
         # Save original df multiindex and create station column
         new_df = df.copy()
         new_df['hours'] = pd.Series(df['time']).dt.hour.values
@@ -239,28 +236,23 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
         # check_vars = ["ps"]
         variables = [var for var in check_vars if var in new_df.columns]
-        if verbose:
-            print("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables))
+        printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
         
         # Loop through test variables
         for var in variables:
-            # print(var)
             
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
-            
-            # print(list(df.columns))
         
             # Use only values that have not been flagged by previous QAQC tests
             valid = np.where(np.isnan(test_df[var+"_eraqc"]))[0]
-            # print(len(valid))
             test_df = test_df.iloc[valid]
             
             #TODO: for now, it will skip this qaqc check if the entire record is flagged by another function
             #TODO: should it include an error log? or something else?
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:
-                print("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var))
+                printf("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var), verbose=verbose, log_file=log_file)
                 continue # bypass to next variable if all obs are nans
                 
             # Choose resolution
@@ -329,7 +321,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=True, min_
         
         return df
     except Exception as e:
-        print("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e))
+        printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file)
         return None
 
 #---------------------------------------------------------------------------------------------------

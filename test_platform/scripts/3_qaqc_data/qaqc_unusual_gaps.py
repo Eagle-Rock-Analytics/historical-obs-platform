@@ -34,7 +34,7 @@ def open_log_file_gaps(file):
     log_file = file
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
+def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
     '''
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -70,15 +70,15 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
     try:
         # whole station bypass check first
-        df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
+        df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
         if pass_flag == 'fail':
             # Drop month,year vars used for calculations
             df = df.drop(columns=['month','year'])
             return df
 
         else:
-            df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
-            df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots)
+            df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose)
+            df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose)
 
             if plots == True:
                 for var in vars_to_check:
@@ -89,12 +89,12 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
         return df_part2
     
     except Exception as e:
-        print("qaqc_unusual_gaps failed with Exception: {}".format(e))
+        printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
+def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbose=False):
     """
     Part 1: Checks the number of valid observation months in order to proceed through monthly distribution checks. 
     Identifies whether a station record has too few months and produces a fail pass flag. 
@@ -137,7 +137,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
                     df['station'].unique()[0])
     
     if pass_flag == 'fail':
-        print(err_statement)
+        printf(err_statement, log_file=log_file, verbose=verbose)
                 
     return (df, pass_flag) 
 
@@ -177,7 +177,7 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
+def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
@@ -225,11 +225,11 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
                     if (i < low) or (i > high):
                         year_to_flag = (df_month.loc[(df_month[var]==i) & 
                                            (df_month['month']==month)]['year'].values[0])
-                        print('Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month'.format(
+                        printf('Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month'.format(
                             var,
                             month, 
                             int(year_to_flag),
-                            iqr_thresh)
+                            iqr_thresh), log_file=log_file, verbose=verbose
                         )
 
                         # flag all obs in that month
@@ -246,7 +246,7 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
+def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
     """
     Part 2 / monthly check
         - compare all obs in a single month, all years
@@ -273,7 +273,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
     """
 
     # whole station bypass check first
-    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check)
+    df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
     
     if pass_flag != 'fail':
         

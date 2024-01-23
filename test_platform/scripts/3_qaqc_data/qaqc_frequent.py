@@ -35,7 +35,7 @@ def open_log_file_frequent(file):
     
 ## frequent values + helper functions
 #-----------------------------------------------------------------------------
-def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
+def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -71,8 +71,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
-        if verbose:
-            printf("Running {} on {}".format("qaqc_frequent_vals", vars_to_check), log_file=log_file, verbose=verbose)
+        printf("Running {} on {}".format("qaqc_frequent_vals", vars_to_check), log_file=log_file, verbose=verbose)
 
         # df set-up with month and year -- prefer to not do this
         df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
@@ -89,7 +88,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
             if df_valid[var].isna().all() == True:
                 continue # bypass to next variable if all obs are nans 
 
-            df_valid = frequent_bincheck(df_valid, var, data_group='all', rad_scheme=rad_scheme)
+            df_valid = frequent_bincheck(df_valid, var, data_group='all', rad_scheme=rad_scheme, verbose=verbose)
 
             # if no values are flagged as suspect, end function, no need to proceed
             if len(df_valid.loc[df_valid[var+'_eraqc'] == 100]) == 0:
@@ -101,7 +100,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
                 # then scans for each value on a year-by-year basis to flag if they are a problem within that year
                     # DECISION: the annual check uses the unfiltered data
                     # previously flagged values are included here -- this would interfere with our entire workflow
-                df_valid = frequent_bincheck(df_valid, var, data_group='annual', rad_scheme=rad_scheme)
+                df_valid = frequent_bincheck(df_valid, var, data_group='annual', rad_scheme=rad_scheme, verbose=verbose)
 
             # seasonal scan (JF+D, MAM, JJA, SON) 
             # each season is scanned over entire record to identify problem values
@@ -110,7 +109,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
 
             # seasonal version because seasonal shift in distribution of temps/dewpoints can reveal hidden values
             # all years
-            df_valid = frequent_bincheck(df_valid, var, data_group='seasonal_all', rad_scheme=rad_scheme) ## DECISION: December is from the current year
+            df_valid = frequent_bincheck(df_valid, var, data_group='seasonal_all', rad_scheme=rad_scheme, verbose=verbose) ## DECISION: December is from the current year
             if len(df_valid.loc[df_valid[var+'_eraqc'] == 100]) == 0:
                 printf('No unusually frequent values detected for seasonal {} observation record'.format(var), log_file=log_file, verbose=verbose)
                 continue # bypasses to next variable
@@ -118,7 +117,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
             else:
                 printf('Unusually frequent values detected in seasonal distribution, continuing to annual check', log_file=log_file, verbose=verbose)
                 # year by year --> December selection must be specific
-                df_valid = frequent_bincheck(df_valid, var, data_group='seasonal_annual', rad_scheme=rad_scheme)    
+                df_valid = frequent_bincheck(df_valid, var, data_group='seasonal_annual', rad_scheme=rad_scheme, verbose=verbose)    
                         
             # remove any lingering preliminary flags, data passed check
             df_valid.loc[df_valid[var+'_eraqc'] == 100, var+'_eraqc'] = np.nan
@@ -155,7 +154,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=True):
         return None
 
 #-----------------------------------------------------------------------------
-def frequent_bincheck(df, var, data_group, rad_scheme):
+def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     '''
     Approach: 
         - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)

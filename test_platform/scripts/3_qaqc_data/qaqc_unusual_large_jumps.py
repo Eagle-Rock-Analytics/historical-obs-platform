@@ -82,12 +82,11 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
         variables = [var for var in check_vars if var in df.columns]
 
-        if verbose:
-            print("Running {} on {}".format("qaqc_unusual_large_jumps", variables))
+        printf("Running {} on {}".format("qaqc_unusual_large_jumps", variables), verbose=verbose, log_file=log_file)
 
         # Loop through test variables
         for var in variables:
-            print('Running unusual large jumps check on: {}'.format(var))
+            printf('Running unusual large jumps check on: {}'.format(var), log_file=log_file, verbose=verbose)
 
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             # new_df = df.copy(deep=True)
@@ -125,14 +124,14 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                         unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
                     except:
                     # else:
-                        print('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var))
+                        printf('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var), log_file=log_file, verbose=verbose)
                         continue
 
         return df.reset_index()
         return df
 
     except Exception as e:
-        print("qaqc_unusual_large_jumps failed with Exception: {}".format(e))
+        printf("qaqc_unusual_large_jumps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #-----------------------------------------------------------------------------
@@ -163,8 +162,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
     ind = np.where(potential_spike)[0]
     spikes = pd.Series(np.zeros_like(potential_spike).astype("bool"), index=potential_spike.index)
     dates = pd.Series(potential_spike.index.values)
-    # print(len(ind))
-    # print(dates[ind])
     
     for i in ind:
         
@@ -175,9 +172,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
         im1, i0, ip1, ip2, ip3, ip4 = [i-1, i, i+1, i+2, i+3, i+4]
         tm1, t0, tp1, tp2, tp3, tp4 = diff.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
         cm1, c0, cp1, cp2, cp3, cp4 = crit.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
-        # print(dates.iloc[[i0,ip1]])
-        # print(" sgn(t0)[{}] != sgn(tm1)[{}] \n abs(tm1)[{}] < cm1[{}] \n abs(tp1)[{}] > cp1[{}] \n abs(tp2)[{}] < cp2[{}]".format(np.sign(t0),np.sign(tp1), np.abs(tm1), cm1, np.abs(tp1), cp1, np.abs(tp2), cp2))
-        # print()
         # Three-values spike
         if (
             np.sign(t0) != np.sign(tp2) and 
@@ -187,7 +181,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
             np.abs(tp3) > cp3 and 
             np.abs(tp4) < 0.5*cp4
         ):
-            # print(dates.iloc[i0])
             spikes.iloc[[i0,ip1,ip2]] = True
             # i += 3
             # continue
@@ -200,7 +193,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
             np.abs(tp2) > cp2 and 
             np.abs(tp3) < 0.5*cp3
         ):
-            # print(dates.iloc[i0])
             spikes.iloc[[i0,ip1]] = True
             # i += 2
             # continue
@@ -212,7 +204,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
             np.abs(tp1) > cp1 and 
             np.abs(tp2) < 1.0*cp2
         ):
-            # print(dates.iloc[i0])
             spikes.iloc[i0] = True
             # i += 1
             # continue

@@ -21,14 +21,14 @@ import scipy.stats as stats
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
+    printf("Error importing qaqc_utils: {}".format(e))
     
 def open_log_file_logic(file):
     global log_file
     log_file = file
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
+def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -56,8 +56,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
 
         # dew point is not present
         if not all_dew_vars:
-            if verbose:
-                print('Station does not report dew point temperature - bypassing temperature cross-variable logic check')
+            printf('Station does not report dew point temperature - bypassing temperature cross-variable logic check', log_file=log_file, verbose=verbose)
         
         # dew point is present
         else:
@@ -66,17 +65,16 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):
                 df_valid = df.loc[(df['tas_eraqc'].isnull() == True) & (df[var+'_eraqc'].isnull() == True)]                
                 isBad = df_valid.loc[df_valid[var] > df_valid['tas']]
                 df.loc[isBad.index, var + '_eraqc'] = 12 # see qaqc_flag_meanings.csv
-                if verbose:
-                    print('{0} eraqc flags (any other value than nan is an active flag!): {1}'.
-                          format(var, df[var + '_eraqc'].unique()))
+                printf('{0} eraqc flags (any other value than nan is an active flag!): {1}'.
+                      format(var, df[var + '_eraqc'].unique()), log_file=log_file, verbose=verbose)
         return df
     
     except Exception as e:
-        print("qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e))
+        printf("qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
-def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
+def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     '''
     Checks for extended periods of a dewpoint depression of 0°C.
     Extended period is defined as a 24-hour period
@@ -104,8 +102,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
 
         # dew point is not present
         if not all_dew_vars:
-            if verbose:
-                print('Station does not report dew point temperature - bypassing temperature cross-variable logic check')
+            printf('Station does not report dew point temperature - bypassing temperature cross-variable logic check', log_file=log_file, verbose=verbose)
         
         # dew point is present
         else:
@@ -120,19 +117,19 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=True):
                     dpd_to_check = df_valid.loc[(df_valid.time >= t) & (df_valid.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
 
                     if all(v == 0 for v in dpd_to_check):
-                        print('Flagging extended streak in dewpoint depression')
+                        printf('Flagging extended streak in dewpoint depression')
                         df.loc[(df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))),
                         var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
         
         return df
 
     except Exception as e:
-        print("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
+        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
         return None
 
 #----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
-def qaqc_precip_logic_nonegvals(df, verbose=True):
+def qaqc_precip_logic_nonegvals(df, verbose=False):
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data.
@@ -160,28 +157,26 @@ def qaqc_precip_logic_nonegvals(df, verbose=True):
 
     try:
         if not pr_vars: # precipitation variable(s) is not present
-            print('Station does not report precipitation - bypassing precip logic nonnegvals check')
+            printf('Station does not report precipitation - bypassing precip logic nonnegvals check')
         else:
             for item in pr_vars:
                 # only use valid obs for precip vars
                 df_valid = df.loc[df[item+'_eraqc'].isnull() == True]
                 
-                if verbose:
-                    print('Precip range: ', df_valid[item].min(), '-', df_valid[item].max()) # testing
+                printf('Precip range: ', df_valid[item].min(), '-', df_valid[item].max(), log_file=log_file, verbose=verbose)
                 df.loc[df_valid[item] < 0, item+'_eraqc'] = 10 # see era_qaqc_flag_meanings.csv
 
-                if verbose:
-                    print('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
-                        '{}'.format(df[item+'_eraqc'].unique())) # testing
+                printf('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
+                    '{}'.format(df[item+'_eraqc'].unique()), log_file=log_file, verbose=verbose)
         return df
     
     except Exception as e:
-        print("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e))
+        printf("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
 ## logic check: precip accumulation amounts balance for time period
-def qaqc_precip_logic_accum_amounts(df, verbose=True):
+def qaqc_precip_logic_accum_amounts(df, verbose=False):
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
     Only needs to be applied when 2 or more precipitation duration specific variables are present (pr_5min, pr_1h, pr_24h)
@@ -217,12 +212,12 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
 
     try:
         # if not pr_vars: # precipitation variable(s) is not present
-        #     print('station does not report precipitation - bypassing precip logic accum check')
+        #     printf('station does not report precipitation - bypassing precip logic accum check')
         #     return df
         
         # if station does not report any precipitation values, or only one, bypass
         if len(pr_vars) == 0 or len(pr_vars) == 1:
-            print('Station does not report precipitation - bypassing precip logic accum check')
+            printf('Station does not report precipitation - bypassing precip logic accum check', log_file=log_file, verbose=verbose)
             return df
 
         # checks accumulated precip vars against each other
@@ -243,9 +238,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
             if 'pr_24h' in pr_vars:
                 df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_5min'] > df_valid['pr_24h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
-            if verbose:
-                print('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
-                    '{}'.format(df['pr_5min_eraqc'].unique())) # testing
+            printf('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
+                '{}'.format(df['pr_5min_eraqc'].unique()), log_file=log_file, verbose=verbose)
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
@@ -255,9 +249,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
             if 'pr_24h' in pr_vars:
                 df_valid = df.loc[(df['pr_1h_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_1h'] > df_valid['pr_24h'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
-            if verbose:
-                print('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
-                    '{}'.format(df['pr_1h_eraqc'].unique())) # testing
+            printf('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
+                '{}'.format(df['pr_1h_eraqc'].unique()), log_file=log_file, verbose=verbose)
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
@@ -272,19 +265,18 @@ def qaqc_precip_logic_accum_amounts(df, verbose=True):
                 df_valid = df.loc[(df['pr_localmid_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_24h'] < df_valid['pr_localmid'], 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
                 
-            if verbose:
-                print('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
-                    '{}'.format(np.unique(df['pr_24h_eraqc']))) # testing
+            printf('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
+                '{}'.format(np.unique(df['pr_24h_eraqc'])), log_file=log_file, verbose=verbose)
 
         return df
 
     except Exception as e:
-        print("qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e))
+        printf("qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
 ## logic check: wind direction must be 0 if wind speed is 0
-def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
+def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     """
     Checks that wind direction is zero when wind speed is also zero.
     If fails, wind direction is flagged. 
@@ -311,9 +303,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
 
         # check that wind direction is provided
         if 'sfcWind_dir' not in df.columns:
-            if verbose:
-                print('Station does not report wind direction - bypassing wind cross-variable logic check')
-                return df
+            printf('Station does not report wind direction - bypassing wind cross-variable logic check', log_file=log_file, verbose=verbose)
+            return df
             
         # use only valid observations
         df_valid = df.loc[(df['sfcWind_eraqc'].isnull() == True) & (df['sfcWind_dir_eraqc'].isnull() == True)]
@@ -331,11 +322,10 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=True):
         df.loc[isBad.index, 'sfcWind_dir'] = 360
         df.loc[isBad.index, 'sfcWind_dir_eraqc'] = 15 # see qaqc_flag_meanings.csv
         
-        if verbose:
-            print('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.
-                  format(df['sfcWind_dir_eraqc'].unique()))
+        printf('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.
+                  format(df['sfcWind_dir_eraqc'].unique()), log_file=log_file, verbose=verbose)
         return df
         
     except Exception as e:
-        print("qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e))
+        printf("qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
