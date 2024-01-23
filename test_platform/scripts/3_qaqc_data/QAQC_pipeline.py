@@ -38,7 +38,7 @@ except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
-dirs = ["./temp/", "./timing/", "./local_qaqced_files/"]
+dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
@@ -586,7 +586,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             ## Set log file
             global log_file
             ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
-            log_file = open("logs/qaqc_{}.{}.log".format(station, ts), "w")
+            log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
+            log_file = open(log_fname, "w")
             open_log_file_wholestation(log_file)
             open_log_file_buoy(log_file)
             open_log_file_logic(log_file)
@@ -666,9 +667,23 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                                      message="Cannot read files in from AWS: {0}".format(e), 
                                      test="run_qaqc_pipeline",
                                      verbose=verbose)
-        printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
-               format(station, time.time()-T0), log_file=log_file, verbose=verbose)
+                        
+            # Print error file location
+            printf('errors_{0}_{1}.csv saved to {2}\n'.format(network, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose)
+            
+            #Close an save log file
+            # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
+            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
+            log_object = "{}/{}".format(os.getcwd(),log_fname) 
+            log_path = "{}/{}".format(qaqcdir, log_fname).replace("//","/")
+            s3.Bucket(bucket_name).upload_file(log_object, log_path)
+            # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose)
         
+            # Done with station qaqc
+            printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
+                   format(station, time.time()-T0), log_file=log_file, verbose=verbose)
+            log_file.close()
+            
     # Write errors to csv
     finally:
         pass
@@ -678,9 +693,5 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         content = csv_buffer.getvalue()
         # Make sure error files save to correct directory
         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
-        printf('errors_{0}_{1}.csv saved to {2}\n'.format(network, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose)
-            
-    #Close log file object
-    log_file.close()
     
     return
