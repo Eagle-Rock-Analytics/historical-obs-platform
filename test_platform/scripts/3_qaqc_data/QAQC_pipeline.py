@@ -578,9 +578,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        # for station in stations_sample:
+        for station in stations_sample:
         # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
-        for station in ['RAWS_CQHC1']:
+        # for station in ['RAWS_CQHC1']:
             
             #----------------------------------------------------------------------------
             ## Set log file
