@@ -29,6 +29,14 @@ try:
 except:
     print("Error importing qaqc_unusual_gaps.py")
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_clim(file):
+    global log_file
+    log_file = file
 #----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=True):

@@ -18,6 +18,14 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_logic(file):
+    global log_file
+    log_file = file
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=True):

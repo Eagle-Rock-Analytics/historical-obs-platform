@@ -2,7 +2,6 @@
 This is a script where Stage 3: QA/QC function(s) whole station checks. 
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
-
 ## Import Libraries
 import boto3
 import geopandas as gp
@@ -18,12 +17,22 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+
+# if __name__ == "__main__":
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 #======================================================================
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
+
+def open_log_file_wholestation(file):
+    global log_file
+    log_file = file
 
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=True):
@@ -43,6 +52,8 @@ def qaqc_missing_vals(df, verbose=True):
             None
     '''
 
+    print(log_file)
+    
     missing_vals = pd.read_csv('missing_data_flags.csv')
 
     vars_to_remove = ['qc', 'duration', 'method']
@@ -58,9 +69,9 @@ def qaqc_missing_vals(df, verbose=True):
             # note numerical vals converted to strings first to match missing_flag formatting
             df[item] = np.where(df[item].astype(str).isin(missing_codes['missing_flag']), float('NaN'), df[item])
 
-            print('Updating missing values for: {}'.format(item))
+            printf('Updating missing values for: {}'.format(item), log_file=log_file, verbose=verbose)
     except Exception as e:
-        print(e)
+        printf(e, log_file=log_file, verbose=verbose)
         return None
 
     return df
@@ -84,7 +95,7 @@ def qaqc_missing_latlon(df, verbose=True):
         if qaqc failure:
             None: station does not proceed through QA/QC
     '''
-
+    
     # latitude or longitude
     variables = list(df.columns)
     if "lon" not in variables or "lat" not in variables:
@@ -201,9 +212,8 @@ def qaqc_elev_infill(df, verbose=True):
         Elevation qa/qc flags: observations with these flags should continue through QA/QC
     '''
     
-    if verbose:
-        print('Elevation values pre-infilling: {}'.format(df['elevation'].unique()))
-        print('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique())) # testing
+    printf('Elevation values pre-infilling: {}'.format(df['elevation'].unique()), log_file=log_file, verbose=verbose)
+    printf('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique()), log_file=log_file, verbose=verbose)
 
     # first check to see if any elev value is missing
     if df['elevation'].isnull().any() == True: 
@@ -233,8 +243,7 @@ def qaqc_elev_infill(df, verbose=True):
                             df.loc[(df['lat'] == ilat) & (df['lon'] == ilon), 'elevation'] = float(dem_elev_value)
                         
             except: # elevation cannot be obtained from DEM
-                if verbose:
-                    print("Elevation cannot be in-filled")
+                printf("Elevation cannot be in-filled", log_file=log_file, verbose=verbose)
                 return None
 
         # some stations have a single/few nan reported, in-fill from station for consistency
@@ -263,8 +272,7 @@ def qaqc_elev_infill(df, verbose=True):
                                                             
             # elevation cannot be in-filled
             except:
-                if verbose:
-                    print("Elevation cannot be in-filled")
+                printf("Elevation cannot be in-filled", log_file=log_file, verbose=verbose)
                 return None
     else:
         return df
@@ -293,16 +301,13 @@ def qaqc_elev_range(df, verbose=True):
 
     # If value is present but outside of reasonable value range
     if (df['elevation'].values.any() < -95.0) or (df['elevation'].values.any() > 6210.0):
-        if verbose:
-            print("Station out of range for WECC -- station does not proceed through QAQC")
-            return None
+        printf("Station out of range for WECC -- station does not proceed through QAQC", log_file=log_file, verbose=verbose)
+        return None
 
     # Elevation value is present and within reasonable value range
     else:
         df = df
-        if verbose:
-            print('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique())) # testing
-            print('Elevation qaqc values post-infilling/correcting: {}'.format(df['elevation_eraqc'].unique())) # testing
+        printf('Elevation values post-infilling/correcting: {}'.format(df['elevation'].unique()), log_file=log_file, verbose=verbose)
         
     return df
 
@@ -341,7 +346,7 @@ def qaqc_sensor_height_t(df, verbose=True):
         if isHeightMissing:
             # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
-            print('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks')
+            printf('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         else:
             isHeightWithin = np.logical_and(df['thermometer_height_m'] >= (2 - 1/3),
                                             df['thermometer_height_m'] <= (2 + 1/3))
@@ -350,12 +355,11 @@ def qaqc_sensor_height_t(df, verbose=True):
             if not isHeightWithin.all():
                 # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
                 df['tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
-                print('Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks')
+                printf('Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
 
         return df
     except Exception as e:
-        if verbose:
-            print("qaqc_sensor_height_t failed with Exception: {}".format(e))
+        printf("qaqc_sensor_height_t failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
@@ -391,7 +395,7 @@ def qaqc_sensor_height_w(df, verbose=True):
             # df.loc[:,'sfcWind_dir_eraqc'] = 8
             df['sfcWind_eraqc'] = 8 # see era_qaqc_flag_meanings.csv
             df['sfcWind_dir_eraqc'] = 8
-            print('Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks')
+            printf('Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
 
         else: # sensor height present
             # Check if anemometer height is within 10 m +/- 1/3 m
@@ -400,13 +404,12 @@ def qaqc_sensor_height_w(df, verbose=True):
             if not isHeightWithin.all():
                 df['sfcWind_eraqc'] = 9 # see era_qaqc_flag_meanings.csv
                 df['sfcWind_dir_eraqc'] = 9
-                print('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks')
+                printf('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         return df
 
     else:
     # except Exception as e:
-        if verbose:
-            print("qaqc_sensor_height_w failed with Exception: {}".format(e))
+        printf("qaqc_sensor_height_w failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
@@ -457,6 +460,5 @@ def qaqc_world_record(df, verbose=True):
                     df.loc[isOffRecord, var + '_eraqc'] = 11 # see era_qaqc_flag_meanings.csv
         return df
     except Exception as e:
-        if verbose:
-            print("qaqc_world_record failed with Exception: {}".format(e))
+        printf("qaqc_world_record failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None

@@ -24,6 +24,14 @@ try:
 except:
     print("Error importing qaqc_plot.py")
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_spikes(file):
+    global log_file
+    log_file = file
 #-----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=True):

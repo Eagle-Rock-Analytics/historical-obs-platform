@@ -24,6 +24,14 @@ try:
 except:
     print("Error importing qaqc_plot.py")
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_gaps(file):
+    global log_file
+    log_file = file
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
 def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):

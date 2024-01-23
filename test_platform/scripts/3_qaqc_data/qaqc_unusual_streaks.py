@@ -25,8 +25,14 @@ bucket_name = "wecc-historical-wx"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-from IPython.display import display
-
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_streaks(file):
+    global log_file
+    log_file = file
 #======================================================================
 #----------------------------------------------------------------------
 def infere_freq(df):

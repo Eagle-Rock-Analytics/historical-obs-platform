@@ -13,7 +13,7 @@ Outputs: QA/QC-processed data for an individual network, priority variables, all
 
 import os
 import tempfile
-import argparse 
+import argparse
 
 # Import all qaqc script functions
 try:
@@ -35,11 +35,11 @@ try:
     from QAQC_pipeline import *
 except:
     print("Error importing QAQC_pipeline.py")
-
+    
 # =================================================================================================
 # Main Function
 if __name__ == "__main__":
-
+     
     # Create parser
     parser = argparse.ArgumentParser(
         prog="ALLNETWORKS_qaqc",
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--network', default="VCAPCD", help="Network name (Default=VCAPCD)", type=str)
     parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (Default=False)", type=bool)
     parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (Default='remove_zeros'", type=str)
-    parser.add_argument('-v', '--verbose', default=True, help="Print statements throughout script (Default=True)", type=bool)
+    parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (Default=False)", type=bool)
     
     # Parse arguments
     args = parser.parse_args()
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     rad_scheme = args.rad_scheme
     verbose = args.verbose
     local = args.local
-        
+    
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
 
