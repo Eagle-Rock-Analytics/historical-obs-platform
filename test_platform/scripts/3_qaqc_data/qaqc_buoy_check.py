@@ -24,6 +24,15 @@ try:
 except:
     print("Error importing qaqc_plot.py")
 
+try:
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+    
+def open_log_file_buoy(file):
+    global log_file
+    log_file = file
+    
 ## NDBC and MARITIME only
 #-----------------------------------------------------------------------------
 def spurious_buoy_check(df, qc_vars, verbose=True):
@@ -40,9 +49,8 @@ def spurious_buoy_check(df, qc_vars, verbose=True):
     station = df['station'].unique()[0]
     
     if station in known_issues:
-        if verbose:
-            print('{0} has a known issue, checking data coverage'.format(station)) # testing
-        
+        printf('{0} has a known issue, checking data coverage'.format(station), log_file=log_file, verbose=verbose)
+            
         # buoys with "data" past their disestablishment dates
         if station == 'NDBC_46023': # disestablished 9/8/2010
             isBad = df['time'] >= np.datetime64("2010-09-09")
@@ -95,7 +103,7 @@ def spurious_buoy_check(df, qc_vars, verbose=True):
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         if verbose:
-            print("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station))
+            printf("{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station), log_file=log_file, verbose=verbose)
         
         for new_var in qc_vars:
             if new_var != "elevation_qaqc":
