@@ -154,6 +154,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     vars_to_remove = ['qc', 'duration', 'method']
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
     pr_vars = [var for var in all_pr_vars if not any(True for item in vars_to_remove if item in var)] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    printf('Running qaqc_precip_logic_nonegvals on: {}'.format(pr_vars), log_file=log_file, verbose=verbose)
 
     try:
         if not pr_vars: # precipitation variable(s) is not present
@@ -163,15 +164,15 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
                 # only use valid obs for precip vars
                 df_valid = df.loc[df[item+'_eraqc'].isnull() == True]
                 
-                printf('Precip range: ', df_valid[item].min(), '-', df_valid[item].max(), log_file=log_file, verbose=verbose)
+                # printf('Precip range: {0}-{1}'.format(df_valid[item].min(), df_valid[item].max()), log_file=log_file, verbose=verbose)
                 df.loc[df_valid[item] < 0, item+'_eraqc'] = 10 # see era_qaqc_flag_meanings.csv
 
-                printf('Precipitation eraqc flags (any other value than nan is an active flag!):' + 
-                    '{}'.format(df[item+'_eraqc'].unique()), log_file=log_file, verbose=verbose)
+                printf('Precipitation eraqc flags (any other value than nan is an active flag!): {0}'.format(df[item+'_eraqc'].unique()),
+                        log_file=log_file, verbose=verbose)
         return df
     
     except Exception as e:
-        printf("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        printf("qaqc_precip_logic_nonegvals failed with Exception: {0}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
@@ -217,7 +218,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         
         # if station does not report any precipitation values, or only one, bypass
         if len(pr_vars) == 0 or len(pr_vars) == 1:
-            printf('Station does not report precipitation - bypassing precip logic accum check', log_file=log_file, verbose=verbose)
+            printf('Station does not report multiple precipitation variables - bypassing precip logic accum check', log_file=log_file, verbose=verbose)
             return df
 
         # checks accumulated precip vars against each other
@@ -238,8 +239,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
             if 'pr_24h' in pr_vars:
                 df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_5min'] > df_valid['pr_24h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
-            printf('Precip 5min eraqc flags (any other value than nan is an active flag!):' + 
-                '{}'.format(df['pr_5min_eraqc'].unique()), log_file=log_file, verbose=verbose)
+            printf('Precip 5min eraqc flags (any other value than nan is an active flag!): {0}'.format(df['pr_5min_eraqc'].unique()),
+                    log_file=log_file, verbose=verbose)
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
@@ -249,8 +250,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
             if 'pr_24h' in pr_vars:
                 df_valid = df.loc[(df['pr_1h_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_1h'] > df_valid['pr_24h'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
-            printf('Precip 1h eraqc flags (any other value than nan is an active flag!):' + 
-                '{}'.format(df['pr_1h_eraqc'].unique()), log_file=log_file, verbose=verbose)
+            printf('Precip 1h eraqc flags (any other value than nan is an active flag!): {0}'.format(df['pr_1h_eraqc'].unique()),
+                    log_file=log_file, verbose=verbose)
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
@@ -265,13 +266,13 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
                 df_valid = df.loc[(df['pr_localmid_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
                 df.loc[df_valid['pr_24h'] < df_valid['pr_localmid'], 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
                 
-            printf('Precip 24h eraqc flags (any other value than nan is an active flag!):' + 
-                '{}'.format(np.unique(df['pr_24h_eraqc'])), log_file=log_file, verbose=verbose)
+            printf('Precip 24h eraqc flags (any other value than nan is an active flag!): {0}'.format(np.unique(df['pr_24h_eraqc'])), 
+                    log_file=log_file, verbose=verbose)
 
         return df
 
     except Exception as e:
-        printf("qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        printf("qaqc_precip_logic_accum_amounts failed with Exception: {0}".format(e), log_file=log_file, verbose=verbose)
         return None
 
 #----------------------------------------------------------------------
@@ -322,8 +323,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         df.loc[isBad.index, 'sfcWind_dir'] = 360
         df.loc[isBad.index, 'sfcWind_dir_eraqc'] = 15 # see qaqc_flag_meanings.csv
         
-        printf('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {}'.
-                  format(df['sfcWind_dir_eraqc'].unique()), log_file=log_file, verbose=verbose)
+        printf('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {0}'.format(df['sfcWind_dir_eraqc'].unique()), 
+                log_file=log_file, verbose=verbose)
         return df
         
     except Exception as e:
