@@ -71,7 +71,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False):
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
-        printf("Running {} on {}".format("qaqc_frequent_vals", vars_to_check), log_file=log_file, verbose=verbose)
+        printf("Running qaqc_frequent_vals on {}".format(vars_to_check), log_file=log_file, verbose=verbose)
 
         # df set-up with month and year -- prefer to not do this
         df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
@@ -198,8 +198,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # radiation schemes for assessment
     if var == 'rsds':
         if rad_scheme == 'all_hours':
-            # all valid observations included -- frequent flag will likely set on 0/nighttime hours
-            printf('Radiation frequent value check scheme: all_hours selected, will likely flag nighttime', log_file=log_file, verbose=verbose)
+            # all valid observations included -- frequent flag will set on 0/nighttime hours
+            printf('Radiation frequent value check scheme: all_hours selected, will flag nighttime', log_file=log_file, verbose=verbose)
             df_to_test = df
         
         elif rad_scheme == "day_hours":
@@ -242,7 +242,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=10)
             
             if len(flagged_bins) != 0:
-                printf('Flagging bin: ', flagged_bins, log_file=log_file, verbose=verbose)
+                printf('Flagging bin: {0}'.format(flagged_bins), log_file=log_file, verbose=verbose)
 
                 for sus_bin in flagged_bins:
                     df.loc[(df['year']==yr) & (df[var]>=sus_bin) & (df[var]<=sus_bin+1), 
@@ -288,7 +288,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
 
                     if len(flagged_bins) != 0:
-                        printf('Flagging bins: ', flagged_bins, log_file=log_file, verbose=verbose)
+                        printf('Flagging bins: {0}'.format(flagged_bins), log_file=log_file, verbose=verbose)
 
                         for sus_bin in flagged_bins:
                             df.loc[(df['year']==yr) & 
@@ -318,7 +318,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     flagged_bins = bins_to_flag(bar_counts, bins, bin_main_thresh=15, secondary_bin_main_thresh=10)
 
                     if len(flagged_bins) != 0:
-                        printf('Flagging bins: ', flagged_bins, log_file=log_file, verbose=verbose)
+                        printf('Flagging bins: {0}'.format(flagged_bins), log_file=log_file, verbose=verbose)
 
                         for sus_bin in flagged_bins:
                             # flag jan feb
