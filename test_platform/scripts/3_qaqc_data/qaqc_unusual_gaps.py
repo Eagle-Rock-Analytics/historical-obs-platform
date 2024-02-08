@@ -202,6 +202,8 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False)
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
         
+    printf("Running: qaqc_dist_gap_part1", log_file=log_file, verbose=verbose)
+
     for var in vars_to_check:
         for month in range(1,13): 
 
@@ -271,6 +273,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
+    printf("Running: qaqc_dist_gap_part2", log_file=log_file, verbose=verbose)
 
     # whole station bypass check first
     df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)

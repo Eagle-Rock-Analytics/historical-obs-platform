@@ -42,7 +42,7 @@ def _plot_format_helper(var):
     """
 
     pr_vars = ['pr', 'pr_5min', 'pr_1h', 'pr_24h', 'pr_localmid']
-    ps_vars = ['ps', 'psl', 'psl_altimeter', 'ps_derived', 'ps_altimeter']
+    ps_vars = ['ps', 'psl', 'ps_derived', 'ps_altimeter']
     
     if var == 'tas':
         ylab = 'Air Temperature at 2m'
@@ -88,9 +88,9 @@ def _plot_format_helper(var):
     R_N = {"North_America":-5}     #W/m2
 
     maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, 
-             "psl": S_X, "ps": S_X, "ps_altimeter": S_X, "rsds":R_X}
+             "psl": S_X, "ps": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X}
     mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, 
-             "psl": S_N, "ps": S_N, "ps_altimeter": S_N, "rsds": R_N}
+             "psl": S_N, "ps": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
     

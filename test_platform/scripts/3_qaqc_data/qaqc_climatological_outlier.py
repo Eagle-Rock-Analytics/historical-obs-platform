@@ -62,6 +62,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     -------------
         26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     '''
+
+    printf("Running: qaqc_climatological_outlier", log_file=log_file, verbose=verbose)
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
