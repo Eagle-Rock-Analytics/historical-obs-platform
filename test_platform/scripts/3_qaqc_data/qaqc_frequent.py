@@ -64,6 +64,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False):
         24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
         25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     '''
+
+    printf("Running: qaqc_frequent_vals", log_file=log_file, verbose=verbose)
     
     # this check is only done on air temp, dewpoint temp, and pressure
     vars_to_remove = ['qc', 'duration', 'method']

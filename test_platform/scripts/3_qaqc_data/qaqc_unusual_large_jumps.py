@@ -34,7 +34,7 @@ def open_log_file_spikes(file):
     log_file = file
 #-----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
-def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=True):
+def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=False):
     """
     Test for unusual large jumps or ''spikes'', given the statistics of the series. Analysis for each individual month in 
     time series to account for seasonal cycles in different regions.
@@ -68,6 +68,9 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
     - HadISD uses 100, this can be modified and tweaked in future development
     """
+
+    printf("Running: qaqc_unusual_large_jumps", log_file=log_file, verbose=verbose)
+
     df = df.copy(deep=True)
     df.set_index(df['time'], inplace=True)
     df.drop(columns=['time'], inplace=True)

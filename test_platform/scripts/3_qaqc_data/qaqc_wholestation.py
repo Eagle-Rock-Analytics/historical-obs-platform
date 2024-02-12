@@ -52,6 +52,8 @@ def qaqc_missing_vals(df, verbose=False):
             None
     '''
 
+    printf("Running: qaqc_missing_vals", log_file=log_file, verbose=verbose)
+
     missing_vals = pd.read_csv('missing_data_flags.csv')
 
     vars_to_remove = ['qc', 'duration', 'method']
@@ -93,7 +95,8 @@ def qaqc_missing_latlon(df, verbose=False):
         if qaqc failure:
             None: station does not proceed through QA/QC
     '''
-    
+    printf("Running: qaqc_missing_latlon", log_file=log_file, verbose=verbose)
+
     # latitude or longitude
     variables = list(df.columns)
     if "lon" not in variables or "lat" not in variables:
@@ -128,7 +131,8 @@ def qaqc_within_wecc(df, verbose=False):
         if qaqc failure:
             None: station does not proceed through QA/QC
     '''
-    
+    printf("Running: qaqc_within_wecc", log_file=log_file, verbose=verbose)
+
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
     m = gp.read_file(wecc_mar).iloc[0].geometry   ## Read in marine WECC shapefile.
     pxy = shapely.geometry.Point(df['lon'].mean(), df['lat'].mean())
@@ -210,8 +214,7 @@ def qaqc_elev_infill(df, verbose=False):
         Elevation qa/qc flags: observations with these flags should continue through QA/QC
     '''
     
-    printf('Elevation values pre-infilling: {}'.format(df['elevation'].unique()), log_file=log_file, verbose=verbose)
-    printf('Elevation eraqc values pre-infilling: {}'.format(df['elevation_eraqc'].unique()), log_file=log_file, verbose=verbose)
+    printf("Running: qaqc_elev_infill", log_file=log_file, verbose=verbose)
 
     # first check to see if any elev value is missing
     if df['elevation'].isnull().any() == True: 
@@ -297,6 +300,8 @@ def qaqc_elev_range(df, verbose=False):
     # denali is ~6190 m
     # add a 10 m buffer
 
+    printf("Running: qaqc_elev_range", log_file=log_file, verbose=verbose)
+
     # If value is present but outside of reasonable value range
     if (df['elevation'].values.any() < -95.0) or (df['elevation'].values.any() > 6210.0):
         printf("Station out of range for WECC -- station does not proceed through QAQC", log_file=log_file, verbose=verbose)
@@ -337,6 +342,9 @@ def qaqc_sensor_height_t(df, verbose=False):
         6,qaqc_sensor_height_t,Thermometer height missing
         7,qaqc_sensor_height_t,Thermometer height not 2 meters
     '''
+
+    printf("Running: qaqc_sensor_height_t", log_file=log_file, verbose=verbose)
+
     try:
         # Check if thermometer height is missing   
         isHeightMissing = df['thermometer_height_m'].isnull().any()
@@ -383,6 +391,9 @@ def qaqc_sensor_height_w(df, verbose=False):
         8,qaqc_sensor_height_w,Anemometer height missing
         9,qaqc_sensor_height_w,Anemometer height not 10 meters
     '''
+
+    printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
+
     # try:
     if True:
         # Check if anemometer height is missing
@@ -438,6 +449,9 @@ def qaqc_world_record(df, verbose=False):
     -------------
         11,qaqc_world_record,Value outside of world record range
     '''
+
+    printf("Running: qaqc_world_record", log_file=log_file, verbose=verbose)
+
     try:
         T_X = {"North_America":329.92} #K
         T_N = {"North_America":210.15} #K
@@ -466,3 +480,24 @@ def qaqc_world_record(df, verbose=False):
     except Exception as e:
         printf("qaqc_world_record failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
+
+#----------------------------------------------------------------------
+## final summary stats of flagged variables and percentage of coverage
+def flag_summary(df, verbose=False):
+    '''
+    Returns list of unique flag values for each variable
+    Returns % of total obs per variable that was flagged
+    Information is included in log_file
+    '''
+
+    printf("Running: flag_summary", log_file=log_file, verbose=verbose)
+
+    # identify _eraqc variables
+    eraqc_vars = [var for var in df.columns if '_eraqc' in var]
+    
+    for var in eraqc_vars:
+        printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
+        printf('Coverage of {} obs flagged: {}% of obs'.format(var,
+              (len(df.loc[(df[var].isnull() == False)]) / len(df))*100),
+              verbose=verbose, log_file=log_file) # % of coverage flagged
+

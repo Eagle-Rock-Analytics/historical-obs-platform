@@ -33,7 +33,7 @@ except Exception as e:
 def open_log_file_streaks(file):
     global log_file
     log_file = file
-#======================================================================
+
 #----------------------------------------------------------------------
 def infere_freq(df):
     """
@@ -217,6 +217,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
     TODO: 
     min_sequence_length can be tweaked, althought HadISD uses 10
     """
+    printf("Running: qaqc_unusual_repeated_streaks", log_file=log_file, verbose=verbose)
 
     try:
     # if True:

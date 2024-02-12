@@ -35,11 +35,13 @@ def open_log_file_buoy(file):
     
 ## NDBC and MARITIME only
 #-----------------------------------------------------------------------------
-def spurious_buoy_check(df, qc_vars, verbose=True):
+def spurious_buoy_check(df, qc_vars, verbose=False):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
     """
+    printf("Running: spurious_buoy_check", log_file=log_file, verbose=verbose)
+
     known_issues = ['NDBC_46023', 'NDBC_46045', 'NDBC_46051', 'NDBC_46044', 'MARITIME_PTAC1', 'MARITIME_PTWW1', 'MARITIME_MTYC1', 'MARITIME_MEYC1',
                     'MARITIME_SMOC1', 'MARITIME_ICAC1']
     potential_issues = ['NDBC_46290', 'NDBC_46404', 'NDBC_46212', 'NDBC_46216', 'NDBC_46220', 'NDBC_46226', 'NDBC_46227', 'NDBC_46228', 
