@@ -17,6 +17,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
+from multiprocessing.pool import ThreadPool
 
 ## Import plotting functions
 try:
@@ -115,22 +116,37 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             for i in ind:
                 df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
             
+            # Flag _eraqc variable
+            for i in ind:
+                df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
+            
+            figs = []
+            t0 = time.time()
             if plot:
                 unusual_jumps_plot(df, var, flagval=23, local=local)
                 for i in ind:
-                    try:
-                    # if True:
+                    # try:
+                    if True:
                         subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) & 
                                         (df.index <= i + datetime.timedelta(hours=48))]
                         # subset = np.logical_and(df.index >= i - np.timedelta64(48,'h'), 
                         #                     df.index <= i + np.timedelta64(48,'h'))
-                        unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
-                    except:
-                    # else:
+                        # t0 = time.time()
+                        figs.append(unusual_jumps_plot(subset, var, flagval=23, date=i, local=local))
+                        # print("plot time: {:.2f} s.".format(time.time()-t0))
+                    # except:
+                    else:
                         printf('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var), log_file=log_file, verbose=verbose)
                         continue
-
-        return df.reset_index()
+            print("plot time: {:.2f} s.".format(time.time()-t0))
+            
+            t0 = time.time()
+            pool = ThreadPool(processes=128) 
+            t0 = time.time()
+            pool.map(upload, figs) 
+            print("upload time: {:.2f} s.".format(time.time()-t0))
+            
+        # return df.reset_index()
         return df
 
     except Exception as e:
