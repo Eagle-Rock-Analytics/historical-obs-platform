@@ -583,7 +583,13 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
+<<<<<<< HEAD
         for station in stations_sample:
+=======
+        # for station in stations_sample:
+        # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
+        for station in ['ASOSAWOS_74718503144']:
+>>>>>>> d504ea2 (ASOSAWOS_74718503144 test case)
             
             #----------------------------------------------------------------------------
             ## Set log file
@@ -599,6 +605,9 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             open_log_file_gaps(log_file)
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
+            
+            print(verbose)
+            print(log_file)
             #----------------------------------------------------------------------------
             
             file_name = cleandir+station+".nc"

@@ -65,6 +65,8 @@ if __name__ == "__main__":
     verbose = args.verbose
     local = args.local
     
+    print(args.verbose)
+    raise
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
 
