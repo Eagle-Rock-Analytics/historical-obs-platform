@@ -253,7 +253,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     ## Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
 
     t0 = time.time()
-    printf("QA/QC whole station tests", log_file=log_file, verbose=verbose)
+    printf("QA/QC whole station tests", file=log_file, verbose=verbose)
     #---------------------------------------------------------
     ## Missing values -- does not proceed through qaqc if failure
     stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case 
@@ -362,7 +362,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     ## Part 2: Variable logic checks
     
     t0 = time.time()
-    printf("QA/QC logic checks", log_file=log_file, verbose=verbose)
+    printf("QA/QC logic checks", file=log_file, verbose=verbose)
     #---------------------------------------------------------
     ## dew point temp cannot exceed air temperature
     new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
@@ -439,7 +439,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     ## NDBC and MARITIME only
     if network == 'MARITIME' or network == 'NDBC':
         t0 = time.time()
-        printf("QA/QC bouy check", log_file=log_file, verbose=verbose)
+        printf("QA/QC bouy check", file=log_file, verbose=verbose)
     
         new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
         if new_df is None:
@@ -453,15 +453,9 @@ def run_qaqc_pipeline(ds, network, file_name,
             
         printf("Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
-<<<<<<< HEAD
-    # frequent values
-    t0 = time.time()
-    printf("QA/QC frequent values", log_file=log_file, verbose=verbose)
-=======
 #     # frequent values
 #     t0 = time.time()
 #     printf("QA/QC frequent values", file=log_file, verbose=verbose)
->>>>>>> afb6db1 (draft PR ready)
         
 #     new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
 #     if new_df is None:
@@ -475,15 +469,9 @@ def run_qaqc_pipeline(ds, network, file_name,
     
 #     printf("Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
-<<<<<<< HEAD
-    # distribution / unusual gaps
-    t0 = time.time()
-    printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose)
-=======
 #     # distribution / unusual gaps
 #     t0 = time.time()
 #     printf("QA/QC unusual gaps", file=log_file, verbose=verbose)
->>>>>>> afb6db1 (draft PR ready)
     
 #     new_df = qaqc_unusual_gaps(stn_to_qaqc)
 #     if new_df is None:
@@ -497,15 +485,9 @@ def run_qaqc_pipeline(ds, network, file_name,
     
 #     printf("Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
-<<<<<<< HEAD
-    # climatological outliers
-    t0 = time.time()
-    printf("QA/QC climatological outliers", log_file=log_file, verbose=verbose)
-=======
 #     # climatological outliers
 #     t0 = time.time()
 #     printf("QA/QC climatological outliers", file=log_file, verbose=verbose)
->>>>>>> afb6db1 (draft PR ready)
     
 #     new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
 #     if new_df is None:
@@ -521,7 +503,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     #---------------------------------------------------------
     # unusual streaks (repeated values)
     t0 = time.time()
-    printf("QA/QC unsual repeated streaks", log_file=log_file, verbose=verbose)
+    printf("QA/QC unsual repeated streaks", file=log_file, verbose=verbose)
     
     new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
@@ -537,7 +519,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     #---------------------------------------------------------
     # unusual large jumps (spikes)
     t0 = time.time()
-    printf("QA/QC unsual large jumps", log_file=log_file, verbose=verbose)
+    printf("QA/QC unsual large jumps", file=log_file, verbose=verbose)
     
     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
@@ -549,16 +531,11 @@ def run_qaqc_pipeline(ds, network, file_name,
         stn_to_qaqc = new_df
         printf('pass qaqc_unusual_large_jumps', log_file=log_file, verbose=verbose)
     
-    printf("Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)       
+    printf("Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)        
     
     ## END QA/QC ASSESSMENT
     #=========================================================
     # Re-index to original time/station values
-
-    # Calculate flag coverage per variable
-    printf('Summary of QA/QC flags set per variable')
-    flag_summary(stn_to_qaqc, verbose=verbose, local=local)
-
     stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
     
     # Sort by time and remove any overlapping timesteps
@@ -601,20 +578,11 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-<<<<<<< HEAD
-        for station in stations_sample:
-=======
         # for station in stations_sample:
         # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
-<<<<<<< HEAD
-        for station in ['ASOSAWOS_74718503144']:
->>>>>>> d504ea2 (ASOSAWOS_74718503144 test case)
-            
-=======
         # for station in ['ASOSAWOS_74718503144']:
-        for station in ['ASOSAWOS_74917900392']:
+        for station in ['ASOSAWOS_74718503144']:
            
->>>>>>> afb6db1 (draft PR ready)
             #----------------------------------------------------------------------------
             ## Set log file
             global log_file
@@ -679,7 +647,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                             ## Assign ds attributes and save .nc file
                             if df is not None:
                                 t0 = time.time()
-                                printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose)
+                                printf("Writing {}".format(aws_url), file=log_file, verbose=verbose)
                                 
                                 process_output_ds(df, attrs, var_attrs, 
                                                 network, timestamp, station, qaqcdir, 
