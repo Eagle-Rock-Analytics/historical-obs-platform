@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--network', default="VCAPCD", help="Network name (default to 'VCAPCD')", type=str)
     parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (default to False)", type=bool)
     parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros'", type=str)
-    parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False)", type=bool)
+    parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (don't specify flag, defaults to False), --verbose True or -v True to activate print to screen", type=bool)
     
     # Parse arguments
     args = parser.parse_args()
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     verbose = args.verbose
     local = args.local
     
-    print(args.verbose)
-    raise
+    # print(args.verbose)
+    # raise
     rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
 

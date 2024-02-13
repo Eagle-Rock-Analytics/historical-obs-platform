@@ -453,53 +453,71 @@ def run_qaqc_pipeline(ds, network, file_name,
             
         printf("Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
+<<<<<<< HEAD
     # frequent values
     t0 = time.time()
     printf("QA/QC frequent values", log_file=log_file, verbose=verbose)
+=======
+#     # frequent values
+#     t0 = time.time()
+#     printf("QA/QC frequent values", file=log_file, verbose=verbose)
+>>>>>>> afb6db1 (draft PR ready)
         
-    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with frequent values function", 
-                                    test="qaqc_frequent_vals",
-                                    verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_frequent_vals', log_file=log_file, verbose=verbose)
+#     new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api, 
+#                                     message="Flagging problem with frequent values function", 
+#                                     test="qaqc_frequent_vals",
+#                                     verbose=verbose)
+#     else:
+#         stn_to_qaqc = new_df
+#         printf('pass qaqc_frequent_vals', log_file=log_file, verbose=verbose)
     
-    printf("Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
+#     printf("Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
+<<<<<<< HEAD
     # distribution / unusual gaps
     t0 = time.time()
     printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose)
+=======
+#     # distribution / unusual gaps
+#     t0 = time.time()
+#     printf("QA/QC unusual gaps", file=log_file, verbose=verbose)
+>>>>>>> afb6db1 (draft PR ready)
     
-    new_df = qaqc_unusual_gaps(stn_to_qaqc)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function", 
-                                    test="qaqc_unusual_gaps",
-                                    verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_unusual_gaps', log_file=log_file, verbose=verbose)
+#     new_df = qaqc_unusual_gaps(stn_to_qaqc)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api, 
+#                                     message="Flagging problem with unusual gap distribution function", 
+#                                     test="qaqc_unusual_gaps",
+#                                     verbose=verbose)
+#     else:
+#         stn_to_qaqc = new_df
+#         printf('pass qaqc_unusual_gaps', log_file=log_file, verbose=verbose)
     
-    printf("Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
+#     printf("Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
+<<<<<<< HEAD
     # climatological outliers
     t0 = time.time()
     printf("QA/QC climatological outliers", log_file=log_file, verbose=verbose)
+=======
+#     # climatological outliers
+#     t0 = time.time()
+#     printf("QA/QC climatological outliers", file=log_file, verbose=verbose)
+>>>>>>> afb6db1 (draft PR ready)
     
-    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api,
-                                message="Flagging problem with climatological outlier check",
-                                test="qaqc_climatological_outlier",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_climatological_outlier', log_file=log_file, verbose=verbose)
+#     new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+#     if new_df is None:
+#         errors = print_qaqc_failed(errors, station, end_api,
+#                                 message="Flagging problem with climatological outlier check",
+#                                 test="qaqc_climatological_outlier",
+#                                 verbose=verbose)
+#     else:
+#         stn_to_qaqc = new_df
+#         printf('pass qaqc_climatological_outlier', log_file=log_file, verbose=verbose)
 
-    printf("Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
+#     printf("Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose)
     #---------------------------------------------------------
     # unusual streaks (repeated values)
     t0 = time.time()
@@ -588,9 +606,15 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
 =======
         # for station in stations_sample:
         # for station in ['ASOSAWOS_74718503144', "ASOSAWOS_74917900392"]:
+<<<<<<< HEAD
         for station in ['ASOSAWOS_74718503144']:
 >>>>>>> d504ea2 (ASOSAWOS_74718503144 test case)
             
+=======
+        # for station in ['ASOSAWOS_74718503144']:
+        for station in ['ASOSAWOS_74917900392']:
+           
+>>>>>>> afb6db1 (draft PR ready)
             #----------------------------------------------------------------------------
             ## Set log file
             global log_file
@@ -605,9 +629,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             open_log_file_gaps(log_file)
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
-            
-            print(verbose)
-            print(log_file)
             #----------------------------------------------------------------------------
             
             file_name = cleandir+station+".nc"
