@@ -498,6 +498,6 @@ def flag_summary(df, verbose=False):
     for var in eraqc_vars:
         printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
         printf('Coverage of {} obs flagged: {}% of obs'.format(var,
-              (len(df.loc[(df[var].isnull() == False)]) / len(df))*100),
+              ((len(df.loc[(df[var].isnull() == False)]) / len(df))*100)),
               verbose=verbose, log_file=log_file) # % of coverage flagged
 
