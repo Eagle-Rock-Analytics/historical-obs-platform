@@ -54,7 +54,7 @@ def _plot_format_helper(var):
         
     elif var == 'sfcWind':
         ylab = 'Surface Wind Speed'
-        unit = '${m s^-1}$'
+        unit = '$m s^{-1}$'
         
     elif var == 'sfcWind_dir':
         ylab = 'Surface Wind Direction'
@@ -62,7 +62,7 @@ def _plot_format_helper(var):
         
     elif var == 'rsds':
         ylab = 'Surface Radiation'
-        unit = '${W m^-2}$'
+        unit = '$W m^{-2}$'
         
     elif var == 'hurs':
         ylab = 'Humidity'
@@ -98,7 +98,7 @@ def _plot_format_helper(var):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
+def flagged_timeseries_plot(df, vars_to_check, flag_to_viz, local=False):
     '''Produces a scatterplot timeseries figure of variables that have flags placed'''
 
     # can pass a list of flags
@@ -140,12 +140,16 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
 
-            # close figure for memory
+            # close figure to save memory
             plt.close()
+            if local:
+                fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+            
+            return 
 
 #============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
     '''Plotting helper with common plotting elements for all 3 versions of this plot'''
     
     # plot all valid data within year/season
@@ -198,8 +202,12 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
-    # close figure for memory
+    # close figure to save memory
     plt.close()
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+    
+    return 
 
 #-----------------------------------------------------------------------------------------
 def create_bins_frequent(df, var, bin_size=0.25):
@@ -302,7 +310,7 @@ def frequent_vals_plot(df, var, rad_scheme):
 
 #============================================================================================================
 ## distribution gap plotting functions
-def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
+def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=False):
     '''
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
     Any variable that is flagged is noted
@@ -349,11 +357,15 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
     
-    # close figures to save memory
+    # close figure to save memory
     plt.close()
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+    
+    return 
 
 #-----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network):
+def dist_gap_part2_plot(df, month, var, network, local=False):
     '''
     Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -420,8 +432,12 @@ def dist_gap_part2_plot(df, month, var, network):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
-    # close figures to save memory
+    # close figure to save memory
     plt.close()
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+    
+    return 
 
 #============================================================================================================
 ## unusual large jumps plotting functions
@@ -493,6 +509,8 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
+    
+    # close figure to save memory
     plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
@@ -500,7 +518,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     return 
 
 #============================================================================================================
-def clim_outlier_plot(df, var, month, network):
+def clim_outlier_plot(df, var, month, network, local=False):
     '''
     Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -570,6 +588,10 @@ def clim_outlier_plot(df, var, month, network):
     
     # close figures to save memory
     plt.close()
+
+    if local:
+        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+
 
 #============================================================================================================
 def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
@@ -646,6 +668,8 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
+    
+    # close figure to save memory
     plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")

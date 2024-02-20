@@ -34,7 +34,7 @@ def open_log_file_gaps(file):
     log_file = file
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
+def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     '''
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -177,7 +177,7 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False):
+def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False, local=False):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
@@ -243,12 +243,13 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False)
                 for var in vars_to_check:
                     if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part1_plot(df, month, var, flagval=21, iqr_thresh=iqr_thresh,
-                                            network=df['station'].unique()[0].split('_')[0])
+                                            network=df['station'].unique()[0].split('_')[0],
+                                            local=local)
                 
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
+def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False):
     """
     Part 2 / monthly check
         - compare all obs in a single month, all years
@@ -346,7 +347,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
                 if 20 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
                     if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part2_plot(df, month, var,
-                                            network=df['station'].unique()[0].split('_')[0])
+                                            network=df['station'].unique()[0].split('_')[0],
+                                            local=local)
     
     return df  
 

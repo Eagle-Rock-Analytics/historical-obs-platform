@@ -35,7 +35,7 @@ def open_log_file_frequent(file):
     
 ## frequent values + helper functions
 #-----------------------------------------------------------------------------
-def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False):
+def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     '''
     Test for unusually frequent values. This check is performed in two phases.
     Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -143,10 +143,10 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False):
             for var in vars_to_check:
                 if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
                     # histogram
-                    frequent_vals_plot(df, var, rad_scheme)
+                    frequent_vals_plot(df, var, rad_scheme, local=local)
 
                     # entire timeseries figure
-                    flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25])
+                    flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25], local=local)
         # Drop month,year vars used for calculations
         df = df.drop(columns=['month','year'])
         return df
