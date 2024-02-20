@@ -68,6 +68,14 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
                         'sfcWind_dir','hurs'] # list of var substrings to exclude if present in var
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
 
+    # in order to grab the time information more easily -- would prefer not to do this
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    
+    stn_length = map(whole_stn_bypass_check, [df]*len(vars_to_check), vars_to_check)
+    stn_length = {k:v for k,v in zip(vars_to_check, stn_length)}
+    stn_length
+    
     try:
         # whole station bypass check first
         df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
@@ -114,11 +122,9 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbos
     -------------
         19,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
     """
-             
-    # in order to grab the time information more easily -- would prefer not to do this
-    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
-             
+    # Number of years of record for each month (1-12)
+    stn_month_years = df[[var, "month","year"]].groupby(by=[ "month","year"]).count().groupby("month").count()
+    
     # set up a "pass_flag" to determine if station proceeds through distribution function
     pass_flag = 'pass'
     
@@ -202,8 +208,6 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False)
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
         
-    printf("Running: qaqc_dist_gap_part1", log_file=log_file, verbose=verbose)
-
     for var in vars_to_check:
         for month in range(1,13): 
 
@@ -273,7 +277,6 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
-    printf("Running: qaqc_dist_gap_part2", log_file=log_file, verbose=verbose)
 
     # whole station bypass check first
     df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)

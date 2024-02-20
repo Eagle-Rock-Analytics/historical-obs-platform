@@ -30,7 +30,7 @@ try:
     from qaqc_logic_checks import *
     from qaqc_buoy_check import *
     from qaqc_frequent import *
-    from qaqc_unusual_gaps import *
+    from qaqc_unusual_gaps2 import *
     from qaqc_unusual_large_jumps import *
     from qaqc_climatological_outlier import *
     from qaqc_unusual_streaks import *

@@ -25,7 +25,7 @@ except:
     print("Error importing qaqc_plot.py")
 
 try:
-    from qaqc_unusual_gaps import *
+    from qaqc_unusual_gaps2 import *
 except:
     print("Error importing qaqc_unusual_gaps.py")
 

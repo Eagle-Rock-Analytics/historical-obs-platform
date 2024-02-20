@@ -19,7 +19,7 @@ from io import BytesIO, StringIO
 import scipy.stats as stats
 
 try:
-    from qaqc_unusual_gaps import *
+    from qaqc_unusual_gaps2 import *
 except:
     print("Error importing qaqc_unusual_gaps.py")
 from IPython.display import display

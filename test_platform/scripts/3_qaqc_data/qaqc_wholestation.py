@@ -33,7 +33,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 def open_log_file_wholestation(file):
     global log_file
     log_file = file
-
+log_file = open("logtest.log","w")
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=False):
     '''
