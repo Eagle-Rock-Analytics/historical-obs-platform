@@ -21,7 +21,7 @@ import scipy.stats as stats
 try:
     from qaqc_utils import *
 except Exception as e:
-    printf("Error importing qaqc_utils: {}".format(e))
+    print("Error importing qaqc_utils: {}".format(e))
     
 def open_log_file_logic(file):
     global log_file
@@ -133,7 +133,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         return df
 
     except Exception as e:
-        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
+        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file)
         return None
 
 #----------------------------------------------------------------------
