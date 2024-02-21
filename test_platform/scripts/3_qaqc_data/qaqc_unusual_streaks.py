@@ -66,7 +66,7 @@ def infere_res_var(df, var):
     
     #TODO: use function from calc_clean.py
     # Convert from Pa to hPa
-    if data.mean()>10000 and (var=="ps" or var=="psl"):
+    if data.mean()>10000 and (var=="ps" or var=="psl" or var=='ps_altimeter' or var=='ps_derived'):
         data = data/100
 
     data_diff = data.sort_values().diff().clip(lower=0.01, upper=1).dropna()
@@ -74,8 +74,10 @@ def infere_res_var(df, var):
         return 0.5
     else:
         # Calculate modified mode from avg mode and median
-        mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
-        mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        # mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
+        # mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        mode0 = data.sort_values().diff().mode().values[0]
+        mode1 = data.sort_values().diff().median()
         mode = (mode0+mode1)/2
 
         # Round to the nearest 0.5
@@ -83,30 +85,32 @@ def infere_res_var(df, var):
         rounded_to_whole = multiplied / 2
 
         # If mode is 0.25 or less, round to 0.1
-        if rounded_to_whole == 0:
+        if rounded_to_whole <= 0.25:
             mode = 0.1
         else:
             mode = rounded_to_whole
+
         if mode<=1:
             return mode
         else:
             return 1.0
 
 #----------------------------------------------------------------------
-def infere_res(df):
+def infere_res(df, verbose=False):
     """
     """
     check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     variables = [var for var in check_vars if var in df.columns]
+    # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
+    # printf(variables, log_file=log_file, verbose=verbose)
     
     resolutions = {}
     for var in variables:
-        if var in df.columns:
-            
-            if df[var].isnull().all() or len(np.where(df[var].isnull())[0])<100:
-                resolutions[var] = 0.1
-            else:
-                resolutions[var] = infere_res_var(df, var)
+        # if var in df.columns:
+        if df[var].isnull().all() or len(np.where(df[var].isnull())[0])<100:
+            resolutions[var] = 0.1
+        else:
+            resolutions[var] = infere_res_var(df, var)
 
     return resolutions
 

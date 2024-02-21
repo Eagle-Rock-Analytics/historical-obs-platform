@@ -127,7 +127,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                             ] = 13 # see qaqc_flag_meanings.csv
 
                 # only print warning flag once
-                if 13 in df[var+'eraqc'].unique():
+                if 13 in df[var+'_eraqc'].unique():
                     printf('Flagging extended streak in dewpoint depression', log_file=log_file, verbose=verbose)
         
         return df
