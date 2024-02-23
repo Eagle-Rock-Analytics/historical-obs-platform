@@ -22,6 +22,11 @@ try:
 except Exception as e:
     print("Error importing qaqc_utils: {}".format(e))
 
+try:
+    from qaqc_plot import *
+except Exception as e:
+    print("Error importing qaqc_plot: {}".format(e))
+
 # if __name__ == "__main__":
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
@@ -487,13 +492,16 @@ def flag_summary(df, verbose=False):
     '''
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
-    Information is included in log_file
+    Information is included in log_file. 
+
+    Also produces figures of full timeseries
     '''
 
     printf("Running: flag_summary", log_file=log_file, verbose=verbose)
 
     # identify _eraqc variables
     eraqc_vars = [var for var in df.columns if '_eraqc' in var]
+    obs_vars = [item.split('_e')[0] for item in eraqc_vars]
     
     for var in eraqc_vars:
         printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
@@ -501,3 +509,5 @@ def flag_summary(df, verbose=False):
               (len(df.loc[(df[var].isnull() == False)]) / len(df))*100),
               verbose=verbose, log_file=log_file) # % of coverage flagged
 
+    for var in obs_vars:
+        flagged_timeseries_plot(df, var)

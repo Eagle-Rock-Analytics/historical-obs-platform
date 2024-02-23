@@ -87,43 +87,69 @@ def _plot_format_helper(var):
     R_X = {"North_America":1500}   #W/m2
     R_N = {"North_America":-5}     #W/m2
 
-    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, 
-             "psl": S_X, "ps": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X}
-    mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, 
-             "psl": S_N, "ps": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N}
+    # for other non-record variables (wind direction, precipitation)
+    N_X = {"North_America":360}    # degrees
+    N_N = {"North_America":0}      # degrees
+    P_X = {"North_America":1000}   # mm, arbitrarily set
+    P_N = {"North_America":0}      # mm
+    
+
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "sfcWind_dir": N_X,
+             "ps": S_X, "psl": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X,
+             "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X}
+    mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "sfcWind_dir": N_N,
+             "ps": S_N, "psl": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N,
+             "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
     
     return ylab, unit, miny, maxy
 
 #============================================================================================================
-## flagged timeseries plot
-def flagged_timeseries_plot(df, vars_to_check, flag_to_viz, local=False):
-    '''Produces a scatterplot timeseries figure of variables that have flags placed'''
-
-    # can pass a list of flags
-    for flag in flag_to_viz:
+## flagged timeseries plot helper
+def id_flag(flag_to_id):
+    '''Identifies flag based on numerical value assigned for plotting'''
     
-        # assess where each variable has flagged values
-        for var in vars_to_check:
-            flagged_data = df.loc[df[var+'_eraqc'] == flag]
+    flag_df = pd.read_csv('era_qaqc_flag_meanings.csv')
+    fn_name = flag_df.loc[flag_df['Flag_value'] == int(flag_to_id)]['QAQC_function'].values[0]
+    
+    return fn_name
 
-            # only produce a plot if there is flagged values
-            if len(flagged_data) == 0:
-                continue
+#============================================================================================================
+## flagged timeseries plot
+def flagged_timeseries_plot(df, var):
+    '''Produces timeseries of variables that have flags placed'''
+    
+    # first check if var has flags, only produce plots of vars with flags
+    if len(df[var+'_eraqc'].dropna().unique()) != 0: 
+        
+        # create figure
+        fig,ax = plt.subplots(figsize=(10,3))
+        
+        # plot all observations
+        df.plot(ax=ax, x='time', y=var, marker=".", ms=4, lw=1, 
+            color="k", alpha=0.5, label='Original data')
 
-            # plot
-            ax = df.plot.scatter(x='time', y=var, color='k', s=0.8, label='Valid')
+        # identify flagged data, can handle multiple flags
+        for flag in df[var+'_eraqc'].dropna().unique():
+            flag_name = id_flag(flag)
+            flag_label = "{:.3f}% of data flagged by {}".format(
+                100*len(df.loc[df[var+'_eraqc'] == flag, var])/len(df), 
+                flag_name)
 
-            # plot flagged data
-            flagged_data.plot.scatter(ax=ax, x='time', y=var, color='r', s=0.9, label='Flag: {}'.format(flag))
+            flagged_data = df[~df[var+'_eraqc'].isna()]
+            flagged_data.plot(x="time", y=var, ax=ax, 
+                              marker="o", ms=7, lw=0, 
+                              mfc="none", color="C3",
+                              label=flag_label)
+
+            legend = ax.legend(loc=0, prop={'size': 8})    
 
             # plot aesthetics
-            plt.legend(loc='best', ncol=2)
             ylab, units, miny, maxy = _plot_format_helper(var)
             plt.ylabel('{} [{}]'.format(ylab, units));
             plt.xlabel('')
-            plt.title('{0}'.format(df['station'].unique()[0]), fontsize=10);
+            plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10);
 
             # save to AWS
             bucket_name = 'wecc-historical-wx'
