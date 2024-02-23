@@ -149,7 +149,7 @@ def flagged_timeseries_plot(df, var):
             ylab, units, miny, maxy = _plot_format_helper(var)
             plt.ylabel('{} [{}]'.format(ylab, units));
             plt.xlabel('')
-            plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10);
+            plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 
             # save to AWS
             bucket_name = 'wecc-historical-wx'
@@ -266,7 +266,7 @@ def frequent_vals_plot(df, var, rad_scheme):
     is visually flagged
     ''' 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ['ps', 'ps_altimeter', 'psl']
+    ps_vars = ['ps', 'ps_altimeter', 'ps_derived', 'psl']
         
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
@@ -346,14 +346,21 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
     df = df.loc[df['month'] == month]
         
     # grab flagged data
-    flag_vals = df.loc[df[var + '_eraqc'] == flagval]
+    flag_vals = df.loc[df[var+'_eraqc'] == flagval]
     
     # plot valid data
-    ax = df.plot.scatter(x='time', y=var, label='Pass')
+    ax = df.plot.scatter(x='time', y=var, color='k', label='Original data')
     
     # plot flagged data
-    flag_vals.plot.scatter(ax=ax, x='time', y=var, color='r', label='Flagged')
-    # should be consistent with other plots - I like Hector's open circles around flagged values
+    flag_name = id_flag(flag)
+    flag_label = "{:.3f}% of data flagged by {}".format(
+                100*len(flag_vals)/len(df), 
+                flag_name)
+
+    flag_vals.plot(x="time", y=var, ax=ax, 
+                        marker="o", ms=7, lw=0, 
+                        mfc="none", color="C3",
+                        label=flag_label)
 
     # plot climatological median and threshold * IQR range
     mid, low_bnd, high_bnd = standardized_median_bounds(df, month, var, iqr_thresh=5)
@@ -363,7 +370,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
                     y1=low_bnd,
                     y2=high_bnd,
                     alpha=0.25, color='0.75', 
-                    label='{} * IQR range'.format(iqr_thresh))
+                    label='{} * IQR'.format(iqr_thresh))
     
     # plot aesthetics
     plt.legend(loc='best')
@@ -408,7 +415,7 @@ def dist_gap_part2_plot(df, month, var, network, local=False):
     bins = create_bins(df_month_iqr)
     
     # plot histogram
-    ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, alpha=0.3);
+    ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
     plt.ylim(ymin=0.1)
 
@@ -438,10 +445,10 @@ def dist_gap_part2_plot(df, month, var, network, local=False):
             bar.set_color('r')
 
     # title and useful annotations
-    plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
-    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10)
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8)
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8)
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8)
     plt.ylabel('Frequency (obs)')
     
     # save figure to AWS
@@ -561,13 +568,13 @@ def clim_outlier_plot(df, var, month, network, local=False):
     bins = create_bins(df_to_plot)
     
     # plot histogram
-    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, alpha=0.3)
+    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
     plt.ylim(ymin=0.1)
     
     # # plot pdf
     # mu = np.nanmean(df_to_plot)
-    # sigma = np.nanmean(df_to_plot)
+    # sigma = np.nanstd(df_to_plot)
     # y = stats.norm.pdf(bins, mu, sigma)
     # l = plt.plot(bins, y, 'k--', linewidth=1)
     
