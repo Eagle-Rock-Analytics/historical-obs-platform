@@ -145,8 +145,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                     # histogram
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
-                    # entire timeseries figure
-                    flagged_timeseries_plot(df, vars_to_check, flag_to_viz=[24,25], local=local)
         # Drop month,year vars used for calculations
         df = df.drop(columns=['month','year'])
         return df

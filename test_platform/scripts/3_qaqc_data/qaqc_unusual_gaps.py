@@ -80,10 +80,6 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
             df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose)
             df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose)
 
-            if plots == True:
-                for var in vars_to_check:
-                    if (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
-                        flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
         # Drop month,year vars used for calculations                
         df_part2 = df_part2.drop(columns=['month','year'])
         return df_part2
