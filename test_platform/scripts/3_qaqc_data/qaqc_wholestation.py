@@ -488,7 +488,7 @@ def qaqc_world_record(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## final summary stats of flagged variables and percentage of coverage
-def flag_summary(df, verbose=False):
+def flag_summary(df, verbose=False, local=False):
     '''
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
@@ -506,7 +506,7 @@ def flag_summary(df, verbose=False):
     for var in eraqc_vars:
         printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
         printf('Coverage of {} obs flagged: {}% of obs'.format(var,
-              (len(df.loc[(df[var].isnull() == False)]) / len(df))*100),
+              round((len(df.loc[(df[var].isnull() == False)]) / len(df))*100, 2)),
               verbose=verbose, log_file=log_file) # % of coverage flagged
 
     for var in obs_vars:

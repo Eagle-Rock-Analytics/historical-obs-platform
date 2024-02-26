@@ -117,7 +117,7 @@ def id_flag(flag_to_id):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var):
+def flagged_timeseries_plot(df, var, local=False):
     '''Produces timeseries of variables that have flags placed'''
     
     # first check if var has flags, only produce plots of vars with flags
@@ -128,7 +128,7 @@ def flagged_timeseries_plot(df, var):
         
         # plot all observations
         df.plot(ax=ax, x='time', y=var, marker=".", ms=4, lw=1, 
-            color="k", alpha=0.5, label='Original data')
+            color="k", alpha=0.5, label='Cleaned data')
 
         # identify flagged data, can handle multiple flags
         for flag in df[var+'_eraqc'].dropna().unique():
@@ -200,17 +200,20 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
     xlab, units, miny, maxy = _plot_format_helper(var)
     plt.xlabel('{0} [{1}]'.format(xlab, units))
     yr_formatted = str(yr).replace('_', ' ') # simple formatting for plot aesthetic
-    plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10);
+    plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10)
     plt.title('Frequent value check: {}'.format(df['station'].unique()[0]),
-             fontsize=10);
-    plt.legend(('Valid', 'Flagged'), loc='upper right')
+             fontsize=10)
+    plt.legend(('Cleaned data', 'Flagged'), loc='upper right')
     ax = plt.gca()
     leg = ax.get_legend()
-    leg.legend_handles[0].set_color('k') # set valid to blue
+    leg.legend_handles[0].set_color('k') # set valid to black
     leg.legend_handles[-1].set_color('r') # set flagged bar to red
     
     if var == 'rsds':
         plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
+
+    elif var == 'tdps' or var == 'tdps_derived':
+        plt.annotate('Dew-point temperature\nand air temperature are\nsynergistically flagged.', xy=(0.02, 0.85), xycoords='axes fraction', fontsize=8)
         
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
@@ -259,7 +262,7 @@ def create_bins_frequent(df, var, bin_size=0.25):
     return bins
 
 #-----------------------------------------------------------------------------------------
-def frequent_vals_plot(df, var, rad_scheme):
+def frequent_vals_plot(df, var, rad_scheme, local=False):
     '''
     Produces a histogram of the diagnostic histogram per variable, 
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
@@ -291,8 +294,8 @@ def frequent_vals_plot(df, var, rad_scheme):
             df_to_plot = df.loc[df['year']==y]
             _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=y, rad_scheme=rad_scheme)
             
-    ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
-    flag_df = df.loc[df[var+'_eraqc'] == 24]
+    ## Seasonal flag (25): plot all data for that year and season + specific handling for winter
+    flag_df = df.loc[df[var+'_eraqc'] == 25]
     
     if len(flag_df) != 0:
         
@@ -302,19 +305,19 @@ def frequent_vals_plot(df, var, rad_scheme):
         for y in plot_yrs:
             df_year = df.loc[df['year']==y] # grab the entire year
             
-            flagged_szns = df_year.loc[df_year[var+'_eraqc'] == 24]['month'].unique() # identify flagged months in that year
+            flagged_szns = df_year.loc[df_year[var+'_eraqc'] == 25]['month'].unique() # identify flagged months in that year
             
             if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns: # Spring - MAM
                 df_to_plot = df_year.loc[(df_year['month']==3) | (df_year['month']==4) | (df_year['month']==5)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_spring', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_spring', rad_scheme=rad_scheme)
                 
             if 6 in flagged_szns or 7 in flagged_szns or 8 in flagged_szns: # Summer - JJA
                 df_to_plot = df_year.loc[(df_year['month']==6) | (df_year['month']==7) | (df_year['month']==8)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_summer', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_summer', rad_scheme=rad_scheme)
 
             if 9 in flagged_szns or 10 in flagged_szns or 11 in flagged_szns: # Autumn - SON
                 df_to_plot = df_year.loc[(df_year['month']==9) | (df_year['month']==10) | (df_year['month']==11)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_autumn', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_autumn', rad_scheme=rad_scheme)
            
             if 12 in flagged_szns: # Winter - current year D + next year JF
                 # special handling as follows
@@ -323,7 +326,7 @@ def frequent_vals_plot(df, var, rad_scheme):
                 df_d = df_year.loc[df_year['month']==12] # current year dec
                 df_jf = df.loc[(df['year']==y+1) & ((df['month']==1) | (df['month']==2))] # next year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y+1)+'_winter', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y+1)+'_winter', rad_scheme=rad_scheme)
                 
             if 1 in flagged_szns or 2 in flagged_szns: # Winter - previous year D + current year JF
                 # special handling as follows
@@ -332,7 +335,7 @@ def frequent_vals_plot(df, var, rad_scheme):
                 df_d = df.loc[(df['year']==y-1) & (df['month']==12)] # previous year dec
                 df_jf = df_year[(df_year['month']==1) | (df_year['month']==2)] # current year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_winter', rad_scheme=rad_scheme)
 
 #============================================================================================================
 ## distribution gap plotting functions
@@ -349,7 +352,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
     flag_vals = df.loc[df[var+'_eraqc'] == flagval]
     
     # plot valid data
-    ax = df.plot.scatter(x='time', y=var, color='k', label='Original data')
+    ax = df.plot.scatter(x='time', y=var, color='k', label='Cleaned data')
     
     # plot flagged data
     flag_name = id_flag(flag)
@@ -496,7 +499,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
     
     flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==flagval, var])/len(df))
     df.loc[df[var+"_eraqc"]==flagval, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
@@ -654,7 +657,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
     
     # Amount of data flagged
     nflags = len(flag_vals_0) + len(flag_vals_1) + len(flag_vals_2)

@@ -141,8 +141,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         # plots item
         if plots==True:
             for var in vars_to_check:
-                if 24 in df[var+'_eraqc'].values or 25 in df[var+'_eraqc'].values: # only plot a figure if a value is flagged
-                    # histogram
+                if 24 in df[var+'_eraqc'].unique() or 25 in df[var+'_eraqc'].unique(): # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
         # Drop month,year vars used for calculations
