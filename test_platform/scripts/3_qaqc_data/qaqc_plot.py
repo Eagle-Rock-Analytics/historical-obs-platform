@@ -491,9 +491,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         flagval [int] : flag value to plot (23 for unusual large jumps)
         dpi [int] : resolution for png plots
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
-    Ouput:
-    ----- 
-        None
+        date [str] : title for zoomed in plots for individual flagged obs
     """
      
     # Create figure

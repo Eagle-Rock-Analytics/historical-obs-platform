@@ -39,6 +39,7 @@ def open_log_file_wholestation(file):
     global log_file
     log_file = file
 
+#----------------------------------------------------------------------
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=False):
     '''
@@ -326,6 +327,7 @@ def qaqc_elev_range(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## sensor height - air temperature
+## NOTE: qaqc_sensor_height_t function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_t(df, verbose=False):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
@@ -375,6 +377,7 @@ def qaqc_sensor_height_t(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## sensor height - wind
+## NOTE: qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_w(df, verbose=False):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
