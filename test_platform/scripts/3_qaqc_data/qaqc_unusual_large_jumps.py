@@ -116,7 +116,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                 df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
             
             if plot:
-                unusual_jumps_plot(df, var, flagval=23, local=local)
+                # unusual_jumps_plot(df, var, flagval=23, local=local) # commenting out - will be captured by flagged_timeseries
                 for i in ind:
                     try:
                     # if True:

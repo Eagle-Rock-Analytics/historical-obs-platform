@@ -166,10 +166,11 @@ def flagged_timeseries_plot(df, var, local=False):
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
 
-            # close figure to save memory
-            plt.close()
             if local:
                 fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+            
+            # close figure to save memory
+            plt.close()
             
             return 
 
@@ -213,7 +214,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
         plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
 
     elif var == 'tdps' or var == 'tdps_derived':
-        plt.annotate('Dew-point temperature\nand air temperature are\nsynergistically flagged.', xy=(0.02, 0.85), xycoords='axes fraction', fontsize=8)
+        plt.annotate('Dewpoint temperature\nand air temperature are\nsynergistically flagged.', xy=(0.02, 0.85), xycoords='axes fraction', fontsize=8)
         
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
@@ -231,11 +232,12 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
-    # close figure to save memory
-    plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    # close figure to save memory
+    plt.close()
+
     return 
 
 #-----------------------------------------------------------------------------------------
@@ -393,11 +395,12 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
     
-    # close figure to save memory
-    plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    # close figure to save memory
+    plt.close()
+
     return 
 
 #-----------------------------------------------------------------------------------------
@@ -468,11 +471,12 @@ def dist_gap_part2_plot(df, month, var, network, local=False):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
-    # close figure to save memory
-    plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    # close figure to save memory
+    plt.close()
+
     return 
 
 #============================================================================================================
@@ -546,11 +550,12 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
-    # close figure to save memory
-    plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    # close figure to save memory
+    plt.close()
+
     return 
 
 #============================================================================================================
@@ -573,39 +578,38 @@ def clim_outlier_plot(df, var, month, network, local=False):
     # plot histogram
     ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
-    plt.ylim(ymin=0.1)
+    # plt.ylim(ymin=0.1)
     
     # # plot pdf
-    # mu = np.nanmean(df_to_plot)
-    # sigma = np.nanstd(df_to_plot)
-    # y = stats.norm.pdf(bins, mu, sigma)
-    # l = plt.plot(bins, y, 'k--', linewidth=1)
+    mu = np.nanmean(df_to_plot)
+    sigma = np.nanstd(df_to_plot)
+    y = stats.norm.pdf(bins, mu, sigma)
+    l = plt.plot(bins, y, 'k--', linewidth=1)
     
-    # # add vertical lines to indicate thresholds where pdf y=0.1
-    # pdf_bounds = np.argwhere(y > 0.1)
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
     
-    # # find first index
-    # left_bnd = round(bins[pdf_bounds[0][0] - 1])
-    # right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-    # thresholds = (left_bnd, right_bnd)
-    # print(thresholds)
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] - 1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd, right_bnd)
     
-    # plt.axvline(thresholds[1], color='r') # right tail
-    # plt.axvline(thresholds[0], color='r') # left tail
+    plt.axvline(thresholds[1], color='r') # right tail
+    plt.axvline(thresholds[0], color='r') # left tail
     
-    # # flag visually obs that are beyond threshold
-    # for bar in ax[2].patches:
-    #     x = bar.get_x() + 0.5 * bar.get_width()
-    #     if x > thresholds[1]: # right tail
-    #         bar.set_color('r')
-    #     elif x < thresholds[0]: # left tail
-    #         bar.set_color('r')
+    # flag visually obs that are beyond threshold
+    for bar in ax[2].patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x > thresholds[1]: # right tail
+            bar.set_color('r')
+        elif x < thresholds[0]: # left tail
+            bar.set_color('r')
             
     # title and useful annotations
     plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
     plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
-    # plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
-    # plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
     plt.ylabel('Frequency (obs)')
     
     # save figure to AWS
@@ -621,13 +625,14 @@ def clim_outlier_plot(df, var, month, network, local=False):
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
-    
-    # close figures to save memory
-    plt.close()
 
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
 
+    # close figures to save memory
+    plt.close()
+
+    return
 
 #============================================================================================================
 def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
@@ -667,7 +672,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     flag_label_2 = "Whole-day replication"
     df.loc[df[var+"_eraqc"]==flagvals[0]].plot("time", var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
     df.loc[df[var+"_eraqc"]==flagvals[1]].plot("time", var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
-    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label=flag_label_2)    
+    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)    
     legend = ax.legend(loc=0, prop={'size': 8})    
     title = ax.set_title(title)    
         
@@ -705,11 +710,12 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
-    # close figure to save memory
-    plt.close()
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    # close figure to save memory
+    plt.close()
+
     return 
 
     #============================================================================================================
