@@ -128,7 +128,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                                 for i in idx_to_flag:
                                     df.loc[df.index == i, var+'_eraqc'] = 26 # see era_qaqc_flag_meanings.csv 
 
-            if plot == True:
+            if plot:
                 for var in vars_to_anom:
                     for month in range(1,13):
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
