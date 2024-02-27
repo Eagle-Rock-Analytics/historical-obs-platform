@@ -66,7 +66,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
     vars_to_remove = ['index','station','qc','duration','method',
                       'anemometer_height_m','thermometer_height_m',
                       'lat','lon','elevation','time','month','year',
-                      'sfcWind_dir','hurs', 
+                      'sfcWind', 'sfcWind_dir','hurs', 
                       'pr', 'pr_1h', 'pr_24h', 'pr_localmid', 'pr_5min', 'pr_qc', 'pr_depth_qc', 'pr_duration'
                      ] # list of var substrings to exclude if present in var
     
