@@ -66,8 +66,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
     vars_to_remove = ['index','station','qc','duration','method',
                       'anemometer_height_m','thermometer_height_m',
                       'lat','lon','elevation','time','month','year',
-                      'sfcWind', 'sfcWind_dir','hurs', 
-                      'pr', 'pr_1h', 'pr_24h', 'pr_localmid', 'pr_5min', 'pr_qc', 'pr_depth_qc', 'pr_duration'
+                      'sfcWind_dir','hurs', 
+                      'pr', 'pr_qc', 'pr_depth_qc', 'pr_duration'
                      ] # list of var substrings to exclude if present in var
     
     vars_to_check = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
@@ -152,7 +152,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbos
     return (df, pass_flag) 
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_var_bypass_check(df, var, month, min_num_months=5):     
+def qaqc_dist_var_bypass_check(df, var, min_num_months=5):     
     
     df = df.copy()
     # if all values are null for that month across years
@@ -173,7 +173,7 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False)
             monthly_df = df.loc[df['month']==month]
             
             # per variable bypass check
-            monthly_df = qaqc_dist_var_bypass_check(monthly_df, var, month) # flag here is 20
+            monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
             
             if 20 in monthly_df[var+'_eraqc']:
                 continue # skip variable
@@ -249,7 +249,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
                 monthly_df = df.loc[df['month']==month]
                 
                 # per variable bypass check
-                monthly_df = qaqc_dist_var_bypass_check(monthly_df, var, month) # flag here is 20
+                monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
                 if 20 in monthly_df[var+'_eraqc']:
                     continue # skip variable 
                 
@@ -326,19 +326,17 @@ def monthly_med(df):
 #-----------------------------------------------------------------------------
 def iqr_range(df, var):
     """Part 1: Calculates the monthly interquartile range"""
-    q1 = df[var].quantile(0.25)#, numeric_only=True)
-    q3 = df[var].quantile(0.75)#, numeric_only=True)
-    iqr_df = q3 - q1
+#     q1 = df[var].quantile(0.25)#, numeric_only=True)
+#     q3 = df[var].quantile(0.75)#, numeric_only=True)
+#     iqr_df = q3 - q1
     
-    return iqr_df
+#     return iqr_df
+    return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
 
 #-----------------------------------------------------------------------------
 def standardized_iqr(df, var):
     """Part 2: Standardizes data against the interquartile range"""
-    q1 = df[var].quantile(0.25)
-    q3 = df[var].quantile(0.75)
-    iqr = q3 - q1
-    return (df[var].values - df[var].median()) / iqr
+    return (df[var].values - df[var].median()) / iqr_range(df, var)
     
 #-----------------------------------------------------------------------------
 def median_clim(df, var):
@@ -370,7 +368,7 @@ def standardized_anom(df, month, var):
 def standardized_median_bounds(df, var, iqr_thresh):
     """Part 1: Calculates the standardized median"""
     std_med = df[var].median() # climatological median for that month
-    iqr = df[var].quantile([0.25, 0.75]).diff().iloc[-1]
+    iqr = iqr_range(df, var)
     lower_bnd = std_med - (iqr_thresh * iqr)
     upper_bnd = std_med + (iqr_thresh * iqr)
     
