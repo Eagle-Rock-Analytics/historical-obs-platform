@@ -122,9 +122,13 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                     dpd_to_check = df_valid.loc[(df_valid.time >= t) & (df_valid.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
 
                     if all(v == 0 for v in dpd_to_check):
-                        printf('Flagging extended streak in dewpoint depression', log_file=log_file)
-                        df.loc[(df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))),
-                        var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
+                        df.loc[
+                            (df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))), var+'_eraqc'
+                            ] = 13 # see qaqc_flag_meanings.csv
+
+                # only print warning flag once
+                if 13 in df[var+'_eraqc'].unique():
+                    printf('Flagging extended streak in dewpoint depression', log_file=log_file, verbose=verbose)
         
         return df
 
@@ -165,7 +169,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     try:
         if not pr_vars: # precipitation variable(s) is not present
-            printf('Station does not report precipitation - bypassing precip logic nonnegvals check', log_file=log_file)
+            printf('Station does not report precipitation - bypassing precip logic nonnegvals check', log_file=log_file, verbose=verbose)
         else:
             for item in pr_vars:
                 # only use valid obs for precip vars

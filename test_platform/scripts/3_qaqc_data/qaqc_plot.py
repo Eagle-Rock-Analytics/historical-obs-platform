@@ -435,9 +435,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         flagval [int] : flag value to plot (23 for unusual large jumps)
         dpi [int] : resolution for png plots
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
-    Ouput:
-    ----- 
-        None
+        date [str] : title for zoomed in plots for individual flagged obs
     """
      
     # Create figure
@@ -493,11 +491,11 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
-    plt.close()
+
     if local:
         fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
-    return 
+    plt.close()
 
 #============================================================================================================
 def clim_outlier_plot(df, var, month, network):

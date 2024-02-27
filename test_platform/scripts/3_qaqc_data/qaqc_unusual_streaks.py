@@ -66,7 +66,7 @@ def infere_res_var(df, var):
     
     #TODO: use function from calc_clean.py
     # Convert from Pa to hPa
-    if data.mean()>10000 and (var=="ps" or var=="psl"):
+    if data.mean()>10000 and (var=="ps" or var=="psl" or var=='ps_altimeter' or var=='ps_derived'):
         data = data/100
 
     data_diff = data.sort_values().diff().clip(lower=0.01, upper=1).dropna()
@@ -74,8 +74,10 @@ def infere_res_var(df, var):
         return 0.5
     else:
         # Calculate modified mode from avg mode and median
-        mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
-        mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        # mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
+        # mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        mode0 = data.sort_values().diff().mode().values[0]
+        mode1 = data.sort_values().diff().median()
         mode = (mode0+mode1)/2
 
         # Round to the nearest 0.5
@@ -83,30 +85,32 @@ def infere_res_var(df, var):
         rounded_to_whole = multiplied / 2
 
         # If mode is 0.25 or less, round to 0.1
-        if rounded_to_whole == 0:
+        if rounded_to_whole <= 0.25:
             mode = 0.1
         else:
             mode = rounded_to_whole
+
         if mode<=1:
             return mode
         else:
             return 1.0
 
 #----------------------------------------------------------------------
-def infere_res(df):
+def infere_res(df, verbose=False):
     """
     """
-    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind", "ps_derived"]
+    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     variables = [var for var in check_vars if var in df.columns]
+    # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
+    # printf(variables, log_file=log_file, verbose=verbose)
     
     resolutions = {}
     for var in variables:
-        if var in df.columns:
-            
-            if df[var].isnull().all() or len(np.where(df[var].isnull())[0])<100:
-                resolutions[var] = 0.1
-            else:
-                resolutions[var] = infere_res_var(df, var)
+        # if var in df.columns:
+        if df[var].isnull().all() or len(np.where(df[var].isnull())[0])<100:
+            resolutions[var] = 0.1
+        else:
+            resolutions[var] = infere_res_var(df, var)
 
     return resolutions
 
@@ -131,6 +135,8 @@ straight_repeat_criteria = {"tas" : {1  : [40, 14],   # 40 values of 14 days
                            }
 straight_repeat_criteria['tdps_derived'] = straight_repeat_criteria['tdps']
 straight_repeat_criteria['ps'] = straight_repeat_criteria['psl']
+straight_repeat_criteria['ps_derived'] = straight_repeat_criteria['psl']
+straight_repeat_criteria['ps_altimeter'] = straight_repeat_criteria['psl']
 
 #----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -141,9 +147,11 @@ hour_repeat_criteria = {"tas" : {1   : 25,  # 40 days
                        }
 # All variables have the same hourly criteria
 hour_repeat_criteria['tdps'] = hour_repeat_criteria['tas']
-hour_repeat_criteria['tdps_derived'] = hour_repeat_criteria['tdps']
+hour_repeat_criteria['tdps_derived'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['psl'] = hour_repeat_criteria['tas']
-hour_repeat_criteria['ps'] = hour_repeat_criteria['psl']
+hour_repeat_criteria['ps'] = hour_repeat_criteria['tas']
+hour_repeat_criteria['ps_altimeter'] = hour_repeat_criteria['tas']
+hour_repeat_criteria['ps_derived'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['sfcWind'] = hour_repeat_criteria['tas']
 
 #----------------------------------------------------------------------
@@ -155,9 +163,11 @@ day_repeat_criteria = {"tas" : {1   : 10,  # 10 days
                        }
 # All variables have the same daily criteria
 day_repeat_criteria['tdps'] = day_repeat_criteria['tas']
-day_repeat_criteria['tdps_derived'] = day_repeat_criteria['tdps']
+day_repeat_criteria['tdps_derived'] = day_repeat_criteria['tas']
 day_repeat_criteria['psl'] = day_repeat_criteria['tas']
-day_repeat_criteria['ps'] = day_repeat_criteria['psl']
+day_repeat_criteria['ps'] = day_repeat_criteria['tas']
+day_repeat_criteria['ps_altimeter'] = day_repeat_criteria['tas']
+day_repeat_criteria['ps_derived'] = day_repeat_criteria['tas']
 day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
 
 #----------------------------------------------------------------------
@@ -180,7 +190,7 @@ def consecutive_months(series):
     return pd.Series(groups, index=series.index)
 
 #---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min_sequence_length=10):
+def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, min_sequence_length=10):
     """
     Test for repeated streaks/unusual spell frequenc. 
     Three test are conducted here:
@@ -191,7 +201,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
           observations have the same value)
        - Whole day replication for a streak of days
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter" "sfcWind"]
     
     Input:
     -----
@@ -234,7 +244,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         new_df['date'] = pd.Series(df['time']).dt.date.values
         
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
         # check_vars = ["ps"]
         variables = [var for var in check_vars if var in new_df.columns]
         printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
@@ -308,17 +318,19 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         
             # --------------------------------------------------------
             if plot:
+                printf("Full timeseries plot", verbose=verbose, log_file=log_file)
                 unusual_streaks_plot(df, var, local=local)
                 
                 for i in bad.index:
-                    
+                    printf("Subset plots", verbose=verbose, log_file=log_file)
                     da = bad.loc[i]
                     
                     min_date = da.min_date - np.timedelta64(3,'D')
                     max_date = da.min_date + np.timedelta64(3,'D')
-                    subset = np.logical_and(df['time'] >= min_date, 
-                                            df['time'] <= max_date)
-                    unusual_streaks_plot(df[subset], var, date=min_date+np.timedelta64(3,'D'), local=local)
+                    subset = df.loc[(df['time'] >= min_date) and (df['time'] <= max_date)]
+                    # subset = np.logical_and(df['time'] >= min_date, 
+                    #                         df['time'] <= max_date)
+                    unusual_streaks_plot(subset, var, date=min_date+np.timedelta64(3,'D'), local=local)
         
         return df
     except Exception as e:
@@ -367,7 +379,7 @@ def hourly_repeats(df, var, threshold):
     2 - Count consecutive cluster of repeated values at the same hour of the day
     3 - Select only clusters where count is higher than threshold in dict `hour_repeat_criteria`
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     
     Input:
     -----
@@ -413,7 +425,7 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     2 - 
     3 - 
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     
     Input:
     -----
@@ -506,7 +518,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
     2 - 
     3 - 
     
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "sfcWind"]
+    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     
     Input:
     -----
