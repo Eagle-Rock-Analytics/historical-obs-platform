@@ -65,7 +65,7 @@ def infere_res_var(df, var):
     data = df.copy()[var]
     
     #TODO: use function from calc_clean.py
-    # Convert from Pa to hPa
+    # Convert from Pa to hPa -- only to determine mode and resolution of data, data not returned in hPa
     if data.mean()>10000 and (var=="ps" or var=="psl" or var=='ps_altimeter' or var=='ps_derived'):
         data = data/100
 

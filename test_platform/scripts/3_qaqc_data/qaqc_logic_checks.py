@@ -345,3 +345,43 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     except Exception as e:
         printf("qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
+
+#-----------------------------------------------------------------------------
+## temporary fix on pressure variables being in the wrong unit
+## fn to be removed from pipeline on next full cleaning update
+def qaqc_pressure_units_fix(df, verbose=False):
+    '''
+    Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations, 
+    where the pressure unit conversion did not take. 
+
+    This is a temporary fix; in the next cleaning update, unit conversions will be applied and checked. 
+    No flag is placed in this fix, if variable fails it will be caught by the world records check. 
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+    '''
+
+    printf("Running: qaqc_pressure_units_fix", log_file=log_file, verbose=verbose)
+
+    try:
+        # identify pressure variables to check conversion on
+        ps_vars = ['ps', 'psl', 'ps_altimeter', 'ps_derived']
+
+        for var in ps_vars:
+            if var in df.columns:
+                if df[var].mean() < 10000:
+                    df[var] = df[var] * 100.
+
+        return df
+    
+    except Exception as e:
+        printf("qaqc_pressure_units_fix failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        return None

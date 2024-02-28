@@ -232,7 +232,7 @@ def frequent_vals_plot(df, var, rad_scheme):
     is visually flagged
     ''' 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ['ps', 'ps_altimeter', 'psl']
+    ps_vars = ['ps', 'ps_altimeter', 'ps_derived', 'psl']
         
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
