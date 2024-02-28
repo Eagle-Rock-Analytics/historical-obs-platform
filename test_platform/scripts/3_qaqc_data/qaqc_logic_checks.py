@@ -379,6 +379,7 @@ def qaqc_pressure_units_fix(df, verbose=False):
             if var in df.columns:
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.
+                    printf('Pressure units on {} updated to be Pa'.format(var), log_file=log_file, verbose=verbose)
 
         return df
     
