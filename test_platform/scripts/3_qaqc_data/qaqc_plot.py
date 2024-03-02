@@ -98,7 +98,7 @@ def _plot_format_helper(var):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
+def flagged_timeseries_plot(df, vars_to_check, flag_to_viz, local=False):
     '''Produces a scatterplot timeseries figure of variables that have flags placed'''
 
     # can pass a list of flags
@@ -139,7 +139,9 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz):
             bucket.put_object(Body=img_data, ContentType='image/png',
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
-
+            # Save locally if needed
+            if local:
+                plt.savefig("qaqc_figs/{}.png".format(figname)) 
             # close figure for memory
             plt.close()
 
@@ -348,7 +350,9 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
     bucket.put_object(Body=img_data, ContentType='image/png',
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
-    
+    # Save locally if needed
+    if local:
+        plt.savefig("qaqc_figs/{}.png".format(figname))    
     # close figures to save memory
     plt.close()
 
@@ -419,7 +423,9 @@ def dist_gap_part2_plot(df, month, var, network):
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
-
+    # Save locally if needed
+    if local:
+        plt.savefig("qaqc_figs/{}.png".format(figname)) 
     # close figures to save memory
     plt.close()
 

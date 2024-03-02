@@ -473,7 +473,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     t0 = time.time()
     printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose)
     
-    new_df = qaqc_unusual_gaps(stn_to_qaqc)
+    new_df = qaqc_unusual_gaps(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
                                     message="Flagging problem with unusual gap distribution function", 
