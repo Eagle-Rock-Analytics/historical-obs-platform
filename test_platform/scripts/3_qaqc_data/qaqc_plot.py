@@ -117,7 +117,7 @@ def id_flag(flag_to_id):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, local=False):
+def flagged_timeseries_plot(df, var, dpi=None, local=False):
     '''Produces timeseries of variables that have flags placed'''
     
     # first check if var has flags, only produce plots of vars with flags
@@ -155,7 +155,7 @@ def flagged_timeseries_plot(df, var, local=False):
             bucket_name = 'wecc-historical-wx'
             directory = '3_qaqc_wx'
             img_data = BytesIO()
-            plt.savefig(img_data, format='png')
+            plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
             img_data.seek(0)
 
             s3 = boto3.resource('s3')
@@ -167,7 +167,7 @@ def flagged_timeseries_plot(df, var, local=False):
                         directory, network, figname))
 
             if local:
-                fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+                fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
             
             # close figure to save memory
             plt.close()
@@ -176,7 +176,7 @@ def flagged_timeseries_plot(df, var, local=False):
 
 #============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
     '''Plotting helper with common plotting elements for all 3 versions of this plot'''
     
     # plot all valid data within year/season
@@ -222,7 +222,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
 
     s3 = boto3.resource('s3')
@@ -233,7 +233,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, local=False):
                      directory, network, figname))
 
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -341,7 +341,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
 #============================================================================================================
 ## distribution gap plotting functions
-def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=False):
+def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, local=False):
     '''
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
     Any variable that is flagged is noted
@@ -387,7 +387,13 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
         month), 
               fontsize=10);
     
-    # save to AWS    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
+    img_data.seek(0)
+
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     figname = 'qaqc_dist_gap_check_part1_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
@@ -396,7 +402,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
                  directory, network, figname))
     
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -404,7 +410,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, local=Fals
     return 
 
 #-----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network, local=False):
+def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     '''
     Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -461,7 +467,7 @@ def dist_gap_part2_plot(df, month, var, network, local=False):
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
     
     s3 = boto3.resource('s3')
@@ -472,7 +478,7 @@ def dist_gap_part2_plot(df, month, var, network, local=False):
                      directory, network, figname))
 
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -549,7 +555,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -557,7 +563,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     return 
 
 #============================================================================================================
-def clim_outlier_plot(df, var, month, network, local=False):
+def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     '''
     Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -614,7 +620,7 @@ def clim_outlier_plot(df, var, month, network, local=False):
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
     
     s3 = boto3.resource('s3')
@@ -625,7 +631,7 @@ def clim_outlier_plot(df, var, month, network, local=False):
                      directory, network, figname))
 
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
 
     # close figures to save memory
     plt.close()
@@ -709,7 +715,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
