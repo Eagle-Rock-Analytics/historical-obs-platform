@@ -486,7 +486,7 @@ def qaqc_world_record(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## final summary stats of flagged variables and percentage of coverage
-def flag_summary(df, verbose=False):
+def flag_summary(df, verbose=False, local=False):
     '''
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
