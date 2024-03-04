@@ -188,7 +188,7 @@ def qaqc_ds_to_df(ds):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
     exclude_qaqc = ["time", "station", "lat", "lon", 
-                    "qaqc_process", "sfcWind_method"] # lat, lon have different qc check
+                    "qaqc_process", "sfcWind_method", "pr_duration"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
     era_qc_vars = [] # our qc variable

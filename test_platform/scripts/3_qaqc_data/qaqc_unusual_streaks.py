@@ -259,8 +259,6 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
             valid = np.where(np.isnan(test_df[var+"_eraqc"]))[0]
             test_df = test_df.iloc[valid]
             
-            #TODO: for now, it will skip this qaqc check if the entire record is flagged by another function
-            #TODO: should it include an error log? or something else?
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:
                 printf("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var), verbose=verbose, log_file=log_file)

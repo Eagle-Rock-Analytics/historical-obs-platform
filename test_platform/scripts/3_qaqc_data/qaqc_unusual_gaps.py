@@ -34,7 +34,7 @@ def open_log_file_gaps(file):
     log_file = file
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
+def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     '''
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -77,13 +77,9 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False):
             return df
 
         else:
-            df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose)
-            df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose)
+            df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose, local=local)
+            df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose, local=local)
 
-            if plots == True:
-                for var in vars_to_check:
-                    if (21 in df[var+'_eraqc'].values or 22 in df[var+'_eraqc'].values): # don't plot a figure if it's all nans/not enough months
-                        flagged_timeseries_plot(df_part2, vars_to_check, flag_to_viz = [21, 22])
         # Drop month,year vars used for calculations                
         df_part2 = df_part2.drop(columns=['month','year'])
         return df_part2
@@ -177,7 +173,7 @@ def qaqc_dist_var_bypass_check(df, vars_to_check, min_num_months=5):
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False):
+def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False, local=False):
     """
     Part 1 / monthly check
         - compare anomalies of monthly median values
@@ -238,17 +234,18 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False)
                         df.loc[(df_valid['time'].dt.month == month) & 
                                (df_valid['time'].dt.year == year_to_flag), var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
 
-        if plot==True:
+        if plot:
             for month in range(1,13):
                 for var in vars_to_check:
                     if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part1_plot(df, month, var, flagval=21, iqr_thresh=iqr_thresh,
-                                            network=df['station'].unique()[0].split('_')[0])
+                                            network=df['station'].unique()[0].split('_')[0],
+                                            local=local)
                 
     return df
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
+def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False):
     """
     Part 2 / monthly check
         - compare all obs in a single month, all years
@@ -340,13 +337,14 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False):
                                 vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
                                 df.loc[df_valid[var] >= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
                     
-    if plot==True:
+    if plot:
         for month in range(1,13):
             for var in vars_to_check:
                 if 20 not in df[var+'_eraqc'].values: # don't plot a figure if it's all nans/not enough months
                     if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                         dist_gap_part2_plot(df, month, var,
-                                            network=df['station'].unique()[0].split('_')[0])
+                                            network=df['station'].unique()[0].split('_')[0],
+                                            local=local)
     
     return df  
 
