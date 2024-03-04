@@ -68,8 +68,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     printf("Running: qaqc_frequent_vals", log_file=log_file, verbose=verbose)
     
     # this check is only done on air temp, dewpoint temp, and pressure
-    vars_to_remove = ['qc', 'duration', 'method']
-    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] # list of var substrings to remove if present in var
+    vars_to_remove = ['qc', 'duration', 'method'] # list of var substrings to remove if present in var
+    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
@@ -139,7 +139,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             df = synergistic_flag(df, num_temp_vars)
 
         # plots item
-        if plots==True:
+        if plots:
             for var in vars_to_check:
                 if 24 in df[var+'_eraqc'].unique() or 25 in df[var+'_eraqc'].unique(): # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
@@ -181,11 +181,11 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ['ps', 'ps_altimeter', 'psl', 'ps_derived']
     
-    ## TEMPORARY BUG FIX ON PSL UNIT ==================================================================
-    if var=='psl':
-        if len(str(df.loc[df.index == df['psl'].first_valid_index(), 'psl'].values[0]).split('.')[0]) <= 4:
-            df['psl'] = df['psl'] * 100
-    ## END TEMPORARY FIX ==============================================================================
+    # ## TEMPORARY BUG FIX ON PSL UNIT ==================================================================
+    # if var=='psl':
+    #     if len(str(df.loc[df.index == df['psl'].first_valid_index(), 'psl'].values[0]).split('.')[0]) <= 4:
+    #         df['psl'] = df['psl'] * 100
+    # ## END TEMPORARY FIX ==============================================================================
     
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
