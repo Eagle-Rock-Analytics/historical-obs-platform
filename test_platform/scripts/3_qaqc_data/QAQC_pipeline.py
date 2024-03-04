@@ -188,7 +188,7 @@ def qaqc_ds_to_df(ds):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
     exclude_qaqc = ["time", "station", "lat", "lon", 
-                    "qaqc_process", "sfcWind_method"] # lat, lon have different qc check
+                    "qaqc_process", "sfcWind_method", "pr_duration"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
     era_qc_vars = [] # our qc variable
@@ -320,31 +320,6 @@ def run_qaqc_pipeline(ds, network, file_name,
     
     #=========================================================
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-
-    #---------------------------------------------------------
-    ## Sensor height: air temperature
-    new_df = qaqc_sensor_height_t(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                message="Flagging problem with thermometer sensor height", 
-                                test="qaqc_sensor_height_t",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_sensor_height_t', log_file=log_file, verbose=verbose)
-
-    #---------------------------------------------------------
-    ## Sensor height: wind
-    new_df = qaqc_sensor_height_w(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                message="Flagging problem with anemometer sensor height", 
-                                test="qaqc_sensor_height_w",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_sensor_height_w', log_file=log_file, verbose=verbose)
-
     #---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
     new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)

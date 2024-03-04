@@ -91,14 +91,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         for var in variables:
             printf('Running unusual large jumps check on: {}'.format(var), log_file=log_file, verbose=verbose)
 
-            # Create a copy of the original dataframe and drop NaNs in the testing variable
-            # new_df = df.copy(deep=True)
-            # new_df = new_df.dropna(subset=var)#.drop(columns=["lat","lon","elevation"])
-
             # Use only values that have not been flagged by previous QAQC tests
-            # valid = np.where(np.isnan(df[var+"_eraqc"]))[0]
-            # new_df = df.iloc[valid]
-
             new_df = df.loc[df[var+'_eraqc'].isnull() == True]
 
            # first scans suspect values using entire record
@@ -116,7 +109,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                 df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
             
             if plot:
-                unusual_jumps_plot(df, var, flagval=23, local=local)
+                # unusual_jumps_plot(df, var, flagval=23, local=local) # commenting out - will be captured by flagged_timeseries
                 for i in ind:
                     try:
                     # if True:

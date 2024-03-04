@@ -54,7 +54,7 @@ def _plot_format_helper(var):
         
     elif var == 'sfcWind':
         ylab = 'Surface Wind Speed'
-        unit = '${m s^-1}$'
+        unit = '$m s^{-1}$'
         
     elif var == 'sfcWind_dir':
         ylab = 'Surface Wind Direction'
@@ -62,7 +62,7 @@ def _plot_format_helper(var):
         
     elif var == 'rsds':
         ylab = 'Surface Radiation'
-        unit = '${W m^-2}$'
+        unit = '$W m^{-2}$'
         
     elif var == 'hurs':
         ylab = 'Humidity'
@@ -87,49 +87,75 @@ def _plot_format_helper(var):
     R_X = {"North_America":1500}   #W/m2
     R_N = {"North_America":-5}     #W/m2
 
-    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, 
-             "psl": S_X, "ps": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X}
-    mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, 
-             "psl": S_N, "ps": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N}
+    # for other non-record variables (wind direction, precipitation)
+    N_X = {"North_America":360}    # degrees
+    N_N = {"North_America":0}      # degrees
+    P_X = {"North_America":1000}   # mm, arbitrarily set
+    P_N = {"North_America":0}      # mm
+    
+
+    maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "sfcWind_dir": N_X,
+             "ps": S_X, "psl": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X,
+             "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X}
+    mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "sfcWind_dir": N_N,
+             "ps": S_N, "psl": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N,
+             "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
     
     return ylab, unit, miny, maxy
 
 #============================================================================================================
-## flagged timeseries plot
-def flagged_timeseries_plot(df, vars_to_check, flag_to_viz, local=False):
-    '''Produces a scatterplot timeseries figure of variables that have flags placed'''
-
-    # can pass a list of flags
-    for flag in flag_to_viz:
+## flagged timeseries plot helper
+def id_flag(flag_to_id):
+    '''Identifies flag based on numerical value assigned for plotting'''
     
-        # assess where each variable has flagged values
-        for var in vars_to_check:
-            flagged_data = df.loc[df[var+'_eraqc'] == flag]
+    flag_df = pd.read_csv('era_qaqc_flag_meanings.csv')
+    fn_name = flag_df.loc[flag_df['Flag_value'] == int(flag_to_id)]['QAQC_function'].values[0]
+    
+    return fn_name
 
-            # only produce a plot if there is flagged values
-            if len(flagged_data) == 0:
-                continue
+#============================================================================================================
+## flagged timeseries plot
+def flagged_timeseries_plot(df, var, dpi=None, local=False):
+    '''Produces timeseries of variables that have flags placed'''
+    
+    # first check if var has flags, only produce plots of vars with flags
+    if len(df[var+'_eraqc'].dropna().unique()) != 0: 
+        
+        # create figure
+        fig,ax = plt.subplots(figsize=(10,3))
+        
+        # plot all observations
+        df.plot(ax=ax, x='time', y=var, marker=".", ms=4, lw=1, 
+            color="k", alpha=0.5, label='Cleaned data')
 
-            # plot
-            ax = df.plot.scatter(x='time', y=var, color='k', s=0.8, label='Valid')
+        # identify flagged data, can handle multiple flags
+        for flag in df[var+'_eraqc'].dropna().unique():
+            flag_name = id_flag(flag)
+            flag_label = "{:.3f}% of data flagged by {}".format(
+                100*len(df.loc[df[var+'_eraqc'] == flag, var])/len(df), 
+                flag_name)
 
-            # plot flagged data
-            flagged_data.plot.scatter(ax=ax, x='time', y=var, color='r', s=0.9, label='Flag: {}'.format(flag))
+            flagged_data = df[~df[var+'_eraqc'].isna()]
+            flagged_data.plot(x="time", y=var, ax=ax, 
+                              marker="o", ms=7, lw=0, 
+                              mfc="none", color="C3",
+                              label=flag_label)
+
+            legend = ax.legend(loc=0, prop={'size': 8})    
 
             # plot aesthetics
-            plt.legend(loc='best', ncol=2)
             ylab, units, miny, maxy = _plot_format_helper(var)
             plt.ylabel('{} [{}]'.format(ylab, units));
             plt.xlabel('')
-            plt.title('{0}'.format(df['station'].unique()[0]), fontsize=10);
+            plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 
             # save to AWS
             bucket_name = 'wecc-historical-wx'
             directory = '3_qaqc_wx'
             img_data = BytesIO()
-            plt.savefig(img_data, format='png')
+            plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
             img_data.seek(0)
 
             s3 = boto3.resource('s3')
@@ -139,15 +165,19 @@ def flagged_timeseries_plot(df, vars_to_check, flag_to_viz, local=False):
             bucket.put_object(Body=img_data, ContentType='image/png',
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
-            # Save locally if needed
+            
+            # save locally if needed
             if local:
-                plt.savefig("qaqc_figs/{}.png".format(figname)) 
-            # close figure for memory
+                fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+            
+            # close figure to save memory
             plt.close()
+            
+            return 
 
 #============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
     '''Plotting helper with common plotting elements for all 3 versions of this plot'''
     
     # plot all valid data within year/season
@@ -172,17 +202,20 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
     xlab, units, miny, maxy = _plot_format_helper(var)
     plt.xlabel('{0} [{1}]'.format(xlab, units))
     yr_formatted = str(yr).replace('_', ' ') # simple formatting for plot aesthetic
-    plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10);
+    plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords='axes fraction', fontsize=10)
     plt.title('Frequent value check: {}'.format(df['station'].unique()[0]),
-             fontsize=10);
-    plt.legend(('Valid', 'Flagged'), loc='upper right')
+             fontsize=10)
+    plt.legend(('Cleaned data', 'Flagged'), loc='upper right')
     ax = plt.gca()
     leg = ax.get_legend()
-    leg.legend_handles[0].set_color('k') # set valid to blue
+    leg.legend_handles[0].set_color('k') # set valid to black
     leg.legend_handles[-1].set_color('r') # set flagged bar to red
     
     if var == 'rsds':
         plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
+
+    elif var == 'tdps' or var == 'tdps_derived':
+        plt.annotate('Dewpoint temperature\nand air temperature are\nsynergistically flagged.', xy=(0.02, 0.85), xycoords='axes fraction', fontsize=8)
         
     # save figure to AWS
     network = df['station'].unique()[0].split('_')[0]
@@ -190,7 +223,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
 
     s3 = boto3.resource('s3')
@@ -200,8 +233,14 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
-    # close figure for memory
+    # save locally if needed
+    if local:
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+    
+    # close figure to save memory
     plt.close()
+
+    return 
 
 #-----------------------------------------------------------------------------------------
 def create_bins_frequent(df, var, bin_size=0.25):
@@ -227,14 +266,14 @@ def create_bins_frequent(df, var, bin_size=0.25):
     return bins
 
 #-----------------------------------------------------------------------------------------
-def frequent_vals_plot(df, var, rad_scheme):
+def frequent_vals_plot(df, var, rad_scheme, local=False):
     '''
     Produces a histogram of the diagnostic histogram per variable, 
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test 
     is visually flagged
     ''' 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ['ps', 'ps_altimeter', 'psl']
+    ps_vars = ['ps', 'ps_altimeter', 'ps_derived', 'psl']
         
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
@@ -259,8 +298,8 @@ def frequent_vals_plot(df, var, rad_scheme):
             df_to_plot = df.loc[df['year']==y]
             _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=y, rad_scheme=rad_scheme)
             
-    ## Seasonal flag (24): plot all data for that year and season + specific handling for winter
-    flag_df = df.loc[df[var+'_eraqc'] == 24]
+    ## Seasonal flag (25): plot all data for that year and season + specific handling for winter
+    flag_df = df.loc[df[var+'_eraqc'] == 25]
     
     if len(flag_df) != 0:
         
@@ -270,19 +309,19 @@ def frequent_vals_plot(df, var, rad_scheme):
         for y in plot_yrs:
             df_year = df.loc[df['year']==y] # grab the entire year
             
-            flagged_szns = df_year.loc[df_year[var+'_eraqc'] == 24]['month'].unique() # identify flagged months in that year
+            flagged_szns = df_year.loc[df_year[var+'_eraqc'] == 25]['month'].unique() # identify flagged months in that year
             
             if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns: # Spring - MAM
                 df_to_plot = df_year.loc[(df_year['month']==3) | (df_year['month']==4) | (df_year['month']==5)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_spring', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_spring', rad_scheme=rad_scheme)
                 
             if 6 in flagged_szns or 7 in flagged_szns or 8 in flagged_szns: # Summer - JJA
                 df_to_plot = df_year.loc[(df_year['month']==6) | (df_year['month']==7) | (df_year['month']==8)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_summer', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_summer', rad_scheme=rad_scheme)
 
             if 9 in flagged_szns or 10 in flagged_szns or 11 in flagged_szns: # Autumn - SON
                 df_to_plot = df_year.loc[(df_year['month']==9) | (df_year['month']==10) | (df_year['month']==11)]
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_autumn', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_autumn', rad_scheme=rad_scheme)
            
             if 12 in flagged_szns: # Winter - current year D + next year JF
                 # special handling as follows
@@ -291,7 +330,7 @@ def frequent_vals_plot(df, var, rad_scheme):
                 df_d = df_year.loc[df_year['month']==12] # current year dec
                 df_jf = df.loc[(df['year']==y+1) & ((df['month']==1) | (df['month']==2))] # next year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y+1)+'_winter', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y+1)+'_winter', rad_scheme=rad_scheme)
                 
             if 1 in flagged_szns or 2 in flagged_szns: # Winter - previous year D + current year JF
                 # special handling as follows
@@ -300,11 +339,11 @@ def frequent_vals_plot(df, var, rad_scheme):
                 df_d = df.loc[(df['year']==y-1) & (df['month']==12)] # previous year dec
                 df_jf = df_year[(df_year['month']==1) | (df_year['month']==2)] # current year jan+feb
                 df_to_plot = pd.concat([df_d, df_jf])
-                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=str(y)+'_winter', rad_scheme=rad_scheme)
+                _plot = frequent_plot_helper(df_to_plot, var, bins, flag=25, yr=str(y)+'_winter', rad_scheme=rad_scheme)
 
 #============================================================================================================
 ## distribution gap plotting functions
-def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
+def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, local=False):
     '''
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
     Any variable that is flagged is noted
@@ -314,14 +353,21 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
     df = df.loc[df['month'] == month]
         
     # grab flagged data
-    flag_vals = df.loc[df[var + '_eraqc'] == flagval]
+    flag_vals = df.loc[df[var+'_eraqc'] == flagval]
     
     # plot valid data
-    ax = df.plot.scatter(x='time', y=var, label='Pass')
+    ax = df.plot.scatter(x='time', y=var, color='k', label='Cleaned data')
     
     # plot flagged data
-    flag_vals.plot.scatter(ax=ax, x='time', y=var, color='r', label='Flagged')
-    # should be consistent with other plots - I like Hector's open circles around flagged values
+    flag_name = id_flag(flag)
+    flag_label = "{:.3f}% of data flagged by {}".format(
+                100*len(flag_vals)/len(df), 
+                flag_name)
+
+    flag_vals.plot(x="time", y=var, ax=ax, 
+                        marker="o", ms=7, lw=0, 
+                        mfc="none", color="C3",
+                        label=flag_label)
 
     # plot climatological median and threshold * IQR range
     mid, low_bnd, high_bnd = standardized_median_bounds(df, month, var, iqr_thresh=5)
@@ -331,7 +377,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
                     y1=low_bnd,
                     y2=high_bnd,
                     alpha=0.25, color='0.75', 
-                    label='{} * IQR range'.format(iqr_thresh))
+                    label='{} * IQR'.format(iqr_thresh))
     
     # plot aesthetics
     plt.legend(loc='best')
@@ -343,21 +389,31 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network):
         month), 
               fontsize=10);
     
-    # save to AWS    
+    # save figure to AWS
+    bucket_name = 'wecc-historical-wx'
+    directory = '3_qaqc_wx'
+    img_data = BytesIO()
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
+    img_data.seek(0)
+
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     figname = 'qaqc_dist_gap_check_part1_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
     bucket.put_object(Body=img_data, ContentType='image/png',
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
-    # Save locally if needed
+
+    # save locally if needed
     if local:
-        plt.savefig("qaqc_figs/{}.png".format(figname))    
-    # close figures to save memory
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+    
+    # close figure to save memory
     plt.close()
 
+    return 
+
 #-----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network):
+def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     '''
     Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -374,7 +430,7 @@ def dist_gap_part2_plot(df, month, var, network):
     bins = create_bins(df_month_iqr)
     
     # plot histogram
-    ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, alpha=0.3);
+    ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
     plt.ylim(ymin=0.1)
 
@@ -404,17 +460,17 @@ def dist_gap_part2_plot(df, month, var, network):
             bar.set_color('r')
 
     # title and useful annotations
-    plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
-    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10)
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8)
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8)
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8)
     plt.ylabel('Frequency (obs)')
     
     # save figure to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
     
     s3 = boto3.resource('s3')
@@ -423,11 +479,15 @@ def dist_gap_part2_plot(df, month, var, network):
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
+
     # Save locally if needed
     if local:
-        plt.savefig("qaqc_figs/{}.png".format(figname)) 
-    # close figures to save memory
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+    
+    # close figure to save memory
     plt.close()
+
+    return 
 
 #============================================================================================================
 ## unusual large jumps plotting functions
@@ -441,9 +501,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         flagval [int] : flag value to plot (23 for unusual large jumps)
         dpi [int] : resolution for png plots
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
-    Ouput:
-    ----- 
-        None
+        date [str] : title for zoomed in plots for individual flagged obs
     """
      
     # Create figure
@@ -453,7 +511,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
     
     flag_label = "{:.4f}% of data flagged".format(100*len(df.loc[df[var+"_eraqc"]==flagval, var])/len(df))
     df.loc[df[var+"_eraqc"]==flagval, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
@@ -499,14 +557,17 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
-    plt.close()
-    if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    if local:
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+    
+    # close figure to save memory
+    plt.close()
+
     return 
 
 #============================================================================================================
-def clim_outlier_plot(df, var, month, network):
+def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     '''
     Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -523,48 +584,47 @@ def clim_outlier_plot(df, var, month, network):
     bins = create_bins(df_to_plot)
     
     # plot histogram
-    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, alpha=0.3)
+    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
-    plt.ylim(ymin=0.1)
+    # plt.ylim(ymin=0.1)
     
     # # plot pdf
-    # mu = np.nanmean(df_to_plot)
-    # sigma = np.nanmean(df_to_plot)
-    # y = stats.norm.pdf(bins, mu, sigma)
-    # l = plt.plot(bins, y, 'k--', linewidth=1)
+    mu = np.nanmean(df_to_plot)
+    sigma = np.nanstd(df_to_plot)
+    y = stats.norm.pdf(bins, mu, sigma)
+    l = plt.plot(bins, y, 'k--', linewidth=1)
     
-    # # add vertical lines to indicate thresholds where pdf y=0.1
-    # pdf_bounds = np.argwhere(y > 0.1)
+    # add vertical lines to indicate thresholds where pdf y=0.1
+    pdf_bounds = np.argwhere(y > 0.1)
     
-    # # find first index
-    # left_bnd = round(bins[pdf_bounds[0][0] - 1])
-    # right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-    # thresholds = (left_bnd, right_bnd)
-    # print(thresholds)
+    # find first index
+    left_bnd = round(bins[pdf_bounds[0][0] - 1])
+    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+    thresholds = (left_bnd, right_bnd)
     
-    # plt.axvline(thresholds[1], color='r') # right tail
-    # plt.axvline(thresholds[0], color='r') # left tail
+    plt.axvline(thresholds[1], color='r') # right tail
+    plt.axvline(thresholds[0], color='r') # left tail
     
-    # # flag visually obs that are beyond threshold
-    # for bar in ax[2].patches:
-    #     x = bar.get_x() + 0.5 * bar.get_width()
-    #     if x > thresholds[1]: # right tail
-    #         bar.set_color('r')
-    #     elif x < thresholds[0]: # left tail
-    #         bar.set_color('r')
+    # flag visually obs that are beyond threshold
+    for bar in ax[2].patches:
+        x = bar.get_x() + 0.5 * bar.get_width()
+        if x > thresholds[1]: # right tail
+            bar.set_color('r')
+        elif x < thresholds[0]: # left tail
+            bar.set_color('r')
             
     # title and useful annotations
     plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
     plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
-    # plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
-    # plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
+    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
     plt.ylabel('Frequency (obs)')
     
     # save figure to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     img_data = BytesIO()
-    plt.savefig(img_data, format='png')
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
     
     s3 = boto3.resource('s3')
@@ -573,9 +633,14 @@ def clim_outlier_plot(df, var, month, network):
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
-    
+
+    if local:
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+
     # close figures to save memory
     plt.close()
+
+    return
 
 #============================================================================================================
 def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
@@ -605,7 +670,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Original data")
+    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
     
     # Amount of data flagged
     nflags = len(flag_vals_0) + len(flag_vals_1) + len(flag_vals_2)
@@ -615,7 +680,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     flag_label_2 = "Whole-day replication"
     df.loc[df[var+"_eraqc"]==flagvals[0]].plot("time", var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
     df.loc[df[var+"_eraqc"]==flagvals[1]].plot("time", var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
-    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label=flag_label_2)    
+    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)    
     legend = ax.legend(loc=0, prop={'size': 8})    
     title = ax.set_title(title)    
         
@@ -652,10 +717,13 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
-    plt.close()
-    if local:
-        fig.savefig(figname+".png", format='png', dpi=dpi, bbox_inches="tight")
     
+    if local:
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+    
+    # close figure to save memory
+    plt.close()
+
     return 
 
     #============================================================================================================

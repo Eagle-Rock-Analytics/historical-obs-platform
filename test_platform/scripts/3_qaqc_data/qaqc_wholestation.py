@@ -22,6 +22,11 @@ try:
 except Exception as e:
     print("Error importing qaqc_utils: {}".format(e))
 
+try:
+    from qaqc_plot import *
+except Exception as e:
+    print("Error importing qaqc_plot: {}".format(e))
+
 # if __name__ == "__main__":
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
@@ -34,6 +39,7 @@ def open_log_file_wholestation(file):
     global log_file
     log_file = file
 
+#----------------------------------------------------------------------
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=False):
     '''
@@ -321,6 +327,7 @@ def qaqc_elev_range(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## sensor height - air temperature
+## NOTE: qaqc_sensor_height_t function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_t(df, verbose=False):
     '''
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
@@ -370,6 +377,7 @@ def qaqc_sensor_height_t(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## sensor height - wind
+## NOTE: qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_w(df, verbose=False):
     '''
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
@@ -483,21 +491,26 @@ def qaqc_world_record(df, verbose=False):
 
 #----------------------------------------------------------------------
 ## final summary stats of flagged variables and percentage of coverage
-def flag_summary(df, verbose=False):
+def flag_summary(df, verbose=False, local=False):
     '''
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
-    Information is included in log_file
+    Information is included in log_file. 
+
+    Also produces figures of full timeseries
     '''
 
     printf("Running: flag_summary", log_file=log_file, verbose=verbose)
 
     # identify _eraqc variables
     eraqc_vars = [var for var in df.columns if '_eraqc' in var]
+    obs_vars = [item.split('_e')[0] for item in eraqc_vars]
     
     for var in eraqc_vars:
         printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
         printf('Coverage of {} obs flagged: {}% of obs'.format(var,
-              (len(df.loc[(df[var].isnull() == False)]) / len(df))*100),
+              round((len(df.loc[(df[var].isnull() == False)]) / len(df))*100, 2)),
               verbose=verbose, log_file=log_file) # % of coverage flagged
 
+    for var in obs_vars:
+        flagged_timeseries_plot(df, var)

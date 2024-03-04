@@ -21,7 +21,7 @@ import scipy.stats as stats
 try:
     from qaqc_utils import *
 except Exception as e:
-    printf("Error importing qaqc_utils: {}".format(e))
+    print("Error importing qaqc_utils: {}".format(e))
     
 def open_log_file_logic(file):
     global log_file
@@ -123,14 +123,18 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                     dpd_to_check = df_valid.loc[(df_valid.time >= t) & (df_valid.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
 
                     if all(v == 0 for v in dpd_to_check):
-                        printf('Flagging extended streak in dewpoint depression')
-                        df.loc[(df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))),
-                        var+'_eraqc'] = 13 # see qaqc_flag_meanings.csv
+                        df.loc[
+                            (df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))), var+'_eraqc'
+                            ] = 13 # see qaqc_flag_meanings.csv
+
+                # only print warning flag once
+                if 13 in df[var+'_eraqc'].unique():
+                    printf('Flagging extended streak in dewpoint depression', log_file=log_file, verbose=verbose)
         
         return df
 
     except Exception as e:
-        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
+        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file)
         return None
 
 #----------------------------------------------------------------------
@@ -166,7 +170,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     try:
         if not pr_vars: # precipitation variable(s) is not present
-            printf('Station does not report precipitation - bypassing precip logic nonnegvals check')
+            printf('Station does not report precipitation - bypassing precip logic nonnegvals check', log_file=log_file, verbose=verbose)
         else:
             for item in pr_vars:
                 # only use valid obs for precip vars
@@ -341,4 +345,45 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         
     except Exception as e:
         printf("qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        return None
+
+#-----------------------------------------------------------------------------
+## temporary fix on pressure variables being in the wrong unit
+## fn to be removed from pipeline on next full cleaning update
+def qaqc_pressure_units_fix(df, verbose=False):
+    '''
+    Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations, 
+    where the pressure unit conversion did not take. 
+
+    This is a temporary fix; in the next cleaning update, unit conversions will be applied and checked. 
+    No flag is placed in this fix, if variable fails it will be caught by the world records check. 
+
+    Input:
+    ------
+        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+
+    Output:
+    -------
+        if QAQC success:
+            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        if failure:
+            None
+    '''
+
+    printf("Running: qaqc_pressure_units_fix", log_file=log_file, verbose=verbose)
+
+    try:
+        # identify pressure variables to check conversion on
+        ps_vars = ['ps', 'psl', 'ps_altimeter', 'ps_derived']
+
+        for var in ps_vars:
+            if var in df.columns:
+                if df[var].mean() < 10000:
+                    df[var] = df[var] * 100.
+                    printf('Pressure units on {} updated to be Pa'.format(var), log_file=log_file, verbose=verbose)
+
+        return df
+    
+    except Exception as e:
+        printf("qaqc_pressure_units_fix failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
