@@ -101,8 +101,9 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     printf("Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb", log_file=log_file, verbose=verbose)
 
     try:
+        df_dpt = df.copy(deep=True)
         # first check that tdps and/or tdps_derived are provided
-        dew_vars = [col for col in df.columns if 'tdps' in col]
+        dew_vars = [col for col in df_dpt.columns if 'tdps' in col]
         all_dew_vars = [var for var in dew_vars if 'qc' not in var] # remove all qc variables so they do not also run through: raw, eraqc
 
         # dew point is not present
@@ -113,8 +114,8 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         else:
             for var in all_dew_vars:
                 # only use valid obs for both dewpoint and air temp
-                df_valid = df.loc[(df['tas_eraqc'].isnull() == True) & (df[var+'_eraqc'].isnull() == True)]                
-                df_valid['dew_depression'] = df_valid['tas'] - df_valid[var]
+                df_valid = df_dpt.loc[(df_dpt['tas_eraqc'].isnull() == True) & (df_dpt[var+'_eraqc'].isnull() == True)]                
+                df_valid = df_valid.assign(dew_depression = df_valid['tas'] - df_valid[var])
                 df_to_check = df_valid.loc[df_valid['dew_depression'] == 0]
                 
                 # identify and flag long streak of dew point depression values = 0
@@ -122,15 +123,15 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                     dpd_to_check = df_valid.loc[(df_valid.time >= t) & (df_valid.time <= (t + datetime.timedelta(days=1)))]['dew_depression']
 
                     if all(v == 0 for v in dpd_to_check):
-                        df.loc[
-                            (df.time >= t) & (df.time <= (t + datetime.timedelta(days=1))), var+'_eraqc'
+                        df_dpt.loc[
+                            (df_dpt.time >= t) & (df_dpt.time <= (t + datetime.timedelta(days=1))), var+'_eraqc'
                             ] = 13 # see qaqc_flag_meanings.csv
 
                 # only print warning flag once
-                if 13 in df[var+'_eraqc'].unique():
+                if 13 in df_dpt[var+'_eraqc'].unique():
                     printf('Flagging extended streak in dewpoint depression', log_file=log_file, verbose=verbose)
         
-        return df
+        return df_dpt
 
     except Exception as e:
         printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file)
