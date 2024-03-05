@@ -24,6 +24,11 @@ except:
     print("Error importing qaqc_unusual_gaps.py")
 from IPython.display import display
 
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):
@@ -559,10 +564,10 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
-    plt.close()
+    plt.close(fig)
 
     return 
 
@@ -710,7 +715,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
     figname = 'qaqc_figs/qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
-    key = '{0}/{1}/{2}.png'.format(directory, network, figname)
+    key = '{0}/{1}/qaqc{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
     img_data.seek(0)

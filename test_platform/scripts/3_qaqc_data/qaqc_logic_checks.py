@@ -27,6 +27,11 @@ def open_log_file_logic(file):
     global log_file
     log_file = file
     
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):

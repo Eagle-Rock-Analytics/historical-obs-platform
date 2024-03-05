@@ -33,6 +33,11 @@ def open_log_file_gaps(file):
     global log_file
     log_file = file
     
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
 def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
@@ -63,52 +68,44 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     '''
 
     # bypass check
-    vars_to_remove = ['index','station','qc','duration','method',
-                      'anemometer_height_m','thermometer_height_m',
-                      'lat','lon','elevation','time','month','year',
-                      'sfcWind_dir','hurs', 
-                      'pr', 'pr_qc', 'pr_depth_qc', 'pr_duration'
-                     ] # list of var substrings to exclude if present in var
+    # vars_to_remove = ['index','station','qc','duration','method',
+    #                   'anemometer_height_m','thermometer_height_m',
+    #                   'lat','lon','elevation','time','month','year',
+    #                   'sfcWind_dir','hurs', 
+    #                   'pr', 'pr_qc', 'pr_depth_qc', 'pr_duration'
+    #                  ] # list of var substrings to exclude if present in var
     
-    vars_to_check = [var for var in df.columns 
-                     if not any(True for item in vars_to_remove if item in var)] # remove all non-primary variables
+    vars_for_gaps = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
+    vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
 
     # in order to grab the time information more easily -- would prefer not to do this
+    df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
-    # This piece will return a dictionary with the var name as key, and values are pd.Series with the
-    # month and the number of years of data
-    # TODO: Use stn_length dictionary to yellow vs red flag stations
-    global stn_length
-    stn_length = map(qaqc_var_length_bypass_check, [df]*len(vars_to_check), vars_to_check)
-    stn_length = {k:v for k,v in zip(vars_to_check, stn_length)}
-    
-    try:
+    # try:
+    if True:
         # whole station bypass check first
-        # df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
-        # if pass_flag == 'fail':
-        #     # Drop month,year vars used for calculations
-        #     df = df.drop(columns=['month','year'])
-        
+        df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
+
         # Calculate the number of years for each variable 
         # It uses the month with the most (max) number of years (or should it be the min?)
         # TODO: Discuss with Victoria this threshold
+        # df is already flagged, just bybass station?
         nYears = np.array([v.max() for k,v in stn_length.items()])
         if (nYears<5).all():  # IF all variables have less than 5 years, bypass whole station
             return df
-
         else:
             df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose, local=local)
             df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose, local=local)
 
         # Drop month,year vars used for calculations                
-        df_part2 = df_part2.drop(columns=['month','year'])
+        df_part2 = df_part2.drop(columns=['hour','month','year'])
         return df_part2
     
-    except Exception as e:
-        printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
-        return None
+    # except Exception as e:
+    #     printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+    #     return None
 
 #-----------------------------------------------------------------------------
 def qaqc_var_length_bypass_check(df, var):
@@ -135,30 +132,22 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbos
     -------------
         19,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality
     """
-    # # Number of years of record for each month (1-12)
-    # stn_month_years = df[[var, "month","year"]].groupby(by=[ "month","year"]).count().groupby("month").count()
+    # This piece will return a dictionary with the var name as key, and values are pd.Series with the
+    # month and the number of years of data
+    global stn_length
+    stn_length = map(qaqc_var_length_bypass_check, [df]*len(vars_to_check), vars_to_check)
+    stn_length = {k:v for k,v in zip(vars_to_check, stn_length)}
     
-    # set up a "pass_flag" to determine if station proceeds through distribution function
-    pass_flag = 'pass'
-    
+    nYears = np.array([v.max() for k,v in stn_length.items()])
+
     for var in vars_to_check:
-        for month in range(1,13):
+        
+        if stn_length[var].max()<5: # | stn_length[var].max()>1: ### MAYBE? less than 5, more than 1? or just less than 5?
+            df.loc[:,var+"_eraqc"] = 50 #YELLOW?
+        elif stn_length[var].max()<1:
+            df.loc[:,var+"_eraqc"] = 60 #RED?
 
-            # first check num of months in order to continue
-            month_to_check = df.loc[df['month'] == month]
-
-            # check for number of obs years
-            if (len(month_to_check.year.unique()) < 5):
-                df[var+'_eraqc'] = 19 # see era_qaqc_flag_meanings.csv
-                pass_flag = 'fail'
-
-    err_statement = '{} has too short of an observation record to proceed through the monthly distribution qa/qc checks -- bypassing station'.format(
-                    df['station'].unique()[0])
-    
-    if pass_flag == 'fail':
-        printf(err_statement, log_file=log_file, verbose=verbose)
-                
-    return (df, pass_flag) 
+    return df, stn_length
 
 #-----------------------------------------------------------------------------
 def qaqc_dist_var_bypass_check(df, var, min_num_months=5):     
@@ -281,13 +270,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
-    # I believe that since what is passed into part2 already checked the whole station, 
-    # doing it again wouldn't be necessary:
-    # # whole station bypass check first
-    # df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
     
-    # if pass_flag != 'fail':
-        
     for var in vars_to_check:
         for month in range(1,13):
 

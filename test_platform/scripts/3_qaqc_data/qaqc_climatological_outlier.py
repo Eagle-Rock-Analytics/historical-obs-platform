@@ -37,6 +37,12 @@ except Exception as e:
 def open_log_file_clim(file):
     global log_file
     log_file = file
+    
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=False, local=False):
@@ -63,6 +69,11 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
         26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     '''
 
+    # in order to grab the time information more easily -- would prefer not to do this
+    df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    
     printf("Running: qaqc_climatological_outlier", log_file=log_file, verbose=verbose)
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
@@ -134,7 +145,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0], local=local) 
         # Drop month,year vars used for calculations
-        df = df.drop(columns=['month','year'])
+        df = df.drop(columns=['hour','month','year'])
         return df
     
     except Exception as e:
