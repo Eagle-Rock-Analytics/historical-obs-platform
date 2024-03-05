@@ -86,7 +86,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     # try:
     if True:
         # whole station bypass check first
-        df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, verbose=verbose)
+        df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh, verbose=verbose)
 
         # Calculate the number of years for each variable 
         # It uses the month with the most (max) number of years (or should it be the min?)
@@ -142,10 +142,8 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbos
 
     for var in vars_to_check:
         
-        if stn_length[var].max()<5: # | stn_length[var].max()>1: ### MAYBE? less than 5, more than 1? or just less than 5?
-            df.loc[:,var+"_eraqc"] = 50 #YELLOW?
-        elif stn_length[var].max()<1:
-            df.loc[:,var+"_eraqc"] = 60 #RED?
+        if stn_length[var].max()<min_num_months: # | stn_length[var].max()>1: ### MAYBE? less than 5, more than 1? or just less than 5?
+            df.loc[:,var+"_eraqc"] = 19  # YELLOW FLAG?
 
     return df, stn_length
 
