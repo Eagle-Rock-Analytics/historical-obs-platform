@@ -237,11 +237,11 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
         
         # Save original df multiindex and create station column
         new_df = df.copy()
-        new_df['hours'] = pd.Series(df['time']).dt.hour.values
-        new_df['day'] = pd.Series(df['time']).dt.day.values
-        new_df['month'] = pd.Series(df['time']).dt.month.values
-        new_df['year'] = pd.Series(df['time']).dt.year.values
-        new_df['date'] = pd.Series(df['time']).dt.date.values
+        new_df['hours'] = pd.to_datetime(df['time']).dt.hour.values
+        new_df['day']   = pd.to_datetime(df['time']).dt.day.values
+        new_df['month'] = pd.to_datetime(df['time']).dt.month.values
+        new_df['year']  = pd.to_datetime(df['time']).dt.year.values
+        new_df['date']  = pd.to_datetime(df['time']).dt.date.values
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
@@ -392,7 +392,7 @@ def hourly_repeats(df, var, threshold):
     """
     
     da = df.copy()
-    da['hours'] = pd.Series(da['time']).dt.hour.values
+    da['hours'] = pd.to_datetime(da['time']).dt.hour.values
     counts = pd.DataFrame(da.groupby(by=["hours",var], group_keys=True).apply(lambda x: np.array(x['time'].tolist())).rename("dates"))
     # counts = da.groupby(by=["hours",var], group_keys=False).apply(lambda x: np.array(x['time'].tolist()))#.rename("dates")
     counts['date_diff'] = counts['dates'].transform(lambda x: pd.Series(x).diff().values.astype("timedelta64[D]"))
@@ -402,8 +402,8 @@ def hourly_repeats(df, var, threshold):
     groups = counts[counts['streaks'].apply(len)>0]
     if len(groups)>0:
         bad = pd.DataFrame({"time"  : np.concatenate(groups['streaks'].values)})
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),
@@ -475,8 +475,8 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     bad = da[da['group'].isin(bad_groups)].copy()
     
     if len(bad)>0:
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),
@@ -538,7 +538,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
             var:datavar.values,
             "time":othervars.time.values}
     da = pd.DataFrame(data)
-    da['date'] = pd.Series(da['time']).dt.date.values
+    da['date'] = pd.to_datetime(da['time']).dt.date.values
     
     # Whole days to analysis
     whole_days = da.groupby(by=['date'])[var].apply(lambda x: np.round(x.values, decimals=1))
@@ -554,13 +554,13 @@ def consecutive_fullDay_repeats(df, var, threshold):
     
     bad_dates = whole_days[whole_days['group'].isin(bad_groups)][['date','group']]
     
-    df['date'] = pd.Series(df['time']).dt.date.values    
+    df['date'] = pd.to_datetime(df['time']).dt.date.values    
     bad = df.copy()[df['date'].isin(bad_dates['date'])]
     bad['group'] = [bad_dates['group'].loc[d] for d in bad['date']]
 
     if len(bad)>0:
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),

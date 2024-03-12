@@ -583,7 +583,7 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     '''
     
     # select month
-    df_to_plot = df.loc[df.time.dt.month == month][var]
+    df_to_plot = df.loc[pd.to_datetime(df.time).dt.month == month][var]
     
     # determine number of bins
     bins = create_bins(df_to_plot)
