@@ -75,7 +75,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     #                   'pr', 'pr_qc', 'pr_depth_qc', 'pr_duration'
     #                  ] # list of var substrings to exclude if present in var
     
-    vars_for_gaps = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
+    vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
 
     # in order to grab the time information more easily -- would prefer not to do this
@@ -268,6 +268,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
+
+    printf("Running: qaqc_dist_gap_part2", log_file=log_file, verbose=verbose)
     
     for var in vars_to_check:
         for month in range(1,13):

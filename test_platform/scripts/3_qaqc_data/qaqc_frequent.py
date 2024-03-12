@@ -68,7 +68,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     printf("Running: qaqc_frequent_vals", log_file=log_file, verbose=verbose)
     
     # this check is only done on air temp, dewpoint temp, and pressure
-    vars_to_remove = ['qc', 'duration', 'method'] # list of var substrings to remove if present in var
+    vars_to_remove = ['qc', 'duration', 'method', 'flag', 'depth'] # list of var substrings to remove if present in var
     vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
