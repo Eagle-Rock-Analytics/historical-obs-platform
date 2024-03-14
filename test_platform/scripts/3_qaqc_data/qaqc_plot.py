@@ -17,6 +17,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
+plt.switch_backend('Agg')
+import time
 
 try:
     from qaqc_unusual_gaps import *
@@ -568,8 +570,9 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     
     # close figure to save memory
     plt.close(fig)
+    plt.close('all')
 
-    return 
+    return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
 
 #============================================================================================================
 def clim_outlier_plot(df, var, month, network, dpi=None, local=False):

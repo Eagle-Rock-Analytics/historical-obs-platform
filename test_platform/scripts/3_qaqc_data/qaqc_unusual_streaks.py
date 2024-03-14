@@ -99,7 +99,8 @@ def infere_res_var(df, var):
 def infere_res(df, verbose=False):
     """
     """
-    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    # check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
     variables = [var for var in check_vars if var in df.columns]
     # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
     # printf(variables, log_file=log_file, verbose=verbose)
@@ -137,6 +138,7 @@ straight_repeat_criteria['tdps_derived'] = straight_repeat_criteria['tdps']
 straight_repeat_criteria['ps'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_derived'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_altimeter'] = straight_repeat_criteria['psl']
+straight_repeat_criteria['rsds'] = straight_repeat_criteria['psl']
 
 #----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -153,6 +155,7 @@ hour_repeat_criteria['ps'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_altimeter'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_derived'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['sfcWind'] = hour_repeat_criteria['tas']
+hour_repeat_criteria['rsds'] = hour_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Day repeat streak criteria
@@ -169,6 +172,7 @@ day_repeat_criteria['ps'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_altimeter'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_derived'] = day_repeat_criteria['tas']
 day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
+day_repeat_criteria['rsds'] = day_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Min wind value for straight repeat test
@@ -230,7 +234,6 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
     printf("Running: qaqc_unusual_repeated_streaks", log_file=log_file, verbose=verbose)
 
     try:
-    # if True:
         
         # Infere resolution from data
         resolutions = infere_res(df)
