@@ -74,12 +74,13 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
-    printf("Running: qaqc_climatological_outlier", log_file=log_file, verbose=verbose)
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
+        printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file)
+
         # whole station bypass check
         df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_anom)
         

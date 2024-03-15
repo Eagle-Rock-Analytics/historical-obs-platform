@@ -89,7 +89,7 @@ def infere_res_var(df, var):
             mode = 0.1
         else:
             mode = rounded_to_whole
-
+        
         if mode<=1:
             return mode
         else:
@@ -234,7 +234,6 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
     printf("Running: qaqc_unusual_repeated_streaks", log_file=log_file, verbose=verbose)
 
     try:
-        
         # Infere resolution from data
         resolutions = infere_res(df)
         
@@ -248,13 +247,12 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
-        # check_vars = ["ps"]
         variables = [var for var in check_vars if var in new_df.columns]
         printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
         
         # Loop through test variables
         for var in variables:
-            
+            print(var)
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
         
@@ -299,6 +297,7 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
            
             # --------------------------------------------------------
             # Groups for zoom plots
+            print('group zoom')
             bad_months = np.concatenate((bad_hourly['month'].values,
                                          bad_straight['month'].values,
                                          bad_whole['month'].values))
@@ -310,12 +309,19 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
                                         bad_whole['time'].values))
             
             bad = pd.DataFrame({"year":bad_years, "month":bad_months, "time":bad_times})
+            print('first bad', len(bad))
             
             bad['consecutive_month_group'] = bad.copy().groupby('year')['month'].transform(consecutive_months)
+            print('second bad', len(bad['consecutive_month_group']))
+            print(bad.head(5))
             bad_min = bad.groupby(by=["year","consecutive_month_group"])['time'].min()
+            print('min', bad_min)
             bad_max = bad.groupby(by=["year","consecutive_month_group"])['time'].max()
+            print('max', bad_max)
             bad = pd.DataFrame(data = {"min_date":bad_min.values,
                                        "max_date":bad_max.values})
+
+            print('third bad', len(bad))
         
             # --------------------------------------------------------
             if plot:
@@ -325,10 +331,11 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
                 for i in bad.index:
                     printf("Subset plots", verbose=verbose, log_file=log_file)
                     da = bad.loc[i]
-                    
+                    print(min_date, max_date)
                     min_date = da.min_date - np.timedelta64(3,'D')
                     max_date = da.min_date + np.timedelta64(3,'D')
                     subset = df.loc[(df['time'] >= min_date) and (df['time'] <= max_date)]
+                    print('subsetting', subset)
                     # subset = np.logical_and(df['time'] >= min_date, 
                     #                         df['time'] <= max_date)
                     unusual_streaks_plot(subset, var, date=min_date+np.timedelta64(3,'D'), local=local)

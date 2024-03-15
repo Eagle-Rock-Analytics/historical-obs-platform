@@ -67,14 +67,6 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         - iqr_thresh preliminarily set to 5 years, pending revision
     '''
 
-    # bypass check
-    # vars_to_remove = ['index','station','qc','duration','method',
-    #                   'anemometer_height_m','thermometer_height_m',
-    #                   'lat','lon','elevation','time','month','year',
-    #                   'sfcWind_dir','hurs', 
-    #                   'pr', 'pr_qc', 'pr_depth_qc', 'pr_duration'
-    #                  ] # list of var substrings to exclude if present in var
-    
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
 
@@ -85,6 +77,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     
     # try:
     if True:
+        printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file)
+
         # whole station bypass check first
         df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh, verbose=verbose)
 
@@ -192,9 +186,9 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
         
-    printf("Running: qaqc_dist_gap_part1", log_file=log_file, verbose=verbose)
-
     for var in vars_to_check:
+        printf("Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var), log_file=log_file, verbose=verbose)
+
         for month in range(1,13): 
             monthly_df = df.loc[df['month']==month]
             
@@ -268,10 +262,9 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision 
     """
-
-    printf("Running: qaqc_dist_gap_part2", log_file=log_file, verbose=verbose)
-    
+   
     for var in vars_to_check:
+        printf("Running unusual gaps check on: {}, qaqc_dist_gap_part2".format(var), log_file=log_file, verbose=verbose)
         for month in range(1,13):
 
             # Sel month data
@@ -290,6 +283,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                 # If all valid obs for the variable are NaNs, continue to next var/month
                 # TODO: Discuss with Victoria about this, should it be flagged?
                 if df_valid[var].isnull().all():
+                    df_valid.loc[(df_valid['month'] == month), var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
                     continue
 
                 # from center of distribution, scan for gaps (where bin = 0)
@@ -415,7 +409,7 @@ def create_bins(data, bin_size=0.25):
     # set up bins
     b_min = np.floor(np.nanmin(data))
     b_max = np.ceil(np.nanmax(data))
-    bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
+    # bins = np.arange(b_min - bin_size, b_max + (3. * bin_size), bin_size)
     bins = np.arange(b_min, b_max, bin_size)
 
     return bins
