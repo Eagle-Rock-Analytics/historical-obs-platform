@@ -286,6 +286,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_missing_latlon', log_file=log_file, verbose=verbose)
+        
     #---------------------------------------------------------
     ## Within WECC -- does not proceed through qaqc if failure
     new_df = qaqc_within_wecc(stn_to_qaqc, verbose=verbose)

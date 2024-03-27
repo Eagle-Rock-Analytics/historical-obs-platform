@@ -678,7 +678,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
+    df.plot(x="time", y=var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
     
     # Amount of data flagged
     nflags = len(flag_vals_0) + len(flag_vals_1) + len(flag_vals_2)
@@ -686,9 +686,9 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     flag_label_0 = "Same hour replication"
     flag_label_1 = "Consecutive replication"
     flag_label_2 = "Whole-day replication"
-    df.loc[df[var+"_eraqc"]==flagvals[0]].plot("time", var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
-    df.loc[df[var+"_eraqc"]==flagvals[1]].plot("time", var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
-    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)    
+    df.loc[df[var+"_eraqc"]==flagvals[0]].plot(x="time", y=var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
+    df.loc[df[var+"_eraqc"]==flagvals[1]].plot(x="time", y=var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
+    df.loc[df[var+"_eraqc"]==flagvals[2]].plot(x="time", y=var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)    
     legend = ax.legend(loc=0, prop={'size': 8})    
     title = ax.set_title(title)    
         
@@ -717,8 +717,8 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_figs/qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
-    key = '{0}/{1}/qaqc{2}.png'.format(directory, network, figname)
+    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
+    key = '{0}/{1}/qaqc_figs/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
     img_data.seek(0)

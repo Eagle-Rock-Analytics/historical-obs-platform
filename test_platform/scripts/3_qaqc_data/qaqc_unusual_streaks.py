@@ -194,7 +194,7 @@ def consecutive_months(series):
     return pd.Series(groups, index=series.index)
 
 #---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, min_sequence_length=10):
+def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min_sequence_length=10):
     """
     Test for repeated streaks/unusual spell frequenc. 
     Three test are conducted here:
@@ -252,7 +252,7 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
         
         # Loop through test variables
         for var in variables:
-            print(var)
+            printf("Running unusual streaks check on: {}".format(var), verbose=verbose, log_file=log_file)
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
         
@@ -297,48 +297,25 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
            
             # --------------------------------------------------------
             # Groups for zoom plots
-            print('group zoom')
-            bad_months = np.concatenate((bad_hourly['month'].values,
-                                         bad_straight['month'].values,
-                                         bad_whole['month'].values))
-            bad_years = np.concatenate((bad_hourly['year'].values,
-                                        bad_straight['year'].values,
-                                        bad_whole['year'].values))
-            bad_times = np.concatenate((bad_hourly['time'].values,
-                                        bad_straight['time'].values,
-                                        bad_whole['time'].values))
-            
-            bad = pd.DataFrame({"year":bad_years, "month":bad_months, "time":bad_times})
-            print('first bad', len(bad))
-            
-            bad['consecutive_month_group'] = bad.copy().groupby('year')['month'].transform(consecutive_months)
-            print('second bad', len(bad['consecutive_month_group']))
-            print(bad.head(5))
-            bad_min = bad.groupby(by=["year","consecutive_month_group"])['time'].min()
-            print('min', bad_min)
-            bad_max = bad.groupby(by=["year","consecutive_month_group"])['time'].max()
-            print('max', bad_max)
-            bad = pd.DataFrame(data = {"min_date":bad_min.values,
-                                       "max_date":bad_max.values})
+            bad_times = df.groupby([pd.Grouper(key="time", freq='W')])['time'].min() # start of week
+            bad_counts = df.groupby([pd.Grouper(key="time", freq='W')])[var + '_eraqc'].count() # how many non-flagged counts
 
-            print('third bad', len(bad))
+            # trim out any 0 counts for only flagged weeks
+            bad = pd.DataFrame({"dt":bad_times, "count":bad_counts})
+            bad_to_run = bad.loc[(bad['count']!=0)]
         
             # --------------------------------------------------------
             if plot:
-                printf("Full timeseries plot", verbose=verbose, log_file=log_file)
                 unusual_streaks_plot(df, var, local=local)
-                
-                for i in bad.index:
-                    printf("Subset plots", verbose=verbose, log_file=log_file)
-                    da = bad.loc[i]
-                    print(min_date, max_date)
-                    min_date = da.min_date - np.timedelta64(3,'D')
-                    max_date = da.min_date + np.timedelta64(3,'D')
-                    subset = df.loc[(df['time'] >= min_date) and (df['time'] <= max_date)]
-                    print('subsetting', subset)
-                    # subset = np.logical_and(df['time'] >= min_date, 
-                    #                         df['time'] <= max_date)
-                    unusual_streaks_plot(subset, var, date=min_date+np.timedelta64(3,'D'), local=local)
+                # printf("Full timeseries plot produced", verbose=verbose, log_file=log_file)
+
+                for i in bad_to_run.dt:
+                    min_date = i
+                    max_date = i + np.timedelta64(7,'D')
+                    subset = df.loc[(df['time'] >= min_date) & (df['time'] <= max_date)]
+                    # print(subset.head(5))
+                    unusual_streaks_plot(subset, var, date=i, local=local)
+                printf('{} subset plots produced for flagged obs in {}'.format(len(bad_to_run), var), verbose=verbose, log_file=log_file)
         
         return df
     except Exception as e:
