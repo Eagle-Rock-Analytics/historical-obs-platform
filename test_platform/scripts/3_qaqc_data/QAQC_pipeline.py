@@ -329,15 +329,15 @@ def run_qaqc_pipeline(ds, network, file_name,
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
     #---------------------------------------------------------
     ## Pressure units fix (temporary)
-    # new_df = qaqc_pressure_units_fix(stn_to_qaqc, verbose=verbose)
-    # if new_df is None:
-    #     errors = print_qaqc_failed(errors, station, end_api, 
-    #                             message="Flagging problem with world record check", 
-    #                             test="qaqc_pressure_units_fix",
-    #                             verbose=verbose)
-    # else:
-    #     stn_to_qaqc = new_df
-    #     printf('pass qaqc_pressure_units_fix', log_file=log_file, verbose=verbose)    
+    new_df = qaqc_pressure_units_fix(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(errors, station, end_api, 
+                                message="Flagging problem with world record check", 
+                                test="qaqc_pressure_units_fix",
+                                verbose=verbose)
+    else:
+        stn_to_qaqc = new_df
+        printf('pass qaqc_pressure_units_fix', log_file=log_file, verbose=verbose)    
 
     #---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
@@ -578,7 +578,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         
         # Loop over stations
         # for station in stations_sample:
-        for station in ['ASOSAWOS_72789094197']:
             
             #----------------------------------------------------------------------------
             ## Set log file

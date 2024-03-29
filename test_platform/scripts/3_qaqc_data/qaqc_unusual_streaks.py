@@ -10,6 +10,7 @@ import pandas as pd
 import requests
 import urllib
 import xarray as xr
+import datetime
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 try:
@@ -247,6 +248,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
+
         variables = [var for var in check_vars if var in new_df.columns]
         printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
         
@@ -271,7 +273,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
             # --------------------------------------------------------
             # Hour repeat streak criteria
             threshold = hour_repeat_criteria[var][res]
-            bad_hourly = hourly_repeats(test_df, var, threshold)            
+            bad_hourly = hourly_repeats(test_df, var, threshold)
             ind = df['time'].isin(bad_hourly['time']) 
             df.loc[ind, var+"_eraqc"] = 27    # Flag _eraqc variable
 
@@ -310,9 +312,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                 # printf("Full timeseries plot produced", verbose=verbose, log_file=log_file)
 
                 for i in bad_to_run.dt:
-                    min_date = i
-                    max_date = i + np.timedelta64(7,'D')
-                    subset = df.loc[(df['time'] >= min_date) & (df['time'] <= max_date)]
+                    subset = df.loc[(df.time >= i) & (df.time <= (i+datetime.timedelta(days=7)))]
                     # print(subset.head(5))
                     unusual_streaks_plot(subset, var, date=i, local=local)
                 printf('{} subset plots produced for flagged obs in {}'.format(len(bad_to_run), var), verbose=verbose, log_file=log_file)
