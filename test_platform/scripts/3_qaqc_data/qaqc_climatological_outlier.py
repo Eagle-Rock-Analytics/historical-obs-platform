@@ -37,6 +37,12 @@ except Exception as e:
 def open_log_file_clim(file):
     global log_file
     log_file = file
+    
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=False, local=False):
@@ -63,12 +69,18 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
         26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     '''
 
-    printf("Running: qaqc_climatological_outlier", log_file=log_file, verbose=verbose)
+    # in order to grab the time information more easily -- would prefer not to do this
+    df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
+    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
+        printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file)
+
         # whole station bypass check
         df, pass_flag = qaqc_dist_whole_stn_bypass_check(df, vars_to_anom)
         
@@ -100,7 +112,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
 
                 for month in range(1,13):
 
-                    df_m = df_std.loc[df_valid.time.dt.month == month]
+                    df_m = df_std.loc[df_valid['month'] == month]
 
                     # some months will be missing data
                     if len(df_m) == 0:
@@ -134,7 +146,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0], local=local) 
         # Drop month,year vars used for calculations
-        df = df.drop(columns=['month','year'])
+        df = df.drop(columns=['hour','month','year'])
         return df
     
     except Exception as e:
@@ -145,7 +157,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
 def clim_mon_mean_hourly(df, var, month, hour):
     '''Calculate the monthly mean climatology for each of the day'''
     
-    df_m_h = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)]
+    df_m_h = df.loc[(df['month'] == month) & (df['hour'] == hour)]
     clim_value = df_m_h[var].mean(numeric_only = True)
     
     # special handling if value is nan? 
@@ -156,8 +168,8 @@ def clim_mon_mean_hourly(df, var, month, hour):
 def iqr_range_monhour(df, var, month, hour):
     '''Calculates the monthly interquartile range per hour'''
     
-    q1 = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)].quantile(0.25, numeric_only=True)
-    q3 = df.loc[(df.time.dt.month == month) & (df.time.dt.hour == hour)].quantile(0.75, numeric_only=True)
+    q1 = df.loc[(df['month'] == month) & (df['hour'] == hour)].quantile(0.25, numeric_only=True)
+    q3 = df.loc[(df['month'] == month) & (df['hour'] == hour)].quantile(0.75, numeric_only=True)
     
     iqr_df = q3 - q1
     iqr_df_val = iqr_df[var]
@@ -187,11 +199,11 @@ def clim_standardized_anom(df, vars_to_anom):
                 iqr_value = iqr_range_monhour(df, var, month=m, hour=h)
                 
                 # locate obs within specific month/hour
-                df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
+                df_m_h = df.loc[(df['month'] == m) & (df['hour'] == h)]
                 
                 # calculate the monthly climatological anomaly by hour and standardize by iqr
-                df2.loc[(df.time.dt.month == m) & 
-                        (df.time.dt.hour == h), 
+                df2.loc[(df['month'] == m) & 
+                        (df['hour'] == h), 
                         var] = (df_m_h[var] - anom_value) / iqr_value
                 
     return df2
@@ -208,15 +220,15 @@ def winsorize_temps(df, vars_to_anom, winz_limits):
     for var in vars_to_anom:
         for m in range(1,13,1):
             for h in range(0,24,1):
-                if h not in df.loc[df.time.dt.hour == h]:
+                if h not in df.loc[df['hour'] == h]:
                     continue # some stations only report some hours
                 else:
-                    df_m_h = df.loc[(df.time.dt.month == m) & (df.time.dt.hour == h)]
+                    df_m_h = df.loc[(df['month'] == m) & (df['hour'] == h)]
 
                     # winsorize only vars in vars_to_anom
                     df_w = stats.mstats.winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
 
-                    df2.loc[(df.time.dt.month == m) & (df.time.dt.hour == h),
+                    df2.loc[(df['month'] == m) & (df['hour'] == h),
                            var] = df_w
                 
     return df2
@@ -228,10 +240,10 @@ def median_yr_anom(df, var):
     monthly_anoms = []
     
     # identify years in data
-    years = df.time.dt.year.unique()
+    years = df['year'].unique()
     
     for yr in years:
-        df_yr = df.loc[df.time.dt.year == yr]
+        df_yr = df.loc[df['year'] == yr]
 
         ann_anom = df_yr[var].median()
         monthly_anoms.append(ann_anom)
@@ -265,7 +277,7 @@ def low_pass_filter(df, vars_to_anom):
     causing overzealous removal at ends of time series
     '''
     # identify years in data
-    years = df.time.dt.year.unique()
+    years = df['year'].unique()
     
     for var in vars_to_anom:
         
@@ -296,7 +308,7 @@ def low_pass_filter(df, vars_to_anom):
                 weights = low_pass_filter_weights(median_anoms, month_low, month_high, filter_low, filter_high)
                       
             # want to return specific year of data at a specific variable, the variable minus weight value
-            df.loc[(df.time.dt.year == years[yr]), var] = df.loc[df.time.dt.year == years[yr]][var] - weights
+            df.loc[(df['year'] == years[yr]), var] = df.loc[df['year'] == years[yr]][var] - weights
             
     return df
 

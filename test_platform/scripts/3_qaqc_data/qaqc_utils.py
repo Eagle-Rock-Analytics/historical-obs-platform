@@ -54,6 +54,7 @@ def printf(*args, verbose=True, log_file=None, **kwargs):
     import datetime
     
     tLog = lambda : datetime.datetime.utcnow().strftime("%m-%d-%Y %H:%M:%S") + " : \t"
+    args = [str(a) for a in args]
     
     if verbose:
         if log_file is not None:

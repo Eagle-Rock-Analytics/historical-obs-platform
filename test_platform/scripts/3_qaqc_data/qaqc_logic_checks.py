@@ -26,6 +26,12 @@ except Exception as e:
 def open_log_file_logic(file):
     global log_file
     log_file = file
+    
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
@@ -163,7 +169,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     printf("Running: qaqc_precip_logic_nonegvals", log_file=log_file, verbose=verbose)
     
     # identify which precipitation vars are reported by a station
-    vars_to_remove = ['qc', 'duration', 'method']
+    vars_to_remove = ['qc', 'duration', 'method', 'depth']
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
     pr_vars = [var for var in all_pr_vars if not any(True for item in vars_to_remove if item in var)] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
     printf('Running qaqc_precip_logic_nonegvals on: {}'.format(pr_vars), log_file=log_file, verbose=verbose)
@@ -221,7 +227,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
     printf("Running: qaqc_precip_logic_accum_amounts", log_file=log_file, verbose=verbose)
 
     # identify which precipitation vars are reported by a station
-    vars_to_remove = ['qc', 'duration', 'method']
+    vars_to_remove = ['qc', 'duration', 'method', 'depth']
     all_pr_vars = [var for var in df.columns if 'pr' in var] # can be variable length depending if there is a raw qc var
     pr_vars = [var for var in all_pr_vars if not any(True for item in vars_to_remove if item in var)] # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
 

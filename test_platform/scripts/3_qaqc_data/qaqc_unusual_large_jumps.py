@@ -11,12 +11,17 @@ import pandas as pd
 import requests
 import urllib
 import datetime
+import time
 import math
 import shapely
 import xarray as xr
 import matplotlib.pyplot as plt
+import matplotlib
 from io import BytesIO, StringIO
 import scipy.stats as stats
+from multiprocessing.pool import ThreadPool
+plt.switch_backend('Agg')
+matplotlib.rc('figure', max_open_warning = 120)
 
 ## Import plotting functions
 try:
@@ -32,6 +37,24 @@ except Exception as e:
 def open_log_file_spikes(file):
     global log_file
     log_file = file
+    
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
+#---------------------------------------------------------------------------
+# Parallel plotting and updating to AWS
+def parallel_plotting_wrapper(da):
+    df,var,i,local = da
+    subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) &
+                    (df.index <= i + datetime.timedelta(hours=48))]
+    return unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
+
+def parallel_upload_wrapper(figs):
+    fig_object, fig_path = figs
+    boto3.resource('s3').Bucket('wecc-historical-wx').upload_file(fig_object, fig_path)
+    
 #-----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=False):
@@ -70,7 +93,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     """
 
     printf("Running: qaqc_unusual_large_jumps", log_file=log_file, verbose=verbose)
-
+    INDEX = df.index
     df = df.copy(deep=True)
     df.set_index(df['time'], inplace=True)
     df.drop(columns=['time'], inplace=True)
@@ -107,25 +130,41 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             # Flag _eraqc variable
             for i in ind:
                 df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
-            
-            if plot:
-                # unusual_jumps_plot(df, var, flagval=23, local=local) # commenting out - will be captured by flagged_timeseries
+
+            #================================================================================
+            # This next part needs to be in parallel (if large number of plots), since for some stations
+            # the number of jumnps detected is large, is this is a bottleneck
+            # TODO: check that all the jumps are actually spikes and thus need to be plotted
+            if len(ind)>40:
+                # printf("plotting jumps in parallel", verbose=verbose, log_file=log_file)
+                t0 = time.time()
+                pool = ThreadPool(processes=64)
+                da = [(df,var,i,local) for i in ind]
+                figs = pool.map(parallel_plotting_wrapper, da)
+                # printf("plotting time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+                t0 = time.time()
+                pool.map(parallel_upload_wrapper, figs)
+                # printf("upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+            else:
+                # printf("plottng jumps serially", verbose=verbose, log_file=log_file)
+                t0 = time.time()
                 for i in ind:
                     try:
-                    # if True:
-                        subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) & 
+                        subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) &
                                         (df.index <= i + datetime.timedelta(hours=48))]
-                        # subset = np.logical_and(df.index >= i - np.timedelta64(48,'h'), 
-                        #                     df.index <= i + np.timedelta64(48,'h'))
-                        unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
+                        fig = unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
+                        parallel_upload_wrapper(fig)
                     except:
-                    # else:
                         printf('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var), log_file=log_file, verbose=verbose)
                         continue
-
-        return df.reset_index()
+                # printf("plot and upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+            #================================================================================
+        
+        df['time'] = df.index.values
+        df = df.set_index(INDEX)    
         return df
 
+    # else:
     except Exception as e:
         printf("qaqc_unusual_large_jumps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None

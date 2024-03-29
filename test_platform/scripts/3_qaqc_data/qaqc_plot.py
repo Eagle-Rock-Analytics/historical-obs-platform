@@ -17,12 +17,19 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
+plt.switch_backend('Agg')
+import time
 
 try:
     from qaqc_unusual_gaps import *
 except:
     print("Error importing qaqc_unusual_gaps.py")
 from IPython.display import display
+
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
 
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
@@ -165,7 +172,8 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False):
             bucket.put_object(Body=img_data, ContentType='image/png',
                         Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                         directory, network, figname))
-
+            
+            # save locally if needed
             if local:
                 fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
             
@@ -232,6 +240,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
+    # save locally if needed
     if local:
         fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
@@ -400,7 +409,8 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     bucket.put_object(Body=img_data, ContentType='image/png',
                  Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                  directory, network, figname))
-    
+
+    # save locally if needed
     if local:
         fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
@@ -477,6 +487,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
 
+    # Save locally if needed
     if local:
         fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
@@ -555,12 +566,13 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        fig.savefig('{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
-    plt.close()
+    plt.close(fig)
+    plt.close('all')
 
-    return 
+    return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
 
 #============================================================================================================
 def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
@@ -574,7 +586,7 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     '''
     
     # select month
-    df_to_plot = df.loc[df.time.dt.month == month][var]
+    df_to_plot = df.loc[pd.to_datetime(df.time).dt.month == month][var]
     
     # determine number of bins
     bins = create_bins(df_to_plot)
@@ -634,7 +646,8 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
         fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
 
     # close figures to save memory
-    plt.close()
+    plt.close(fig)
+    plt.close('all')
 
     return
 
@@ -646,39 +659,40 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     -----
         df [pd.Dataframe] : station pd.DataFrame from qaqc pipeline
         var [str] : variable name
-        flagval [int] : flag value to plot (22 for unusual large jumps)
+        flagval [int] : flag value to plot (27, 28, 29 for unusual streaks)
         dpi [int] : resolution for png plots
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
     Ouput:
     ----- 
         None
     """
-    
-    # grab flagged data
-    flag_vals_0 = df.loc[df[var + '_eraqc'] == flagvals[0]]   
-    flag_vals_1 = df.loc[df[var + '_eraqc'] == flagvals[1]]   
-    flag_vals_2 = df.loc[df[var + '_eraqc'] == flagvals[2]]   
-    
-    # Create figure
-    if date is not None:
-        fig,ax = plt.subplots(figsize=(7,3))
-    else:
-        fig,ax = plt.subplots(figsize=(10,3))
+
+    fig = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    df.plot("time", var, ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
+    ax = df.plot(x="time", y=var, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
+
+    # grab flagged data
+    flag_vals_0 = df.loc[df[var + '_eraqc'] == 27]   
+    flag_vals_1 = df.loc[df[var + '_eraqc'] == 28]   
+    flag_vals_2 = df.loc[df[var + '_eraqc'] == 29] 
     
     # Amount of data flagged
-    nflags = len(flag_vals_0) + len(flag_vals_1) + len(flag_vals_2)
-    title = "{:.4f}% of data flagged".format(100*nflags/len(df))
     flag_label_0 = "Same hour replication"
     flag_label_1 = "Consecutive replication"
     flag_label_2 = "Whole-day replication"
-    df.loc[df[var+"_eraqc"]==flagvals[0]].plot("time", var, ax=ax, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)    
-    df.loc[df[var+"_eraqc"]==flagvals[1]].plot("time", var, ax=ax, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)    
-    df.loc[df[var+"_eraqc"]==flagvals[2]].plot("time", var, ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)    
+
+    # if no flags are present, it messes with time x axis labels
+    if len(flag_vals_0) != 0:
+        flag_vals_0.plot(ax=ax, x="time", y=var, marker="s", ms=7, lw=0, mfc="none", color="C3", label=flag_label_0)  
+    
+    if len(flag_vals_1) != 0:
+        flag_vals_1.plot(ax=ax, x="time", y=var, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)  
+
+    if len(flag_vals_2) != 0: 
+        flag_vals_2.plot(ax=ax, x="time", y=var, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)   
+     
     legend = ax.legend(loc=0, prop={'size': 8})    
-    title = ax.set_title(title)    
         
     station = df['station'].unique()[0]
     network = station.split('_')[0]
@@ -690,7 +704,7 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
-    # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
+    # # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
     if date is not None:
         timestamp = str(date).split(":")[0].replace(" ","T")
     else:
@@ -705,20 +719,21 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_figs/qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
-    key = '{0}/{1}/{2}.png'.format(directory, network, figname)
+    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
+    key = '{0}/{1}/qaqc_figs/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
-    fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
+    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight") 
     
     # close figure to save memory
-    plt.close()
+    plt.close(fig)
+    plt.close('all')
 
     return 
 

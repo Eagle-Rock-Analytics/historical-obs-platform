@@ -31,6 +31,11 @@ except Exception as e:
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+# #FOR DEBUG
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+
 #======================================================================
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
@@ -513,4 +518,8 @@ def flag_summary(df, verbose=False, local=False):
               verbose=verbose, log_file=log_file) # % of coverage flagged
 
     for var in obs_vars:
-        flagged_timeseries_plot(df, var)
+        try:
+            flagged_timeseries_plot(df, var)
+        except Exception as e:
+            printf("flagged_timeseries_plot failed for {} with Exception: {}".format(var, e), log_file=log_file, verbose=verbose)
+            

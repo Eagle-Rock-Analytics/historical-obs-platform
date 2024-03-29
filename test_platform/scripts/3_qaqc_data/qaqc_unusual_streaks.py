@@ -10,6 +10,7 @@ import pandas as pd
 import requests
 import urllib
 import xarray as xr
+import datetime
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 try:
@@ -89,7 +90,7 @@ def infere_res_var(df, var):
             mode = 0.1
         else:
             mode = rounded_to_whole
-
+        
         if mode<=1:
             return mode
         else:
@@ -99,7 +100,8 @@ def infere_res_var(df, var):
 def infere_res(df, verbose=False):
     """
     """
-    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    # check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
     variables = [var for var in check_vars if var in df.columns]
     # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
     # printf(variables, log_file=log_file, verbose=verbose)
@@ -137,6 +139,7 @@ straight_repeat_criteria['tdps_derived'] = straight_repeat_criteria['tdps']
 straight_repeat_criteria['ps'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_derived'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_altimeter'] = straight_repeat_criteria['psl']
+straight_repeat_criteria['rsds'] = straight_repeat_criteria['psl']
 
 #----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -153,6 +156,7 @@ hour_repeat_criteria['ps'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_altimeter'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_derived'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['sfcWind'] = hour_repeat_criteria['tas']
+hour_repeat_criteria['rsds'] = hour_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Day repeat streak criteria
@@ -169,6 +173,7 @@ day_repeat_criteria['ps'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_altimeter'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_derived'] = day_repeat_criteria['tas']
 day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
+day_repeat_criteria['rsds'] = day_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Min wind value for straight repeat test
@@ -190,7 +195,7 @@ def consecutive_months(series):
     return pd.Series(groups, index=series.index)
 
 #---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, min_sequence_length=10):
+def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min_sequence_length=10):
     """
     Test for repeated streaks/unusual spell frequenc. 
     Three test are conducted here:
@@ -230,28 +235,26 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
     printf("Running: qaqc_unusual_repeated_streaks", log_file=log_file, verbose=verbose)
 
     try:
-    # if True:
-        
         # Infere resolution from data
         resolutions = infere_res(df)
         
         # Save original df multiindex and create station column
         new_df = df.copy()
-        new_df['hours'] = pd.Series(df['time']).dt.hour.values
-        new_df['day'] = pd.Series(df['time']).dt.day.values
-        new_df['month'] = pd.Series(df['time']).dt.month.values
-        new_df['year'] = pd.Series(df['time']).dt.year.values
-        new_df['date'] = pd.Series(df['time']).dt.date.values
+        new_df['hours'] = pd.to_datetime(df['time']).dt.hour.values
+        new_df['day']   = pd.to_datetime(df['time']).dt.day.values
+        new_df['month'] = pd.to_datetime(df['time']).dt.month.values
+        new_df['year']  = pd.to_datetime(df['time']).dt.year.values
+        new_df['date']  = pd.to_datetime(df['time']).dt.date.values
         
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
-        # check_vars = ["ps"]
+        check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
+
         variables = [var for var in check_vars if var in new_df.columns]
         printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
         
         # Loop through test variables
         for var in variables:
-            
+            printf("Running unusual streaks check on: {}".format(var), verbose=verbose, log_file=log_file)
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
         
@@ -270,7 +273,7 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
             # --------------------------------------------------------
             # Hour repeat streak criteria
             threshold = hour_repeat_criteria[var][res]
-            bad_hourly = hourly_repeats(test_df, var, threshold)            
+            bad_hourly = hourly_repeats(test_df, var, threshold)
             ind = df['time'].isin(bad_hourly['time']) 
             df.loc[ind, var+"_eraqc"] = 27    # Flag _eraqc variable
 
@@ -296,39 +299,23 @@ def qaqc_unusual_repeated_streaks(df, plot=False, local=False, verbose=False, mi
            
             # --------------------------------------------------------
             # Groups for zoom plots
-            bad_months = np.concatenate((bad_hourly['month'].values,
-                                         bad_straight['month'].values,
-                                         bad_whole['month'].values))
-            bad_years = np.concatenate((bad_hourly['year'].values,
-                                        bad_straight['year'].values,
-                                        bad_whole['year'].values))
-            bad_times = np.concatenate((bad_hourly['time'].values,
-                                        bad_straight['time'].values,
-                                        bad_whole['time'].values))
-            
-            bad = pd.DataFrame({"year":bad_years, "month":bad_months, "time":bad_times})
-            
-            bad['consecutive_month_group'] = bad.copy().groupby('year')['month'].transform(consecutive_months)
-            bad_min = bad.groupby(by=["year","consecutive_month_group"])['time'].min()
-            bad_max = bad.groupby(by=["year","consecutive_month_group"])['time'].max()
-            bad = pd.DataFrame(data = {"min_date":bad_min.values,
-                                       "max_date":bad_max.values})
+            bad_times = df.groupby([pd.Grouper(key="time", freq='W')])['time'].min() # start of week
+            bad_counts = df.groupby([pd.Grouper(key="time", freq='W')])[var + '_eraqc'].count() # how many non-flagged counts
+
+            # trim out any 0 counts for only flagged weeks
+            bad = pd.DataFrame({"dt":bad_times, "count":bad_counts})
+            bad_to_run = bad.loc[(bad['count']!=0)]
         
             # --------------------------------------------------------
             if plot:
-                printf("Full timeseries plot", verbose=verbose, log_file=log_file)
                 unusual_streaks_plot(df, var, local=local)
-                
-                for i in bad.index:
-                    printf("Subset plots", verbose=verbose, log_file=log_file)
-                    da = bad.loc[i]
-                    
-                    min_date = da.min_date - np.timedelta64(3,'D')
-                    max_date = da.min_date + np.timedelta64(3,'D')
-                    subset = df.loc[(df['time'] >= min_date) and (df['time'] <= max_date)]
-                    # subset = np.logical_and(df['time'] >= min_date, 
-                    #                         df['time'] <= max_date)
-                    unusual_streaks_plot(subset, var, date=min_date+np.timedelta64(3,'D'), local=local)
+                # printf("Full timeseries plot produced", verbose=verbose, log_file=log_file)
+
+                for i in bad_to_run.dt:
+                    subset = df.loc[(df.time >= i) & (df.time <= (i+datetime.timedelta(days=7)))]
+                    # print(subset.head(5))
+                    unusual_streaks_plot(subset, var, date=i, local=local)
+                printf('{} subset plots produced for flagged obs in {}'.format(len(bad_to_run), var), verbose=verbose, log_file=log_file)
         
         return df
     except Exception as e:
@@ -392,7 +379,7 @@ def hourly_repeats(df, var, threshold):
     """
     
     da = df.copy()
-    da['hours'] = pd.Series(da['time']).dt.hour.values
+    da['hours'] = pd.to_datetime(da['time']).dt.hour.values
     counts = pd.DataFrame(da.groupby(by=["hours",var], group_keys=True).apply(lambda x: np.array(x['time'].tolist())).rename("dates"))
     # counts = da.groupby(by=["hours",var], group_keys=False).apply(lambda x: np.array(x['time'].tolist()))#.rename("dates")
     counts['date_diff'] = counts['dates'].transform(lambda x: pd.Series(x).diff().values.astype("timedelta64[D]"))
@@ -402,8 +389,8 @@ def hourly_repeats(df, var, threshold):
     groups = counts[counts['streaks'].apply(len)>0]
     if len(groups)>0:
         bad = pd.DataFrame({"time"  : np.concatenate(groups['streaks'].values)})
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),
@@ -475,8 +462,8 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     bad = da[da['group'].isin(bad_groups)].copy()
     
     if len(bad)>0:
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),
@@ -538,7 +525,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
             var:datavar.values,
             "time":othervars.time.values}
     da = pd.DataFrame(data)
-    da['date'] = pd.Series(da['time']).dt.date.values
+    da['date'] = pd.to_datetime(da['time']).dt.date.values
     
     # Whole days to analysis
     whole_days = da.groupby(by=['date'])[var].apply(lambda x: np.round(x.values, decimals=1))
@@ -554,13 +541,13 @@ def consecutive_fullDay_repeats(df, var, threshold):
     
     bad_dates = whole_days[whole_days['group'].isin(bad_groups)][['date','group']]
     
-    df['date'] = pd.Series(df['time']).dt.date.values    
+    df['date'] = pd.to_datetime(df['time']).dt.date.values    
     bad = df.copy()[df['date'].isin(bad_dates['date'])]
     bad['group'] = [bad_dates['group'].loc[d] for d in bad['date']]
 
     if len(bad)>0:
-        bad['month'] = bad.loc[:, 'time'].dt.month.values
-        bad['year']  = bad.loc[:, 'time'].dt.year.values
+        bad['month'] = pd.to_datetime(bad.loc[:, 'time']).dt.month.values
+        bad['year']  = pd.to_datetime(bad.loc[:, 'time']).dt.year.values
     else:
         bad = pd.DataFrame({"time"  : np.array([], dtype='datetime64[ns]'),
                             "month" : np.array([], dtype=np.int64),
