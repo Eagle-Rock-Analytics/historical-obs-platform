@@ -667,10 +667,10 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
         None
     """
 
-    fig = plt.subplots(figsize=(10,3))
+    fig, ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
-    ax = df.plot(x="time", y=var, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
+    df.plot(ax=ax, x="time", y=var, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
 
     # grab flagged data
     flag_vals_0 = df.loc[df[var + '_eraqc'] == 27]   
@@ -722,18 +722,17 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
     key = '{0}/{1}/qaqc_figs/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
-    plt.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
+    fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType='image/png', Key=key)
     
     if local:
-        plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight") 
+        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight") 
     
     # close figure to save memory
-    plt.close(fig)
-    plt.close('all')
+    plt.close()
 
     return 
 
