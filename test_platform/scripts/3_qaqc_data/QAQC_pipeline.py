@@ -567,9 +567,6 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         -----------------------------------
         for station in stations: # full run
         -----------------------------------
-        for station in ['ASOSAWOS_72676324198']: 
-        this is the smallest ASOSAWOS file
-        -----------------------------------
         """
         # TESTING SUBSET
         stations_sample = stations.sample(1)
@@ -577,7 +574,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        # for station in stations_sample:
+        for station in stations_sample:
             
             #----------------------------------------------------------------------------
             ## Set log file

@@ -248,7 +248,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind", "rsds"]
-
         variables = [var for var in check_vars if var in new_df.columns]
         printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
         
