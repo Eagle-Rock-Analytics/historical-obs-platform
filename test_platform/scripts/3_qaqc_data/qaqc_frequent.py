@@ -81,11 +81,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         
         for var in vars_to_check:
             printf('Running frequent values check on: {}'.format(var), log_file=log_file, verbose=verbose)
-
-            # only use valid obs
-            df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
+            df_valid = grab_valid_obs(df, var) # subset for valid obs
             
-            # first scans suspect values using entire record
+            # first scans suspect values using entire record -- this is the per variable check?
             # all years
             if df_valid[var].isna().all() == True:
                 continue # bypass to next variable if all obs are nans 
@@ -180,12 +178,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ['ps', 'ps_altimeter', 'psl', 'ps_derived']
-    
-    # ## TEMPORARY BUG FIX ON PSL UNIT ==================================================================
-    # if var=='psl':
-    #     if len(str(df.loc[df.index == df['psl'].first_valid_index(), 'psl'].values[0]).split('.')[0]) <= 4:
-    #         df['psl'] = df['psl'] * 100
-    # ## END TEMPORARY FIX ==============================================================================
     
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size

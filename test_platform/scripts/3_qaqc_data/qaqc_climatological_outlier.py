@@ -74,7 +74,6 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
     df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
-    
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
@@ -90,7 +89,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             for var in vars_to_anom:      
                 # only work with non-flagged values
                 printf('Checking for climatological outliers in: {}'.format(var), log_file=log_file, verbose=verbose)
-                df_valid = df.loc[df[var+'_eraqc'].isnull() == True]
+                df_valid = grab_valid_obs(df, var) # subset for valid obs
 
                 # winsorize data by percentiles
                 if winsorize == True:
@@ -111,7 +110,6 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                     # May be later reinstated on comparison with good data from neighboring stations
 
                 for month in range(1,13):
-
                     df_m = df_std.loc[df_valid['month'] == month]
 
                     # some months will be missing data
@@ -140,9 +138,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                                 for i in idx_to_flag:
                                     df.loc[df.index == i, var+'_eraqc'] = 26 # see era_qaqc_flag_meanings.csv 
 
-            if plot:
-                for var in vars_to_anom:
-                    for month in range(1,13):
+                    if plot:
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0], local=local) 
         # Drop month,year vars used for calculations

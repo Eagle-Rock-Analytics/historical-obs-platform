@@ -118,9 +118,6 @@ def qaqc_missing_latlon(df, verbose=False):
 
     if df['lon'].isnull().all():
         return None
-
-    # df['lon'] = df['lon'].fillna(method="pad")
-    # df['lat'] = df['lon'].fillna(method="pad")
     
     return df
         
@@ -355,6 +352,8 @@ def qaqc_sensor_height_t(df, verbose=False):
         7,qaqc_sensor_height_t,Thermometer height not 2 meters
     '''
 
+    # TODO: Add red vs. yellow flagging in, v2
+
     printf("Running: qaqc_sensor_height_t", log_file=log_file, verbose=verbose)
 
     try:
@@ -362,7 +361,6 @@ def qaqc_sensor_height_t(df, verbose=False):
         isHeightMissing = df['thermometer_height_m'].isnull().any()
 
         if isHeightMissing:
-            # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             printf('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         else:
@@ -404,6 +402,7 @@ def qaqc_sensor_height_w(df, verbose=False):
         8,qaqc_sensor_height_w,Anemometer height missing
         9,qaqc_sensor_height_w,Anemometer height not 10 meters
     '''
+    # TODO: Add red vs. yellow flagging in, v2
 
     printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
 
@@ -485,8 +484,9 @@ def qaqc_world_record(df, verbose=False):
 
         for var in wr_vars:
             if var in list(df.columns):
-                isOffRecord = np.logical_or(df[var] < mins[var]['North_America'],
-                                            df[var] > maxes[var]['North_America'])
+                df_valid = grab_valid_obs(df, var) # subset for valid obs
+                isOffRecord = np.logical_or(df_valid[var] < mins[var]['North_America'],
+                                            df_valid[var] > maxes[var]['North_America'])
                 if isOffRecord.any():
                     df.loc[isOffRecord, var + '_eraqc'] = 11 # see era_qaqc_flag_meanings.csv
         return df

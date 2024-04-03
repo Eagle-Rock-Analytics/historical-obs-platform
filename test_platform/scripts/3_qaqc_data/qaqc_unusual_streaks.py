@@ -258,8 +258,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
             test_df = new_df.copy().dropna(subset=var)
         
             # Use only values that have not been flagged by previous QAQC tests
-            valid = np.where(np.isnan(test_df[var+"_eraqc"]))[0]
-            test_df = test_df.iloc[valid]
+            test_df = grab_valid_obs(test_df, var) # subset for valid obs
             
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:

@@ -4,10 +4,10 @@
 3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
 4,qaqc_elev_infill,Elevation infilled from station
 5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM (check if not buoy)
-6,qaqc_sensor_height_t,Thermometer height missing
-7,qaqc_sensor_height_t,Thermometer height not 2 meters
-8,qaqc_sensor_height_w,Anemometer height missing
-9,qaqc_sensor_height_w,Anemometer height not 10 meters
+6,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height missing
+7,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height not 2 meters
+8,qaqc_sensor_height_w,INACTIVE FLAG: Anemometer height missing
+9,qaqc_sensor_height_w,INACTIVE FLAG: Anemometer height not 10 meters
 10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
 11,qaqc_world_record,Value outside of world record range
 12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
