@@ -89,8 +89,9 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         # other known issues
         elif station == "MARITIME_PTWW1": # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
-            df.loc[(pd.to_datetime(df['time']).dt.hour >= 6) & (pd.to_datetime(df['time']).dt.hour <= 20), 'sfcWind_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
-            df.loc[(pd.to_datetime(df['time']).dt.hour >= 6) & (pd.to_datetime(df['time']).dt.hour <= 20), 'sfcWind_dir_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
+            df_valid = grab_valid_obs(df, var='sfcWind', var2='sfcWind_dir')
+            df.loc[(pd.to_datetime(df_valid['time']).dt.hour >= 6) & (pd.to_datetime(df_valid['time']).dt.hour <= 20), 'sfcWind_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
+            df.loc[(pd.to_datetime(df_valid['time']).dt.hour >= 6) & (pd.to_datetime(df_valid['time']).dt.hour <= 20), 'sfcWind_dir_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
 
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
