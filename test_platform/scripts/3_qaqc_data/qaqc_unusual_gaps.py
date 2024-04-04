@@ -65,17 +65,17 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
 
-    # in order to grab the time information more easily -- would prefer not to do this
-    df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
-    df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+    # # in order to grab the time information more easily -- would prefer not to do this
+    # df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
+    # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+    # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
     # try:
     if True:
         printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file)
 
         # whole station bypass check first
-        df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh, verbose=verbose)
+        df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh)
 
         # Calculate the number of years for each variable 
         # It uses the month with the most (max) number of years (or should it be the min?)
@@ -89,7 +89,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
             df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose, local=local)
 
         # Drop month,year vars used for calculations                
-        df_part2 = df_part2.drop(columns=['hour','month','year'])
+        # df_part2 = df_part2.drop(columns=['hour','month','year'])
         return df_part2
     
     # except Exception as e:
@@ -137,8 +137,9 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
 
             # station has above min_num_months number of valid observations, proceed with dist gap check
             else:
-                # valid obs only
-                df_valid = monthly_df[monthly_df[var+'_eraqc'].isnull()]
+                # subset for valid obs, distribution drop yellow flags
+                df_valid = grab_valid_obs(df, var, kind='drop') 
+
                 # calculate monthly climatological median, and bounds
                 mid, low, high = standardized_median_bounds(df_valid, var, iqr_thresh=iqr_thresh)
                                 
@@ -208,8 +209,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # station has above min_num_months number of valid observations, proceed with dist gap check
             else:
-                # valid obs only
-                df_valid = monthly_df.loc[df[var+'_eraqc'].isnull() == True]
+                # subset for valid obs, distribution drop yellow flags                      
+                df_valid = grab_valid_obs(monthly_df, var, kind='drop') 
                 
                 # If all valid obs for the variable are NaNs, continue to next var/month
                 # TODO: Discuss with Victoria about this, should it be flagged?

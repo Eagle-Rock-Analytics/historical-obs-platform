@@ -75,9 +75,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     try:
         printf("Running qaqc_frequent_vals on {}".format(vars_to_check), log_file=log_file, verbose=verbose)
 
-        # df set-up with month and year -- prefer to not do this
-        df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-        df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
+        # # df set-up with month and year -- prefer to not do this
+        # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
+        # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
         
         for var in vars_to_check:
             printf('Running frequent values check on: {}'.format(var), log_file=log_file, verbose=verbose)
@@ -143,7 +143,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
         # Drop month,year vars used for calculations
-        df = df.drop(columns=['month','year'])
+        # df = df.drop(columns=['month','year'])
         return df
     
     except Exception as e:

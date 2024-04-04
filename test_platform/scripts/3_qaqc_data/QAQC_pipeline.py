@@ -216,11 +216,20 @@ def qaqc_ds_to_df(ds):
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
     df = ds.to_dataframe()
+    # instrumentation heights
     df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
     df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
+
+    # Add time variables needed by multiple functions
+    df['hour'] = pd.to_datetime(df['time']).dt.hour
+    df['day'] = pd.to_datetime(df['time']).dt.day 
+    df['month'] = pd.to_datetime(df['time']).dt.month 
+    df['year'] = pd.to_datetime(df['time']).dt.year 
+    df['date']  = pd.to_datetime(df['time']).dt.date.values
+
                           
     # Save station/time multiindex
     MultiIndex = df.index
