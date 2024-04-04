@@ -99,7 +99,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
 
         # elif station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
         #     # modify attribute/naming with note
-        #     # this will get flagged in station proximity testse
+        #     # this will get flagged in station proximity tests
 
     elif station in potential_issues: 
         # other stations have partial coverage of their full data records as well as disestablishment dates

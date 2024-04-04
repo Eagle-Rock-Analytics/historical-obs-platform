@@ -68,11 +68,6 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     -------------
         26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     '''
-
-    # in order to grab the time information more easily -- would prefer not to do this
-    # df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
-    # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
@@ -141,8 +136,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                     if plot:
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0], local=local) 
-        # Drop month,year vars used for calculations
-        # df = df.drop(columns=['hour','month','year'])
+
         return df
     
     except Exception as e:

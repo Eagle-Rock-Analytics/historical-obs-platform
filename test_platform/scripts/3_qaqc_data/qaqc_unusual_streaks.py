@@ -236,11 +236,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         
         # Save original df multiindex and create station column
         new_df = df.copy()
-        # new_df['hours'] = pd.to_datetime(df['time']).dt.hour.values
-        # new_df['day']   = pd.to_datetime(df['time']).dt.day.values
-        # new_df['month'] = pd.to_datetime(df['time']).dt.month.values
-        # new_df['year']  = pd.to_datetime(df['time']).dt.year.values
-        # new_df['date']  = pd.to_datetime(df['time']).dt.date.values
         
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
@@ -399,11 +394,7 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
     Consecutive observation replication 
          (either using a threshold of a certain number of observations, 
           or for sparser records, a number of days during which all the
-          observations have the same value):
-          
-    1 - 
-    2 - 
-    3 - 
+          observations have the same value)
     
     This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     
@@ -492,11 +483,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
     Consecutive observation replication 
          (either using a threshold of a certain number of observations, 
           or for sparser records, a number of days during which all the
-          observations have the same value):
-          
-    1 - 
-    2 - 
-    3 - 
+          observations have the same value)
     
     This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     
