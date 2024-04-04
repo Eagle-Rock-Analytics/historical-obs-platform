@@ -63,13 +63,11 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
         
         # dew point is present
         else:
-            for var in all_dew_vars: 
+            for dew_var in all_dew_vars: 
                 # only use valid obs for both dewpoint and air temp
-                df_valid = df.loc[(df['tas_eraqc'].isnull() == True) & (df[var+'_eraqc'].isnull() == True)]
-
-
-                isBad = df_valid.loc[df_valid[var] > df_valid['tas']]
-                df.loc[isBad.index, var + '_eraqc'] = 12 # see qaqc_flag_meanings.csv
+                df_valid = grab_valid_obs(df, var='tas', var2=dew_var)
+                isBad = df_valid.loc[df_valid[dew_var] > df_valid['tas']]
+                df.loc[isBad.index, dew_var + '_eraqc'] = 12 # see qaqc_flag_meanings.csv
 
         return df
     
@@ -114,11 +112,10 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         
         # dew point is present
         else:
-            for var in all_dew_vars:
+            for dew_var in all_dew_vars:
                 # only use valid obs for both dewpoint and air temp
-                df_valid = df_dpt.loc[(df_dpt['tas_eraqc'].isnull() == True) & (df_dpt[var+'_eraqc'].isnull() == True)]    
-
-                df_valid = df_valid.assign(dew_depression = df_valid['tas'] - df_valid[var])
+                df_valid = grab_valid_obs(df, var='tas', var2=dew_var)
+                df_valid = df_valid.assign(dew_depression = df_valid['tas'] - df_valid[dew_var])
                 df_to_check = df_valid.loc[df_valid['dew_depression'] == 0]
                 
                 # identify and flag long streak of dew point depression values = 0
@@ -131,7 +128,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                             ] = 13 # see qaqc_flag_meanings.csv
 
                 # only print warning flag once
-                if 13 in df_dpt[var+'_eraqc'].unique():
+                if 13 in df_dpt[dew_var+'_eraqc'].unique():
                     printf('Flagging extended streak in dewpoint depression', log_file=log_file, verbose=verbose)
         
         return df_dpt
@@ -176,7 +173,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
             printf('Station does not report precipitation - bypassing precip logic nonnegvals check', log_file=log_file, verbose=verbose)
         else:
             for item in pr_vars:
-                df_valid = grab_valid_obs(df, var) # subset for valid obs
+                df_valid = grab_valid_obs(df, item) # subset for valid obs
                 df.loc[df_valid[item] < 0, item+'_eraqc'] = 10 # see era_qaqc_flag_meanings.csv
         return df
     
@@ -240,33 +237,33 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         if 'pr_5min' in pr_vars:
             if 'pr_1h' in pr_vars:
                 # only use valid obs for precip vars
-                df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_1h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_1h')
                 df.loc[df_valid['pr_5min'] > df_valid['pr_1h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
                 
             if 'pr_24h' in pr_vars:
-                df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_24h')
                 df.loc[df_valid['pr_5min'] > df_valid['pr_24h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
-                df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_1h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_1h')
                 df.loc[df_valid['pr_1h'] < df_valid['pr_5min'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
                 
             if 'pr_24h' in pr_vars:
-                df_valid = df.loc[(df['pr_1h_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_1h', var2='pr_24h')
                 df.loc[df_valid['pr_1h'] > df_valid['pr_24h'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
-                df_valid = df.loc[(df['pr_5min_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_24h')
                 df.loc[df_valid['pr_24h'] < df_valid['pr_5min'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
             
             if 'pr_1h' in pr_vars:
-                df_valid = df.loc[(df['pr_1h_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_1h', var2='pr_24h')
                 df.loc[df_valid['pr_24h'] < df_valid['pr_1h'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv        
             
             if 'pr_localmid' in pr_vars:
-                df_valid = df.loc[(df['pr_localmid_eraqc'].isnull() == True) & (df['pr_24h_eraqc'].isnull() == True)]
+                df_valid = grab_valid_obs(df, var='pr_localmid', var2='pr_24h')
                 df.loc[df_valid['pr_24h'] < df_valid['pr_localmid'], 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
 
         return df
@@ -311,7 +308,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
             return df
             
         # use only valid observations
-        df_valid = df.loc[(df['sfcWind_eraqc'].isnull() == True) & (df['sfcWind_dir_eraqc'].isnull() == True)]
+        df_valid = grab_valid_obs(df, var='sfcWind', var2='sfcWind_dir')
 
         # identify calm winds but with incorrect wind directions
         isBad = df_valid.loc[(df_valid['sfcWind'] == 0) &
@@ -325,9 +322,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
                             (df_valid['sfcWind_dir'] == 0)]
         df.loc[isBad.index, 'sfcWind_dir'] = 360
         df.loc[isBad.index, 'sfcWind_dir_eraqc'] = 15 # see qaqc_flag_meanings.csv
-        
-        # printf('sfcWind_dir eraqc flags (any value other than nan is an active flag!): {0}'.format(df['sfcWind_dir_eraqc'].unique()), 
-        #         log_file=log_file, verbose=verbose)
+
         return df
         
     except Exception as e:

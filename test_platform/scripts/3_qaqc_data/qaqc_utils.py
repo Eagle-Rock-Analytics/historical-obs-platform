@@ -98,7 +98,7 @@ def pdf_bounds(df, mu, sigma, bins):
     return (y, bnds[0] - 1, bnds[-1] + 1)
 
 #-----------------------------------------------------------------------------
-def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5, verbose=False):
+def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     """
     Checks the number of valid observation months in order to proceed through monthly distribution checks. 
     Identifies whether a station record has too few months and produces a fail pass flag. 
@@ -174,7 +174,7 @@ def qaqc_var_length_bypass_check(df, var):
 
 #-----------------------------------------------------------------------------
 # Red vs. Yellow flagging
-def grab_valid_obs(df, var, kind='keep', verbose=True, log_file=log_file):
+def grab_valid_obs(df, var, var2=None, kind='keep'):
     """
     Observations that have been flagged by QA/QC test should not proceed through any
     other QA/QC test. 
@@ -190,13 +190,19 @@ def grab_valid_obs(df, var, kind='keep', verbose=True, log_file=log_file):
     # grab obs with no flags
     df_noflags = df.loc[df[var+'_eraqc'].isnull() == True]
 
-    # 
+    # retains yellow flagged obs for QA/QC checks where distribution not assessed
     if kind == 'keep': 
         df_yellowflag = df.loc[(df[var+'_eraqc'] == 19) | (df[var+'_eraqc'] == 20)] # grab obs with yellow flags
         df_merge = pd.concat([df_noflags, df_yellowflag]) # merge together
         df_valid = df_merge.sort_values(by='time') # sort by time
 
+    # yellow flag set to red flag for distibution checks (gaps + climatological outliers) 
+    # these obs do not pass through specific QA/QC functions
     elif kind == "drop": # 
         df_valid = df_noflags
+
+    # only applies to some logic checks
+    if var2 != None:
+        df_valid = df.loc[(df[var+'_eraqc'].isnull() == True) & (df[var2+'_eraqc'].isnull() == True)]
 
     return df_valid
