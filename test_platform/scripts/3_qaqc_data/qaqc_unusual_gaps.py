@@ -127,6 +127,8 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
 
             # subset for valid obs, distribution drop yellow flags
             df_valid = grab_valid_obs(df, var, kind='drop') # drops data flagged with 20
+            if len(df_valid) == 0:
+                continue # variable has no valid data
 
             # calculate monthly climatological median, and bounds
             mid, low, high = standardized_median_bounds(df_valid, var, iqr_thresh=iqr_thresh)
@@ -189,13 +191,15 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # Sel month data
             monthly_df = df.loc[df['month']==month]
-            
+           
             # per variable bypass check
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
 
             # subset for valid obs, distribution drop yellow flags                      
             df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
-            
+            if len(df_valid) == 0:
+                continue # variable has no valid data
+
             # from center of distribution, scan for gaps (where bin = 0)
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged

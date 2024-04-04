@@ -643,11 +643,10 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
                      directory, network, figname))
 
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
 
     # close figures to save memory
-    plt.close(fig)
-    plt.close('all')
+    plt.close()
 
     return
 
