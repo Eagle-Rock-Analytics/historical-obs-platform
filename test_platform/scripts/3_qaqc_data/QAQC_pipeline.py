@@ -222,14 +222,7 @@ def qaqc_ds_to_df(ds):
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
-
-    # Add time variables needed by multiple functions
-    df['hour'] = pd.to_datetime(df['time']).dt.hour
-    df['day'] = pd.to_datetime(df['time']).dt.day 
-    df['month'] = pd.to_datetime(df['time']).dt.month 
-    df['year'] = pd.to_datetime(df['time']).dt.year 
-    df['date']  = pd.to_datetime(df['time']).dt.date.valuess
-                          
+           
     # Save station/time multiindex
     MultiIndex = df.index
     station = df.index.get_level_values(0)
@@ -240,6 +233,13 @@ def qaqc_ds_to_df(ds):
     
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
+
+    # Add time variables needed by multiple functions
+    df['hour'] = pd.to_datetime(df['time']).dt.hour
+    df['day'] = pd.to_datetime(df['time']).dt.day 
+    df['month'] = pd.to_datetime(df['time']).dt.month 
+    df['year'] = pd.to_datetime(df['time']).dt.year 
+    df['date']  = pd.to_datetime(df['time']).dt.date
     
     return df, MultiIndex, attrs, var_attrs
 
