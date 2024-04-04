@@ -37,11 +37,6 @@ except Exception as e:
 def open_log_file_spikes(file):
     global log_file
     log_file = file
-    
-# #FOR DEBUG
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
 
 #---------------------------------------------------------------------------
 # Parallel plotting and updating to AWS

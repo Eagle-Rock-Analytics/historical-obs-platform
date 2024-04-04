@@ -138,7 +138,6 @@ straight_repeat_criteria['tdps_derived'] = straight_repeat_criteria['tdps']
 straight_repeat_criteria['ps'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_derived'] = straight_repeat_criteria['psl']
 straight_repeat_criteria['ps_altimeter'] = straight_repeat_criteria['psl']
-# straight_repeat_criteria['rsds'] = straight_repeat_criteria['psl']
 
 #----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -155,7 +154,6 @@ hour_repeat_criteria['ps'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_altimeter'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['ps_derived'] = hour_repeat_criteria['tas']
 hour_repeat_criteria['sfcWind'] = hour_repeat_criteria['tas']
-# hour_repeat_criteria['rsds'] = hour_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Day repeat streak criteria
@@ -172,7 +170,6 @@ day_repeat_criteria['ps'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_altimeter'] = day_repeat_criteria['tas']
 day_repeat_criteria['ps_derived'] = day_repeat_criteria['tas']
 day_repeat_criteria['sfcWind'] = day_repeat_criteria['tas']
-# day_repeat_criteria['rsds'] = day_repeat_criteria['sfcWind']
 
 #----------------------------------------------------------------------
 # Min wind value for straight repeat test

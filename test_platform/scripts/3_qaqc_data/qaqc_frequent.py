@@ -196,8 +196,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
         elif rad_scheme == "day_hours":
             # only day hours -- 7am-8pm as "day"
             printf('Radiation frequent value check scheme: day_hours selected, day set to 7am - 8pm', log_file=log_file, verbose=verbose)
-            # 6am PST ~ 1400 UTC, 8pm PST ~ 4000 UTC
-            df_to_test = df.loc[(pd.to_datetime(df.time).dt.hour >= 14) | (df.time.dt.hour <=4)]
+            # 6am PST ~ 1400 UTC, 8pm PST ~ 0400 UTC
+            df_to_test = df.loc[(df['hour'] >= 14) | (df['hour'] <=4)]
             
         elif rad_scheme == "remove_zeros":
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)

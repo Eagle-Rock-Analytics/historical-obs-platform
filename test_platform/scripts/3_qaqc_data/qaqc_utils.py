@@ -127,9 +127,8 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     nYears = np.array([v.max() for k,v in stn_length.items()])
 
     for var in vars_to_check:
-        
-        if stn_length[var].max()<min_num_months: # | stn_length[var].max()>1: ### MAYBE? less than 5, more than 1? or just less than 5?
-            df.loc[:,var+"_eraqc"] = 19  # YELLOW FLAG?
+        if stn_length[var].max()<min_num_months: 
+            df.loc[:,var+"_eraqc"] = 19  # see era_qaqc_flag_meanings.csv
 
     return df, stn_length
 

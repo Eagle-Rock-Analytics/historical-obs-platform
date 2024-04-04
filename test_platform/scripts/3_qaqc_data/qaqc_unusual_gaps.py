@@ -64,11 +64,6 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
-
-    # # in order to grab the time information more easily -- would prefer not to do this
-    # df['hour'] = pd.to_datetime(df['time']).dt.hour # sets month to new variable
-    # df['month'] = pd.to_datetime(df['time']).dt.month # sets month to new variable
-    # df['year'] = pd.to_datetime(df['time']).dt.year # sets year to new variable
     
     # try:
     if True:
@@ -82,14 +77,12 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         # TODO: Discuss with Victoria this threshold
         # df is already flagged, just bybass station?
         nYears = np.array([v.max() for k,v in stn_length.items()])
-        if (nYears<5).all():  # IF all variables have less than 5 years, bypass whole station
+        if (nYears<5).all():  # If all variables have less than 5 years, bypass whole station
             return df
         else:
             df_part1 = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots, verbose=verbose, local=local)
             df_part2 = qaqc_dist_gap_part2(df_part1, vars_to_check, plots, verbose=verbose, local=local)
 
-        # Drop month,year vars used for calculations                
-        # df_part2 = df_part2.drop(columns=['hour','month','year'])
         return df_part2
     
     # except Exception as e:
@@ -131,14 +124,11 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
             
             # per variable bypass check (first yellow flag being set)
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
-            
-            if 20 in monthly_df[var+'_eraqc']:
-                continue # skip variable
 
             # station has above min_num_months number of valid observations, proceed with dist gap check
             else:
                 # subset for valid obs, distribution drop yellow flags
-                df_valid = grab_valid_obs(df, var, kind='drop') 
+                df_valid = grab_valid_obs(df, var, kind='drop') # drops data flagged with 20
 
                 # calculate monthly climatological median, and bounds
                 mid, low, high = standardized_median_bounds(df_valid, var, iqr_thresh=iqr_thresh)
@@ -147,7 +137,7 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
                 df_month = df_valid.groupby(["year"])[var].aggregate("median")
                 
                 # Index to flag finds where df_month is out of the distribution
-                index_to_flag = ((df_month<low) | (df_month>high))
+                index_to_flag = ((df_month < low) | (df_month > high))
 
                 # Since grouping, the index of df_month is years
                 years_to_flag = df_month[index_to_flag].index
@@ -204,20 +194,12 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             
             # per variable bypass check
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
-            if 20 in monthly_df[var+'_eraqc']:
-                continue # skip variable 
 
             # station has above min_num_months number of valid observations, proceed with dist gap check
             else:
                 # subset for valid obs, distribution drop yellow flags                      
-                df_valid = grab_valid_obs(monthly_df, var, kind='drop') 
+                df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
                 
-                # If all valid obs for the variable are NaNs, continue to next var/month
-                # TODO: Discuss with Victoria about this, should it be flagged?
-                if df_valid[var].isnull().all():
-                    df_valid.loc[(df_valid['month'] == month), var+'_eraqc'] = 20 # see era_qaqc_flag_meanings.csv
-                    continue
-
                 # from center of distribution, scan for gaps (where bin = 0)
                 # when gap is found, and it is at least 2x bin width
                 # any bins beyond end of gap + beyond threshold value are flagged

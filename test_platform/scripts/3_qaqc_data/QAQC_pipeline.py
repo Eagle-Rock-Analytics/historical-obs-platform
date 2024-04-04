@@ -228,8 +228,7 @@ def qaqc_ds_to_df(ds):
     df['day'] = pd.to_datetime(df['time']).dt.day 
     df['month'] = pd.to_datetime(df['time']).dt.month 
     df['year'] = pd.to_datetime(df['time']).dt.year 
-    df['date']  = pd.to_datetime(df['time']).dt.date.values
-
+    df['date']  = pd.to_datetime(df['time']).dt.date.valuess
                           
     # Save station/time multiindex
     MultiIndex = df.index
@@ -544,7 +543,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     printf('Summary of QA/QC flags set per variable')
     flag_summary(stn_to_qaqc, verbose=verbose, local=local)
 
-    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
+    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','hour','day','month','year','date','station'])
     
     # Sort by time and remove any overlapping timesteps
     # TODO: Is this necessary? Probably done in the cleaning step

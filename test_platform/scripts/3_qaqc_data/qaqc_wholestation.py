@@ -68,7 +68,7 @@ def qaqc_missing_vals(df, verbose=False):
     missing_vals = pd.read_csv('missing_data_flags.csv')
 
     vars_to_remove = ['qc', 'duration', 'method']
-    all_vars = [var for var in df.columns if var not in ['lon','lat','time','elevation','station','anemometer_height_m','thermometer_height_m']]
+    all_vars = [var for var in df.columns if var not in ['lon','lat','time','day','hour','month','year','date','elevation','station','anemometer_height_m','thermometer_height_m']]
     obs_vars = [var for var in all_vars if not any(True for item in vars_to_remove if item in var)]
     
     try:
