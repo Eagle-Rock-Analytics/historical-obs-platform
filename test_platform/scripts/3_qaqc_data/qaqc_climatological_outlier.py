@@ -113,7 +113,6 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
 
                     # determine number of bins
                     bins = create_bins(df_m[var])
-
                     # pdf
                     mu = np.nanmean(df_m[var])
                     sigma = np.nanstd(df_m[var])
@@ -136,7 +135,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
                     if plot:
                         if 26 in df[var+'_eraqc'].values: # only plot a figure if flag is present
                             clim_outlier_plot(df, var, month, network=df['station'].unique()[0].split('_')[0], local=local) 
-
+                            
         return df
     
     except Exception as e:

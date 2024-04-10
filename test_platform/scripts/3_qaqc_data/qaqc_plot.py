@@ -586,11 +586,12 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     '''
     
     # select month
-    df_to_plot = df.loc[pd.to_datetime(df.time).dt.month == month][var]
+    df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    df_to_plot = df.loc[df.time.dt.month == month][var]
     
     # determine number of bins
     bins = create_bins(df_to_plot)
-    
+
     # plot histogram
     ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
@@ -604,22 +605,23 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1)
-    
-    # find first index
-    left_bnd = round(bins[pdf_bounds[0][0] - 1])
-    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-    thresholds = (left_bnd, right_bnd)
-    
-    plt.axvline(thresholds[1], color='r') # right tail
-    plt.axvline(thresholds[0], color='r') # left tail
-    
-    # flag visually obs that are beyond threshold
-    for bar in ax[2].patches:
-        x = bar.get_x() + 0.5 * bar.get_width()
-        if x > thresholds[1]: # right tail
-            bar.set_color('r')
-        elif x < thresholds[0]: # left tail
-            bar.set_color('r')
+    if len(pdf_bounds) != 0: # placing in if/else statement for time being as this figure/fn is refined
+        
+        # find first index
+        left_bnd = round(bins[pdf_bounds[0][0] - 1])
+        right_bnd = round(bins[pdf_bounds[-1][0] + 1])
+        thresholds = (left_bnd, right_bnd)
+        
+        plt.axvline(thresholds[1], color='r') # right tail
+        plt.axvline(thresholds[0], color='r') # left tail
+        
+        # flag visually obs that are beyond threshold
+        for bar in ax[2].patches:
+            x = bar.get_x() + 0.5 * bar.get_width()
+            if x > thresholds[1]: # right tail
+                bar.set_color('r')
+            elif x < thresholds[0]: # left tail
+                bar.set_color('r')
             
     # title and useful annotations
     plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
