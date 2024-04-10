@@ -237,12 +237,12 @@ def qaqc_elev_infill(df, verbose=False):
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     try:
                         dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(dem_elev_value)
 
                     except: # some buoys out of range of dem (past coastal range) report nan elevation, manually set to 0.00m and flag
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 5 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(0.00) # manual infilling for buoys
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 5 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(0.00) # manual infilling for buoys
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
@@ -259,18 +259,18 @@ def qaqc_elev_infill(df, verbose=False):
         else:   # multiple values for elevation, infill each instance if missing/incorrectly coded (e.g., zeros when shouldnt be)
             try:
                 # locate all instances of nan values as elevation codes
-                nan_coded = df[df['elevation'].isnull()]
+                nan_coded = df[df['elevation'].isnull() == True]
                 nan_lats = nan_coded['lat'].unique()
                 nan_lons = nan_coded['lon'].unique()
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     if (nan_lats[0] == df['lat'].iloc[0]) & (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = df['elevation'].iloc[0]
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = df['elevation'].iloc[0]
                     else: # lat-lon of missing elev does not match station lat-lon (has shifted), infill from dem
                         dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(dem_elev_value)
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:

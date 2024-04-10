@@ -524,7 +524,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     df.loc[df[var+"_eraqc"]==flagval, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label)    
     
     #plot other flags
-    other_flags = np.logical_and(~df[var+"_eraqc"].isnull(),
+    other_flags = np.logical_and(~df[var+"_eraqc"].isnull() == True,
                                  df[var+"_eraqc"]!=flagval)
     if other_flags.any():
         df.loc[other_flags, var].plot(ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C4", label="other flags")    

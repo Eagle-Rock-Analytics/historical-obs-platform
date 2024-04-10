@@ -313,7 +313,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         # identify calm winds but with incorrect wind directions
         isBad = df_valid.loc[(df_valid['sfcWind'] == 0) &
                             (df_valid['sfcWind_dir'] != 0) &
-                            ~(df_valid['sfcWind_dir']).isnull()]
+                            ~(df_valid['sfcWind_dir']).isnull() == True]
         df.loc[isBad.index, 'sfcWind_dir_eraqc'] = 14 # see qaqc_flag_meanings.csv
         
         # identify non-zero winds but with incorrect wind directions
