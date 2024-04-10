@@ -216,12 +216,13 @@ def qaqc_ds_to_df(ds):
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
     df = ds.to_dataframe()
+    # instrumentation heights
     df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
     df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
-                          
+           
     # Save station/time multiindex
     MultiIndex = df.index
     station = df.index.get_level_values(0)
@@ -232,6 +233,13 @@ def qaqc_ds_to_df(ds):
     
     # Convert time/station index to columns and reset index
     df = df.droplevel(0).reset_index()
+
+    # Add time variables needed by multiple functions
+    df['hour'] = pd.to_datetime(df['time']).dt.hour
+    df['day'] = pd.to_datetime(df['time']).dt.day 
+    df['month'] = pd.to_datetime(df['time']).dt.month 
+    df['year'] = pd.to_datetime(df['time']).dt.year 
+    df['date']  = pd.to_datetime(df['time']).dt.date
     
     return df, MultiIndex, attrs, var_attrs
 
@@ -535,7 +543,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     printf('Summary of QA/QC flags set per variable')
     flag_summary(stn_to_qaqc, verbose=verbose, local=local)
 
-    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','station'])
+    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','hour','day','month','year','date','station'])
     
     # Sort by time and remove any overlapping timesteps
     # TODO: Is this necessary? Probably done in the cleaning step

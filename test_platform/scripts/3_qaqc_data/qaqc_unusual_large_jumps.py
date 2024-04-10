@@ -37,11 +37,6 @@ except Exception as e:
 def open_log_file_spikes(file):
     global log_file
     log_file = file
-    
-# #FOR DEBUG
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
 
 #---------------------------------------------------------------------------
 # Parallel plotting and updating to AWS
@@ -113,9 +108,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         # Loop through test variables
         for var in variables:
             printf('Running unusual large jumps check on: {}'.format(var), log_file=log_file, verbose=verbose)
-
-            # Use only values that have not been flagged by previous QAQC tests
-            new_df = df.loc[df[var+'_eraqc'].isnull() == True]
+            new_df = grab_valid_obs(df, var) # subset for valid obs
 
            # first scans suspect values using entire record
             if new_df[var].isna().all() == True:

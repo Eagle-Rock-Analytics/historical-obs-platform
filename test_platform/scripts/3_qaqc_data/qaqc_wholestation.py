@@ -68,7 +68,7 @@ def qaqc_missing_vals(df, verbose=False):
     missing_vals = pd.read_csv('missing_data_flags.csv')
 
     vars_to_remove = ['qc', 'duration', 'method']
-    all_vars = [var for var in df.columns if var not in ['lon','lat','time','elevation','station','anemometer_height_m','thermometer_height_m']]
+    all_vars = [var for var in df.columns if var not in ['lon','lat','time','day','hour','month','year','date','elevation','station','anemometer_height_m','thermometer_height_m']]
     obs_vars = [var for var in all_vars if not any(True for item in vars_to_remove if item in var)]
     
     try:
@@ -118,9 +118,6 @@ def qaqc_missing_latlon(df, verbose=False):
 
     if df['lon'].isnull().all():
         return None
-
-    # df['lon'] = df['lon'].fillna(method="pad")
-    # df['lat'] = df['lon'].fillna(method="pad")
     
     return df
         
@@ -240,12 +237,12 @@ def qaqc_elev_infill(df, verbose=False):
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     try:
                         dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(dem_elev_value)
 
                     except: # some buoys out of range of dem (past coastal range) report nan elevation, manually set to 0.00m and flag
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 5 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(0.00) # manual infilling for buoys
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 5 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(0.00) # manual infilling for buoys
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
@@ -262,18 +259,18 @@ def qaqc_elev_infill(df, verbose=False):
         else:   # multiple values for elevation, infill each instance if missing/incorrectly coded (e.g., zeros when shouldnt be)
             try:
                 # locate all instances of nan values as elevation codes
-                nan_coded = df[df['elevation'].isnull()]
+                nan_coded = df[df['elevation'].isnull() == True]
                 nan_lats = nan_coded['lat'].unique()
                 nan_lons = nan_coded['lon'].unique()
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     if (nan_lats[0] == df['lat'].iloc[0]) & (nan_lons[0] == df['lon'].iloc[0]): # single set of lat-lons matches station, infill from station
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = df['elevation'].iloc[0]
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 4 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = df['elevation'].iloc[0]
                     else: # lat-lon of missing elev does not match station lat-lon (has shifted), infill from dem
                         dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
-                        df.loc[df['elevation'].isnull(), 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
-                        df.loc[df['elevation'].isnull(), 'elevation'] = float(dem_elev_value)
+                        df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
+                        df.loc[df['elevation'].isnull() == True, 'elevation'] = float(dem_elev_value)
 
                 else: # multiple pairs of lat-lon for missing elevs
                     for ilat in nan_lats:
@@ -355,6 +352,8 @@ def qaqc_sensor_height_t(df, verbose=False):
         7,qaqc_sensor_height_t,Thermometer height not 2 meters
     '''
 
+    # TODO: Add red vs. yellow flagging in, v2
+
     printf("Running: qaqc_sensor_height_t", log_file=log_file, verbose=verbose)
 
     try:
@@ -362,7 +361,6 @@ def qaqc_sensor_height_t(df, verbose=False):
         isHeightMissing = df['thermometer_height_m'].isnull().any()
 
         if isHeightMissing:
-            # df.loc[:,'tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             df['tas_eraqc'] = 6 # see era_qaqc_flag_meanings.csv
             printf('Thermometer height is missing -- air temperature will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         else:
@@ -404,6 +402,7 @@ def qaqc_sensor_height_w(df, verbose=False):
         8,qaqc_sensor_height_w,Anemometer height missing
         9,qaqc_sensor_height_w,Anemometer height not 10 meters
     '''
+    # TODO: Add red vs. yellow flagging in, v2
 
     printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
 
@@ -485,8 +484,9 @@ def qaqc_world_record(df, verbose=False):
 
         for var in wr_vars:
             if var in list(df.columns):
-                isOffRecord = np.logical_or(df[var] < mins[var]['North_America'],
-                                            df[var] > maxes[var]['North_America'])
+                df_valid = grab_valid_obs(df, var) # subset for valid obs
+                isOffRecord = np.logical_or(df_valid[var] < mins[var]['North_America'],
+                                            df_valid[var] > maxes[var]['North_America'])
                 if isOffRecord.any():
                     df.loc[isOffRecord, var + '_eraqc'] = 11 # see era_qaqc_flag_meanings.csv
         return df
