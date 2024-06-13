@@ -1,66 +1,63 @@
-name: hist-obs
 channels:
-  - defaults
-  - conda-forge
+ - conda-forge
 dependencies:
-  - aioboto3==10.1.0
-  - aiobotocore==2.4.0
-  - aiohttp==3.8.4  
-  - beautifulsoup4==4.11.1
-  - blas==1.0
-  - blosc==1.21.3
-  - boto3==1.24.59
-  - botocore==1.27.59
-  - cfitsio==3.470
-  - cftime==1.6.3
-  - cfgrib==0.9.12.0
-  - curl==8.1.1
-  - cython==3.0.10
-  - datetime==4.4
-  - dask==2022.8.1
-  - dask-core==2023.6.0
-  - dask-labextension==7.0.0
-  - descartes==1.1.0
-  - fiona==1.9.4.post1
-  - geographiclib==2.0
-  - geopandas==0.11.1
-  - geopy==2.3.0
-  - hdf4==4.2.13
-  - hdf5==1.10.6
-  - h5netcdf==1.0.2
-  - h5py==3.9.0
-  - h5pyd==0.18.0
-  - intel-openmp==2023.1.0
-  - matplotlib==3.7.2
-  - matplotlib-inline==0.1.6
-  - mpi4py==3.1.6
-  - nbconvert==7.16.4
-  - netcdf4==1.6.4
-  - numpy==1.25.0
-  - openpyxl==3.0.10
-  - pandas==1.5.0
-  - pip==24.0
-  - pygeos==0.14
-  - pywavelets==1.4.1
-  - rasterio==1.3.8
-  - s3fs==2022.11.0
-  - s3transfer==0.6.1
-  - scikit-image==0.20.0
-  - scikit-learn==1.2.2
-  - scipy==1.11.1
-  - setuptools==67.8.0
-  - shapely==1.8.1.post1
-  - sqlite==3.41.2
-  - tk==8.6.12
-  - urllib3==1.26.16
-  - xarray==2024.5.0
-  - xclim==0.49.0
-  - xesmf==0.8.5
-  - xlswriter==3.1.9
+  - aioboto3=10.1.0 #Async boto3 wrapper
+  - aiobotocore=2.4.0 #Async client for aws services using botocore and aiohttp
+  - aiohttp=3.9.5 #Async http client/server framework (asyncio)
+  - boto3=1.24.59 #The AWS SDK for Python
+  - botocore=1.27.59 #Low-level, data-driven core of boto 3
+  - cartopy=0.23.0  #plotting geospatial data
+  - cf_xarray=0.9.1 #A convenience wrapper for using CF attributes on xarray objects
+  - cfgrib=0.9.12.0 #handling GRIB files with xarray
+  - cftime=1.6.4 #handling non-standard calendars
+  - cloudpickle=3.0.0 #extended support for serializing for Python objects
+  - contextily=1.2.0 #Context geo-tiles in Python
+  - cython=3.0.10 #Python - C interface
+  - dask=2022.8.1 #Parallel PyData with Task Scheduling
+  - dask-labextension=6.2.0 #dask dashboard extension for Jupyter
+  - descartes=1.1.0 #add geometric patch support to matplotlib
+  - esmf=8.4.0 #The Earth System Modeling Framework (ESMF) is software for building and coupling weather, climate, and related models
+  - esmpy=8.4.0 #Python interface to the Earth System Modeling Framework (ESMF) regridding utility
+  - fiona=1.9.1 #GDAL rasterized and vectorized geospatial data handling
+  - ftputil=5.0.4 #High-level FTP client library (virtual file system and more)
+  - geopandas=0.11.1 #Geographic pandas extensions
+  - gitpython=3.1.43 #python git interface
+  - h5netcdf=1.0.2 #netCDF4 via h5py
+  - h5py=3.7.0 #Read and write HDF5 files from Python
+  - hdf4=4.2.15 #Library and multi-object file format for storing and managing data between machines
+  - hdf5=1.12.2 #HDF5 is a data model, library, and file format for storing and managing data
+  - imageio=2.34.1 #read and write images
+  - ipympl=0.9.4 #interactive matplotlib widgets in Jupyter
+  - ipython=8.18.1 #IPython: Productive Interactive Computing
+  - ipywidgets=8.1.3 #interactive widgets in Jupyter
+  - jupyterlab_vim=0.16.0 #vim-style editor for Jupyter
+  - matplotlib=3.5.3 #Python plotting package
+  - metpy=1.6.2 #Collection of tools for reading, visualizing and performing calculations with weather data
+  - mpi4py=3.1.6 #python bindings for MPI
+  - netcdf4=1.6.0 #object-oriented python interface to the netCDF version 4 library
+  - nodejs=18.15.0 #for installing extensions in Jupyter
+  - numba=0.59.1 #speed ups for numpy
+  - numpy=1.26.4 #low-level, fast array handling
+  - pandas=1.5.0 #Powerful data structures for data analysis, time series, and statistics
+  - pip=24.0 #The PyPA recommended tool for installing Python packages
+  - pywavelets=1.4.1 #wavelet transforms
+  - s3fs=2022.11.0 #Convenient Filesystem interface over S3
+  - s3transfer=0.6.0 #An Amazon S3 Transfer Manager
+  - scikit-image=0.22.0 #image processing
+  - scikit-learn=1.5.0 #machine learning
+  - scipy=1.13.1 #interpolation, statistics, linear algebra, signal processing, ... 
+  - seaborn=0.13.2 #high-level plotting
+  - setuptools=70.0.0 #python package development
+  - smart_open=6.3.0 #Utils for streaming large files (S3, HDFS, GCS, Azure, gzip, bz2...)
+  - statsmodels=0.14.2 #higher-level statistical tests
+  - tqdm=4.66.4 #fancy progress bars for command line
+  - xarray=2022.3.0 #N-D labeled arrays and datasets in Python
+  - xesmf=0.8.5 #Universal Regridder for Geospatial Data
   - pip:
-      - fastkde==2.0.1
-      - ipykernel==6.29.3
-      - ipython==8.18.1
-      - jupyterlab==4.2.2
-      - notebook==7.2.1
-      - simplempi==0.1.4
+      - fastkde==2.0.1 #fast Kernel Density Estimation
+      - gitsummary==0.2 # makes it simple to print git repo info in a notebook or script
+      - jupyterlab==4.2.2 #JupyterLab computational environment
+      - jupyterlab-execute-time==3.1.2 #Display cell timings in Jupyter Lab
+      - notebook==7.2.1 #A web-based notebook environment for interactive computing
+      - requests==2.32.3 #Python HTTP for Humans
+      - shapely==1.8.1.post1 #Manipulation and analysis of geometric objects
