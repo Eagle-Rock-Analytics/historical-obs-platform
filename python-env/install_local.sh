@@ -6,6 +6,9 @@ set -x
 #bash Anaconda3-2024.02-1-$(uname)-$(uname -m).sh
 source ~/.bashrc
 
+## Victoria alternative version for env install
+# source ~/.zshrc 
+
 PYTHON_VERSION=3.9
 ENVIRONMENT_NAME=hist-obs
 
