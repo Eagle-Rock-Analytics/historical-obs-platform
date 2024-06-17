@@ -22,6 +22,8 @@ from io import BytesIO, StringIO
 import time
 import tempfile
 
+from simplempi.parfor import parfor, pprint
+
 # Import all qaqc script functions
 try:
     from qaqc_plot import *
@@ -577,12 +579,13 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         -----------------------------------
         """
         # TESTING SUBSET
-        stations_sample = stations.sample(1)
+        stations_sample = stations.sample(4)
         # Select stations for timing analysis
         # stations_sample = list(stations.iloc[:sample])
         
         # Loop over stations
-        for station in stations_sample:
+        # for station in stations_sample:
+        for station in parfor(stations_sample):
             
             #----------------------------------------------------------------------------
             ## Set log file
