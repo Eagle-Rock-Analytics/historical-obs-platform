@@ -60,4 +60,5 @@ dependencies:
       - jupyterlab-execute-time==3.1.2 #Display cell timings in Jupyter Lab
       - notebook==7.2.1 #A web-based notebook environment for interactive computing
       - requests==2.32.3 #Python HTTP for Humans
-      - shapely==1.8.1.post1 #Manipulation and analysis of geometric objects
+      - shapely==1.8.1.post1 #Manipulation and analysis of geometric object
+      - simplempi==0.1.4 #A wrapper around mpi4py that offers simple scattering of iterable objects
