@@ -31,10 +31,14 @@ except Exception as e:
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+######################################
 # #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
+######################################
 
 #======================================================================
 ## Part 1a functions (whole station/network)

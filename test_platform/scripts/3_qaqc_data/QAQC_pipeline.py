@@ -22,7 +22,7 @@ from io import BytesIO, StringIO
 import time
 import tempfile
 
-from simplempi.parfor import parfor, pprint
+# from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -48,12 +48,14 @@ for d in dirs:
 #FOR DEBUG
 global log_file
 log_file = open("logtest.log","w")
-verbose=True
-
+######################################
 # #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
+######################################
 
 #----------------------------------------------------------------------------
 ## Set AWS credentials
