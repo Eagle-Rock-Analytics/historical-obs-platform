@@ -26,10 +26,10 @@ except Exception as e:
 def open_log_file_logic(file):
     global log_file
     log_file = file
+
 ######################################
 # #FOR DEBUG
 # #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True

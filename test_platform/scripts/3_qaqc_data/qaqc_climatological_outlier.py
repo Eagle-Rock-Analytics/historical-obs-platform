@@ -135,9 +135,9 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             # Drop all non-flagged values
             df_valid = df_valid.dropna(subset=['flag'])
 
-            # Debug
-            if "tdps" in var:
-                display(df_valid)
+            # # Debug
+            # if "tdps" in var:
+            #     display(df_valid)
         
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var+'_eraqc'] = df_valid['flag']
