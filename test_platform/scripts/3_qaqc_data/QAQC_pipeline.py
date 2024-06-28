@@ -45,9 +45,6 @@ for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
 
-#FOR DEBUG
-global log_file
-log_file = open("logtest.log","w")
 ######################################
 # #FOR DEBUG
 # #UNCOMMENT FOR NOTEBOOK DEBUGGING
