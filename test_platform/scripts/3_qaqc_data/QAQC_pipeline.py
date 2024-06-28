@@ -22,7 +22,7 @@ from io import BytesIO, StringIO
 import time
 import tempfile
 
-# from simplempi.parfor import parfor, pprint
+from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
