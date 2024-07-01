@@ -476,10 +476,14 @@ def qaqc_world_record(df, verbose=False):
         W_X = {"North_America":113.2} #m/s
         W_N = {"North_America":0.} #m/s
         S_X = {"North_America":108330} #Pa
-        ### FOR NOW, since some of our stations are at high elevation and may be lower than 87000 Pa
-        ### For V2, we need to explore a real threshold for this
+        ##-----------------------------------------------------------------------------------------------
+        ## FOR NOW, since some of our stations are at high elevation and may be lower than 87000 Pa
+        ## For V2, we need to explore a numerical justification for it, for now:
+        ## atmospheric pressure at the top of Mt. Whitney in California is 440 mmHg, which is 58662 Pa. 
+        ## So I think 50000 Pa is def a good lower-bound
         # S_N = {"North_America":87000} #Pa
         S_N = {"North_America":50000} #Pa  
+        ##-----------------------------------------------------------------------------------------------
         R_X = {"North_America":1500} #W/m2
         R_N = {"North_America":-5} #W/m2
 
