@@ -227,8 +227,8 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
     plt.legend(('Cleaned data', 'Flagged'), loc='upper right')
     ax = plt.gca()
     leg = ax.get_legend()
-    leg.legend_handles[0].set_color('k') # set valid to black
-    leg.legend_handles[-1].set_color('r') # set flagged bar to red
+    leg.legendHandles[0].set_color('k') # set valid to black
+    leg.legendHandles[-1].set_color('r') # set flagged bar to red
     
     if var == 'rsds':
         plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
