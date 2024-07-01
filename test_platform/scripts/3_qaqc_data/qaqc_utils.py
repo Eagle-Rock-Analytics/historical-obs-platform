@@ -88,7 +88,7 @@ def pdf_bounds(df, mu, sigma, bins):
     
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
-    
+
     # find first index
     # left_bnd = round(bins[pdf_bounds[0] - 1])
     # right_bnd = round(bins[pdf_bounds[-1] + 1])
