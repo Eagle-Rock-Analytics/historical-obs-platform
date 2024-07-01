@@ -38,17 +38,18 @@ except Exception as e:
 def open_log_file_clim(file):
     global log_file
     log_file = file
-######################################
+
+# #####################################
 # #FOR DEBUG
 # #UNCOMMENT FOR NOTEBOOK DEBUGGING
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
-######################################
+# #####################################
 
 #----------------------------------------------------------------------
 ## climatological outlier check
-def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plot=True, verbose=False, local=False):
+def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin_size=0.25, plot=True, verbose=False, local=False):
     '''
     Flags individual gross outliers from climatological distribution.
     Only applied to air temperature and dew point temperature
@@ -78,8 +79,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
     # vars_to_check = ['tas']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
-    try:
-    # if True:
+    # try:
+    if True:
         printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file)
 
         # whole station bypass check first
@@ -90,11 +91,12 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             # only work with non-flagged values
             printf('Checking for climatological outliers in: {}'.format(var), log_file=log_file, verbose=verbose)
             df_valid = grab_valid_obs(new_df, var, kind='drop') # subset for valid obs, distribution drop yellow flags
+            df_valid = df_valid.dropna(subset=var)
             # Keep only useful columns
             df_valid = df_valid[[var,"year","month","day","hour","time"]]
             
             # Bypass if there are not valid observations
-            if df_valid[var].size ==0:
+            if df_valid[var].size == 0:
                 printf('Not valid observations for: {}'.format(var), log_file=log_file, verbose=verbose)
                 continue
             
@@ -124,10 +126,11 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             # data = std[var].interpolate(method="linear")-filtered
             df_valid['raw_'+var] = df_valid[var] 
             df_valid[var] = filtered
-
+            
             # Flag outliers
             printf('Flagging outliers in {0}'.format(var), log_file=log_file, verbose=verbose)
-            df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row))
+            df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row, bin_size=bin_size))
+            printf('Outliers flagged in {0}'.format(var), log_file=log_file, verbose=verbose)
 
             # Save original for plotting
             df_plot = df_valid.copy()
@@ -142,33 +145,41 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], plo
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var+'_eraqc'] = df_valid['flag']
 
+            # display(df_valid)
+
             # Plot flagged values
             if plot:
+                # Extrac station name
+                station=df['station'].unique()[0]
+                
                 # Extract only flagged values to loop over those months and hours
                 df_plot = df_plot[['year','hour','month','time','flag',var]].set_index(["month","hour"])
 
                 # Loop over flagged months/hours
-                for i in df_valid.set_index(["month","hour"]).index.unique():
+                index = df_valid.set_index(["month","hour"]).index.unique()
+                for i,ind in enumerate(index):
 
                     # Extract actual month/hour from index
-                    month, hour = i
-                    # Extrac station name
-                    station=df['station'].unique()[0]
+                    month, hour = ind
+                    # print("{} out of {}".format(i,len(index)))
+                    
                     # Plot distribution
-                    clim_outlier_plot(df_plot.loc[i][var], month, hour, bin_size=0.1, station=station, local=True)
+                    clim_outlier_plot(df_plot.loc[ind][var], month, hour, bin_size=bin_size, station=station, local=True)
                         
         return new_df
 
-    except Exception as e:
+    # except Exception as e:
+    else:
         printf("qaqc_climatological_outlier failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
         
 #----------------------------------------------------------------------
-def flag_clim_outliers(series):
+def flag_clim_outliers(series, bin_size=0.25):
     """
     """
     # Calculate frequency, normal fit, and boumdaries for clim outliers
-    freq, bins, p, left, right = fit_normal(series, bin_size=0.10, plot=False)
+    # freq, bins, p, left, right = fit_normal(series, bin_size=0.10, plot=True)
+    freq, bins, p, left, right = fit_normal(series, bin_size=bin_size, plot=False)
 
     # Calculate bins for frequency checks
     freq_bins = np.concatenate((bins[1:int(len(bins)/2)], [0,0], bins[int(len(bins)/2)+1:-1]))
@@ -230,7 +241,7 @@ def flag_clim_outliers(series):
     return clim_outliers
 
 #----------------------------------------------------------------------
-def fit_normal(series, bin_size=0.1, plot=False):
+def fit_normal(series, bin_size=0.25, plot=False):
     """
     """
     bins = create_bins(series, bin_size=bin_size)
@@ -266,7 +277,7 @@ def fit_normal(series, bin_size=0.1, plot=False):
         ymin = min(0.08, freq[freq>0].min())
         # print(ymin, freq[freq>0].min())
         ymax = np.ceil(freq.max()/100)*100
-        # ax.set_ylim(ymin,ymax) 
+        ax.set_ylim(ymin,ymax) 
         # ax.set_xlim(xmin, xmax)
         ax.set_title('Histogram with Gaussian Fit')
         ax.set_xlabel('Value')
@@ -302,235 +313,4 @@ def gap_search(freq, left, right):
     flag = np.ones(len(freq)-len(left_freq)-len(right_freq))
     flag = np.concatenate((left_flag, flag, right_flag))
     return flag
-    
-#----------------------------------------------------------------------
-def clim_mon_mean_hourly(df, var, month, hour):
-    '''Calculate the monthly mean climatology for each of the day'''
-    
-    df_m_h = df.loc[(df['month'] == month) & (df['hour'] == hour)]
-    clim_value = df_m_h[var].mean(numeric_only = True)
-    
-    # special handling if value is nan? 
-    
-    return clim_value
 
-#----------------------------------------------------------------------
-def iqr_range_monhour(df, var, month, hour):
-    '''Calculates the monthly interquartile range per hour'''
-    
-    q1 = df.loc[(df['month'] == month) & (df['hour'] == hour)].quantile(0.25, numeric_only=True)
-    q3 = df.loc[(df['month'] == month) & (df['hour'] == hour)].quantile(0.75, numeric_only=True)
-    
-    iqr_df = q3 - q1
-    iqr_df_val = iqr_df[var]
-    
-    # iqr cannot be less than 1.5°C in order to preserve low variance stations
-    if iqr_df_val < 1.5:
-        iqr_df_val = 1.5
-    else:
-        iqr_df_val = iqr_df_val
-            
-    return iqr_df_val
-
-#----------------------------------------------------------------------
-def clim_standardized_anom(df, vars_to_anom):
-    '''
-    First anomalizes data by monthly climatology for each hour, then
-    standardizes by the monthly climatological anomaly IQR for each hour
-    '''
-    
-    df2 = df.copy()
-    
-    for var in vars_to_anom:
-        for m in range(1,13,1):
-            for h in range(0,24,1):
-                # each hour in each month
-                anom_value = clim_mon_mean_hourly(df, var, month=m, hour=h)
-                iqr_value = iqr_range_monhour(df, var, month=m, hour=h)
-                
-                # locate obs within specific month/hour
-                df_m_h = df.loc[(df['month'] == m) & (df['hour'] == h)]
-                
-                # calculate the monthly climatological anomaly by hour and standardize by iqr
-                df2.loc[(df['month'] == m) & 
-                        (df['hour'] == h), 
-                        var] = (df_m_h[var] - anom_value) / iqr_value
-                
-    return df2
-
-#----------------------------------------------------------------------
-# def winsorize_temps(df, vars_to_anom, winz_limits):
-def winsorize_temps(df, var, winz_limits):
-    '''
-    Replaces potential spurious outliers by limiting the extreme values
-    using the winz_limits set (default is 5% and 95% percentiles)
-    '''
-    df2 = df.copy()
-    df2.loc[:,[var]] = df2.groupby(["month","hour"])[var].transform(lambda row: stats.mstats.winsorize(row, limits=[0.05,0.05]))
-    
-    return df2
-    
-    # df2 = df.copy()
-    
-    # for var in vars_to_anom:
-    #     for m in range(1,13,1):
-    #         for h in range(0,24,1):
-    #             if h not in df.loc[df['hour'] == h]:
-    #                 continue # some stations only report some hours
-    #             else:
-    #                 df_m_h = df.loc[(df['month'] == m) & (df['hour'] == h)]
-
-    #                 # winsorize only vars in vars_to_anom
-    #                 df_w = stats.mstats.winsorize(df_m_h[var], limits=winz_limits, nan_policy='omit')
-
-    #                 df2.loc[(df['month'] == m) & (df['hour'] == h),
-    #                        var] = df_w
-                
-    # return df2
-
-#----------------------------------------------------------------------
-def median_yr_anom(df, var):
-    '''Get median anomaly per year'''
-    
-    monthly_anoms = []
-    
-    # identify years in data
-    years = df['year'].unique()
-    
-    for yr in years:
-        df_yr = df.loc[df['year'] == yr]
-
-        ann_anom = df_yr[var].median()
-        monthly_anoms.append(ann_anom)
-        
-    return monthly_anoms
-
-#----------------------------------------------------------------------
-def low_pass_filter_weights(median_anoms, month_low, month_high, filter_low, filter_high):
-    '''Calculates weights for low pass filter'''
-    
-    filter_wgts = [1, 2, 3, 2, 1]
-    
-    if np.sum(filter_wgts[filter_low:filter_high] * 
-              np.ceil(median_anoms[month_low:month_high] - 
-                      np.floor(median_anoms[month_low:month_high]))) == 0:
-        weight = 0
-    
-    else:
-        weight = (
-            np.sum(filter_wgts[filter_low:filter_high] * np.ceil(median_anoms[month_low:month_high])) / 
-            np.sum(filter_wgts[filter_low:filter_high] * np.ceil(median_anoms[month_low:month_high] - 
-                                                                 np.floor(median_anoms[month_low:month_high])))
-        )
-        
-    return weight
-
-#----------------------------------------------------------------------
-def get_filter_indices(years):
-
-    month_low, month_high, filter_low, filter_high = [],[],[],[]
-    
-    for yr in range(len(years)):
-        if yr == 0:
-            month_low.append(0)
-            month_high.append(3)
-            filter_low.append(2)
-            filter_high.append(5)
-        elif yr == 1:
-            month_low.append(0)
-            month_high.append(4)
-            filter_low.append(1)
-            filter_high.append(5)
-        elif yr == len(years)-2:
-            month_low.append(-4)
-            month_high.append(-1)
-            filter_low.append(0)
-            filter_high.append(3)
-        elif yr == len(years)-1:
-            month_low.append(-3)
-            month_high.append(-1)
-            filter_low.append(0)
-            filter_high.append(2)
-        else:
-            month_low.append(yr-2)
-            month_high.append(yr+3)
-            filter_low.append(0)
-            filter_high.append(5)
-    return month_low, month_high, filter_low, filter_high
-    
-#----------------------------------------------------------------------
-# def low_pass_filter(df, vars_to_anom):
-def low_pass_filter(df, var):
-    '''
-    Low pass filtering on observations to remove any climate change signal 
-    causing overzealous removal at ends of time series
-    '''
-
-    median_anoms = df.groupby(["year"])[var].median().reset_index()
-    month_low, month_high, filter_low, filter_high =  get_filter_indices(df['year'].unique())
-
-    filter_weights = [low_pass_filter_weights(median_anoms[var], ml, mh, fl, fh) 
-                      for ml, mh, fl, fh 
-                      in zip(month_low, month_high, filter_low, filter_high)]
-    median_anoms['filter_weights'] = filter_weights
-
-    df = df.reset_index().\
-            set_index("year").\
-            assign(filter_weights=lambda x: median_anoms.set_index("year")['filter_weights'])
-    df["year"] = df.index.values
-    df = df.set_index("index")
-
-    df.loc[:, [var]] = df[var] - df["filter_weights"] 
-    
-    # for yr in range(len(years)):
-    
-    # # identify years in data
-    # years = df['year'].unique()
-    
-    # for var in vars_to_anom:
-        
-    #     median_anoms = median_yr_anom(df, var)
-    
-    #     for yr in range(len(years)):
-    #         if yr == 0:
-    #             month_low, month_high = 0, 3
-    #             filter_low, filter_high = 2, 5
-                
-    #         elif yr == 1:
-    #             month_low, month_high = 0, 4
-    #             filter_low, filter_high = 1, 5
-                
-    #         elif yr == len(years)-2:
-    #             month_low, month_high = -4, -1
-    #             filter_low, filter_high = 0, 3
-
-    #         elif yr == len(years)-1:
-    #             month_low, month_high = -3, -1
-    #             filter_low, filter_high = 0, 2
-
-    #         else:
-    #             month_low, month_high = yr-2, yr+3
-    #             filter_low, filter_high = 0, 5
-                            
-    #         if np.sum(np.abs(median_anoms[month_low:month_high])) != 0:
-    #             weights = low_pass_filter_weights(median_anoms, month_low, month_high, filter_low, filter_high)
-                      
-    #         # want to return specific year of data at a specific variable, the variable minus weight value
-    #         df.loc[(df['year'] == years[yr]), var] = df.loc[df['year'] == years[yr]][var] - weights
-            
-    return df
-
-#----------------------------------------------------------------------
-def pdf_bounds_clim(df, mu, sigma, bins):
-    '''Calculate pdf distribution, return pdf and threshold bounds'''
-
-    y = stats.norm.pdf(bins, mu, sigma)
-    
-    # add vertical lines to indicate thresholds where pdf y=0.1
-    pdf_bounds = np.argwhere(y > 0.1)
-    
-    # find first index
-    left_bnd = round(bins[pdf_bounds[0][0] -1])
-    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-    
-    return (y, left_bnd - 1, right_bnd)

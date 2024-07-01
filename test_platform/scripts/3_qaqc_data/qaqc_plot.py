@@ -17,7 +17,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
-plt.switch_backend('Agg')
+# plt.switch_backend('Agg')
 import time
 #=======================================================================================================
 # IGNORE PERFORMANCE WARNING FOR NOW
@@ -35,13 +35,13 @@ except:
     print("Error importing qaqc_unusual_gaps.py")
 from IPython.display import display
 
-######################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-######################################
+#####################################
+#FOR DEBUG
+#UNCOMMENT FOR NOTEBOOK DEBUGGING
+global log_file
+log_file = open("logtest.log","w")
+verbose=True
+#####################################
 
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes

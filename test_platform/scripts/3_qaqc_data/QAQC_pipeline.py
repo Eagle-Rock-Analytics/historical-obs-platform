@@ -45,14 +45,14 @@ for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
 
-######################################
+# #####################################
 # #FOR DEBUG
 # #UNCOMMENT FOR NOTEBOOK DEBUGGING
 # verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
-######################################
+# #####################################
 
 #----------------------------------------------------------------------------
 ## Set AWS credentials
