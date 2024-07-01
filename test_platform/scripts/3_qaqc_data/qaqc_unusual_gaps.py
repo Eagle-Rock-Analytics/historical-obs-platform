@@ -32,14 +32,14 @@ except Exception as e:
 def open_log_file_gaps(file):
     global log_file
     log_file = file
-######################################
+
+# #####################################
 # #FOR DEBUG
 # #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
-######################################
+# #####################################
 
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
@@ -254,7 +254,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
                         # identify values beyond right bnd
                         vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                        df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                        # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                        df.loc[df[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
 
             if plot:
                 if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
