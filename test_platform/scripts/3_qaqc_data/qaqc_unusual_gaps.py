@@ -207,14 +207,14 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
             if len(df_valid) == 0:
                 continue # variable has no valid data
-
+            
             # from center of distribution, scan for gaps (where bin = 0)
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged
 
             # standardize against IQR range
             df_month_iqr = standardized_iqr(df_valid, var)
-            
+
             # determine number of bins
             bins = create_bins(df_month_iqr)
 

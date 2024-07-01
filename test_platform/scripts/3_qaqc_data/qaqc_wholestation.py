@@ -483,8 +483,11 @@ def qaqc_world_record(df, verbose=False):
         maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X, "rsds": R_X}
         mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "rsds": R_N}
 
+        maxes['ps'] = maxes['psl']
+        mins['ps'] = mins['psl']
+
         # variable names to check against world record limits
-        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds']
+        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds', 'ps']
 
         for var in wr_vars:
             if var in list(df.columns):
