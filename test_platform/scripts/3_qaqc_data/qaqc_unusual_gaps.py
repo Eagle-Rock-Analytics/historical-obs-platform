@@ -73,8 +73,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
     
-    # try:
-    if True:
+    try:
         printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file)
 
         # whole station bypass check first
@@ -93,9 +92,9 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
         return df_part2
     
-    # except Exception as e:
-    #     printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
-    #     return None
+    except Exception as e:
+        printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        return None
 
 
 #-----------------------------------------------------------------------------

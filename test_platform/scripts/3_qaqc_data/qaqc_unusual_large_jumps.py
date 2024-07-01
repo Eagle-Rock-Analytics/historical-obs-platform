@@ -94,8 +94,6 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     df.drop(columns=['time'], inplace=True)
 
     try:
-    # if True:
-
         # Drop station index
         # df = df.droplevel(level="station")
 
@@ -157,7 +155,6 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         df = df.set_index(INDEX)    
         return df
 
-    # else:
     except Exception as e:
         printf("qaqc_unusual_large_jumps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None

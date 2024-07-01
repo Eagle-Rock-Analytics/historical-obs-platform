@@ -79,8 +79,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     # vars_to_check = ['tas']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
-    # try:
-    if True:
+    try:
         printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file)
 
         # whole station bypass check first
@@ -168,8 +167,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
                         
         return new_df
 
-    # except Exception as e:
-    else:
+    except Exception as e:
         printf("qaqc_climatological_outlier failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
         
