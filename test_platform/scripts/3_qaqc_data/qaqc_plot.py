@@ -670,7 +670,7 @@ def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=None,
     return
 
 #============================================================================================================
-def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
+def unusual_streaks_plot(df, var, flagvals=(27,28,29), station=None, dpi=None, local=False):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
@@ -691,10 +691,18 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     df.plot(ax=ax, x="time", y=var, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
 
     # grab flagged data
-    flag_vals_0 = df.loc[df[var + '_eraqc'] == 27]   
-    flag_vals_1 = df.loc[df[var + '_eraqc'] == 28]   
-    flag_vals_2 = df.loc[df[var + '_eraqc'] == 29] 
-    
+    flag_vals_0 = df.copy()[['time',var]]
+    flag_vals_0.loc[:, var] = np.nan
+    flag_vals_0.loc[df[var+"_eraqc"]==27,var] = df.loc[df[var+"_eraqc"]==27, var]
+
+    flag_vals_1 = df.copy()[['time',var]]
+    flag_vals_1.loc[:, var] = np.nan
+    flag_vals_1.loc[df[var+"_eraqc"]==28,var] = df.loc[df[var+"_eraqc"]==28, var]
+
+    flag_vals_2 = df.copy()[['time',var]]
+    flag_vals_2.loc[:, var] = np.nan
+    flag_vals_2.loc[df[var+"_eraqc"]==29,var] = df.loc[df[var+"_eraqc"]==29, var]
+
     # Amount of data flagged
     flag_label_0 = "Same hour replication"
     flag_label_1 = "Consecutive replication"
@@ -707,12 +715,10 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     if len(flag_vals_1) != 0:
         flag_vals_1.plot(ax=ax, x="time", y=var, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)  
 
-    if len(flag_vals_2) != 0: 
+    if len(flag_vals_2) != 0:
         flag_vals_2.plot(ax=ax, x="time", y=var, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)   
      
     legend = ax.legend(loc=0, prop={'size': 8})    
-        
-    station = df['station'].unique()[0]
     network = station.split('_')[0]
     
     # Plot aesthetics
@@ -722,22 +728,15 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
-    # # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
-    if date is not None:
-        timestamp = str(date).split(":")[0].replace(" ","T")
-    else:
-        timestamp = "full_series"
-        miny = max(miny, df[var].min())
-        maxy = min(maxy, df[var].max())
-        ax.set_ylim(miny,maxy)
-    
     title = 'Unusual repeated streaks check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
+    month = df.month.unique()[0]
+    year = df.year.unique()[0]
     
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
+    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}-{3}'.format(station, var, year, month)
     key = '{0}/{1}/qaqc_figs/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")

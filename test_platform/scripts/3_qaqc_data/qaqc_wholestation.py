@@ -410,7 +410,8 @@ def qaqc_sensor_height_w(df, verbose=False):
 
     printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
 
-    try:
+    # try:
+    if True:
         # Check if anemometer height is missing
         isHeightMissing = df['anemometer_height_m'].isnull().any()
 
@@ -430,8 +431,9 @@ def qaqc_sensor_height_w(df, verbose=False):
                 df['sfcWind_dir_eraqc'] = 9
                 printf('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         return df
-        
-    except Exception as e:
+
+    else:
+    # except Exception as e:
         printf("qaqc_sensor_height_w failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
@@ -474,30 +476,15 @@ def qaqc_world_record(df, verbose=False):
         W_X = {"North_America":113.2} #m/s
         W_N = {"North_America":0.} #m/s
         S_X = {"North_America":108330} #Pa
-        ##-----------------------------------------------------------------------------------------------
-        ## FOR NOW, since some of our stations are at high elevation and may be lower than 87000 Pa
-        ## For V2, we need to explore a numerical justification for it, for now:
-        ## atmospheric pressure at the top of Mt. Whitney in California is 440 mmHg, which is 58662 Pa. 
-        ## So I think 50000 Pa is def a good lower-bound
-        # S_N = {"North_America":87000} #Pa
-        S_N = {"North_America":50000} #Pa  
-        ##-----------------------------------------------------------------------------------------------
+        S_N = {"North_America":87000} #Pa
         R_X = {"North_America":1500} #W/m2
         R_N = {"North_America":-5} #W/m2
 
         maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X, "rsds": R_X}
         mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "rsds": R_N}
 
-        # Fix dictionary for all pressure variables
-        maxes['ps'] = maxes['psl']
-        mins['ps'] = mins['psl']
-        maxes['ps_derived'] = maxes['psl']
-        mins['ps_derived'] = mins['psl']
-        maxes['ps_altimeter'] = maxes['psl']
-        mins['ps_altimeter'] = mins['psl']
-        
         # variable names to check against world record limits
-        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds', 'ps']
+        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds']
 
         for var in wr_vars:
             if var in list(df.columns):
