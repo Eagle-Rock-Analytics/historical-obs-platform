@@ -201,12 +201,11 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
            
             # per variable bypass check
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
-
             # subset for valid obs, distribution drop yellow flags                      
             df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
             if len(df_valid) == 0:
                 continue # variable has no valid data
-            
+
             # from center of distribution, scan for gaps (where bin = 0)
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged
@@ -224,7 +223,6 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # identify gaps as below y=0.1 from histogram, not pdf                    
             y_hist, bins = np.histogram(df_month_iqr, bins=bins, density=True)
-
             # identify climatology and iqr baselines in order to flag
             iqr_baseline = iqr_range(df_valid, var=var)
             clim = median_clim(df_valid, var=var)
@@ -235,22 +233,18 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # bins[1:] takes the right edge of bins, suitable for left_bnd
             bins_beyond_left_bnd = np.argwhere(bins[1:] <= left_bnd)
-
             if len(bins_beyond_left_bnd) != 0: 
                 for data in bins_beyond_left_bnd:
                     if y_hist[data] > 0.1: # bins with data > 0.1 beyond left_bnd
-
                         # identify values beyond left bnd
                         vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
-                        df.loc[df_valid[var] <= vals_to_flag[0], var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
-
+                        df.loc[df[var] <= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+            
             # bins[0:-1] takes the left edge of bins, suitable for left_bnd
-            bins_beyond_right_bnd = np.argwhere(bins[0:-1] >= right_bnd)
-
+            bins_beyond_right_bnd = np.argwhere(bins[:-1] >= right_bnd)
             if len(bins_beyond_right_bnd) != 0:
                 for data in bins_beyond_right_bnd:
                     if y_hist[data] > 0.1: # bins with data > 0.1 beyond right_bnd
-
                         # identify values beyond right bnd
                         vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
                         # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
@@ -269,7 +263,7 @@ def monthly_med(df):
     """Part 1: Calculates the monthly median"""
     return df.resample('M', on='time').median(numeric_only=True)
 
-#-----------------------------------------------------------------------------
+# #-----------------------------------------------------------------------------
 def iqr_range(df, var):
     """Part 1: Calculates the monthly interquartile range"""
     return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
@@ -304,11 +298,3 @@ def standardized_anom(df, month, var):
     return arr_std_anom
     
 #-----------------------------------------------------------------------------
-def standardized_median_bounds(df, var, iqr_thresh):
-    """Part 1: Calculates the standardized median"""
-    std_med = df[var].median() # climatological median for that month
-    iqr = iqr_range(df, var)
-    lower_bnd = std_med - (iqr_thresh * iqr)
-    upper_bnd = std_med + (iqr_thresh * iqr)
-    
-    return (std_med, lower_bnd, upper_bnd)
