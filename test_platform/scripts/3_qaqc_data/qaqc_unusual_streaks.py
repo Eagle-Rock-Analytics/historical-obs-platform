@@ -240,7 +240,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
     
     station = df['station'].dropna().unique()[0]
     
-    try:
+    # try:
+    if True:
         # Infere resolution from data
         resolutions = infere_res(df)
         
@@ -344,7 +345,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                 printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file, flush=True)     
         
         return new_df
-    except Exception as e:
+    # except Exception as e:
+    else:
         printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
 
