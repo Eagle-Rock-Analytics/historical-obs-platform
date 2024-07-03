@@ -526,7 +526,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 
 #============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
+def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
@@ -540,10 +540,11 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     """
      
     # Create figure
-    if date is not None:
-        fig,ax = plt.subplots(figsize=(7,3))
-    else:
-        fig,ax = plt.subplots(figsize=(10,3))
+    # if date is not None:
+    #     fig,ax = plt.subplots(figsize=(7,3))
+    # else:
+    #     
+    fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
     df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
@@ -568,14 +569,9 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
-    # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
-    if date is not None:
-        timestamp = str(date).split(":")[0].replace(" ","T")
-    else:
-        timestamp = "full_series"
-        miny = max(miny, df[var].min())
-        maxy = min(maxy, df[var].max())
-        ax.set_ylim(miny,maxy)
+    # Set time for fig namne
+    month = df.month.unique()[0]
+    year = df.year.unique()[0]
     
     title = 'Unusual large jumps check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
@@ -583,7 +579,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}'.format(station, var, timestamp)
+    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}-{3}'.format(station, var, year, month)
 
     key = '{0}/{1}/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
@@ -597,10 +593,10 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         fig.savefig('{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
-    plt.close(fig)
     plt.close('all')
 
-    return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
+    # return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
+    return 
 
 #============================================================================================================
 def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=None, local=False):
