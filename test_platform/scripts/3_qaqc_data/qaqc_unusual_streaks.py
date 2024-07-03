@@ -357,22 +357,24 @@ def find_date_clusters(dates, threshold):
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
 
     # Calculate the difference between consecutive dates
-    diff = dates.diff().dt.days.fillna(1)
-    
-    # Identify clusters by assigning a cluster number to each date
-    cluster_id = (diff > 1).cumsum()
-    
-    # Group the dates by their cluster id and filter by cluster size
-    clusters = dates.groupby(cluster_id).filter(lambda x: len(x) > threshold)
-    
-    # Create a list of clusters
-    cluster_list = [group.tolist() for _, group in clusters.groupby(cluster_id)]
-
-    if len(cluster_list)>0:
-        return np.concatenate(cluster_list)
+    if dates.size>0:
+        diff = dates.diff().dt.days.fillna(1)
+        
+        # Identify clusters by assigning a cluster number to each date
+        cluster_id = (diff > 1).cumsum()
+        
+        # Group the dates by their cluster id and filter by cluster size
+        clusters = dates.groupby(cluster_id).filter(lambda x: len(x) > threshold)
+        
+        # Create a list of clusters
+        cluster_list = [group.tolist() for _, group in clusters.groupby(cluster_id)]
+        
+        if len(cluster_list)>0:
+            return np.concatenate(cluster_list)
+        else:
+            return np.nan
     else:
         return np.nan
-
 #---------------------------------------------------------------------------------------------------
 def hourly_repeats(df, var, threshold):
     """
@@ -393,7 +395,7 @@ def hourly_repeats(df, var, threshold):
     values = []
     for hour in range(24):
         da = df[df['hour']==hour]
-        streaks = da.groupby(var)['time'].apply(find_date_clusters, threshold=15).dropna()
+        streaks = da.groupby(var, group_keys=True)['time'].apply(find_date_clusters, threshold=15).dropna()
         if streaks.size > 0:
             for ind in streaks.index:
                 streaks_dates = list(streaks.loc[ind])
