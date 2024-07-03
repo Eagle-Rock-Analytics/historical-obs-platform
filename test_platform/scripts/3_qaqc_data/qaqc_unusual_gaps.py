@@ -74,7 +74,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
     
     try:
-        printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file)
+        printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file, flush=True)
 
         # whole station bypass check first
         df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh)

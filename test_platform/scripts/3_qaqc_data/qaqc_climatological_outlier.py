@@ -80,7 +80,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
-        printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file)
+        printf("Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom), verbose=verbose, log_file=log_file, flush=True)
 
         # whole station bypass check first
         # df is already flagged by gaps function (careful if the order is modified)
