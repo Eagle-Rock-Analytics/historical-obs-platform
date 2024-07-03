@@ -588,8 +588,8 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     """
     # TESTING SUBSET
     # stations_sample = stations.sample(4)
-    stations_sample = list(files_df['era.id'].sample(10))
-    stations_sample = ['CAHYDRO_IDYC1']
+    stations_sample = list(files_df['era.id'].sample(8))
+    # stations_sample = ['CAHYDRO_IDYC1']
     
     # stations_sample = ['RAWS_KBNC1', 'RAWS_PKLC2']
     # Select stations for timing analysis
