@@ -350,7 +350,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
 
-
 #---------------------------------------------------------------------------------------------------
 def find_date_clusters(dates, threshold):
     """
@@ -359,19 +358,22 @@ def find_date_clusters(dates, threshold):
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
 
     # Calculate the difference between consecutive dates
-    diff = dates.diff().dt.days.fillna(1)
-    
-    # Identify clusters by assigning a cluster number to each date
-    cluster_id = (diff > 1).cumsum()
-    
-    # Group the dates by their cluster id and filter by cluster size
-    clusters = dates.groupby(cluster_id).filter(lambda x: len(x) > threshold)
-    
-    # Create a list of clusters
-    cluster_list = [group.tolist() for _, group in clusters.groupby(cluster_id)]
-
-    if len(cluster_list)>0:
-        return np.concatenate(cluster_list)
+    if dates.size>0:
+        diff = dates.diff().dt.days.fillna(1)
+        
+        # Identify clusters by assigning a cluster number to each date
+        cluster_id = (diff > 1).cumsum()
+        
+        # Group the dates by their cluster id and filter by cluster size
+        clusters = dates.groupby(cluster_id).filter(lambda x: len(x) > threshold)
+        
+        # Create a list of clusters
+        cluster_list = [group.tolist() for _, group in clusters.groupby(cluster_id)]
+        
+        if len(cluster_list)>0:
+            return np.concatenate(cluster_list)
+        else:
+            return np.nan
     else:
         return np.nan
 
