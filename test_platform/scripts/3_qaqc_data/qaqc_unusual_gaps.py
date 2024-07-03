@@ -198,6 +198,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # Sel month data
             monthly_df = df.loc[df['month']==month]
+            print(np.nanmin(monthly_df), np.nanmax(monthly_df))
            
             # per variable bypass check
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
@@ -232,23 +233,27 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             # safe to assume that gap is present if values >0.1 outside of left_bnd, right_bnd
 
             # bins[1:] takes the right edge of bins, suitable for left_bnd
-            bins_beyond_left_bnd = np.argwhere(bins[1:] <= left_bnd)
-            if len(bins_beyond_left_bnd) != 0: 
-                for data in bins_beyond_left_bnd:
-                    if y_hist[data] > 0.1: # bins with data > 0.1 beyond left_bnd
-                        # identify values beyond left bnd
-                        vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
-                        df.loc[df[var] <= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+            if left_bnd >= 0:
+                print('left')
+                bins_beyond_left_bnd = np.argwhere(bins[1:] <= left_bnd)
+                if len(bins_beyond_left_bnd) != 0: 
+                    for data in bins_beyond_left_bnd:
+                        if y_hist[data] > 0.1: # bins with data > 0.1 beyond left_bnd
+                            # identify values beyond left bnd
+                            vals_to_flag = clim + (left_bnd * iqr_baseline) # left_bnd is negative
+                            df.loc[df[var] <= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
             
             # bins[0:-1] takes the left edge of bins, suitable for left_bnd
-            bins_beyond_right_bnd = np.argwhere(bins[:-1] >= right_bnd)
-            if len(bins_beyond_right_bnd) != 0:
-                for data in bins_beyond_right_bnd:
-                    if y_hist[data] > 0.1: # bins with data > 0.1 beyond right_bnd
-                        # identify values beyond right bnd
-                        vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                        # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
-                        df.loc[df[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+            if right_bnd >= 0:
+                print('right')
+                bins_beyond_right_bnd = np.argwhere(bins[:-1] >= right_bnd)
+                if len(bins_beyond_right_bnd) != 0:
+                    for data in bins_beyond_right_bnd:
+                        if y_hist[data] > 0.1: # bins with data > 0.1 beyond right_bnd
+                            # identify values beyond right bnd
+                            vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
+                            # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                            df.loc[df[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
 
             if plot:
                 if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged

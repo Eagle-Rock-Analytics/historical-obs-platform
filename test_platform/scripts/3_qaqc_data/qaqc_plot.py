@@ -379,7 +379,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
     Any variable that is flagged is noted
     '''
-
+    print('part 1')
     # grab data by months
     df = df.loc[df['month'] == month]
         
@@ -450,6 +450,8 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     with PDF overlay and threshold lines where pdf falls below y=0.1.
     Any bin that is outside of the threshold is visually flagged
     ''' 
+
+    print('part 2')
     # select month
     df = df.loc[df['month'] == month]
     

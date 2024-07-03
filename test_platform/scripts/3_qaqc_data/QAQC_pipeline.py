@@ -577,12 +577,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         """
         # TESTING SUBSET
         # stations_sample = stations.sample(4)
-        stations_sample = list(stations.sample(4))
-<<<<<<< clim-outliers-review
-=======
-        
-        # stations_sample = ['RAWS_KBNC1', 'RAWS_PKLC2']
->>>>>>> main
+        # stations_sample = list(stations.sample(4))
+        stations_sample = ['RAWS_PPPC1']
         # Select stations for timing analysis
         # stations_sample = list(stations.iloc[:sample])
         

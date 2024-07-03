@@ -484,12 +484,7 @@ def qaqc_world_record(df, verbose=False):
         mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "rsds": R_N}
 
         # variable names to check against world record limits
-<<<<<<< clim-outliers-review
         wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds', 'ps', 'ps_altimeter', 'ps_derived']
-=======
-        wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds']
->>>>>>> main
-
         for var in wr_vars:
             if var in list(df.columns):
                 df_valid = grab_valid_obs(df, var) # subset for valid obs

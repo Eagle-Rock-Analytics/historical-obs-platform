@@ -89,19 +89,21 @@ def pdf_bounds(df, mu, sigma, bins):
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
         printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination')
+        return y
 
-    # find first index
-    # left_bnd = round(bins[pdf_bounds[0] - 1])
-    # right_bnd = round(bins[pdf_bounds[-1] + 1])
-    # rounds +1 and -1 is giving out of bounds error, using ceil, floor, and clip instead
-    try:
-        bnds = np.clip([np.floor(pdf_bounds[0]), np.ceil(pdf_bounds[-1])], 0, len(bins)-1).astype("int")
-        bnds = bins[bnds]
-        return (y, bnds[0] -1, bnds[-1] + 1)
-    except:
-        left_bnd = round(bins[pdf_bounds[0] - 1])
-        right_bnd = round(bins[pdf_bounds[-1] + 1])
-        return (y, left_bnd, right_bnd)
+    else:
+        # find first index
+        # left_bnd = round(bins[pdf_bounds[0] - 1])
+        # right_bnd = round(bins[pdf_bounds[-1] + 1])
+        # rounds +1 and -1 is giving out of bounds error, using ceil, floor, and clip instead
+        try:
+            bnds = np.clip([np.floor(pdf_bounds[0]), np.ceil(pdf_bounds[-1])], 0, len(bins)-1).astype("int")
+            bnds = bins[bnds]
+            return (y, bnds[0] -1, bnds[-1] + 1)
+        except:
+            left_bnd = round(bins[pdf_bounds[0] - 1])
+            right_bnd = round(bins[pdf_bounds[-1] + 1])
+            return (y, left_bnd, right_bnd)
 
 #-----------------------------------------------------------------------------
 def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):

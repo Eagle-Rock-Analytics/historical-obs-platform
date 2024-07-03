@@ -113,18 +113,6 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             for i in ind:
                 df.loc[df.index == i, var+"_eraqc"] = 23 # see qaqc_flag_meanings.csv
 
-<<<<<<< clim-outliers-review
-            # Cret an array of flagged times
-            bad = df.loc[df[var+"_eraqc"]==23, :][['year','month']]
-
-            keys = bad.groupby(["year","month"], group_keys=True).groups.keys()
-            for g in keys:
-                subset = df.loc[((df.year == g[0]) & (df.month == g[1])), :]
-                unusual_jumps_plot(subset, var, flagval=23, local=local)
-            
-            printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file)
-            
-=======
             #================================================================================
             # This next part needs to be in parallel (if large number of plots), since for some stations
             # the number of jumnps detected is large, is this is a bottleneck
@@ -154,7 +142,6 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                 # printf("plot and upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file, flush=True)
             #================================================================================
         
->>>>>>> main
         df['time'] = df.index.values
         df = df.set_index(INDEX)    
         return df
