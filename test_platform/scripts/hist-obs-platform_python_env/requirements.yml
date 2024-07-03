@@ -47,7 +47,8 @@ dependencies:
  - jupyterlab_vim #vim-style editor for Jupyter
  - keras #deep learning
  - metpy #plotting (esp. skew-Ts) and analysis of meteorlogical data
- - mpi4py #python bindings for MPI
+ - mpi4py==3.1.6 #python bindings for MPI
+ - openmpi==4.1.6 
  - nc-time-axis #nice plotting of cftime objs for xarray plots
  - nodejs #for installing extensions in Jupyter
  - numba #speed ups for numpy
@@ -75,6 +76,7 @@ dependencies:
  - xesmf #utilities for regridding
  - xlsxwriter #writing Excel files
  - pip: #pip dependencies
+   - simplempi==0.1.4
    - fastkde #fast Kernel Density Estimation
    - gitsummary # makes it simple to print git repo info in a notebook or script
    - cdsapi
