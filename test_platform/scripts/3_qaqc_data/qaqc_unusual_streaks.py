@@ -240,8 +240,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
     
     station = df['station'].dropna().unique()[0]
     
-    # try:
-    if True:
+    try:
+    # if True:
         # Infere resolution from data
         resolutions = infere_res(df)
         
@@ -345,8 +345,8 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                 printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file, flush=True)     
         
         return new_df
-    # except Exception as e:
-    else:
+    except Exception as e:
+    # else:
         printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
 
@@ -397,7 +397,7 @@ def hourly_repeats(df, var, threshold):
     values = []
     for hour in range(24):
         da = df[df['hour']==hour]
-        streaks = da.groupby(var)['time'].apply(find_date_clusters, threshold=15).dropna()
+        streaks = da.groupby(var, group_keys=True)['time'].apply(find_date_clusters, threshold=15).dropna()
         if streaks.size > 0:
             for ind in streaks.index:
                 streaks_dates = list(streaks.loc[ind])
