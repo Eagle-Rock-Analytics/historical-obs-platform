@@ -101,7 +101,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
         check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
         variables = [var for var in check_vars if var in df.columns]
 
-        printf("Running {} on {}".format("qaqc_unusual_large_jumps", variables), verbose=verbose, log_file=log_file)
+        printf("Running {} on {}".format("qaqc_unusual_large_jumps", variables), verbose=verbose, log_file=log_file, flush=True)
 
         # Loop through test variables
         for var in variables:
@@ -127,17 +127,17 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             # the number of jumnps detected is large, is this is a bottleneck
             # TODO: check that all the jumps are actually spikes and thus need to be plotted
             if len(ind)>40:
-                # printf("plotting jumps in parallel", verbose=verbose, log_file=log_file)
+                # printf("plotting jumps in parallel", verbose=verbose, log_file=log_file, flush=True)
                 t0 = time.time()
                 pool = ThreadPool(processes=64)
                 da = [(df,var,i,local) for i in ind]
                 figs = pool.map(parallel_plotting_wrapper, da)
-                # printf("plotting time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+                # printf("plotting time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file, flush=True)
                 t0 = time.time()
                 pool.map(parallel_upload_wrapper, figs)
-                # printf("upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+                # printf("upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file, flush=True)
             else:
-                # printf("plottng jumps serially", verbose=verbose, log_file=log_file)
+                # printf("plottng jumps serially", verbose=verbose, log_file=log_file, flush=True)
                 t0 = time.time()
                 for i in ind:
                     try:
@@ -148,7 +148,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
                     except:
                         printf('Unable to plot {0} detailed unusual jumps figure for {1}'.format(i, var), log_file=log_file, verbose=verbose)
                         continue
-                # printf("plot and upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file)
+                # printf("plot and upload time: {:.2f} s.".format(time.time()-t0), verbose=verbose, log_file=log_file, flush=True)
             #================================================================================
         
         df['time'] = df.index.values

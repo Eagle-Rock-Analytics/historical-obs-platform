@@ -142,7 +142,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         return df_dpt
 
     except Exception as e:
-        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file)
+        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file, flush=True)
         return None
 
 #----------------------------------------------------------------------

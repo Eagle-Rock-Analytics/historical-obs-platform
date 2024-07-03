@@ -241,7 +241,6 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
     station = df['station'].dropna().unique()[0]
     
     try:
-    # if True:
         # Infere resolution from data
         resolutions = infere_res(df)
         
@@ -251,11 +250,11 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
         variables = [var for var in check_vars if var in new_df.columns]
-        printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file)
+        printf("Running {} on {}".format("qaqc_unusual_repeated_streaks", variables), verbose=verbose, log_file=log_file, flush=True)
         
         # Loop through test variables
         for var in variables:
-            printf("Running unusual streaks check on: {}".format(var), verbose=verbose, log_file=log_file)
+            printf("Running unusual streaks check on: {}".format(var), verbose=verbose, log_file=log_file, flush=True)
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
         
@@ -264,7 +263,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
             
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:
-                printf("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var), verbose=verbose, log_file=log_file)
+                printf("All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(var), verbose=verbose, log_file=log_file, flush=True)
                 continue # bypass to next variable if all obs are nans
                 
             # Choose resolution
@@ -286,16 +285,16 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
             ##########################################################################################
             # ------------------------------------------------------------------------------------------------
             # Hour repeat streak criteria
-            printf('Running hourly repeats on {}'.format(var), verbose=verbose, log_file=log_file)
+            printf('Running hourly repeats on {}'.format(var), verbose=verbose, log_file=log_file, flush=True)
             tt00 = time.time()
             threshold = hour_repeat_criteria[var][res]
             bad_hourly = hourly_repeats(test_df, var=var, threshold=threshold) # Bad hourly returns a pd.Series of time stamps
             new_df.loc[new_df['time'].isin(bad_hourly), var+"_eraqc"] = 27    # Flag _eraqc variable
             printf('Hourly repeats flagged for {}. Ellapsed time: {:.2f}'.
-                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file)
+                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file, flush=True)
             # ------------------------------------------------------------------------------------------------
             # Straight repeat streak criteria
-            printf('Running straight repeats on {}'.format(var), verbose=verbose, log_file=log_file)
+            printf('Running straight repeats on {}'.format(var), verbose=verbose, log_file=log_file, flush=True)
             tt00 = time.time()
             threshold = straight_repeat_criteria[var][res]
             if var=="sfcWind":
@@ -307,16 +306,16 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                                                min_sequence_length=min_sequence_length) # Bad straight returns a pd.Series of time stamps
             new_df.loc[new_df['time'].isin(bad_straight), var+"_eraqc"] = 28    # Flag _eraqc variable
             printf('Straight repeats flagged for {}. Ellapsed time: {:.2f}'.
-                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file)
+                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file, flush=True)
             # ------------------------------------------------------------------------------------------------
             # Whole day replication for a streak of days
-            printf('Running whole day repeats on {}'.format(var), verbose=verbose, log_file=log_file)
+            printf('Running whole day repeats on {}'.format(var), verbose=verbose, log_file=log_file, flush=True)
             tt00 = time.time()
             threshold = day_repeat_criteria[var][res]
             bad_whole = consecutive_fullDay_repeats(test_df, var, threshold) # Bad whole returns a pd.Series of time stamps
             new_df.loc[new_df['time'].isin(bad_whole), var+"_eraqc"] = 29    # Flag _eraqc variable
             printf('Whole day repeats flagged for {}. Ellapsed time: {:.2f}'.
-                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file)
+                   format(var,time.time()-tt00), verbose=verbose, log_file=log_file, flush=True)
             # ------------------------------------------------------------------------------------------------
             #             
             bad_keys = np.concatenate([len(bad_hourly)*[27], len(bad_straight)*[28], len(bad_whole)*[29]])
@@ -342,12 +341,11 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                                          new_df['month']==k[1]
                                         )
                     unusual_streaks_plot(new_df[ind], 'tas', station="test", local=True)
-                printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file)     
+                printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file, flush=True)     
         
         return new_df
-    # else:
     except Exception as e:
-        printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file)
+        printf("qaqc_unusual_repeated_streaks failed with Exception: {}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
 
 
@@ -358,10 +356,6 @@ def find_date_clusters(dates, threshold):
     # Ensure the dates are sorted
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
 
-    # # Interpolate to gaps if the gap is less than 5 days
-    # # For V2, this needs to be revised, probably better to make data hourly before running this
-    # dates = 
-    
     # Calculate the difference between consecutive dates
     diff = dates.diff().dt.days.fillna(1)
     
@@ -437,8 +431,6 @@ def consecutive_repeats(df, var, threshold, wind_min_value = None,
         da = da[da[var]>wind_min_value]
     # Identify sequences of similar values
     da.loc[:, 'group'] = (da[var] != da[var].shift()).cumsum()
-    # da.loc[:, 'start_date'] = da.index.values
-    # da.loc[:, 'end_date'] = da.index.values
     da.loc[:, 'start_date'] = da['time'].values
     da.loc[:, 'end_date'] = da['time'].values
     
