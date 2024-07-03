@@ -27,6 +27,7 @@ bucket_name = "wecc-historical-wx"
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+
 ## QA/QC helper functions
 #-----------------------------------------------------------------------------
 def get_file_paths(network):
@@ -74,7 +75,7 @@ def create_bins(data, bin_size=0.25):
 
     # set up bins
     b_min = np.floor(np.nanmin(data))
-    b_max = np.ceil(np.nanmax(data))
+    b_max = np.ceil(np.nanmax(data))+bin_size
     bins = np.arange(b_min, b_max, bin_size)
 
     return bins
@@ -87,7 +88,7 @@ def pdf_bounds(df, mu, sigma, bins):
     
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
-    
+
     # find first index
     # left_bnd = round(bins[pdf_bounds[0] - 1])
     # right_bnd = round(bins[pdf_bounds[-1] + 1])

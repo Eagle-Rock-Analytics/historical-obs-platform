@@ -45,15 +45,14 @@ for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
 
-#FOR DEBUG
-global log_file
-log_file = open("logtest.log","w")
-verbose=True
-
+# #####################################
 # #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
+# #####################################
 
 #----------------------------------------------------------------------------
 ## Set AWS credentials
@@ -150,8 +149,7 @@ def process_output_ds(df, attrs, var_attrs,
     #--------------------------------------------------------
 
     # Write station file to netcdf format
-    # try:
-    if True:
+    try:
         filename = station + ".nc" # Make file name
         filepath = qaqcdir + filename # Writes file path
 
@@ -176,8 +174,7 @@ def process_output_ds(df, attrs, var_attrs,
         else:
             os.system("rm {}".format(tmpFile.name))
             
-    else:
-    # except Exception as e:
+    except Exception as e:
         printf("netCDF writing failed for {} with Error: {}".format(filename, e), log_file=log_file, verbose=verbose, flush=True)
         errors = print_qaqc_failed(errors, filename, end_api, 
                                    message='Error saving ds as .nc file to AWS bucket: {}'.format(e), 
@@ -581,6 +578,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         # TESTING SUBSET
         # stations_sample = stations.sample(4)
         stations_sample = list(stations.sample(4))
+        
+        # stations_sample = ['RAWS_KBNC1', 'RAWS_PKLC2']
         # Select stations for timing analysis
         # stations_sample = list(stations.iloc[:sample])
         

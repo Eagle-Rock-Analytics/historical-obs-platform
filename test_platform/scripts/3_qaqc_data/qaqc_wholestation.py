@@ -31,10 +31,14 @@ except Exception as e:
 wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+# #####################################
 # #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# verbose=True
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
+# #####################################
 
 #======================================================================
 ## Part 1a functions (whole station/network)
@@ -512,10 +516,10 @@ def flag_summary(df, verbose=False, local=False):
     obs_vars = [item.split('_e')[0] for item in eraqc_vars]
     
     for var in eraqc_vars:
-        printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file) # unique flag values        
+        printf('Flags set on {}: {}'.format(var, df[var].unique()), verbose=verbose, log_file=log_file, flush=True) # unique flag values        
         printf('Coverage of {} obs flagged: {}% of obs'.format(var,
               round((len(df.loc[(df[var].isnull() == False)]) / len(df))*100, 2)),
-              verbose=verbose, log_file=log_file) # % of coverage flagged
+              verbose=verbose, log_file=log_file, flush=True) # % of coverage flagged
 
     for var in obs_vars:
         try:

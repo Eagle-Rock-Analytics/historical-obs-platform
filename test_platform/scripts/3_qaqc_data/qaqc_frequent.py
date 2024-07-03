@@ -32,6 +32,14 @@ except Exception as e:
 def open_log_file_frequent(file):
     global log_file
     log_file = file
+
+# #####################################
+# #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+# #####################################
     
 ## frequent values + helper functions
 #-----------------------------------------------------------------------------

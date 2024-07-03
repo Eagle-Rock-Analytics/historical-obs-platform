@@ -17,19 +17,31 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
-plt.switch_backend('Agg')
+# plt.switch_backend('Agg')
 import time
-
+#=======================================================================================================
+# IGNORE PERFORMANCE WARNING FOR NOW
+# Related to:
+# PerformanceWarning: indexing past lexsort depth may impact performance.
+# clim_outlier_plot(df_plot.loc[i][var], month, hour, bin_size=0.1, station=station, local=True)
+# It's because we are using multiindex and is not sorted, for now leeaving like that since
+# it's not a big deal. Check for V2 if ordering de multiindex would preserve order for final/original df
+import warnings
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+#=======================================================================================================
 try:
     from qaqc_unusual_gaps import *
 except:
     print("Error importing qaqc_unusual_gaps.py")
 from IPython.display import display
 
+# #####################################
 # #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
 # global log_file
 # log_file = open("logtest.log","w")
 # verbose=True
+# #####################################
 
 #============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
@@ -215,8 +227,8 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
     plt.legend(('Cleaned data', 'Flagged'), loc='upper right')
     ax = plt.gca()
     leg = ax.get_legend()
-    leg.legend_handles[0].set_color('k') # set valid to black
-    leg.legend_handles[-1].set_color('r') # set flagged bar to red
+    leg.legendHandles[0].set_color('k') # set valid to black
+    leg.legendHandles[-1].set_color('r') # set flagged bar to red
     
     if var == 'rsds':
         plt.annotate('Sfc. radiation option: \n{}'.format(rad_scheme), xy=(0.02, 0.85), xycoords='axes fraction', fontsize=10)
@@ -575,7 +587,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
 
 #============================================================================================================
-def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
+def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=None, local=False):
     '''
     Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -584,50 +596,54 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     Differs from dist_gap_part2_plot for the climatological outlier
     as IQR standardization does not occur within plotting
     '''
-    
-    # select month
-    df['time'] = pd.to_datetime(df['time'], errors='coerce')
-    df_to_plot = df.loc[df.time.dt.month == month][var]
-    
-    # determine number of bins
-    bins = create_bins(df_to_plot)
 
-    # plot histogram
-    ax = plt.hist(df_to_plot, bins=bins, log=False, density=True, color='k', alpha=0.3)
-    xmin, xmax = plt.xlim()
-    # plt.ylim(ymin=0.1)
+    var = series._name
     
-    # # plot pdf
-    mu = np.nanmean(df_to_plot)
-    sigma = np.nanstd(df_to_plot)
-    y = stats.norm.pdf(bins, mu, sigma)
-    l = plt.plot(bins, y, 'k--', linewidth=1)
+    bins = create_bins(series, bin_size=bin_size)
+    max_bin = np.abs(bins).max()
+    bins = np.arange(-max_bin-bin_size, max_bin+2*bin_size, bin_size)
+
+    freq, bins = np.histogram(series, bins=bins, )
+    area = sum(np.diff(bins) * freq)
+
+    # Fit a normal distribution to the data
+    mu, std = stats.norm.fit(series)
+    p = stats.norm.pdf(bins, mu, std)*area
+
+    try:
+        left = np.where(np.logical_and(np.gradient(p)>0, p<=0.1))[0][-1]   # +1 # Manually shift the edge by one bin
+    except:
+        left = 1
+    try:
+        right = np.where(np.logical_and(np.gradient(p)<0, p<=0.1))[0][0]   # -1 # Manually shift the edge by one bin
+    except:
+        right = len(bins)-2
+
+    index = np.arange(len(bins))
+    good = np.where(np.logical_and(index>left, index<right))[0]
+    good_freq = good[:-1]
     
-    # add vertical lines to indicate thresholds where pdf y=0.1
-    pdf_bounds = np.argwhere(y > 0.1)
-    if len(pdf_bounds) != 0: # placing in if/else statement for time being as this figure/fn is refined
-        
-        # find first index
-        left_bnd = round(bins[pdf_bounds[0][0] - 1])
-        right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-        thresholds = (left_bnd, right_bnd)
-        
-        plt.axvline(thresholds[1], color='r') # right tail
-        plt.axvline(thresholds[0], color='r') # left tail
-        
-        # flag visually obs that are beyond threshold
-        for bar in ax[2].patches:
-            x = bar.get_x() + 0.5 * bar.get_width()
-            if x > thresholds[1]: # right tail
-                bar.set_color('r')
-            elif x < thresholds[0]: # left tail
-                bar.set_color('r')
-            
+    # Plot the histogram of the series
+    fig,ax = plt.subplots()
+    ax.stairs(freq, bins, alpha=1, color="C3", label="Clim outliers".format(month, hour))
+    
+    ax.stairs(freq[good_freq], bins[good], alpha=0.35, fill=True, color="C0", label="Distribution")
+    ax.stairs(freq[good_freq], bins[good], alpha=1, color="C0")
+    ax.set_yscale("log")
+    ymin = min(0.05, freq[freq>0].min())
+    ymax = np.ceil(freq.max()/100)*100
+    ax.set_ylim(ymin,ymax) 
+    ax.legend(loc="upper right")
+    
+    ax.axvline(bins[left],c="k",ls=':', alpha=0.8)
+    ax.axvline(bins[right],c="k",ls=':', alpha=0.8)
+    ax.axhline(0.1, c="k",ls=':', alpha=0.8)
+    
     # title and useful annotations
-    plt.title('Climatological outlier check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10);
-    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.95), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Mean: {}'.format(round(mu,3)), xy=(0.025, 0.9), xycoords='axes fraction', fontsize=8);
-    plt.annotate('Std.Dev: {}'.format(round(sigma,3)), xy=(0.025, 0.85), xycoords='axes fraction', fontsize=8);
+    box =  dict(facecolor='white', edgecolor="white", alpha=0.85)
+    plt.title('Climatological outlier check, {0}: {1}'.format(station, var), fontsize=10)
+    plt.annotate('Month: {}'.format(month), xy=(0.025, 0.93), xycoords='axes fraction', fontsize=10, bbox=box)
+    plt.annotate('Hour: {}'.format(hour), xy=(0.025, 0.87), xycoords='axes fraction', fontsize=10, bbox=box);
     plt.ylabel('Frequency (obs)')
     
     # save figure to AWS
@@ -636,10 +652,11 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
     img_data = BytesIO()
     plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
     img_data.seek(0)
-    
+
+    network = station.split("_")[0]
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
-    figname = 'qaqc_climatological_outlier_{0}_{1}_{2}'.format(df['station'].unique()[0], var, month)
+    figname = 'qaqc_climatological_outlier_{0}_{1}_{2}_{3}'.format(station, var, month, hour)
     bucket.put_object(Body=img_data, ContentType='image/png',
                      Key='{0}/{1}/qaqc_figs/{2}.png'.format(
                      directory, network, figname))
@@ -648,12 +665,12 @@ def clim_outlier_plot(df, var, month, network, dpi=None, local=False):
         plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
 
     # close figures to save memory
-    plt.close()
+    plt.close(fig)
 
     return
 
 #============================================================================================================
-def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, date=None):
+def unusual_streaks_plot(df, var, flagvals=(27,28,29), station=None, dpi=None, local=False):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
@@ -674,10 +691,18 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     df.plot(ax=ax, x="time", y=var, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
 
     # grab flagged data
-    flag_vals_0 = df.loc[df[var + '_eraqc'] == 27]   
-    flag_vals_1 = df.loc[df[var + '_eraqc'] == 28]   
-    flag_vals_2 = df.loc[df[var + '_eraqc'] == 29] 
-    
+    flag_vals_0 = df.copy()[['time',var]]
+    flag_vals_0.loc[:, var] = np.nan
+    flag_vals_0.loc[df[var+"_eraqc"]==27,var] = df.loc[df[var+"_eraqc"]==27, var]
+
+    flag_vals_1 = df.copy()[['time',var]]
+    flag_vals_1.loc[:, var] = np.nan
+    flag_vals_1.loc[df[var+"_eraqc"]==28,var] = df.loc[df[var+"_eraqc"]==28, var]
+
+    flag_vals_2 = df.copy()[['time',var]]
+    flag_vals_2.loc[:, var] = np.nan
+    flag_vals_2.loc[df[var+"_eraqc"]==29,var] = df.loc[df[var+"_eraqc"]==29, var]
+
     # Amount of data flagged
     flag_label_0 = "Same hour replication"
     flag_label_1 = "Consecutive replication"
@@ -690,12 +715,10 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     if len(flag_vals_1) != 0:
         flag_vals_1.plot(ax=ax, x="time", y=var, marker="x", ms=7, lw=0, mfc="none", color="C4", label=flag_label_1)  
 
-    if len(flag_vals_2) != 0: 
+    if len(flag_vals_2) != 0:
         flag_vals_2.plot(ax=ax, x="time", y=var, marker="o", ms=7, lw=0, mfc="none", color="C2", label=flag_label_2)   
      
     legend = ax.legend(loc=0, prop={'size': 8})    
-        
-    station = df['station'].unique()[0]
     network = station.split('_')[0]
     
     # Plot aesthetics
@@ -705,22 +728,15 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), dpi=None, local=False, da
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
-    # # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
-    if date is not None:
-        timestamp = str(date).split(":")[0].replace(" ","T")
-    else:
-        timestamp = "full_series"
-        miny = max(miny, df[var].min())
-        maxy = min(maxy, df[var].max())
-        ax.set_ylim(miny,maxy)
-    
     title = 'Unusual repeated streaks check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
+    month = df.month.unique()[0]
+    year = df.year.unique()[0]
     
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}'.format(station, var, timestamp)
+    figname = 'qaqc_unusual_repeated_streaks_{0}_{1}_{2}-{3}'.format(station, var, year, month)
     key = '{0}/{1}/qaqc_figs/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format='png', dpi=dpi, bbox_inches="tight")

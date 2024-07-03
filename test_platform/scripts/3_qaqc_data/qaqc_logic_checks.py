@@ -27,6 +27,14 @@ def open_log_file_logic(file):
     global log_file
     log_file = file
 
+# #####################################
+# #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+# #####################################
+
 #-----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
@@ -124,7 +132,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
                     if all(v == 0 for v in dpd_to_check):
                         df_dpt.loc[
-                            (df_dpt.time >= t) & (df_dpt.time <= (t + datetime.timedelta(days=1))), var+'_eraqc'
+                            (df_dpt.time >= t) & (df_dpt.time <= (t + datetime.timedelta(days=1))), dew_var+'_eraqc'
                             ] = 13 # see qaqc_flag_meanings.csv
 
                 # only print warning flag once
@@ -134,7 +142,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         return df_dpt
 
     except Exception as e:
-        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file)
+        printf("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e), log_file=log_file, flush=True)
         return None
 
 #----------------------------------------------------------------------

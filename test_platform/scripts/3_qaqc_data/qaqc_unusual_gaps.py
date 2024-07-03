@@ -33,6 +33,14 @@ def open_log_file_gaps(file):
     global log_file
     log_file = file
 
+# #####################################
+# #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+# #####################################
+
 #-----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
 def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
@@ -65,9 +73,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
     
-    # try:
-    if True:
-        printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file)
+    try:
+        printf("Running {} on {}".format("qaqc_unusual_gaps", vars_to_check), verbose=verbose, log_file=log_file, flush=True)
 
         # whole station bypass check first
         df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh)
@@ -85,9 +92,9 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
         return df_part2
     
-    # except Exception as e:
-    #     printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
-    #     return None
+    except Exception as e:
+        printf("qaqc_unusual_gaps failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
+        return None
 
 
 #-----------------------------------------------------------------------------
@@ -199,14 +206,14 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
             if len(df_valid) == 0:
                 continue # variable has no valid data
-
+            
             # from center of distribution, scan for gaps (where bin = 0)
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged
 
             # standardize against IQR range
             df_month_iqr = standardized_iqr(df_valid, var)
-            
+
             # determine number of bins
             bins = create_bins(df_month_iqr)
 
@@ -246,7 +253,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
                         # identify values beyond right bnd
                         vals_to_flag = clim + (right_bnd * iqr_baseline) # upper limit threshold
-                        df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                        # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
+                        df.loc[df[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
 
             if plot:
                 if 22 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
