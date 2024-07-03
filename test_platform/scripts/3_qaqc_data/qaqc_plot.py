@@ -379,7 +379,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
     Any variable that is flagged is noted
     '''
-    print('part 1')
+
     # grab data by months
     df = df.loc[df['month'] == month]
         
@@ -451,7 +451,6 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     Any bin that is outside of the threshold is visually flagged
     ''' 
 
-    print('part 2')
     # select month
     df = df.loc[df['month'] == month]
     
@@ -481,7 +480,6 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
             left_bnd = np.floor(pdf_bounds[0])
             right_bnd = np.ceil(pdf_bounds[-1])
             thresholds = (left_bnd - 1, right_bnd + 1)
-            print('7')
 
             plt.axvline(thresholds[1], color='r') # right tail
             plt.axvline(thresholds[0], color='r') # left tail
@@ -494,7 +492,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
                 elif x < thresholds[0]: # left tail
                     bar.set_color('r')
     except:
-        printf('PDF boundaries issue -- skipping left and right tails')
+        print('PDF boundaries issue -- skipping left and right tails')
 
     # title and useful annotations
     plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10)

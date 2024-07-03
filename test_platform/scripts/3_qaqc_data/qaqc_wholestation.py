@@ -473,15 +473,32 @@ def qaqc_world_record(df, verbose=False):
         T_N = {"North_America":210.15} #K
         D_X = {"North_America":329.85} #K
         D_N = {"North_America":173.15} #K
-        W_X = {"North_America":113.2} #m/s
-        W_N = {"North_America":0.} #m/s
+        W_X = {"North_America":113.2}  #m/s
+        W_N = {"North_America":0.}     #m/s
         S_X = {"North_America":108330} #Pa
-        S_N = {"North_America":87000} #Pa
-        R_X = {"North_America":1500} #W/m2
-        R_N = {"North_America":-5} #W/m2
+        S_N = {"North_America":87000}  #Pa
+        R_X = {"North_America":1500}   #W/m2
+        R_N = {"North_America":-5}     #W/m2
 
-        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "psl": S_X, "rsds": R_X}
-        mins = {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "psl": S_N, "rsds": R_N}
+        # for other non-record variables (wind direction, precipitation)
+        N_X = {"North_America":360}    # degrees
+        N_N = {"North_America":0}      # degrees
+        P_X = {"North_America":1000}   # mm, arbitrarily set
+        P_N = {"North_America":0}      # mm
+        H_X = {"North_America":100}    # humidity max
+        H_N = {"North_America":0}      # humidity min
+        E_X = {"North_America":6210.0} # m
+        E_N = {"North_America":-100}   # m
+        
+
+        maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "sfcWind_dir": N_X,
+                "ps": S_X, "psl": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X,
+                "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X,
+                "hurs":H_X, "elevation": E_X}
+        mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "sfcWind_dir": N_N,
+                "ps": S_N, "psl": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N,
+                "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N,
+                "hurs":H_N, "elevation": E_N}
 
         # variable names to check against world record limits
         wr_vars = ['tas', 'tdps_derived', 'tdps', 'sfcWind', 'psl', 'rsds', 'ps', 'ps_altimeter', 'ps_derived']

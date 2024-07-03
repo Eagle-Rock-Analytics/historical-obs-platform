@@ -89,7 +89,7 @@ def pdf_bounds(df, mu, sigma, bins):
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
         printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination')
-        return y
+        return (y, bnds[0], bnds[-1]) # returning furthest edge cases, return to in V2
 
     else:
         # find first index

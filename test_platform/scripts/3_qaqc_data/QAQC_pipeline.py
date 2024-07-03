@@ -576,9 +576,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
         -----------------------------------
         """
         # TESTING SUBSET
-        # stations_sample = stations.sample(4)
-        # stations_sample = list(stations.sample(4))
-        stations_sample = ['RAWS_PPPC1']
+        stations_sample = list(stations.sample(4))
         # Select stations for timing analysis
         # stations_sample = list(stations.iloc[:sample])
         
