@@ -410,8 +410,7 @@ def qaqc_sensor_height_w(df, verbose=False):
 
     printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
 
-    # try:
-    if True:
+    try:
         # Check if anemometer height is missing
         isHeightMissing = df['anemometer_height_m'].isnull().any()
 
@@ -432,8 +431,7 @@ def qaqc_sensor_height_w(df, verbose=False):
                 printf('Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks', log_file=log_file, verbose=verbose)
         return df
 
-    else:
-    # except Exception as e:
+    except Exception as e:
         printf("qaqc_sensor_height_w failed with Exception: {}".format(e), log_file=log_file, verbose=verbose)
         return None
 
