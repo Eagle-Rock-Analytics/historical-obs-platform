@@ -30,9 +30,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 #=======================================================================================================
 try:
-    from qaqc_unusual_gaps import *
-except:
-    print("Error importing qaqc_unusual_gaps.py")
+    from qaqc_utils import *
+except Exception as e:
+    print("Error importing qaqc_utils: {}".format(e))
+
 from IPython.display import display
 
 # #####################################
@@ -94,6 +95,10 @@ def _plot_format_helper(var):
     elif var in ps_vars:
         ylab = 'Pressure' # should eventually be what pressure var it is
         unit = 'Pa'
+
+    elif var == 'elevation':
+        ylab = 'Elevation'
+        unit = 'm'
         
     T_X = {"North_America":329.92} #K
     T_N = {"North_America":210.15} #K
@@ -111,14 +116,20 @@ def _plot_format_helper(var):
     N_N = {"North_America":0}      # degrees
     P_X = {"North_America":1000}   # mm, arbitrarily set
     P_N = {"North_America":0}      # mm
+    H_X = {"North_America":100}    # humidity max
+    H_N = {"North_America":0}      # humidity min
+    E_X = {"North_America":6210.0} # m
+    E_N = {"North_America":-100}   # m
     
 
     maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "sfcWind_dir": N_X,
              "ps": S_X, "psl": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X,
-             "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X}
+             "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X,
+             "hurs":H_X, "elevation": E_X}
     mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "sfcWind_dir": N_N,
              "ps": S_N, "psl": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N,
-             "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N}
+             "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N,
+             "hurs":H_N, "elevation": E_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
     
@@ -362,6 +373,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
 #============================================================================================================
 ## distribution gap plotting functions
+
 def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, local=False):
     '''
     Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
@@ -378,7 +390,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     ax = df.plot.scatter(x='time', y=var, color='k', label='Cleaned data')
     
     # plot flagged data
-    flag_name = id_flag(flag)
+    flag_name = id_flag(flagval)
     flag_label = "{:.3f}% of data flagged by {}".format(
                 100*len(flag_vals)/len(df), 
                 flag_name)
@@ -389,7 +401,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
                         label=flag_label)
 
     # plot climatological median and threshold * IQR range
-    mid, low_bnd, high_bnd = standardized_median_bounds(df, month, var, iqr_thresh=5)
+    mid, low_bnd, high_bnd = standardized_median_bounds(df, var, iqr_thresh)
     
     plt.axhline(y=mid, color='k', lw=0.5, label='Climatological monthly median')
     plt.fill_between(x=df['time'],
@@ -424,7 +436,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
 
     # save locally if needed
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -444,10 +456,10 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     
     # standardize against IQR range
     df_month_iqr = standardized_iqr(df, var)
-    
+
     # determine number of bins
     bins = create_bins(df_month_iqr)
-    
+   
     # plot histogram
     ax = plt.hist(df_month_iqr, bins=bins, log=False, density=True, color='k', alpha=0.3)
     xmin, xmax = plt.xlim()
@@ -460,23 +472,27 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     l = plt.plot(bins, y, 'k--', linewidth=1)
     
     # add vertical lines to indicate thresholds where pdf y=0.1
-    pdf_bounds = np.argwhere(y > 0.1)
+    try:
+        pdf_bounds = np.argwhere(y > 0.1).squeeze()
+        # v2 refine
+        if len(pdf_bounds) != 0:
+            # find first index
+            left_bnd = np.floor(pdf_bounds[0])
+            right_bnd = np.ceil(pdf_bounds[-1])
+            thresholds = (left_bnd - 1, right_bnd + 1)
 
-    # find first index
-    left_bnd = round(bins[pdf_bounds[0][0] -1])
-    right_bnd = round(bins[pdf_bounds[-1][0] + 1])
-    thresholds = (left_bnd - 1, right_bnd + 1)
+            plt.axvline(thresholds[1], color='r') # right tail
+            plt.axvline(thresholds[0], color='r') # left tail
 
-    plt.axvline(thresholds[1], color='r') # right tail
-    plt.axvline(thresholds[0], color='r') # left tail
-    
-    # flag (visually) obs that are beyond threshold
-    for bar in ax[2].patches:
-        x = bar.get_x() + 0.5 * bar.get_width()
-        if x > thresholds[1]: # right tail
-            bar.set_color('r')
-        elif x < thresholds[0]: # left tail
-            bar.set_color('r')
+            # flag (visually) obs that are beyond threshold
+            for bar in ax[2].patches:
+                x = bar.get_x() + 0.5 * bar.get_width()
+                if x > thresholds[1]: # right tail
+                    bar.set_color('r')
+                elif x < thresholds[0]: # left tail
+                    bar.set_color('r')
+    except:
+        print('PDF boundaries issue -- skipping left and right tails')
 
     # title and useful annotations
     plt.title('Distribution gap check, {0}: {1}'.format(df['station'].unique()[0], var), fontsize=10)
@@ -501,7 +517,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 
     # Save locally if needed
     if local:
-        fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
+        plt.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
     plt.close()
@@ -510,7 +526,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 
 #============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
+def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
     """
     Plots unusual large jumps qaqc result and uploads it to AWS (if local, also writes to local folder)
     Input:
@@ -524,10 +540,11 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     """
      
     # Create figure
-    if date is not None:
-        fig,ax = plt.subplots(figsize=(7,3))
-    else:
-        fig,ax = plt.subplots(figsize=(10,3))
+    # if date is not None:
+    #     fig,ax = plt.subplots(figsize=(7,3))
+    # else:
+    #     
+    fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
     df[var].plot(ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data")
@@ -552,14 +569,9 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     ax.set_ylabel(ylab)
     ax.set_xlabel('')
     
-    # We can set ylim since this function is supposed to be run after other QAQC functions (including world records)
-    if date is not None:
-        timestamp = str(date).split(":")[0].replace(" ","T")
-    else:
-        timestamp = "full_series"
-        miny = max(miny, df[var].min())
-        maxy = min(maxy, df[var].max())
-        ax.set_ylim(miny,maxy)
+    # Set time for fig namne
+    month = df.month.unique()[0]
+    year = df.year.unique()[0]
     
     title = 'Unusual large jumps check: {0}'.format(station)
     ax.set_title(title, fontsize=10)
@@ -567,7 +579,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
     # save to AWS
     bucket_name = 'wecc-historical-wx'
     directory = '3_qaqc_wx'
-    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}'.format(station, var, timestamp)
+    figname = 'qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}-{3}'.format(station, var, year, month)
 
     key = '{0}/{1}/{2}.png'.format(directory, network, figname)
     img_data = BytesIO()
@@ -581,10 +593,10 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False, date=None):
         fig.savefig('{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
     
     # close figure to save memory
-    plt.close(fig)
     plt.close('all')
 
-    return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
+    # return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
+    return 
 
 #============================================================================================================
 def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=None, local=False):
@@ -753,4 +765,24 @@ def unusual_streaks_plot(df, var, flagvals=(27,28,29), station=None, dpi=None, l
 
     return 
 
-    #============================================================================================================
+#============================================================================================================
+## V2 research: these should live in qaqc_unusual_gaps.py but running into some circular import issues  
+def standardized_median_bounds(df, var, iqr_thresh):
+    """Part 1: Calculates the standardized median"""
+    # v2 note: for some reason plotting only works if this function is in plot and not unusual gaps
+
+    std_med = df[var].median() # climatological median for that month
+    iqr = iqr_range(df, var)
+    lower_bnd = std_med - (iqr_thresh * iqr)
+    upper_bnd = std_med + (iqr_thresh * iqr)
+    
+    return (std_med, lower_bnd, upper_bnd)
+
+def iqr_range(df, var):
+    """Part 1: Calculates the monthly interquartile range"""
+    return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
+
+def standardized_iqr(df, var):
+    """Part 2: Standardizes data against the interquartile range"""
+    return (df[var].values - df[var].median()) / iqr_range(df, var)
+    

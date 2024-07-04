@@ -19,9 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from io import BytesIO, StringIO
 import scipy.stats as stats
-from multiprocessing.pool import ThreadPool
 plt.switch_backend('Agg')
-matplotlib.rc('figure', max_open_warning = 120)
 
 ## Import plotting functions
 try:
@@ -38,18 +36,14 @@ def open_log_file_spikes(file):
     global log_file
     log_file = file
 
-#---------------------------------------------------------------------------
-# Parallel plotting and updating to AWS
-def parallel_plotting_wrapper(da):
-    df,var,i,local = da
-    subset = df.loc[(df.index >= i - datetime.timedelta(hours=48)) &
-                    (df.index <= i + datetime.timedelta(hours=48))]
-    return unusual_jumps_plot(subset, var, flagval=23, date=i, local=local)
+# #####################################
+# #FOR DEBUG
+# #UNCOMMENT FOR NOTEBOOK DEBUGGING
+# global log_file
+# log_file = open("logtest.log","w")
+# verbose=True
+# #####################################
 
-def parallel_upload_wrapper(figs):
-    fig_object, fig_path = figs
-    boto3.resource('s3').Bucket('wecc-historical-wx').upload_file(fig_object, fig_path)
-    
 #-----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=False):
@@ -94,9 +88,6 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     df.drop(columns=['time'], inplace=True)
 
     try:
-        # Drop station index
-        # df = df.droplevel(level="station")
-
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
         variables = [var for var in check_vars if var in df.columns]
