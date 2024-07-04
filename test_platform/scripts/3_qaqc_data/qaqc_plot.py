@@ -632,7 +632,7 @@ def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=None,
         right = len(bins)-2
 
     index = np.arange(len(bins))
-    good = np.where(np.logical_and(index>left, index<right))[0]
+    good = np.where(np.logical_and(index>=left, index<=right))[0]
     good_freq = good[:-1]
     
     # Plot the histogram of the series
