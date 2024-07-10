@@ -163,7 +163,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
                     # print("{} out of {}".format(i,len(index)))
                     
                     # Plot distribution
-                    clim_outlier_plot(df_plot.loc[ind][var], month, hour, bin_size=bin_size, station=station, local=True)
+                    clim_outlier_plot(df_plot.loc[ind][var], month, hour, bin_size=bin_size, station=station, local=local)
                         
         return new_df
 
