@@ -125,9 +125,16 @@ def process_output_ds(df, attrs, var_attrs,
     """
     """
     
+    # Drop temporary/auxiliary vars
+    for var in ['hour', 'day', 'month', 'year', 'date']:
+        try:
+            df.drop(var, inline=True)
+        except:
+            pass
     # Convert back to dataset
-    
-    ds = df.to_xarray()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        ds = df.to_xarray()
     
     # Inherit variable attributes
     ds = ds.assign_attrs(attrs)
@@ -227,7 +234,10 @@ def qaqc_ds_to_df(ds):
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
-    df = ds.to_dataframe()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        df = ds.to_dataframe()
+
     # instrumentation heights
     df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
     df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
@@ -658,6 +668,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             #Testing speed-up re-order in case file is locally found
             #=====================================================================================
             
+            print(ds.pr_duration)
             try:
                 # TODO: 
                 # Same issue than in the pipeline:
