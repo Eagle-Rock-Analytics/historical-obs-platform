@@ -605,6 +605,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # Loop over stations
     # for station in stations_sample:
     for station in parfor(stations_sample):
+        #import pdb; pdb.set_trace()
 
         #try:
         if True:
@@ -657,12 +658,16 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             print(aws_url)
             t0 = time.time()
             try:
-                ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=RuntimeWarning)
+                    ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
             except:
                 with fs.open(aws_url) as fileObj:
                     try:
                         printf("Reading {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
-                        ds = xr.open_dataset(fileObj).load()
+                        with warnings.catch_warnings():
+                            warnings.filterwarnings("ignore", category=RuntimeWarning)
+                            ds = xr.open_dataset(fileObj).load()
                     except:
                         printf('{} did not pass QA/QC - station not saved.'.format(station), log_file=log_file, verbose=verbose, flush=True)   
             #Testing speed-up re-order in case file is locally found
