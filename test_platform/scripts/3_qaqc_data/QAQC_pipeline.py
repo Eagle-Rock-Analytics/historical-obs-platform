@@ -668,7 +668,6 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             #Testing speed-up re-order in case file is locally found
             #=====================================================================================
             
-            print(ds.pr_duration)
             try:
                 # TODO: 
                 # Same issue than in the pipeline:
