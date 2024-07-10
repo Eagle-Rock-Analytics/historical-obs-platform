@@ -93,7 +93,7 @@ def file_on_s3(da):
         file = str(item.key)
         files += [file]
     file_st = [f.split(".nc")[0].split("/")[-1] for f in files if f.endswith(".nc")]
-    return  da['era.id'].isin(file_st)
+    return  da['era-id'].isin(file_st)
     
 #----------------------------------------------------------------------------
 ## Read network nc files
@@ -105,7 +105,7 @@ def read_network_files_training():
     df['cleandir'] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
     df['qaqcdir'] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
     df['mergedir'] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
-    df['key'] = df.apply(lambda row: row['cleandir']+row['era.id']+".nc", axis=1)
+    df['key'] = df.apply(lambda row: row['cleandir']+row['era-id']+".nc", axis=1)
     df['exist'] = np.zeros(len(df)).astype("bool")
     
     for n in df['network'].unique():
@@ -113,7 +113,8 @@ def read_network_files_training():
         df.loc[ind,'exist'] = file_on_s3(df[ind])
         
     df = df[df['exist']]
-    df = df.sort_values(by="network").drop(columns="exist")
+    df = df.sort_values(by=["network","era-id"]).drop(columns="exist")
+
     return df
 
 #----------------------------------------------------------------------------
@@ -587,19 +588,16 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     -----------------------------------
     """
     # TESTING SUBSET
-    # stations_sample = stations.sample(4)
-    stations_sample = list(files_df['era.id'].sample(8))
-    # stations_sample = ['CAHYDRO_IDYC1']
-    
-    # stations_sample = ['RAWS_KBNC1', 'RAWS_PKLC2']
-    # Select stations for timing analysis
-    # stations_sample = list(stations.iloc[:sample])
+    # stations_sample = list(files_df['era-id'].sample(8))
+    # stations_sample = list(files_df['era-id'].values)
+    stations_sample = ['ASOSAWOS_72271093045']
 
     # Loop over stations
     # for station in stations_sample:
     for station in parfor(stations_sample):
 
-        try:
+        #try:
+        if True:
             #----------------------------------------------------------------------------
             # Set up error handling.
             errors, end_api, timestamp = setup_error_handling()
@@ -621,9 +619,9 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             #----------------------------------------------------------------------------
             
             # file_name = cleandir+station+".nc"
-            file_name = files_df.loc[files_df['era.id']==station,'key'].values[0]
-            qaqcdir = files_df.loc[files_df['era.id']==station,'qaqcdir'].values[0]
-            network = files_df.loc[files_df['era.id']==station,'network'].values[0]
+            file_name = files_df.loc[files_df['era-id']==station,'key'].values[0]
+            qaqcdir = files_df.loc[files_df['era-id']==station,'qaqcdir'].values[0]
+            network = files_df.loc[files_df['era-id']==station,'network'].values[0]
             # print(file_name)
             # print(station)
             # raise
@@ -716,18 +714,18 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                 printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
                        format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
                 log_file.close()
-        except:
-            printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
-        # Write errors to csv
-        finally:
-            # pass
-            errors = pd.DataFrame(errors)
-            csv_buffer = StringIO()
-            errors.to_csv(csv_buffer)
-            content = csv_buffer.getvalue()
-            # Make sure error files save to correct directory
-            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
-            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
+       # except:
+       #     printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
+       # # Write errors to csv
+       # finally:
+       #     # pass
+       #     errors = pd.DataFrame(errors)
+       #     csv_buffer = StringIO()
+       #     errors.to_csv(csv_buffer)
+       #     content = csv_buffer.getvalue()
+       #     # Make sure error files save to correct directory
+       #     # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
+       #     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
     
     return
 
