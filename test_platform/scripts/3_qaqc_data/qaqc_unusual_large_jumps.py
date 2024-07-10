@@ -87,6 +87,8 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
     df.set_index(df['time'], inplace=True)
     df.drop(columns=['time'], inplace=True)
 
+    station = df['station'].values[0]
+
     try:
         # Define test variables and check if they are in the dataframe
         check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
@@ -118,11 +120,12 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
             if plot:
                 ## Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year","month"]).groups.keys()
+                printf("Plotting {} year/month cases".format(len(keys)), log_file=log_file, verbose=verbose)
                 for k in keys:
                     ind = np.logical_and(df['year']==k[0], 
                                          df['month']==k[1]
                                         )
-                    unusual_jumps_plot(df.loc[ind, [var, var+"_eraqc"]], var, flagval=23, local=local)
+                    unusual_jumps_plot(df.loc[ind, :], var, flagval=23, local=local)
 
         df['time'] = df.index.values
         df = df.set_index(INDEX)    
