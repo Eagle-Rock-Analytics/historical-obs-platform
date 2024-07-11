@@ -119,7 +119,7 @@ def read_network_files_training():
 
 #----------------------------------------------------------------------------
 ## Assign ds attributes and save
-def process_output_ds(df, attrs, var_attrs, 
+def process_output_ds(df, attrs, var_attrs, var_dtypes,
                       network, timestamp, station, qaqcdir,
                       errors, end_api, verbose=False, local=False):
     """
@@ -128,9 +128,13 @@ def process_output_ds(df, attrs, var_attrs,
     # Drop temporary/auxiliary vars
     for var in ['hour', 'day', 'month', 'year', 'date']:
         try:
-            df.drop(var, inline=True)
+            df.drop(columns=var, inplace=True)
         except:
             pass
+
+    for var,value in var_dtypes.items():
+        df.loc[~df[var].isnull(), var] = df.loc[~df[var].isnull(), var].astype(value)
+
     # Convert back to dataset
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -161,7 +165,6 @@ def process_output_ds(df, attrs, var_attrs,
     ds.attrs['comment'] = ds.attrs['comment'] + ' \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.'.format(timestamp)
     # # Flag meaninng attribute
     # ds = ds.assign_attrs(flags_meaning = flags_attrs)
-    
     #--------------------------------------------------------
     # TO DO: 
     # Add metadata to `_eraqc` variables
@@ -210,6 +213,7 @@ def process_output_ds(df, attrs, var_attrs,
 def qaqc_ds_to_df(ds):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
+
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
                     "pr_duration", "pr_depth",
@@ -233,6 +237,7 @@ def qaqc_ds_to_df(ds):
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
+    var_dtypes = {var:ds[var].dtype for var in list(ds.data_vars.keys())}
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -263,7 +268,7 @@ def qaqc_ds_to_df(ds):
     df['year'] = pd.to_datetime(df['time']).dt.year 
     df['date']  = pd.to_datetime(df['time']).dt.date
     
-    return df, MultiIndex, attrs, var_attrs
+    return df, MultiIndex, attrs, var_attrs, var_dtypes
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
@@ -275,7 +280,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     """
     """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs = qaqc_ds_to_df(ds)
+    df, MultiIndex, attrs, var_attrs, var_dtypes = qaqc_ds_to_df(ds)
     
     ##########################################################
     ## QAQC Functions
@@ -449,33 +454,33 @@ def run_qaqc_pipeline(ds, network, file_name,
         printf('pass qaqc_crossvar_logic_calm_wind_dir', log_file=log_file, verbose=verbose, flush=True)
 
     printf("Done logic checks, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
-    #=========================================================
-    ## Part 3: Distribution and timeseries checks - order matters!
-        # buoy check
-        # frequent values check
-        # distributional check (unusual gaps)
-        # climatological outliers check
-        # unusual streaks check
-        # unusual large jumps check (spike)
-
-    #---------------------------------------------------------
-    ## Buoys with known issues with specific qaqc flags
-    ## NDBC and MARITIME only
-    if network == 'MARITIME' or network == 'NDBC':
-        t0 = time.time()
-        printf("QA/QC bouy check", log_file=log_file, verbose=verbose, flush=True)
-    
-        new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
-        if new_df is None:
-            errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problematic buoy issue", 
-                                    test="spurious_buoy_check",
-                                    verbose=verbose)
-        else:
-            stn_to_qaqc = new_df
-            printf('pass spurious_buoy_check', log_file=log_file, verbose=verbose, flush=True)
-            
-        printf("Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
+####    #=========================================================
+####    ## Part 3: Distribution and timeseries checks - order matters!
+####        # buoy check
+####        # frequent values check
+####        # distributional check (unusual gaps)
+####        # climatological outliers check
+####        # unusual streaks check
+####        # unusual large jumps check (spike)
+####
+####    #---------------------------------------------------------
+####    ## Buoys with known issues with specific qaqc flags
+####    ## NDBC and MARITIME only
+####    if network == 'MARITIME' or network == 'NDBC':
+####        t0 = time.time()
+####        printf("QA/QC bouy check", log_file=log_file, verbose=verbose, flush=True)
+####    
+####        new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
+####        if new_df is None:
+####            errors = print_qaqc_failed(errors, station, end_api, 
+####                                    message="Flagging problematic buoy issue", 
+####                                    test="spurious_buoy_check",
+####                                    verbose=verbose)
+####        else:
+####            stn_to_qaqc = new_df
+####            printf('pass spurious_buoy_check', log_file=log_file, verbose=verbose, flush=True)
+####            
+####        printf("Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
     #---------------------------------------------------------
     # frequent values
     t0 = time.time()
@@ -492,74 +497,74 @@ def run_qaqc_pipeline(ds, network, file_name,
         printf('pass qaqc_frequent_vals', log_file=log_file, verbose=verbose, flush=True)
     
     printf("Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
-    #---------------------------------------------------------
-    # distribution / unusual gaps
-    t0 = time.time()
-    printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose, flush=True)
-    
-    new_df = qaqc_unusual_gaps(stn_to_qaqc, verbose=verbose, local=local)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                    message="Flagging problem with unusual gap distribution function", 
-                                    test="qaqc_unusual_gaps",
-                                    verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_unusual_gaps', log_file=log_file, verbose=verbose, flush=True)
-    
-    printf("Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
-    #---------------------------------------------------------
-    # climatological outliers
-    t0 = time.time()
-    printf("QA/QC climatological outliers", log_file=log_file, verbose=verbose, flush=True)
-    
-    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api,
-                                message="Flagging problem with climatological outlier check",
-                                test="qaqc_climatological_outlier",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_climatological_outlier', log_file=log_file, verbose=verbose, flush=True)
-
-    printf("Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
-    #---------------------------------------------------------
-    # unusual streaks (repeated values)
-    t0 = time.time()
-    printf("QA/QC unsual repeated streaks", log_file=log_file, verbose=verbose, flush=True)
-    
-    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                message="Flagging problem with unusual streaks (repeated values) check", 
-                                test="qaqc_unusual_repeated_streaks",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_unusual_repeated_streaks', log_file=log_file, verbose=verbose, flush=True)
-    
-    printf("Done QA/QC unsual repeated streaks, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)        
-    #---------------------------------------------------------
-    # unusual large jumps (spikes)
-    t0 = time.time()
-    printf("QA/QC unsual large jumps", log_file=log_file, verbose=verbose, flush=True)
-    
-    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
-    if new_df is None:
-        errors = print_qaqc_failed(errors, station, end_api, 
-                                message="Flagging problem with unusual large jumps (spike check) check", 
-                                test="qaqc_unusual_large_jumps",
-                                verbose=verbose)
-    else:
-        stn_to_qaqc = new_df
-        printf('pass qaqc_unusual_large_jumps', log_file=log_file, verbose=verbose, flush=True)
-    
-    printf("Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)       
-    
-    ## END QA/QC ASSESSMENT
-    #=========================================================
-    # Re-index to original time/station values
+####    #---------------------------------------------------------
+####    # distribution / unusual gaps
+####    t0 = time.time()
+####    printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose, flush=True)
+####    
+####    new_df = qaqc_unusual_gaps(stn_to_qaqc, verbose=verbose, local=local)
+####    if new_df is None:
+####        errors = print_qaqc_failed(errors, station, end_api, 
+####                                    message="Flagging problem with unusual gap distribution function", 
+####                                    test="qaqc_unusual_gaps",
+####                                    verbose=verbose)
+####    else:
+####        stn_to_qaqc = new_df
+####        printf('pass qaqc_unusual_gaps', log_file=log_file, verbose=verbose, flush=True)
+####    
+####    printf("Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
+####    #---------------------------------------------------------
+####    # climatological outliers
+####    t0 = time.time()
+####    printf("QA/QC climatological outliers", log_file=log_file, verbose=verbose, flush=True)
+####    
+####    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+####    if new_df is None:
+####        errors = print_qaqc_failed(errors, station, end_api,
+####                                message="Flagging problem with climatological outlier check",
+####                                test="qaqc_climatological_outlier",
+####                                verbose=verbose)
+####    else:
+####        stn_to_qaqc = new_df
+####        printf('pass qaqc_climatological_outlier', log_file=log_file, verbose=verbose, flush=True)
+####
+####    printf("Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
+####    #---------------------------------------------------------
+####    # unusual streaks (repeated values)
+####    t0 = time.time()
+####    printf("QA/QC unsual repeated streaks", log_file=log_file, verbose=verbose, flush=True)
+####    
+####    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
+####    if new_df is None:
+####        errors = print_qaqc_failed(errors, station, end_api, 
+####                                message="Flagging problem with unusual streaks (repeated values) check", 
+####                                test="qaqc_unusual_repeated_streaks",
+####                                verbose=verbose)
+####    else:
+####        stn_to_qaqc = new_df
+####        printf('pass qaqc_unusual_repeated_streaks', log_file=log_file, verbose=verbose, flush=True)
+####    
+####    printf("Done QA/QC unsual repeated streaks, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)        
+####    #---------------------------------------------------------
+####    # unusual large jumps (spikes)
+####    t0 = time.time()
+####    printf("QA/QC unsual large jumps", log_file=log_file, verbose=verbose, flush=True)
+####    
+####    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
+####    if new_df is None:
+####        errors = print_qaqc_failed(errors, station, end_api, 
+####                                message="Flagging problem with unusual large jumps (spike check) check", 
+####                                test="qaqc_unusual_large_jumps",
+####                                verbose=verbose)
+####    else:
+####        stn_to_qaqc = new_df
+####        printf('pass qaqc_unusual_large_jumps', log_file=log_file, verbose=verbose, flush=True)
+####    
+####    printf("Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)       
+####    
+####    ## END QA/QC ASSESSMENT
+####    #=========================================================
+####    # Re-index to original time/station values
 
     # Calculate flag coverage per variable
     printf('Summary of QA/QC flags set per variable')
@@ -572,7 +577,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Check back to see if this can or needs to be removed
     stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
     
-    return stn_to_qaqc, attrs, var_attrs
+    return stn_to_qaqc, attrs, var_attrs, var_dtypes
     
 
 #==============================================================================
@@ -689,17 +694,17 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     
                 # Run full QA/QC pipeline
                 printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
-                df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                         station, end_api, rad_scheme,
-                                                         verbose=verbose, local=local
-                                                        )
+                df, attrs, var_attrs, var_dtypes = run_qaqc_pipeline(ds, network, file_name, errors, 
+                                                                     station, end_api, rad_scheme,
+                                                                     verbose=verbose, local=local
+                                                                    )
     
                 ## Assign ds attributes and save .nc file
                 if df is not None:
                     t0 = time.time()
                     printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
     
-                    process_output_ds(df, attrs, var_attrs, 
+                    process_output_ds(df, attrs, var_attrs, var_dtypes,
                                     network, timestamp, station, qaqcdir, 
                                     errors, end_api, 
                                     verbose=verbose, local=local)
