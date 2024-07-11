@@ -268,7 +268,7 @@ def qaqc_ds_to_df(ds):
     df['year'] = pd.to_datetime(df['time']).dt.year 
     df['date']  = pd.to_datetime(df['time']).dt.date
     
-    return df, MultiIndex, attrs, var_attrs, var_dtypes
+    return df, MultiIndex, attrs, var_attrs, era_qc_vars, var_dtypes
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
@@ -280,7 +280,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     """
     """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs, var_dtypes = qaqc_ds_to_df(ds)
+    df, MultiIndex, attrs, var_attrs, era_qc_vars, var_dtypes = qaqc_ds_to_df(ds)
     
     ##########################################################
     ## QAQC Functions
