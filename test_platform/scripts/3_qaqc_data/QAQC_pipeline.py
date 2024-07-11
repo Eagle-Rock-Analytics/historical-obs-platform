@@ -577,8 +577,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Check back to see if this can or needs to be removed
     stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
     
-    return stn_to_qaqc, attrs, var_attrs, var_dtypes
-    
+    return stn_to_qaqc, attrs, var_attrs, era_qc_vars, var_dtypes
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
@@ -694,10 +693,10 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     
                 # Run full QA/QC pipeline
                 printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
-                df, attrs, var_attrs, var_dtypes = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                     station, end_api, rad_scheme,
-                                                                     verbose=verbose, local=local
-                                                                    )
+                df, attrs, var_attrs, era_qc_vars, var_dtypes = run_qaqc_pipeline(ds, network, file_name, errors, 
+                                                                                  station, end_api, rad_scheme,
+                                                                                  verbose=verbose, local=local
+                                                                                 )
     
                 ## Assign ds attributes and save .nc file
                 if df is not None:
