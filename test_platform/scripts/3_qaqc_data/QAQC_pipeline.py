@@ -733,18 +733,18 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                 printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
                        format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
                 log_file.close()
-       except:
-           printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
-       # Write errors to csv
-       finally:
-           # pass
-           errors = pd.DataFrame(errors)
-           csv_buffer = StringIO()
-           errors.to_csv(csv_buffer)
-           content = csv_buffer.getvalue()
-           # Make sure error files save to correct directory
-           # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
-           s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
+        except:
+            printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
+        # Write errors to csv
+        finally:
+            # pass
+            errors = pd.DataFrame(errors)
+            csv_buffer = StringIO()
+            errors.to_csv(csv_buffer)
+            content = csv_buffer.getvalue()
+            # Make sure error files save to correct directory
+            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
+            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
     
     return
 
