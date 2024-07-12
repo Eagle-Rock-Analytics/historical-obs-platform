@@ -119,22 +119,10 @@ def read_network_files_training():
 
 #----------------------------------------------------------------------------
 ## Assign ds attributes and save
-def process_output_ds(df, attrs, var_attrs, var_dtypes,
-                      network, timestamp, station, qaqcdir,
+def process_output_ds(df, attrs, var_attrs, network, timestamp, station, qaqcdir,
                       errors, end_api, verbose=False, local=False):
     """
     """
-    
-    # Drop temporary/auxiliary vars
-    for var in ['hour', 'day', 'month', 'year', 'date']:
-        try:
-            df.drop(columns=var, inplace=True)
-        except:
-            pass
-
-    for var,value in var_dtypes.items():
-        df.loc[~df[var].isnull(), var] = df.loc[~df[var].isnull(), var].astype(value)
-
     # Convert back to dataset
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -181,7 +169,10 @@ def process_output_ds(df, attrs, var_attrs, var_dtypes,
                          
         # Push file to AWS with correct file name
         t0 = time.time()
-        ds.to_netcdf(tmpFile.name) # Save station file.
+        # import pdb; pdb.set_trace()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            ds.to_netcdf(tmpFile.name) # Save station file.
         printf('Saving/pushing {0} with dims {1} to {2}'.format(filename, ds.dims, bucket_name+"/"+qaqcdir), log_file=log_file, verbose=verbose, flush=True)
         s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
         printf("Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
@@ -214,6 +205,17 @@ def qaqc_ds_to_df(ds):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
 
+    for key,val in ds.variables.items():
+        if val.dtype==object:
+            if key=='station':
+                if str in [type(v) for v in ds[key].values]:
+                    print(key)
+                    ds[key] = ds[key].astype(str)
+            else:
+                if str in [type(v) for v in ds.isel(station=0)[key].values]:
+                    print(key)
+                    ds[key] = ds[key].astype(str)
+                
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
                     "pr_duration", "pr_depth",
@@ -237,7 +239,6 @@ def qaqc_ds_to_df(ds):
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
-    var_dtypes = {var:ds[var].dtype for var in list(ds.data_vars.keys())}
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -268,7 +269,7 @@ def qaqc_ds_to_df(ds):
     df['year'] = pd.to_datetime(df['time']).dt.year 
     df['date']  = pd.to_datetime(df['time']).dt.date
     
-    return df, MultiIndex, attrs, var_attrs, era_qc_vars, var_dtypes
+    return df, MultiIndex, attrs, var_attrs, era_qc_vars
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
@@ -280,7 +281,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     """
     """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs, era_qc_vars, var_dtypes = qaqc_ds_to_df(ds)
+    df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds)
     
     ##########################################################
     ## QAQC Functions
@@ -577,7 +578,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Check back to see if this can or needs to be removed
     stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
     
-    return stn_to_qaqc, attrs, var_attrs, era_qc_vars, var_dtypes
+    return stn_to_qaqc, attrs, var_attrs, era_qc_vars
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
@@ -609,8 +610,6 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # Loop over stations
     # for station in stations_sample:
     for station in parfor(stations_sample):
-        #import pdb; pdb.set_trace()
-
         try:
         # if True:
             #----------------------------------------------------------------------------
@@ -693,20 +692,20 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     
                 # Run full QA/QC pipeline
                 printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
-                df, attrs, var_attrs, era_qc_vars, var_dtypes = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                                                  station, end_api, rad_scheme,
-                                                                                  verbose=verbose, local=local
-                                                                                 )
+                df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(ds, network, file_name, errors, 
+                                                                      station, end_api, rad_scheme,
+                                                                      verbose=verbose, local=local
+                                                                     )
     
                 ## Assign ds attributes and save .nc file
                 if df is not None:
                     t0 = time.time()
                     printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
     
-                    process_output_ds(df, attrs, var_attrs, var_dtypes,
-                                    network, timestamp, station, qaqcdir, 
-                                    errors, end_api, 
-                                    verbose=verbose, local=local)
+                    process_output_ds(df, attrs, var_attrs, network, 
+                                      timestamp, station, qaqcdir, 
+                                      errors, end_api, 
+                                      verbose=verbose, local=local)
                     printf("Done writing. Ellapsed time: {:.2f} s.\n".
                        format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
     
