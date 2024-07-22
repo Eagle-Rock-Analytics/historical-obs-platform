@@ -25,7 +25,7 @@ import tempfile
 from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
-try:
+if True:
     from qaqc_plot import *
     from qaqc_utils import *
     from qaqc_wholestation import *
@@ -36,7 +36,7 @@ try:
     from qaqc_unusual_large_jumps import *
     from qaqc_climatological_outlier import *
     from qaqc_unusual_streaks import *
-except Exception as e:
+else:
     print("Error importing qaqc script: {}".format(e))
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
@@ -160,7 +160,7 @@ def process_output_ds(df, attrs, var_attrs, network, timestamp, station, qaqcdir
     #--------------------------------------------------------
 
     # Write station file to netcdf format
-    try:
+    if True:
         filename = station + ".nc" # Make file name
         filepath = qaqcdir + filename # Writes file path
 
@@ -188,7 +188,7 @@ def process_output_ds(df, attrs, var_attrs, network, timestamp, station, qaqcdir
         else:
             os.system("rm {}".format(tmpFile.name))
             
-    except Exception as e:
+    else:
         printf("netCDF writing failed for {} with Error: {}".format(filename, e), log_file=log_file, verbose=verbose, flush=True)
         errors = print_qaqc_failed(errors, filename, end_api, 
                                    message='Error saving ds as .nc file to AWS bucket: {}'.format(e), 
@@ -303,7 +303,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="has an unchecked missing value",
                                 test="qaqc_missing_vals",
                                 verbose=verbose)
-        return None # whole station failure, skip to next station
+        return [None]*4 # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_missing_vals', log_file=log_file, verbose=verbose, flush=True)
@@ -316,7 +316,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="missing lat-lon", 
                                 test="qaqc_missing_latlon",
                                 verbose=verbose)
-        return None # whole station failure, skip to next station
+        return [None]*4 # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_missing_latlon', log_file=log_file, verbose=verbose, flush=True)
@@ -329,7 +329,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="lat-lon is out of range for WECC", 
                                 test="qaqc_within_wecc",
                                 verbose=verbose)
-        return None # whole station failure, skip to next station
+        return [None]*4 # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_within_wecc', log_file=log_file, verbose=verbose, flush=True)
@@ -342,7 +342,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="DEM in-filling failed", 
                                 test="DEM in-filling, may not mean station does not pass qa/qc -- check",
                                 verbose=verbose)
-        return None # whole station failure, skip to next station
+        return [None]*4 # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_elev_infill', log_file=log_file, verbose=verbose, flush=True)
@@ -355,7 +355,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="elevation out of range for WECC", 
                                 test="qaqc_elev_range",
                                 verbose=verbose)
-        return None # whole station failure, skip to next station
+        return [None]*4 # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_elev_range', log_file=log_file, verbose=verbose, flush=True)
@@ -585,11 +585,11 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     """
     """    
     # Read in network files
-    # try:
+    # if True:
         # files_df = read_network_files_training(network, cleandir)
     #     # display(files_df)
     #     # print(stations)
-    # except Exception as e:
+    # else:
     #     errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
     #                                message="Error in whole network:", test=e)
     
@@ -609,7 +609,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # Loop over stations
     # for station in stations_sample:
     for station in parfor(stations_sample):
-        try:
+        if True:
         # if True:
             #----------------------------------------------------------------------------
             # Set up error handling.
@@ -659,23 +659,23 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             aws_url = "s3://wecc-historical-wx/"+file_name
             printf(aws_url, log_file=log_file, verbose=verbose, flush=True)
             t0 = time.time()
-            try:
+            if True:
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore", category=RuntimeWarning)
                     ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
-            except:
+            else:
                 with fs.open(aws_url) as fileObj:
-                    try:
+                    if True:
                         printf("Reading {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
                         with warnings.catch_warnings():
                             warnings.filterwarnings("ignore", category=RuntimeWarning)
                             ds = xr.open_dataset(fileObj).load()
-                    except:
+                    else:
                         printf('{} did not pass QA/QC - station not saved.'.format(station), log_file=log_file, verbose=verbose, flush=True)   
             #Testing speed-up re-order in case file is locally found
             #=====================================================================================
             
-            try:
+            if True:
                 # TODO: 
                 # Same issue than in the pipeline:
                 # Probably not needed to drop time duplicates here, if they were properly
@@ -708,7 +708,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                     printf("Done writing. Ellapsed time: {:.2f} s.\n".
                        format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
     
-            except Exception as e:
+            else:
                 printf("run_qaqc_pipeline failed with error: {}".format(e), log_file=log_file, verbose=verbose, flush=True)
                 errors = print_qaqc_failed(
                              errors, station, end_api, 
@@ -731,10 +731,10 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                 printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
                        format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
                 log_file.close()
-        except:
+        else:
             printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
         # Write errors to csv
-        finally:
+        if True:
             # pass
             errors = pd.DataFrame(errors)
             csv_buffer = StringIO()
