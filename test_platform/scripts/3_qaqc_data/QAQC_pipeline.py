@@ -342,6 +342,7 @@ def run_qaqc_pipeline(ds, network, file_name,
                                 message="DEM in-filling failed", 
                                 test="DEM in-filling, may not mean station does not pass qa/qc -- check",
                                 verbose=verbose)
+        return None # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_elev_infill', log_file=log_file, verbose=verbose, flush=True)
@@ -603,7 +604,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # TESTING SUBSET
     # stations_sample = list(files_df['era-id'].sample(8))
     # stations_sample = list(files_df['era-id'].values)
-    stations_sample = ['CWOP_E4369']
+    stations_sample = ['ASOSAWOS_72679724132']
 
     # Loop over stations
     # for station in stations_sample:
