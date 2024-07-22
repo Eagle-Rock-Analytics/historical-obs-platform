@@ -209,11 +209,9 @@ def qaqc_ds_to_df(ds):
         if val.dtype==object:
             if key=='station':
                 if str in [type(v) for v in ds[key].values]:
-                    print(key)
                     ds[key] = ds[key].astype(str)
             else:
                 if str in [type(v) for v in ds.isel(station=0)[key].values]:
-                    print(key)
                     ds[key] = ds[key].astype(str)
                 
     exclude_qaqc = ["time", "station", "lat", "lon", 
@@ -605,7 +603,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # TESTING SUBSET
     # stations_sample = list(files_df['era-id'].sample(8))
     # stations_sample = list(files_df['era-id'].values)
-    stations_sample = ['ASOSAWOS_72271093045']
+    stations_sample = ['CWOP_E4369']
 
     # Loop over stations
     # for station in stations_sample:
@@ -658,7 +656,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             #TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/"+file_name
-            print(aws_url)
+            printf(aws_url, log_file=log_file, verbose=verbose, flush=True)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():

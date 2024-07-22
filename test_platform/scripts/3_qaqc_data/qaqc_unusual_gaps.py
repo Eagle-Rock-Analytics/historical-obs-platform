@@ -70,6 +70,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         - iqr_thresh preliminarily set to 5 years, pending revision
     '''
 
+    #import pdb; pdb.set_trace()
+
     vars_for_gaps = ['tas', 'tdps', 'tdps_derived', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps] 
     
@@ -122,7 +124,8 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
-        
+    network = df['station'].unique()[0].split('_')[0]
+
     for var in vars_to_check:
         printf("Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var), log_file=log_file, verbose=verbose)
 
@@ -154,14 +157,13 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
                         var, month, int(year), iqr_thresh), log_file=log_file, verbose=verbose)
 
             # flag all obs in that month
-            df.loc[(df['month'] == month) & 
-                    (df['year'].isin(years_to_flag))] = 21 # see era_qaqc_flag_meanings.csv
+            bad = np.logical_and(df['month'] == month, df['year'].isin(years_to_flag))
+            df.loc[bad, var+'_eraqc'] = 21 # see era_qaqc_flag_meanings.csv
 
             if plot:
                 if 21 in df[var+'_eraqc'].values: # don't plot a figure if nothing is flagged
                     dist_gap_part1_plot(df, month, var, flagval=21, iqr_thresh=iqr_thresh,
-                                        network=df['station'].unique()[0].split('_')[0],
-                                        local=local)
+                                        network=network, local=local)
                     
     return df
 
@@ -211,6 +213,11 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged
 
+#            # Bug due to repeated values giving iqr=0 and failing to calculate bins below
+#            if iqr_range(df, var)==0:
+#                printf('No valid data present for {} in month {} -- skipping to next month'.format(var, month    ), log_file=log_file, verbose=verbose)
+#                continue
+            
             # standardize against IQR range
             df_month_iqr = standardized_iqr(df_valid, var)
 
