@@ -444,10 +444,10 @@ def run_qaqc_pipeline(ds, network, file_name,
     new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
     if new_df is None:
         errors = print_qaqc_failed(errors, station, end_api, 
-                                message="Flagging problem with wind cross-variable logic check", 
-                                test="qaqc_crossvar_logic_calm_wind_dir",
-                                verbose=verbose, 
-                                file=file)
+                                   message="Flagging problem with wind cross-variable logic check", 
+                                   test="qaqc_crossvar_logic_calm_wind_dir",
+                                   verbose=verbose
+                                  )
     else:
         stn_to_qaqc = new_df
         printf('pass qaqc_crossvar_logic_calm_wind_dir', log_file=log_file, verbose=verbose, flush=True)
