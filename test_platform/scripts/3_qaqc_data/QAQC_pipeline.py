@@ -201,7 +201,7 @@ def process_output_ds(df, attrs, var_attrs, network, timestamp, station, qaqcdir
 
 #--------------------------------------------------------------------------------
 ## xarray ds for a station to pandas df in the format needed for the pipeline    
-def qaqc_ds_to_df(ds):
+def qaqc_ds_to_df(ds, verbose=False):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
 
@@ -243,8 +243,16 @@ def qaqc_ds_to_df(ds):
         df = ds.to_dataframe()
 
     # instrumentation heights
-    df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
-    df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    try:
+        df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
+    except Exception as e:
+        printf("Error: {}. Filling with NaN.".format(e), log_file=log_file, verbose=verbose, flush=True)
+        df['anemometer_height_m'] = np.ones(len(df))*np.nan
+    try:
+        df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    except Exception as e:
+        printf("Error: {}. Filling with NaN.".format(e), log_file=log_file, verbose=verbose, flush=True)
+        df['thermometer_height_m'] = np.ones(len(df))*np.nan
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
@@ -279,7 +287,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     """
     """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds)
+    df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
     
     ##########################################################
     ## QAQC Functions
@@ -602,9 +610,9 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     -----------------------------------
     """
     # TESTING SUBSET
-    stations_sample = list(files_df['era-id'].values)
+    # stations_sample = list(files_df['era-id'].values)
     # stations_sample = list(files_df['era-id'].sample(8))
-    # stations_sample = ['ASOSAWOS_72679724132']
+    stations_sample = ['ASOSAWOS_72564524022']
 
     # Loop over stations
     # for station in stations_sample:
@@ -680,8 +688,18 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                 # Probably not needed to drop time duplicates here, if they were properly
                 # dropped in the cleaning process?
                 # Drop time duplicates
-                ds = ds.drop_duplicates(dim="time")
-    
+                # import pdb; pdb.set_trace()
+
+                # There are stations without time/station dimensions
+                if ('station' in list(ds.dims.keys())) and ('time' in list(ds.dims.keys())):
+                    ds = ds.drop_duplicates(dim="time")
+                elif ('time' in list(ds.data_vars.keys())) and ('station' in list(ds.data_vars.keys())):
+                    tt = ds['time']
+                    ss = [ds['station'].values[0]]
+                    ds = ds.drop(["time","station"]).rename_dims(index="time").expand_dims({"station":ss}).rename(index="time").assign_coords(time=tt.values)
+                else:
+                    ds = ds.drop_duplicates(dim="time")
+                       
                 printf("Done reading. Ellapsed time: {:.2f} s.\n".
                       format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
     

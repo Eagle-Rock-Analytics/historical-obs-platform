@@ -124,6 +124,7 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
     PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
+    # import pdb; pdb.set_trace()
     network = df['station'].unique()[0].split('_')[0]
 
     for var in vars_to_check:
@@ -137,7 +138,8 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
 
             # subset for valid obs, distribution drop yellow flags
             df_valid = grab_valid_obs(df, var, kind='drop') # drops data flagged with 20
-            if len(df_valid) == 0:
+            if len(df_valid) == 0 or df_valid[var].isnull().all():
+                printf('No valid data present for {} in month {} -- skipping to next month'.format(var, month    ), log_file=log_file, verbose=verbose)
                 continue # variable has no valid data
 
             # calculate monthly climatological median, and bounds
@@ -213,10 +215,10 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             # when gap is found, and it is at least 2x bin width
             # any bins beyond end of gap + beyond threshold value are flagged
 
-#            # Bug due to repeated values giving iqr=0 and failing to calculate bins below
-#            if iqr_range(df, var)==0:
-#                printf('No valid data present for {} in month {} -- skipping to next month'.format(var, month    ), log_file=log_file, verbose=verbose)
-#                continue
+            # Bug due to repeated values giving iqr=0 and failing to calculate bins below
+            if iqr_range(df_valid, var)==0:
+                printf('No valid data present for {} in month {} -- skipping to next month'.format(var, month    ), log_file=log_file, verbose=verbose)
+                continue
             
             # standardize against IQR range
             df_month_iqr = standardized_iqr(df_valid, var)

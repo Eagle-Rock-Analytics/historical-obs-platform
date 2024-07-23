@@ -72,7 +72,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     -------------
         26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     '''
-
+    # import pdb; pdb.set_trace()
     new_df = df.copy()
     
     vars_to_check = ['tas', 'tdps', 'tdps_derived']
@@ -175,6 +175,10 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
 def flag_clim_outliers(series, bin_size=0.25):
     """
     """
+    # If series is small (less than 5 years) skip to next month/hour
+    if len(series)<=5:
+        return np.ones_like(series)*np.nan
+
     # Calculate frequency, normal fit, and boumdaries for clim outliers
     # freq, bins, p, left, right = fit_normal(series, bin_size=0.10, plot=True)
     freq, bins, p, left, right = fit_normal(series, bin_size=bin_size, plot=False)
