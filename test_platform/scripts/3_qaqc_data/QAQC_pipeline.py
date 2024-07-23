@@ -216,7 +216,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
-                    "pr_duration", "pr_depth",
+                    "pr_duration", "pr_depth", "PREC_flag",
                     "rsds_duration", "rsds_flag"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
@@ -612,7 +612,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # TESTING SUBSET
     # stations_sample = list(files_df['era-id'].values)
     # stations_sample = list(files_df['era-id'].sample(8))
-    stations_sample = ['ASOSAWOS_72666494173']
+    stations_sample = ['SCAN_3064']
 
     # Loop over stations
     # for station in stations_sample:
