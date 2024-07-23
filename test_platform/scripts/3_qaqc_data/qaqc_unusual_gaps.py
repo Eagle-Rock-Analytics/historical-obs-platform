@@ -129,7 +129,6 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True, verbose=False,
 
     for var in vars_to_check:
         printf("Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var), log_file=log_file, verbose=verbose)
-
         for month in range(1,13): 
             monthly_df = df.loc[df['month']==month]
             

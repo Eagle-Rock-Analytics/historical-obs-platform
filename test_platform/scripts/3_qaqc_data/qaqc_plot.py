@@ -387,6 +387,10 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     if df[var].isnull().all():
         return
         
+    #if var=='ps_altimeter' and month==10:
+    #    import pdb; pdb.set_trace()
+    #    print(var,month)
+
     # grab flagged data
     flag_vals = df.loc[df[var+'_eraqc'] == flagval]
     
@@ -408,7 +412,7 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
     mid, low_bnd, high_bnd = standardized_median_bounds(df, var, iqr_thresh)
     
     plt.axhline(y=mid, color='k', lw=0.5, label='Climatological monthly median')
-    plt.fill_between(x=df['time'],
+    plt.fill_between(x=df['time'].values,
                     y1=low_bnd,
                     y2=high_bnd,
                     alpha=0.25, color='0.75', 
