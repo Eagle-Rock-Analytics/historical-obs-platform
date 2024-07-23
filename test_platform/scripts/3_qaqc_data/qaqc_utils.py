@@ -130,16 +130,18 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     # This piece will return a dictionary with the var name as key, and values are pd.Series with the
     # month and the number of years of data
     global stn_length
-    stn_length = map(qaqc_var_length_bypass_check, [df]*len(vars_to_check), vars_to_check)
+
+    df_new = df.copy()
+    stn_length = map(qaqc_var_length_bypass_check, [df_new]*len(vars_to_check), vars_to_check)
     stn_length = {k:v for k,v in zip(vars_to_check, stn_length)}
     
     nYears = np.array([v.max() for k,v in stn_length.items()])
 
     for var in vars_to_check:
         if stn_length[var].max()<min_num_months: 
-            df.loc[:,var+"_eraqc"] = 19  # see era_qaqc_flag_meanings.csv
+            df_new.loc[:,var+"_eraqc"] = 19  # see era_qaqc_flag_meanings.csv
 
-    return df, stn_length
+    return df_new, stn_length
 
 #-----------------------------------------------------------------------------
 def qaqc_dist_var_bypass_check(df, var, min_num_months=5):     

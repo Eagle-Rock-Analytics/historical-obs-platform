@@ -612,7 +612,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # TESTING SUBSET
     # stations_sample = list(files_df['era-id'].values)
     # stations_sample = list(files_df['era-id'].sample(8))
-    stations_sample = ['SCAN_3064']
+    stations_sample = ['CWOP_D5382']
 
     # Loop over stations
     # for station in stations_sample:
