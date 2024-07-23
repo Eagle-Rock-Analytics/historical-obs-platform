@@ -62,6 +62,10 @@ if __name__ == "__main__":
     verbose = args.verbose
     local = args.local
     
+    print(f"local {local}")
+    print(f"verbose {verbose}")
+    print(f"rad_scheme {rad_scheme}")
+
     # rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     # whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
     whole_station_qaqc_training(rad_scheme, verbose=verbose, local=local)
