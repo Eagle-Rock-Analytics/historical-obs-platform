@@ -113,7 +113,8 @@ def read_network_files_training():
         df.loc[ind,'exist'] = file_on_s3(df[ind])
         
     df = df[df['exist']]
-    df = df.sort_values(by=["network","era-id"]).drop(columns="exist")
+    df['file_size'] = df['key'].apply(lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)['ContentLength'])
+    df = df.sort_values(by=["file_size","network","era-id"]).drop(columns="exist")
 
     return df
 
@@ -612,7 +613,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     # TESTING SUBSET
     # stations_sample = list(files_df['era-id'].values)
     # stations_sample = list(files_df['era-id'].sample(8))
-    stations_sample = ['CAHYDRO_MAZC1']
+    stations_sample = ['CWOP_AR658']
 
     # Loop over stations
     # for station in stations_sample:
