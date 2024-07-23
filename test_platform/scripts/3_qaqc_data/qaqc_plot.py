@@ -382,6 +382,10 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=None, 
 
     # grab data by months
     df = df.loc[df['month'] == month]
+
+    # Skip if all values are NaN
+    if df[var].isnull().all():
+        return
         
     # grab flagged data
     flag_vals = df.loc[df[var+'_eraqc'] == flagval]
