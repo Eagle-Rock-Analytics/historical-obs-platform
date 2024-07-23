@@ -72,7 +72,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
         25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     '''
-
+    # import pdb; pdb.set_trace()
     printf("Running: qaqc_frequent_vals", log_file=log_file, verbose=verbose)
     
     # this check is only done on air temp, dewpoint temp, and pressure
@@ -84,6 +84,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         printf("Running qaqc_frequent_vals on {}".format(vars_to_check), log_file=log_file, verbose=verbose)
 
         for var in vars_to_check:
+            # if var=="rsds":
+            #     import pdb; pdb.set_trace()
             printf('Running frequent values check on: {}'.format(var), log_file=log_file, verbose=verbose)
             df_valid = grab_valid_obs(df, var) # subset for valid obs
             
@@ -176,7 +178,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     '''    
-    
+    # if var=="rsds":
+    #     import pdb; pdb.set_trace() 
     # seasons
     szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] 
     
@@ -211,6 +214,10 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     else: # all other variables
         df_to_test = df
     
+    # If df_to_test is empty, just skip the next part
+    if len(df_to_test)==0:
+        return df
+
     # all data/annual checks
     if data_group == 'all':
         bins = create_bins_frequent(df_to_test, var, bin_size=bin_s) 
