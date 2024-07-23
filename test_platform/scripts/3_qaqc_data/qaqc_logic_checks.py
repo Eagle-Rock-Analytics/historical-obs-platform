@@ -310,6 +310,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
 
+    import pdb; pdb.set_trace()
     printf("Running: qaqc_crossvar_logic_calm_wind_dir", log_file=log_file, verbose=verbose)
 
     try:
@@ -319,6 +320,9 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         # check that wind direction is provided
         if 'sfcWind_dir' not in df.columns:
             printf('Station does not report wind direction - bypassing wind cross-variable logic check', log_file=log_file, verbose=verbose)
+            return df
+        elif 'sfcWind_dir' in df.columns and 'sfcWind' not in df.columns:
+            printf('Station does reports wind direction, but not wind speed - bypassing wind cross-variable logic check', log_file=log_file, verbose=verbose)
             return df
             
         # use only valid observations
