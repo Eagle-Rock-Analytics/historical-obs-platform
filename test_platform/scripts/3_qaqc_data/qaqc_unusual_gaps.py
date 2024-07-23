@@ -207,7 +207,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             monthly_df = qaqc_dist_var_bypass_check(monthly_df, var) # flag here is 20
             # subset for valid obs, distribution drop yellow flags                      
             df_valid = grab_valid_obs(monthly_df, var, kind='drop')  # drops data flagged with 20
-            if len(df_valid[var]) == 0 or df_valid[var].isnull().all() == True:
+            if len(df_valid) == 0 or df_valid[var].isnull().all() == True:
                 printf('No valid data present for {} in month {} -- skipping to next month'.format(var, month), log_file=log_file, verbose=verbose)
                 continue # variable has no valid data
 
