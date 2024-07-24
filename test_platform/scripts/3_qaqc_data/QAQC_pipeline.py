@@ -576,7 +576,7 @@ def run_qaqc_pipeline(ds, network, file_name,
     # Re-index to original time/station values
 
     # Calculate flag coverage per variable
-    printf('Summary of QA/QC flags set per variable')
+    printf('Summary of QA/QC flags set per variable', log_file=log_file, verbose=verbose, flush=True)
     flag_summary(stn_to_qaqc, verbose=verbose, local=local)
 
     stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(columns=['time','hour','day','month','year','date','station'])
@@ -611,9 +611,9 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     -----------------------------------
     """
     # TESTING SUBSET
-    # stations_sample = list(files_df['era-id'].values)
+    stations_sample = list(files_df['era-id'].values)
     # stations_sample = list(files_df['era-id'].sample(8))
-    stations_sample = ['CWOP_AR658']
+    # stations_sample = ['RAWS_TS735']
 
     # Loop over stations
     # for station in stations_sample:
