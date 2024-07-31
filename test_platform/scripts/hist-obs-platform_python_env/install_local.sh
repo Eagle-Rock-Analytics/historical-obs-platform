@@ -2,7 +2,7 @@
 set -e
 set -x
 
-PYTHON_VERSION=3.11
+PYTHON_VERSION=3.9.18
 ENVIRONMENT_NAME=era_py${PYTHON_VERSION/./}
 
 #save list of conda envs as temp file
