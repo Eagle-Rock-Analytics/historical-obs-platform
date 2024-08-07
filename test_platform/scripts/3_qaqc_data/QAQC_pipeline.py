@@ -116,6 +116,35 @@ def read_network_files_training():
     df['file_size'] = df['key'].apply(lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)['ContentLength'])
     df = df.sort_values(by=["file_size","network","era-id"]).drop(columns="exist")
 
+    # Evenly distribute df by size to help with memory errors
+    #Number of groups is the total number of stations divided by the node size
+    num_groups = len(df)//(72*3)
+    total_size = df['file_size'].sum()
+    target_size = total_size / num_groups
+    target_size
+    
+    groups = []
+    current_group = []
+    current_group_size = 0
+    
+    # Sort DataFrame by size to improve grouping efficiency
+    df_sorted = df.sort_values(by='file_size', ascending=False)
+    
+    for index, row in df_sorted.iterrows():
+        if current_group_size + row['file_size'] > target_size and current_group:
+            groups.append(pd.DataFrame(current_group))
+            current_group = []
+            current_group_size = 0
+    
+        current_group.append(row)
+        current_group_size += row['file_size']
+    
+    if current_group:
+        groups.append(pd.DataFrame(current_group))
+    
+    # Create a new DataFrame to hold the groups
+    final_df = pd.concat([df.assign(Group=i) for i, df in enumerate(groups)]).reset_index(drop=True).drop(columns="Group")
+
     return df
 
 #----------------------------------------------------------------------------

@@ -88,7 +88,8 @@ def pdf_bounds(df, mu, sigma, bins):
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
-        printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination')
+        printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination', 
+               log_file=log_file, flush=True)
         return (y, int(0), int(len(y)-1)) # returning furthest edge cases, return to in V2
         # return (y, bnds[0], bnds[-1]) # returning furthest edge cases, return to in V2
 

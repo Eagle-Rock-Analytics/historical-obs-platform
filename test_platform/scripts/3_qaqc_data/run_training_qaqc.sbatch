@@ -1,14 +1,13 @@
 #!/bin/bash -l
 
-#SBATCH -N 16
-#SBATCH -t 06:00:00
-#SBATCH -o stdout/training_qaqc_3.out
-#SBATCH -e err/training_qaqc_3.err
-#SBATCH -p compute-16vcores
+#SBATCH -N 4
+#SBATCH -t 02:00:00
+#SBATCH -o stdout/training_qaqc.out
+#SBATCH -e err/training_qaqc.err
+#SBATCH -p bigmem
 #SBATCH -J train_qaqc
-#SBATCH --ntasks=256
+#SBATCH --ntasks=384
 
-echo ""
 echo "STARTING PREAMBLE"
 date
 echo ""
@@ -42,7 +41,7 @@ echo "STARTING CALCULATION"
 date
 echo ""
 
-mpirun -n 288 python3 Training_QAQC.py
+mpirun -n 384 python3 Training_QAQC.py
 
 echo ""
 echo "CALCULATION ENDED"
