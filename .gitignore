@@ -1,0 +1,12 @@
+# Mac environment stuffs
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Other
+.config/
+.jupyter/
+.local/
+.virtual_environments/
+
