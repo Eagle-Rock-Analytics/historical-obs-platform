@@ -4,7 +4,13 @@ from pyproj import CRS, Transformer
 import geopandas as gpd
 from geopandas import GeoDataFrame
 from shapely.geometry import Point
+import s3fs
 
+import xarray as xr
+import numpy as np
+
+AWS_ACCESS_KEY_ID="AKIAVVWMVPFLUKXELLPT"
+AWS_SECRET_ACCESS_KEY="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"
 
 
 def known_issue_check(network, var, stn):
@@ -73,7 +79,7 @@ def known_issue_check(network, var, stn):
             # V2 note: noted in qaqc_buoy_check but not handled -- would require new function
 
 
-def subset_eval_stns(event_to_eval, stn_list, subset=None):
+def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False):
     '''
     Identifies stations to evaluate for specific V1 QA/QC events.
     Option to subset to a more manageable number of random stations for initial evaluation. 
@@ -122,7 +128,7 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None):
     geometry = [Point(latlon_to_mercator_cartopy(lat,lon)) for lat,lon in zip (event_stns.latitude, event_stns.longitude)]
     event_stns = GeoDataFrame(event_stns,geometry=geometry).set_crs(crs="EPSG:3857", allow_override=True) # adding geometry column
     event_stns_local = gpd.overlay(event_stns, target_counties, how="intersection") # subsetting for stations within county boundaries
-    print('{} potential stations available for evaluation for {} event!'.format(len(event_stns_local), event_to_eval))
+    print('{} potential stations available for evaluation for {} event.'.format(len(event_stns_local), event_to_eval))
 
     if subset != None:
         if len(event_stns_local) <= subset:
@@ -137,7 +143,120 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None):
     # check_networks = event_stns.network.unique()
     # known_issue_check(event_stns, var='tas')
 
+    if return_stn_ids:
+        print('Stations selected for evaluation:\n', list(eval_stns['era-id']))
+
     return eval_stns
+
+
+def id_all_flags(ds):
+    '''Prints all unique values of all eraqaqc flags'''
+    ds_vars = list(ds.keys())
+    qc_vars = [i for i in ds_vars if '_eraqc' in i]
+    if len(qc_vars) == 0:
+        print('Station has no eraqc variables -- please double check that this station has completed QA/QC!')
+    else:
+        for var in qc_vars:
+            print(var, np.unique(ds[var].data))
+
+
+def pull_nc_from_aws(fname):
+    s3 = s3fs.S3FileSystem(anon=False, key=AWS_ACCESS_KEY_ID, secret=AWS_SECRET_ACCESS_KEY)
+    network = fname.split('_')[0]
+    s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, fname)
+    s3_file_obj = s3.open(s3_url, mode='rb')
+
+    ds = xr.open_dataset(s3_file_obj, engine='h5netcdf')
+    return ds
+
+
+# def return_ghcn_vars(ghcn_df, input_var):
+#     '''
+#     Given an input variable, return GHCNh location variables and all relevant data variables,
+#     rather than utilizing the whole 240 cols, or having to know how ghcnh labels the cols.
+
+#     input_var must follow ERA naming scheme (tas, tdps, ps, pr, etc.)
+#     '''
+#     ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
+
+#     # include station-ID, time, loc, elevation (cols 1-10)
+#     stn_info_cols = ['Station_ID', 'Station_name',
+#                      'Year','Month','Day','Hour','Minute',
+#                      'Latitude','Longitude','Elevation']
+    
+#     var_cols = []
+#     if input_var == 'tas':
+#         varquery = 'temperature'
+        
+#     elif input_var == 'tdps' or 'tdps_derived':
+#         varquery = 'dew_point_temperature'
+        
+#     elif input_var == 'ps' or 'psl':
+#         varquery = 'station_level_pressure'
+        
+#     elif input_var == 'sfcWind_dir':
+#         varquery = 'wind_direction'
+        
+#     elif input_var == 'sfcWind':
+#         varquery = ['wind_speed', 'wind_gust']
+
+#     elif input_var == 'hurs':
+#         varquery = 'relative_humidity'
+        
+#     elif input_var == 'rsds':
+#         print('GHCNh data does not have solar radiation data to evaluate against.')
+#         varquery = '' 
+        
+#     elif input_var == 'pr' or input_var == 'pr_1h' or input_var == 'pr_5min':
+#         varquery = 'precipitation'
+
+#     i = ghcn_df.query()
+    
+#     var_cols = [i for i in ghcnh_vars if varquery in i]
+#     cols_to_return = stn_info_cols + var_cols
+
+#     return ghcn_df[[cols_to_return]]
+
+def return_ghcn_vars(ghcn_df, input_var):
+    '''
+    Given an input variable, return GHCNh location variables and all relevant data variables,
+    rather than utilizing the whole 240 cols, or having to know how ghcnh labels the cols.
+
+    input_var must follow ERA naming scheme (tas, tdps, ps, pr, etc.)
+    '''
+    ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
+
+    # include station-ID, time, loc, elevation (cols 1-10)
+    stn_info_cols = ['Station_ID', 'Station_name',
+                     'Year','Month','Day','Hour','Minute',
+                     'Latitude','Longitude','Elevation']
+    vars = {
+        'tas': 'temperature',
+        'tdps': 'dew_point_temperature',
+        'tdps_derived': 'dew_point_temperature',
+        'ps': 'station_level_pressure',
+        'psl': 'station_level_pressure',
+        'sfcWind_dir': 'wind_direction',
+        'sfcWind': 'wind_speed',
+        'tas': 'temperature',
+        'hurs': 'relative_humidity',
+        'rsds': "N/A",
+        'pr': 'precipitation',
+        'pr_1h': 'precipitation',
+        'pr_5min': 'precipitation',
+    }
+    if input_var in vars.keys():
+        i = ghcn_df.columns.get_loc(vars[input_var])
+        j = i+6
+        # For wind, include wind gust
+        if input_var=="sfcWind":
+            j = j+6
+        ghcn_df.iloc[:, i:j]
+        
+        return ghcn_df.iloc[:, i:j]
+    else:
+        raise Exception(f"Variable {input_var} not in variables' dictionary")
+
 
 
 # Projection stuffs
