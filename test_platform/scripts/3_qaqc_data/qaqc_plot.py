@@ -147,7 +147,7 @@ def id_flag(flag_to_id):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=None, local=False):
+def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
     '''Produces timeseries of variables that have flags placed'''
     
     # first check if var has flags, only produce plots of vars with flags
@@ -182,28 +182,29 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False):
             plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 
             # save to AWS
-            bucket_name = 'wecc-historical-wx'
-            directory = '3_qaqc_wx'
-            img_data = BytesIO()
-            plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
-            img_data.seek(0)
+            if savefig:
+                bucket_name = 'wecc-historical-wx'
+                directory = '3_qaqc_wx'
+                img_data = BytesIO()
+                plt.savefig(img_data, format='png', dpi=dpi, bbox_inches='tight')
+                img_data.seek(0)
 
-            s3 = boto3.resource('s3')
-            bucket = s3.Bucket(bucket_name)
-            network = df['station'].unique()[0].split('_')[0]
-            figname = 'flagged_timeseries_{0}_{1}'.format(df['station'].unique()[0], var)
-            bucket.put_object(Body=img_data, ContentType='image/png',
-                        Key='{0}/{1}/qaqc_figs/{2}.png'.format(
-                        directory, network, figname))
+                s3 = boto3.resource('s3')
+                bucket = s3.Bucket(bucket_name)
+                network = df['station'].unique()[0].split('_')[0]
+                figname = 'flagged_timeseries_{0}_{1}'.format(df['station'].unique()[0], var)
+                bucket.put_object(Body=img_data, ContentType='image/png',
+                            Key='{0}/{1}/qaqc_figs/{2}.png'.format(
+                            directory, network, figname))
+                
+                # save locally if needed
+                if local:
+                    fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
             
-            # save locally if needed
-            if local:
-                fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
-            
-            # close figure to save memory
-            plt.close()
-            
-            return 
+                # close figure to save memory
+                plt.close()
+                
+                return 
 
 #============================================================================================================
 ## frequent values plotting functions
