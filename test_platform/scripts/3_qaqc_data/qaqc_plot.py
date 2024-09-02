@@ -181,6 +181,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
             plt.xlabel('')
             plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 
+
             # save to AWS
             if savefig:
                 bucket_name = 'wecc-historical-wx'

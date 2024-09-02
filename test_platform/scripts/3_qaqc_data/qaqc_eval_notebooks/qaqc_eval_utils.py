@@ -9,8 +9,7 @@ import s3fs
 import xarray as xr
 import numpy as np
 
-AWS_ACCESS_KEY_ID="SECRET_KEY_HERE"
-AWS_SECRET_ACCESS_KEY="SECRET_KEY_HERE"
+import datetime.timedelta
 
 
 def known_issue_check(network, var, stn):
@@ -134,7 +133,7 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False)
         if len(event_stns_local) <= subset:
             eval_stns = event_stns_local
         else:
-            eval_stns = event_stns_local.sample(subset, replace=False, random_state=1)
+            eval_stns = event_stns_local.sample(subset, replace=False)
             print('{} stations selected for evaluation for {} event!'.format(subset, event_to_eval))
     else:
         eval_stns = event_stns_local
@@ -161,13 +160,51 @@ def id_all_flags(ds):
 
 
 def pull_nc_from_aws(fname):
-    s3 = s3fs.S3FileSystem(anon=False, key=AWS_ACCESS_KEY_ID, secret=AWS_SECRET_ACCESS_KEY)
+    s3 = s3fs.S3FileSystem(anon=False)
     network = fname.split('_')[0]
     s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, fname)
     s3_file_obj = s3.open(s3_url, mode='rb')
 
     ds = xr.open_dataset(s3_file_obj, engine='h5netcdf')
     return ds
+
+
+def event_info(event):
+    start_date = {
+        "santa_ana_wind": "1988-02-16",
+        "winter_storm"  : "1990-12-20", 
+        "AR"            : "2017-01-16",
+        "mudslide"      : "2018-01-05",
+        "heatwave1"     : "2020-08-14",
+        "heatwave2"     : "2020-09-05",
+        "heatwave3"     : "2022-08-30",
+        "offshore_wind" : "2021-01-15"
+                  }
+    end_date = {
+        "santa_ana_wind": "1988-02-19",
+        "winter_storm"  : "1990-12-24",
+        "AR"            : "2017-01-20",
+        "mudslide"      : "2018-01-09",
+        "heatwave1"     : "2020-08-15",
+        "heatwave2"     : "2020-09-08",
+        "heatwave3"     : "2022-09-09",
+        "offshore_wind" : "2021-01-16"
+    }
+
+    event_start = start_date[event]
+    event_end = end_date[event]
+
+    return (event_start, event_end)
+
+def event_subset(df, event, buffer=7):
+    """Subsets for the event itself + buffer around to identify event"""
+    df['time'] = pd.to_datetime(df['time']) # set to searchable datetime
+    event_start, event_end = event_info(event) # grab dates from lookup dictionary
+    
+    datemask = ((df['time'] >= pd.Timestamp(event_start) - datetime.timedelta(days=buffer)) & (df['time'] <= pd.Timestamp(event_end) + datetime.timedelta(days=buffer))) # subset for event dates + buffer
+    event_sub = df.loc[datemask]
+    
+    return event_sub
 
 
 # def return_ghcn_vars(ghcn_df, input_var):
