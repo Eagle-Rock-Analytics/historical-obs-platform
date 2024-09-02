@@ -66,11 +66,11 @@ def test_subset_plot(df, var, dpi=None):
                               mfc="none", color="C3",
                               label=flag_label)
 
-            legend = ax.legend(loc=0, prop={'size': 8})    
+        legend = ax.legend(loc=0, prop={'size': 8})    
 
-            # plot aesthetics
-            ylab, units, miny, maxy = _plot_format_helper(var)
-            plt.ylabel('{} [{}]'.format(ylab, units));
-            plt.xlabel('')
-            plt.title('Test station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
+        # plot aesthetics
+        ylab, units, miny, maxy = _plot_format_helper(var)
+        plt.ylabel('{} [{}]'.format(ylab, units));
+        plt.xlabel('')
+        plt.title('Test station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 

@@ -8,8 +8,14 @@ import s3fs
 
 import xarray as xr
 import numpy as np
+import pandas as pd
+import sys
+import os
 
-import datetime.timedelta
+import datetime
+
+sys.path.append(os.path.expanduser('../'))
+from qaqc_plot import flagged_timeseries_plot
 
 
 def known_issue_check(network, var, stn):
@@ -20,7 +26,7 @@ def known_issue_check(network, var, stn):
 
     Note: See "Known Network Issues for QA/QC Validation" planning doc.
     '''
-
+    print('Checking for known station issues...')
     # RAWS
     if network == 'RAWS':
         if var == 'tas':
@@ -83,12 +89,12 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False)
     Identifies stations to evaluate for specific V1 QA/QC events.
     Option to subset to a more manageable number of random stations for initial evaluation. 
     '''
-
+    
     # TO DO: validation check on event_to_eval options
 
     event_flags = []
     event_flags.append('all')
-    event_flags.append(event_to_eval) # options: santa_ana_wind, winter_storm, AR, mudslide, heatwave1, heatwave2, heatwave3, offshore_wind
+    event_flags.append(event_to_eval) # options: santa_ana_wind, winter_storm, AR, mudslide, aug2020_heatwave, sep2020_heatwave, aug2022_heatwave, offshore_wind
 
     # grab stations per event
     event_stns = stn_list[stn_list['event_type'].isin(event_flags)]
@@ -103,23 +109,39 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False)
     ca_county = gpd.read_file(census_shp_dir)
 
     # different areas based on events
-    ## Need an option for "WECC wide"
+    ## TODO: Need an option for "WECC wide" (or no spatial subsetting)
     if event_to_eval == 'santa_ana_wind':
-        counties_to_grab = ['Los Angeles', 'Orange']
-    elif event_to_eval == 'winter_storm':
-        counties_to_grab = []
+        counties_to_grab = ['Los Angeles', 'Orange'] ## potentially need to broaden area? 
+
+    elif event_to_eval == 'winter_storm': # focus on Northern/Central/Bay Area to begin with // WECC wide
+        counties_to_grab = ['Butte', 'Colusa', 'Del Norte', 'Glenn', 'Humboldt', 'Lake', 'Lassen', 
+        'Mendocino', 'Modoc', 'Nevada', 'Plumas', 'Shasta', 'Sierra', 'Siskiyou', 'Tehama','Trinity',
+        'Alpine', 'Amador', 'Calaveras', 'El Dorado', 'Fresno', 'Inyo', 'Kings', 'Madera', 'Mariposa',
+        'Merced', 'Mono', 'Placer', 'Sacramento', 'San Joaquin', 'Stanislaus', 'Sutter', 'Yuba', 'Tulare',
+        'Tuolumne', 'Yolo', 'Alameda', 'Contra Costa','Marin', 'Monterey','Napa', 'San Benito', 'San Francisco',
+        'San Mateo', 'Santa Clara', 'Santa Cruz', 'Solano', 'Sonoma']
+
     elif event_to_eval == 'mudslide':
         counties_to_grab = ['Santa Barbara']
+
     elif event_to_eval == 'AR':
-        counties_to_grab = []
-    elif event_to_eval == 'heatwave1': # August 2020
-        counties_to_grab = []
-    elif event_to_eval == 'heatwave2': # September 2020
-        counties_to_grab = ['Los Angeles']
-    elif event_to_eval == 'heatwave3': # August 2022
-        counties_to_grab = []
+        counties_to_grab = [] # CA
+
+    elif event_to_eval == 'aug2020_heatwave': # August 2020 "aug2020_heatwave" -- 
+        counties_to_grab = [] # CA
+
+    elif event_to_eval == 'sep2020_heatwave': # September 2020 "sep2020_heatwave"
+        counties_to_grab = ['San Luis Obispo', 'Kern', 'San Bernadino', 'Santa Barbara', 'Ventura',
+        'Los Angeles', 'Orange', 'Riverside', 'San Diego', 'Imperial']
+
+    elif event_to_eval == 'aug2022_heatwave': # August 2022 -- Labor Day Heatwave "aug2022_heatwave"
+        counties_to_grab = ['San Luis Obispo', 'Kern', 'San Bernadino', 'Santa Barbara', 'Ventura',
+        'Los Angeles', 'Orange', 'Riverside', 'San Diego', 'Imperial']
+
     elif event_to_eval == 'offshore_wind':
-        counties_to_grab = []
+        counties_to_grab = ['San Diego', 'Orange', 'Los Angeles', 'Ventura', 'Santa Barbara',
+        'San Luis Obispo', 'Monterey', 'Santa Cruz', 'San Mateo', 'Santa Clara', 'Alameda',
+        'San Francisco', 'Contra Costa', 'Solano', 'Marin', 'Sonoma', 'Mendocino', 'Humboldt', 'Del Norte']
 
     target_counties = ca_county[ca_county['NAME'].isin(counties_to_grab)]
     target_counties = GeoDataFrame(target_counties, geometry=target_counties.geometry)
@@ -160,6 +182,7 @@ def id_all_flags(ds):
 
 
 def pull_nc_from_aws(fname):
+    print('Retrieving data for station...')
     s3 = s3fs.S3FileSystem(anon=False)
     network = fname.split('_')[0]
     s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, fname)
@@ -171,24 +194,24 @@ def pull_nc_from_aws(fname):
 
 def event_info(event):
     start_date = {
-        "santa_ana_wind": "1988-02-16",
-        "winter_storm"  : "1990-12-20", 
-        "AR"            : "2017-01-16",
-        "mudslide"      : "2018-01-05",
-        "heatwave1"     : "2020-08-14",
-        "heatwave2"     : "2020-09-05",
-        "heatwave3"     : "2022-08-30",
-        "offshore_wind" : "2021-01-15"
+        "santa_ana_wind"   : "1988-02-16",
+        "winter_storm"     : "1990-12-20", 
+        "AR"               : "2017-01-16",
+        "mudslide"         : "2018-01-05",
+        "aug2020_heatwave" : "2020-08-14",
+        "sep2020_heatwave" : "2020-09-05",
+        "aug2022_heatwave" : "2022-08-30",
+        "offshore_wind"    : "2021-01-15"
                   }
     end_date = {
-        "santa_ana_wind": "1988-02-19",
-        "winter_storm"  : "1990-12-24",
-        "AR"            : "2017-01-20",
-        "mudslide"      : "2018-01-09",
-        "heatwave1"     : "2020-08-15",
-        "heatwave2"     : "2020-09-08",
-        "heatwave3"     : "2022-09-09",
-        "offshore_wind" : "2021-01-16"
+        "santa_ana_wind"   : "1988-02-19",
+        "winter_storm"     : "1990-12-24",
+        "AR"               : "2017-01-20",
+        "mudslide"         : "2018-01-09",
+        "aug2020_heatwave" : "2020-08-15",
+        "sep2020_heatwave" : "2020-09-08",
+        "aug2022_heatwave" : "2022-09-09",
+        "offshore_wind"    : "2021-01-16"
     }
 
     event_start = start_date[event]
@@ -196,8 +219,11 @@ def event_info(event):
 
     return (event_start, event_end)
 
+
 def event_subset(df, event, buffer=7):
     """Subsets for the event itself + buffer around to identify event"""
+    print('Subsetting station record for event duration with {} day buffer...'.format(str(buffer)))
+
     df['time'] = pd.to_datetime(df['time']) # set to searchable datetime
     event_start, event_end = event_info(event) # grab dates from lookup dictionary
     
@@ -205,6 +231,58 @@ def event_subset(df, event, buffer=7):
     event_sub = df.loc[datemask]
     
     return event_sub
+
+
+def flags_during_event(subset_df, var, event):
+    """Provides info on which flags were placed during event for evaluation"""
+    print('Flags set on {} during {} event: {}'.format(var, event, subset_df[var+'_eraqc'].unique()))
+    all_event_flags = []
+    for item in subset_df[var+'_eraqc'].unique():
+        all_event_flags.append(item)
+    return all_event_flags
+
+
+def multi_stn_check(list_of_stations, event):
+    """this function does all the major identification steps outlined in the notebook"""
+    for stn in list_of_stations:
+        print('Evaluation on {}...'.format(stn))
+
+        # retrieve data
+        ds = pull_nc_from_aws(stn)
+
+        # convert to dataframe
+        print('Converting to dataframe...')
+        df = ds.to_dataframe().reset_index()
+
+        # identify vars for evaluation
+        vars_to_check = ['tas', 'hurs', 'sfcWind', 'sfcWind_dir']
+        vars_to_eval = [var for var in vars_to_check if var in df.columns] # check if variable is not present in the specific station
+
+        for var in vars_to_eval:
+            known_issue_check(network=df.station.unique()[0].split('_')[0], 
+                            var=var, 
+                            stn=df.station.unique()[0]) # check if known issues are present first!
+            print('Evaluating: {}'.format(var))
+            flagged_timeseries_plot(df, var=var)
+        
+        # subset for event
+        subset_df = event_subset(df, event)
+        for v in vars_to_eval:
+            all_flags = flags_during_event(subset_df, var=v, event=event)
+        
+        # if all are none or empty, close ds and move on
+        if len(subset_df) == 0 or np.isnan(all_flags[0]):
+            ds.close()
+            print('Closing dataset!\n')
+        
+        else:
+            # proceed
+            print('{} is flagged during {}!'.format(stn, event))
+
+
+
+
+
 
 
 # def return_ghcn_vars(ghcn_df, input_var):
