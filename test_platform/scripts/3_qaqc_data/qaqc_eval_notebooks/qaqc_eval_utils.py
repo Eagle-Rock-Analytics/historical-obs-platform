@@ -22,7 +22,7 @@ import datetime
 # from qaqc_eval_plot import event_plot, latlon_to_mercator_cartopy
 
 sys.path.append(os.path.expanduser('../'))
-from qaqc_plot import flagged_timeseries_plot, _plot_format_helper
+from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
 
 
 def known_issue_check(network, var, stn):
@@ -118,7 +118,7 @@ def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False)
     # different areas based on events
     ## TODO: Need an option for "WECC wide" (or no spatial subsetting)
     if event_to_eval == 'santa_ana_wind':
-        counties_to_grab = ['Los Angeles', 'Orange'] ## potentially need to broaden area? 
+        counties_to_grab = ['Los Angeles', 'Orange', 'San Diego', 'San Bernardino', 'Riverside'] ## potentially need to broaden area? 
 
     elif event_to_eval == 'winter_storm': # focus on Northern/Central/Bay Area to begin with // WECC wide
         counties_to_grab = ['Butte', 'Colusa', 'Del Norte', 'Glenn', 'Humboldt', 'Lake', 'Lassen', 
@@ -291,8 +291,15 @@ def multi_stn_check(list_of_stations, event):
         #     # proceed
         #     print('{} is flagged during {}!'.format(stn, event))
 
-
-
+def find_other_events(df, event_start, event_end):
+    """Helper function to find other events for comparison
+    Example: santa ana wind event doesn't have any flags, looking for another to compare"""
+    event_sub = df.loc[(df['start_date'] <= event_start) & (df['end_date'] >= event_end)]
+    
+    # exclude "manual check on end date" stations since we don't know when they actually end
+    event_sub = event_sub.loc[event_sub['notes'] != 'manual check on end date']
+    
+    return event_sub
 
 
 
