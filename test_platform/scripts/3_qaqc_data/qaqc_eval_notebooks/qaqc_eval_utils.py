@@ -3,7 +3,7 @@
 from pyproj import CRS, Transformer
 import geopandas as gpd
 from geopandas import GeoDataFrame
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 import s3fs
 
 import xarray as xr
@@ -430,7 +430,6 @@ def latlon_to_mercator_cartopy(lat, lon):
     
     return x, y
 
-
 def stn_visualize(stn_id, stn_list, event_to_eval):
     # grab station id info and reproject coords
     stn = stn_list.loc[stn_list['era-id'] == stn_id]
@@ -442,8 +441,19 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     ax.coastlines()
     ax.add_feature(cf.BORDERS)
     ax.add_feature(cf.STATES, lw=0.5)
-    # ax.plot(ca_county)
+
     ax.set_extent([lon+1, lon-1, lat-1, lat+1])    
+
+    x0,x1,y0,y1 = ax.get_extent()
+    polygon = Polygon(((x0,y0),(x0,y1),(x1,y1),(x1,y0)))
+    counties = ca_county[ca_county.overlaps(polygon)]
+
+    for geometry in counties.geometry:
+        ax.add_geometries(geometry.boundary, crs=ax.projection, 
+                          facecolor='none', edgecolor='teal',
+                          lw=0.5, 
+                         )
+    
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
@@ -455,7 +465,12 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
 
 
+<<<<<<< HEAD
 def event_plot(df, var, event, alt_start_date, alt_end_date, dpi=None):
+=======
+
+def event_plot(df, var, event, dpi=None):
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
     '''Produces timeseries of variables that have flags placed'''
 
     fig, ax = plt.subplots(figsize=(10,3))

@@ -3,13 +3,14 @@
 from pyproj import CRS, Transformer
 import geopandas as gpd
 from geopandas import GeoDataFrame
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 import matplotlib.pyplot as plt
 import cartopy.feature as cf
 from matplotlib.ticker import MaxNLocator
 import cartopy.crs as ccrs
 
+<<<<<<< HEAD
 from qaqc_eval_utils import event_info
 
 import sys
@@ -18,6 +19,8 @@ sys.path.append(os.path.expanduser('../'))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper
 
 # projection stuffs
+=======
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
 census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
 ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
 
@@ -33,6 +36,7 @@ def latlon_to_mercator_cartopy(lat, lon):
     return x, y
 
 
+<<<<<<< HEAD
 def stn_visualize(stn_id, stn_list, event_to_eval):
     # grab station id info and reproject coords
     stn = stn_list.loc[stn_list['era-id'] == stn_id]
@@ -58,6 +62,9 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
 
 
 def event_plot(df, var, event, dpi=None):
+=======
+def test_subset_plot(df, var, dpi=None):
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
     '''Produces timeseries of variables that have flags placed'''
 
     fig, ax = plt.subplots(figsize=(10,3))
