@@ -23,6 +23,7 @@ import datetime
 
 sys.path.append(os.path.expanduser('../'))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
+from QAQC_pipeline import qaqc_ds_to_df
 
 
 def known_issue_check(network, var, stn):
@@ -261,7 +262,7 @@ def multi_stn_check(list_of_stations, event, buffer=7, alt_start_date=None, alt_
 
         # convert to dataframe
         print('Converting to dataframe...')
-        df = ds.to_dataframe().reset_index()
+        df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds)
 
         # identify vars for evaluation
         vars_to_check = ['tas', 'hurs', 'sfcWind', 'sfcWind_dir']
