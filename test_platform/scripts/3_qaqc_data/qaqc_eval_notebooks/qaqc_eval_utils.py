@@ -199,7 +199,7 @@ def pull_nc_from_aws(fname):
     return ds
 
 
-def event_info(event):
+def event_info(event, alt_start_date=None, alt_end_date=None):
     start_date = {
         "santa_ana_wind"   : "1988-02-16",
         "winter_storm"     : "1990-12-20", 
@@ -208,7 +208,8 @@ def event_info(event):
         "aug2020_heatwave" : "2020-08-14",
         "sep2020_heatwave" : "2020-09-05",
         "aug2022_heatwave" : "2022-08-30",
-        "offshore_wind"    : "2021-01-15"
+        "offshore_wind"    : "2021-01-15",
+        "alternative"      : alt_start_date 
                   }
     end_date = {
         "santa_ana_wind"   : "1988-02-19",
@@ -218,7 +219,8 @@ def event_info(event):
         "aug2020_heatwave" : "2020-08-15",
         "sep2020_heatwave" : "2020-09-08",
         "aug2022_heatwave" : "2022-09-09",
-        "offshore_wind"    : "2021-01-16"
+        "offshore_wind"    : "2021-01-16",
+        "alternative"      : alt_end_date 
     }
 
     event_start = start_date[event]
@@ -227,14 +229,14 @@ def event_info(event):
     return (event_start, event_end)
 
 
-def event_subset(df, event, buffer=7):
+def event_subset(df, event, buffer=7, alt_start_date=None, alt_end_date=None):
     """Subsets for the event itself + buffer around to identify event"""
     print('Subsetting station record for event duration with {} day buffer...'.format(str(buffer)))
 
     df['time'] = pd.to_datetime(df['time']) # set to searchable datetime
-    event_start, event_end = event_info(event) # grab dates from lookup dictionary
+    event_start, event_end = event_info(event, alt_start_date, alt_end_date) # grab dates from lookup dictionary
     
-    datemask = ((df['time'] >= pd.Timestamp(event_start) - datetime.timedelta(days=buffer)) & (df['time'] <= pd.Timestamp(event_end) + datetime.timedelta(days=buffer))) # subset for event dates + buffer
+    datemask = ((df['time'] >= (pd.Timestamp(event_start) - datetime.timedelta(days=buffer))) & (df['time'] <= (pd.Timestamp(event_end) + datetime.timedelta(days=buffer)))) # subset for event dates + buffer
     event_sub = df.loc[datemask]
     
     return event_sub
@@ -249,7 +251,7 @@ def flags_during_event(subset_df, var, event):
     return all_event_flags
 
 
-def multi_stn_check(list_of_stations, event):
+def multi_stn_check(list_of_stations, event, buffer=7, alt_start_date=None, alt_end_date=None):
     """this function does all the major identification steps outlined in the notebook"""
     for stn in list_of_stations:
         print('Evaluation on {}...'.format(stn))
@@ -273,12 +275,12 @@ def multi_stn_check(list_of_stations, event):
             flagged_timeseries_plot(df, var=var)
         
         # subset for event
-        subset_df = event_subset(df, event)
+        subset_df = event_subset(df, event, buffer, alt_start_date, alt_end_date)
 
         if len(subset_df) != 0:
             for v in vars_to_eval:
                 all_flags = flags_during_event(subset_df, var=v, event=event)
-                event_plot(subset_df, var=v, event=event)
+                event_plot(subset_df, var=v, event=event, alt_start_date=alt_start_date, alt_end_date=alt_end_date)
         else:
             ds.close()
         
@@ -291,15 +293,34 @@ def multi_stn_check(list_of_stations, event):
         #     # proceed
         #     print('{} is flagged during {}!'.format(stn, event))
 
-def find_other_events(df, event_start, event_end):
-    """Helper function to find other events for comparison
-    Example: santa ana wind event doesn't have any flags, looking for another to compare"""
-    event_sub = df.loc[(df['start_date'] <= event_start) & (df['end_date'] >= event_end)]
+def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_stn_ids=True):
+    print('Subsetting station record for event duration with {} day buffer...'.format(str(buffer)))
     
+    df['start_date'] = pd.to_datetime(df['start_date'])
+    df['end_date'] = pd.to_datetime(df['end_date'])
+    event_start = pd.to_datetime(event_start).tz_localize('UTC')
+    event_end = pd.to_datetime(event_end).tz_localize('UTC')
+    
+    event_sub = df.loc[(df['start_date'] <= (event_start - datetime.timedelta(days=buffer))) & (df['end_date'] >= (event_end + datetime.timedelta(days=buffer)))]
+
     # exclude "manual check on end date" stations since we don't know when they actually end
     event_sub = event_sub.loc[event_sub['notes'] != 'manual check on end date']
-    
-    return event_sub
+
+    # subset to make more manageable
+    if subset != None:
+        if len(event_sub) <= subset:
+            eval_stns = event_sub
+        else:
+            eval_stns = event_sub.sample(subset, replace=False)
+            print('{} stations selected for evaluation for comparison!'.format(subset))
+    else:
+        eval_stns = event_sub
+
+    # return station ids for ease
+    if return_stn_ids:
+        print('Stations selected for evaluation:\n', list(eval_stns['era-id']))
+
+    return eval_stns
 
 
 
@@ -433,7 +454,7 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
 
 
-def event_plot(df, var, event, dpi=None):
+def event_plot(df, var, event, alt_start_date, alt_end_date, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
 
     fig, ax = plt.subplots(figsize=(10,3))
@@ -443,7 +464,7 @@ def event_plot(df, var, event, dpi=None):
         color="k", alpha=0.5, label='Cleaned data')
 
     # plot event timeline 
-    event_start, event_end = event_info(event)
+    event_start, event_end = event_info(event, alt_start_date, alt_end_date)
     ax.axvspan(event_start, event_end, color='red', alpha=0.1, label='{}'.format(event))
 
     # ax.axhline(event_start, color='red', lw=2, alpha=0.25)
