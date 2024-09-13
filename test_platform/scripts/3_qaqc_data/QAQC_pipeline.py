@@ -231,16 +231,18 @@ def qaqc_ds_to_df(ds, verbose=False):
     # instrumentation heights
     try:
         df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
-    except Exception as e:
-        print("Error: {}. Filling with NaN.".format(e), flush=True)
-        # printf("Error: {}. Filling with NaN.".format(e), log_file=log_file, verbose=verbose, flush=True)
+    except:
+        print("Filling anemometer_height_m with NaN.", flush=True)
         df['anemometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
     try:
         df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
-    except Exception as e:
-        print("Error: {}. Filling with NaN.".format(e), flush=True)
-        # printf("Error: {}. Filling with NaN.".format(e), log_file=log_file, verbose=verbose, flush=True)
+    except:
+        print("Filling thermometer_height_m with NaN.", flush=True)
         df['thermometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
