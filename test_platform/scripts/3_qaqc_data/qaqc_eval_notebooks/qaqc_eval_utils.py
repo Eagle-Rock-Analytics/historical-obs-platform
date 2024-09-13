@@ -466,8 +466,11 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 def event_plot(df, var, event, alt_start_date, alt_end_date, dpi=None):
 =======
+=======
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
 
 def event_plot(df, var, event, dpi=None):
 >>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)

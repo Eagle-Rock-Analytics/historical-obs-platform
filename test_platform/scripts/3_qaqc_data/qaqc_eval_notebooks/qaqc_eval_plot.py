@@ -11,6 +11,7 @@ from matplotlib.ticker import MaxNLocator
 import cartopy.crs as ccrs
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 from qaqc_eval_utils import event_info
 
 import sys
@@ -21,11 +22,14 @@ from qaqc_plot import flagged_timeseries_plot, _plot_format_helper
 # projection stuffs
 =======
 >>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
+=======
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
 census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
 ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
 
 def latlon_to_mercator_cartopy(lat, lon):
 
+<<<<<<< HEAD
     proj_latlon = CRS('EPSG:4326')
     proj_mercator = CRS('EPSG:3857')
     
@@ -63,6 +67,8 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
 
 def event_plot(df, var, event, dpi=None):
 =======
+=======
+>>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
 def test_subset_plot(df, var, dpi=None):
 >>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
     '''Produces timeseries of variables that have flags placed'''
