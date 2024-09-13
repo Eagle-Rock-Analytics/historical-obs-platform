@@ -444,10 +444,16 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
 
     ax.set_extent([lon+1, lon-1, lat-1, lat+1])    
 
+    # Obtain the limits of the plot
     x0,x1,y0,y1 = ax.get_extent()
+
+    # Create a polygon with the limits of the plot
     polygon = Polygon(((x0,y0),(x0,y1),(x1,y1),(x1,y0)))
+
+    # Use only the counties that overlap with the actual plot
     counties = ca_county[ca_county.overlaps(polygon)]
 
+    # Plot the counties' geometries
     for geometry in counties.geometry:
         ax.add_geometries(geometry.boundary, crs=ax.projection, 
                           facecolor='none', edgecolor='teal',
@@ -464,18 +470,9 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
                     ls=":", lw=0.5)
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
 
-
-<<<<<<< HEAD
-<<<<<<< HEAD
 def event_plot(df, var, event, alt_start_date, alt_end_date, dpi=None):
-=======
-=======
->>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
-
-def event_plot(df, var, event, dpi=None):
->>>>>>> 6cfa3d7 (ds_to_df fixed. Counties plot implemented)
     '''Produces timeseries of variables that have flags placed'''
-
+    
     fig, ax = plt.subplots(figsize=(10,3))
 
     # plot all observations
