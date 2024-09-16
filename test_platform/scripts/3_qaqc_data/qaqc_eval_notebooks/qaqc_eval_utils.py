@@ -194,10 +194,14 @@ def pull_nc_from_aws(fname):
     s3 = s3fs.S3FileSystem(anon=False)
     network = fname.split('_')[0]
     s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, fname)
-    s3_file_obj = s3.open(s3_url, mode='rb')
 
-    ds = xr.open_dataset(s3_file_obj, engine='h5netcdf')
-    return ds
+    try:
+        s3_file_obj = s3.open(s3_url, mode='rb')
+        ds = xr.open_dataset(s3_file_obj, engine='h5netcdf')
+        return ds
+        
+    except:
+        print(f'Station {fname} not found in bucket -- please check if station completed QA/QC.')
 
 
 def event_info(event, alt_start_date=None, alt_end_date=None):
@@ -258,7 +262,10 @@ def multi_stn_check(list_of_stations, event, buffer=7, alt_start_date=None, alt_
         print('Evaluation on {}...'.format(stn))
 
         # retrieve data
-        ds = pull_nc_from_aws(stn)
+        try:
+            ds = pull_nc_from_aws(stn)
+        except:
+            continue
 
         # convert to dataframe
         print('Converting to dataframe...')
@@ -470,7 +477,7 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
                     ls=":", lw=0.5)
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
 
-def event_plot(df, var, event, alt_start_date, alt_end_date, dpi=None):
+def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
     
     fig, ax = plt.subplots(figsize=(10,3))
