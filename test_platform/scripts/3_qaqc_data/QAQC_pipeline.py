@@ -187,12 +187,22 @@ def process_output_ds(df, attrs, var_attrs,
 
 #--------------------------------------------------------------------------------
 ## xarray ds for a station to pandas df in the format needed for the pipeline    
-def qaqc_ds_to_df(ds):
+def qaqc_ds_to_df(ds, verbose=False):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
+
+    for key,val in ds.variables.items():
+        if val.dtype==object:
+            if key=='station':
+                if str in [type(v) for v in ds[key].values]:
+                    ds[key] = ds[key].astype(str)
+            else:
+                if str in [type(v) for v in ds.isel(station=0)[key].values]:
+                    ds[key] = ds[key].astype(str)
+                
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
-                    "pr_duration", "pr_depth",
+                    "pr_duration", "pr_depth", "PREC_flag",
                     "rsds_duration", "rsds_flag"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
@@ -214,10 +224,25 @@ def qaqc_ds_to_df(ds):
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
-    df = ds.to_dataframe()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        df = ds.to_dataframe()
+
     # instrumentation heights
-    df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
-    df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    try:
+        df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
+    except:
+        print("Filling anemometer_height_m with NaN.", flush=True)
+        df['anemometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
+    try:
+        df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    except:
+        print("Filling thermometer_height_m with NaN.", flush=True)
+        df['thermometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
@@ -241,6 +266,7 @@ def qaqc_ds_to_df(ds):
     df['date']  = pd.to_datetime(df['time']).dt.date
     
     return df, MultiIndex, attrs, var_attrs, era_qc_vars
+
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
