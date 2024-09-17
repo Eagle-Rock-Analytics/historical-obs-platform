@@ -212,13 +212,17 @@ def qaqc_ds_to_df(ds, verbose=False):
             raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
         if '_qc' in var:
             raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
+        if '_eraqc' in var:
+            era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
+    print(era_qc_vars)
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars:
             qc_var = var + "_eraqc" # variable/column label
             era_qc_vars.append(qc_var)
-            # adds new variable in shape of original variable with designated nan fill value
-            ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
+            # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
+            if var+"_eraqc" not in era_qc_vars:
+                ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -266,7 +270,6 @@ def qaqc_ds_to_df(ds, verbose=False):
     df['date']  = pd.to_datetime(df['time']).dt.date
     
     return df, MultiIndex, attrs, var_attrs, era_qc_vars
-
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
