@@ -23,8 +23,7 @@ import time
 import tempfile
 
 from simplempi import simpleMPI
-from simplempi.parfor import parfor, pprint
-smpi = simpleMPI()
+#from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -122,6 +121,14 @@ def file_on_s3(da):
 def read_network_files(network):
     """
     """    
+    full_df = pd.read_csv("temp_clean_all_station_list.csv").loc[:,['era-id','network']]
+    full_df['rawdir'] = full_df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
+    full_df['cleandir'] = full_df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
+    full_df['qaqcdir'] = full_df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
+    full_df['mergedir'] = full_df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
+    full_df['key'] = full_df.apply(lambda row: row['cleandir']+row['era-id']+".nc", axis=1)
+    full_df['exist'] = np.zeros(len(full_df)).astype("bool")
+
     df = pd.read_csv("qaqc_training_station_list.csv")
     df['rawdir'] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
     df['cleandir'] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
@@ -132,7 +139,8 @@ def read_network_files(network):
 
     # If it's a network (not training) run, keep it fast by only checking that network files on s3
     if network != "TRAINING":
-        df = df[df['network']==network]
+        #df = df[df['network']==network]
+        df = full_df.copy()[full_df['network']==network] # To use the full dataset for specific sample stations
         
     for n in df['network'].unique():
         ind = df['network']==n
@@ -280,7 +288,8 @@ def qaqc_ds_to_df(ds, verbose=False):
                     "rsds_duration", "rsds_flag"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
-    era_qc_vars = [] # our qc variable
+    era_qc_vars = [] # our ERA qc variable
+
     for var in ds.data_vars:
         if 'q_code' in var:
             raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
@@ -290,12 +299,11 @@ def qaqc_ds_to_df(ds, verbose=False):
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
     for var in ds.data_vars:
-        if var not in exclude_qaqc and var not in raw_qc_vars:
-            qc_var = var + "_eraqc" # variable/column label
+        eraqc_var = var + "_eraqc" # variable/column label
+        if var not in exclude_qaqc and var not in raw_qc_vars and var not in eraqc_var:
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
-            if var+"_eraqc" not in era_qc_vars:
-                era_qc_vars.append(qc_var)
-                ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
+            #era_qc_vars.append(qc_var)
+            ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -972,36 +980,56 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
     for station in stations: # full run
     -----------------------------------
     """
+#    import pdb; pdb.set_trace()
+    smpi = simpleMPI()
+
     # Read in network files
-    try:
-        files_df = read_network_files(network)
-    except Exception as e:
-        errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
-                                   message="Error in whole network:", test=e)
-    
-    # TESTING SUBSET
-    if sample=="all":
-        stations_sample = list(files_df['era-id'].values)
-    else:
+    if smpi.rank==0:
         try:
+            files_df = read_network_files(network)
+        except Exception as e:
+            errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
+                                       message="Error in whole network:", test=e)
+        
+        #pprint(len(files_df))
+        #pprint(files_df['network'].unique())
+        #pprint(files_df['exist'].values.any())
+
+        # TESTING SUBSET
+        if sample=="all":
+            stations_sample = list(files_df['era-id'].values)
+        elif all(char.isnumeric() for char in sample):
             nSample = int(sample)
             files_df = files_df.sample(nSample)
+            #print(len(files_df))
             stations_sample = list(files_df['era-id'])
-        except Exception as e:
+            #print(stations_sample)
+        else:
             files_df = files_df[files_df['era-id']==sample]
             if len(files_df)==0:
-                if smpi.rank==0:
-                    pprint(f"Sample station '{sample}' not in network/stations_df. Please double-check names")
-                exit()
-            stations_sample = list(files_df['era-id'])
-    
-    if smpi.rank==0:
-        pprint('Running {} files on {} network'.format(len(stations_sample), network), flush=True)
-    # stations_sample = ['RAWS_TS735']
+               #if smpi.rank==0:
+               smpi.pprint(f"Sample station '{sample}' not in network/stations_df. Please double-check names")
+               exit()
+               stations_sample = list(files_df['era-id'])
+        
+            smpi.pprint('Running {} files on {} network'.format(len(stations_sample), network), flush=True)
+            # stations_sample = ['RAWS_TS735']
+    else:
+        stations_sample = None
+        files_df = None
+
+    files_df = smpi.comm.bcast(files_df, root=0)
+    stations_sample = smpi.comm.bcast(stations_sample, root=0)
+
+    #smpi.pprint(stations_sample)
+
+    #if smpi.rank==0:
+    stations_sample_scatter = smpi.scatterList(stations_sample)
 
     # Loop over stations
     # for station in stations_sample:
-    for station in parfor(stations_sample):
+    #for station in parfor(stations_sample):
+    for station in stations_sample_scatter:
         try:
             #----------------------------------------------------------------------------
             # Set up error handling.
@@ -1022,10 +1050,16 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
             #----------------------------------------------------------------------------
+            #smpi.pprint(station)
+            #smpi.pprint(files_df['era-id'].values)
+            #pprint(files_df[files_df['era-id']==station])
+
             file_name = files_df.loc[files_df['era-id']==station,'key'].values[0]
             qaqcdir = files_df.loc[files_df['era-id']==station,'qaqcdir'].values[0]
             network_ds = files_df.loc[files_df['era-id']==station,'network'].values[0]
             
+            #smpi.pprint(station, file_name, qaqcdir, network_ds)
+            #exit()
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
             # if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -1058,7 +1092,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                         with warnings.catch_warnings():
                             warnings.filterwarnings("ignore", category=RuntimeWarning)
                             ds = xr.open_dataset(fileObj).load()
-                    except:
+                    except Exception as e:
                         printf('{} did not pass QA/QC - station not saved.'.format(station), log_file=log_file, verbose=verbose, flush=True)   
             #Testing speed-up re-order in case file is locally found
             #=====================================================================================
@@ -1128,8 +1162,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                 printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
                        format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
                 log_file.close()
-        except:
-            printf("QAQC failed\n", log_file=log_file, verbose=verbose, flush=True)
+        except Exception as e:
+            printf("QAQC failed\n\n{}\n{}\n\n".format(station,e), log_file=log_file, verbose=verbose, flush=True)
         # Write errors to csv
         finally:
             # pass
