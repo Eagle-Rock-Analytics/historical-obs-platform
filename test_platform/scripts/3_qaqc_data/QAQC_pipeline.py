@@ -96,29 +96,30 @@ def file_on_s3(da):
     return  da['era-id'].isin(file_st)
 
 #----------------------------------------------------------------------------
-## Read network nc files
-def read_network_files(network, cleandir):
-    """
-    """
-    files = [] # Get files
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-        file = str(item.key)
-        files += [file]
+# ## Read network nc files
+# def read_network_files(network, cleandir):
+#     """
+#     """
+#     files = [] # Get files
+#     for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
+#         file = str(item.key)
+#         files += [file]
 
-    # Get cleaned station file and read in metadata
-    station_file = [file for file in files if 'stationlist_' in file]
-    obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
-    station_file = pd.read_csv(BytesIO(obj['Body'].read()))
-    stations = station_file['ERA-ID'].dropna()
-    files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
+#     # Get cleaned station file and read in metadata
+#     station_file = [file for file in files if 'stationlist_' in file]
+#     obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
+#     station_file = pd.read_csv(BytesIO(obj['Body'].read()))
+#     stations = station_file['ERA-ID'].dropna()
+#     files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
 
-    return files, stations
+#     return files, stations
     
 #----------------------------------------------------------------------------
 ## Read network nc files
-def read_network_files_training():
+# def read_network_files_training():
+def read_network_files(network):
     """
-    """
+    """    
     df = pd.read_csv("qaqc_training_station_list.csv")
     df['rawdir'] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
     df['cleandir'] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
@@ -126,45 +127,54 @@ def read_network_files_training():
     df['mergedir'] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
     df['key'] = df.apply(lambda row: row['cleandir']+row['era-id']+".nc", axis=1)
     df['exist'] = np.zeros(len(df)).astype("bool")
-    
+
+    # If it's a network (not training) run, keep it fast by only checking that network files on s3
+    if network != "TRAINING":
+        df = df[df['network']==network]
+        
     for n in df['network'].unique():
         ind = df['network']==n
         df.loc[ind,'exist'] = file_on_s3(df[ind])
         
     df = df[df['exist']]
-    df['file_size'] = df['key'].apply(lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)['ContentLength'])
-    df = df.sort_values(by=["file_size","network","era-id"]).drop(columns="exist")
 
-    # Evenly distribute df by size to help with memory errors
-    #Number of groups is the total number of stations divided by the node size
-    num_groups = len(df)//(72*3)
-    total_size = df['file_size'].sum()
-    target_size = total_size / num_groups
-    target_size
-    
-    groups = []
-    current_group = []
-    current_group_size = 0
-    
-    # Sort DataFrame by size to improve grouping efficiency
-    df_sorted = df.sort_values(by='file_size', ascending=False)
-    
-    for index, row in df_sorted.iterrows():
-        if current_group_size + row['file_size'] > target_size and current_group:
+    # If it's a network (not training) run, return df as is
+    if network != "TRAINING":
+        return df
+    else:
+        df['file_size'] = df['key'].apply(lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)['ContentLength'])
+        df = df.sort_values(by=["file_size","network","era-id"]).drop(columns="exist")
+
+        # Evenly distribute df by size to help with memory errors
+        #Number of groups is the total number of stations divided by the node size
+        num_groups = len(df)//(72*3)
+        total_size = df['file_size'].sum()
+        target_size = total_size / num_groups
+        target_size
+        
+        groups = []
+        current_group = []
+        current_group_size = 0
+        
+        # Sort DataFrame by size to improve grouping efficiency
+        df_sorted = df.sort_values(by='file_size', ascending=False)
+        
+        for index, row in df_sorted.iterrows():
+            if current_group_size + row['file_size'] > target_size and current_group:
+                groups.append(pd.DataFrame(current_group))
+                current_group = []
+                current_group_size = 0
+        
+            current_group.append(row)
+            current_group_size += row['file_size']
+        
+        if current_group:
             groups.append(pd.DataFrame(current_group))
-            current_group = []
-            current_group_size = 0
-    
-        current_group.append(row)
-        current_group_size += row['file_size']
-    
-    if current_group:
-        groups.append(pd.DataFrame(current_group))
-    
-    # Create a new DataFrame to hold the groups
-    final_df = pd.concat([df.assign(Group=i) for i, df in enumerate(groups)]).reset_index(drop=True).drop(columns="Group")
+        
+        # Create a new DataFrame to hold the groups
+        final_df = pd.concat([df.assign(Group=i) for i, df in enumerate(groups)]).reset_index(drop=True).drop(columns="Group")
 
-    return df
+        return final_df
 
 #----------------------------------------------------------------------------
 ## Assign ds attributes and save
@@ -642,154 +652,153 @@ def run_qaqc_pipeline(ds, network, file_name,
     stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
     
     return stn_to_qaqc, attrs, var_attrs
-    
 
-#==============================================================================
-## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, 
-                       verbose=False, local=False):
-    """
-    """    
-    # Set up error handling.
-    errors, end_api, timestamp = setup_error_handling()
+# #==============================================================================
+# ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
+# def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, 
+#                        verbose=False, local=False):
+#     """
+#     """    
+#     # Set up error handling.
+#     errors, end_api, timestamp = setup_error_handling()
 
-    # Read in network files
-    try:
-        files, stations = read_network_files(network, cleandir)
-    except Exception as e:
-        errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
-                                   message="Error in whole network:", test=e)
+#     # Read in network files
+#     try:
+#         files, stations = read_network_files(network)
+#     except Exception as e:
+#         errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
+#                                    message="Error in whole network:", test=e)
     
-    # if files not successfully read in:
-    else: 
-        """
-        -----------------------------------
-        for station in stations: # full run
-        -----------------------------------
-        """
-        # TESTING SUBSET
-        stations_sample = list(stations.sample(4))
-        # Select stations for timing analysis
-        # stations_sample = list(stations.iloc[:sample])
+#     # if files not successfully read in:
+#     else: 
+#         """
+#         -----------------------------------
+#         for station in stations: # full run
+#         -----------------------------------
+#         """
+#         # TESTING SUBSET
+#         stations_sample = list(stations.sample(4))
+#         # Select stations for timing analysis
+#         # stations_sample = list(stations.iloc[:sample])
         
-        # Loop over stations
-        # for station in stations_sample:
-        for station in parfor(stations_sample):
+#         # Loop over stations
+#         # for station in stations_sample:
+#         for station in parfor(stations_sample):
             
-            #----------------------------------------------------------------------------
-            ## Set log file
-            global log_file
-            ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
-            log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
-            log_file = open(log_fname, "w")
-            open_log_file_wholestation(log_file)
-            open_log_file_buoy(log_file)
-            open_log_file_logic(log_file)
-            open_log_file_spikes(log_file)
-            open_log_file_streaks(log_file)
-            open_log_file_gaps(log_file)
-            open_log_file_frequent(log_file)
-            open_log_file_clim(log_file)
-            #----------------------------------------------------------------------------
+#             #----------------------------------------------------------------------------
+#             ## Set log file
+#             global log_file
+#             ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
+#             log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
+#             log_file = open(log_fname, "w")
+#             open_log_file_wholestation(log_file)
+#             open_log_file_buoy(log_file)
+#             open_log_file_logic(log_file)
+#             open_log_file_spikes(log_file)
+#             open_log_file_streaks(log_file)
+#             open_log_file_gaps(log_file)
+#             open_log_file_frequent(log_file)
+#             open_log_file_clim(log_file)
+#             #----------------------------------------------------------------------------
             
-            file_name = cleandir+station+".nc"
+#             file_name = cleandir+station+".nc"
             
-            if file_name not in files: # dont run qa/qc on a station that isn't cleaned
-                printf("{} was not cleaned - skipping qa/qc".format(station), log_file=log_file, verbose=verbose, flush=True)
-                message = "No cleaned data for this station, does not proceed to qa/qc: see cleaned station list for reason"
-                errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
-                                           message=message, test="whole_station_qaqc")
-                continue
-            else:
-                T0 = time.time()
-                # printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
+#             if file_name not in files: # dont run qa/qc on a station that isn't cleaned
+#                 printf("{} was not cleaned - skipping qa/qc".format(station), log_file=log_file, verbose=verbose, flush=True)
+#                 message = "No cleaned data for this station, does not proceed to qa/qc: see cleaned station list for reason"
+#                 errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
+#                                            message=message, test="whole_station_qaqc")
+#                 continue
+#             else:
+#                 T0 = time.time()
+#                 # printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
                 
-                #=====================================================================================
-                #Testing speed-up re-order in case file is locally found
-                #TODO: DELETE LOCAL READING FOR FINAL VERSION
-                fs = s3fs.S3FileSystem()
-                aws_url = "s3://wecc-historical-wx/"+file_name
-                t0 = time.time()
-                try:
-                    ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
-                except:
-                    with fs.open(aws_url) as fileObj:
-                        try:
-                            printf("Reading {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
-                            ds = xr.open_dataset(fileObj).load()
-                        except:
-                            printf('{} did not pass QA/QC - station not saved.'.format(station), log_file=log_file, verbose=verbose, flush=True)   
-                #Testing speed-up re-order in case file is locally found
-                #=====================================================================================
+#                 #=====================================================================================
+#                 #Testing speed-up re-order in case file is locally found
+#                 #TODO: DELETE LOCAL READING FOR FINAL VERSION
+#                 fs = s3fs.S3FileSystem()
+#                 aws_url = "s3://wecc-historical-wx/"+file_name
+#                 t0 = time.time()
+#                 try:
+#                     ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
+#                 except:
+#                     with fs.open(aws_url) as fileObj:
+#                         try:
+#                             printf("Reading {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
+#                             ds = xr.open_dataset(fileObj).load()
+#                         except:
+#                             printf('{} did not pass QA/QC - station not saved.'.format(station), log_file=log_file, verbose=verbose, flush=True)   
+#                 #Testing speed-up re-order in case file is locally found
+#                 #=====================================================================================
                 
-                try:
-                    # TODO: 
-                    # Same issue than in the pipeline:
-                    # Probably not needed to drop time duplicates here, if they were properly
-                    # dropped in the cleaning process?
-                    # Drop time duplicates
-                    ds = ds.drop_duplicates(dim="time")
+#                 try:
+#                     # TODO: 
+#                     # Same issue than in the pipeline:
+#                     # Probably not needed to drop time duplicates here, if they were properly
+#                     # dropped in the cleaning process?
+#                     # Drop time duplicates
+#                     ds = ds.drop_duplicates(dim="time")
 
-                    printf("Done reading. Ellapsed time: {:.2f} s.\n".
-                          format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
+#                     printf("Done reading. Ellapsed time: {:.2f} s.\n".
+#                           format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
 
-                    # CHECK THE ENGINE HERE:
-                    # setting to default which operates on best with dependencies, previously 'h5netcdf'
+#                     # CHECK THE ENGINE HERE:
+#                     # setting to default which operates on best with dependencies, previously 'h5netcdf'
 
-                    # Run full QA/QC pipeline
-                    printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
-                    df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
-                                                             station, end_api, rad_scheme,
-                                                             verbose=verbose, local=local
-                                                            )
+#                     # Run full QA/QC pipeline
+#                     printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
+#                     df, attrs, var_attrs = run_qaqc_pipeline(ds, network, file_name, errors, 
+#                                                              station, end_api, rad_scheme,
+#                                                              verbose=verbose, local=local
+#                                                             )
 
-                    ## Assign ds attributes and save .nc file
-                    if df is not None:
-                        t0 = time.time()
-                        printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
+#                     ## Assign ds attributes and save .nc file
+#                     if df is not None:
+#                         t0 = time.time()
+#                         printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
 
-                        process_output_ds(df, attrs, var_attrs, 
-                                        network, timestamp, station, qaqcdir, 
-                                        errors, end_api, 
-                                        verbose=verbose, local=local)
-                        printf("Done writing. Ellapsed time: {:.2f} s.\n".
-                           format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
+#                         process_output_ds(df, attrs, var_attrs, 
+#                                         network, timestamp, station, qaqcdir, 
+#                                         errors, end_api, 
+#                                         verbose=verbose, local=local)
+#                         printf("Done writing. Ellapsed time: {:.2f} s.\n".
+#                            format(time.time()-t0), log_file=log_file, verbose=verbose, flush=True)
 
-                except Exception as e:
-                    printf("run_qaqc_pipeline failed with error: {}".format(e), log_file=log_file, verbose=verbose, flush=True)
-                    errors = print_qaqc_failed(
-                                 errors, station, end_api, 
-                                 message="Cannot read files in from AWS: {0}".format(e), 
-                                 test="run_qaqc_pipeline",
-                                 verbose=verbose)
+#                 except Exception as e:
+#                     printf("run_qaqc_pipeline failed with error: {}".format(e), log_file=log_file, verbose=verbose, flush=True)
+#                     errors = print_qaqc_failed(
+#                                  errors, station, end_api, 
+#                                  message="Cannot read files in from AWS: {0}".format(e), 
+#                                  test="run_qaqc_pipeline",
+#                                  verbose=verbose)
                         
-                    # Print error file location
-                    printf('errors_{0}_{1}.csv saved to {2}\n'.format(network, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose, flush=True)
+#                     # Print error file location
+#                     printf('errors_{0}_{1}.csv saved to {2}\n'.format(network, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose, flush=True)
 
-                    #Close an save log file
-                    # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
-                    # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
-                    log_object = "{}/{}".format(os.getcwd(),log_fname) 
-                    log_path = "{}/{}".format(qaqcdir, log_fname).replace("//","/")
-                    s3.Bucket(bucket_name).upload_file(log_object, log_path)
-                    # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose, flush=True)
+#                     #Close an save log file
+#                     # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
+#                     # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
+#                     log_object = "{}/{}".format(os.getcwd(),log_fname) 
+#                     log_path = "{}/{}".format(qaqcdir, log_fname).replace("//","/")
+#                     s3.Bucket(bucket_name).upload_file(log_object, log_path)
+#                     # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose, flush=True)
 
-                    # Done with station qaqc
-                    printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
-                           format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
-                    log_file.close()
+#                     # Done with station qaqc
+#                     printf("Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".
+#                            format(station, time.time()-T0), log_file=log_file, verbose=verbose, flush=True)
+#                     log_file.close()
             
-    # Write errors to csv
-    finally:
-        pass
-        errors = pd.DataFrame(errors)
-        csv_buffer = StringIO()
-        errors.to_csv(csv_buffer)
-        content = csv_buffer.getvalue()
-        # Make sure error files save to correct directory
-        s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
+#     # Write errors to csv
+#     finally:
+#         pass
+#         errors = pd.DataFrame(errors)
+#         csv_buffer = StringIO()
+#         errors.to_csv(csv_buffer)
+#         content = csv_buffer.getvalue()
+#         # Make sure error files save to correct directory
+#         s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
     
-    return
+#     return
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
@@ -1103,7 +1112,8 @@ def run_qaqc_pipeline(ds, network, file_name,
 
 #==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
-def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
+def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, 
+                       rad_scheme, verbose=False, local=False):
     """
     -----------------------------------
     for station in stations: # full run
@@ -1111,10 +1121,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     """
     # Read in network files
     try:
-        if network=="training":
-            files_df = read_network_files_training(network, cleandir)
-        else:
-            files_df = rread_network_files(network, cleandir)
+        files_df = read_network_files(network)
     except Exception as e:
         errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api, 
                                    message="Error in whole network:", test=e)
@@ -1147,14 +1154,10 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
             #----------------------------------------------------------------------------
-            
-            # file_name = cleandir+station+".nc"
             file_name = files_df.loc[files_df['era-id']==station,'key'].values[0]
             qaqcdir = files_df.loc[files_df['era-id']==station,'qaqcdir'].values[0]
-            network = files_df.loc[files_df['era-id']==station,'network'].values[0]
-            # print(file_name)
-            # print(station)
-            # raise
+            network_ds = files_df.loc[files_df['era-id']==station,'network'].values[0]
+            
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
             # if file_name not in files: # dont run qa/qc on a station that isn't cleaned
@@ -1218,7 +1221,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
     
                 # Run full QA/QC pipeline
                 printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
-                df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(ds, network, file_name, errors, 
+                df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(ds, network_ds, file_name, errors, 
                                                                       station, end_api, rad_scheme,
                                                                       verbose=verbose, local=local
                                                                      )
@@ -1228,7 +1231,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                     t0 = time.time()
                     printf("Writing {}".format(aws_url), log_file=log_file, verbose=verbose, flush=True)
     
-                    process_output_ds(df, attrs, var_attrs, network, 
+                    process_output_ds(df, attrs, var_attrs, network_ds, 
                                       timestamp, station, qaqcdir, 
                                       errors, end_api, 
                                       verbose=verbose, local=local)
@@ -1244,7 +1247,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
                              verbose=verbose)
                     
                 # Print error file location
-                printf('errors_{0}_{1}.csv saved to {2}\n'.format(network, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose, flush=True)
+                printf('errors_{0}_{1}.csv saved to {2}\n'.format(network_ds, end_api, bucket_name + "/" + qaqcdir), log_file=log_file, verbose=verbose, flush=True)
     
                 #Close an save log file
                 # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
@@ -1268,7 +1271,7 @@ def whole_station_qaqc_training(rad_scheme, verbose=False, local=False):
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
             # Make sure error files save to correct directory
-            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network, end_api)) 
+            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network_ds, end_api)) 
             s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
     
     return
