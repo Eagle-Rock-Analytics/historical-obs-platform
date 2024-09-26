@@ -187,12 +187,22 @@ def process_output_ds(df, attrs, var_attrs,
 
 #--------------------------------------------------------------------------------
 ## xarray ds for a station to pandas df in the format needed for the pipeline    
-def qaqc_ds_to_df(ds):
+def qaqc_ds_to_df(ds, verbose=False):
     ## Add qc_flag variable for all variables, including elevation; 
     ## defaulting to nan for fill value that will be replaced with qc flag
+
+    for key,val in ds.variables.items():
+        if val.dtype==object:
+            if key=='station':
+                if str in [type(v) for v in ds[key].values]:
+                    ds[key] = ds[key].astype(str)
+            else:
+                if str in [type(v) for v in ds.isel(station=0)[key].values]:
+                    ds[key] = ds[key].astype(str)
+                
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
-                    "pr_duration", "pr_depth",
+                    "pr_duration", "pr_depth", "PREC_flag",
                     "rsds_duration", "rsds_flag"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
@@ -202,22 +212,41 @@ def qaqc_ds_to_df(ds):
             raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
         if '_qc' in var:
             raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
+        if '_eraqc' in var:
+            era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
+    print(era_qc_vars)
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars:
             qc_var = var + "_eraqc" # variable/column label
             era_qc_vars.append(qc_var)
-            # adds new variable in shape of original variable with designated nan fill value
-            ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
+            # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
+            if var+"_eraqc" not in era_qc_vars:
+                ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
-    df = ds.to_dataframe()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        df = ds.to_dataframe()
+
     # instrumentation heights
-    df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
-    df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    try:
+        df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
+    except:
+        print("Filling anemometer_height_m with NaN.", flush=True)
+        df['anemometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
+    try:
+        df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+    except:
+        print("Filling thermometer_height_m with NaN.", flush=True)
+        df['thermometer_height_m'] = np.ones(len(df))*np.nan
+    finally:
+        pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
@@ -241,6 +270,7 @@ def qaqc_ds_to_df(ds):
     df['date']  = pd.to_datetime(df['time']).dt.date
     
     return df, MultiIndex, attrs, var_attrs, era_qc_vars
+
 
 #----------------------------------------------------------------------------
 ## Run full QA/QC pipeline
