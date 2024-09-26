@@ -215,7 +215,6 @@ def qaqc_ds_to_df(ds, verbose=False):
         if '_eraqc' in var:
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
-    print(era_qc_vars)
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars:
             qc_var = var + "_eraqc" # variable/column label
