@@ -57,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (default to False)", type=bool)
     parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros'", type=str)
     parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False)", type=bool)
+    parser.add_argument('-s', '--sample', default="all", help="How many stations to run (default to 'all'l)", type=str)
 
     # Parse arguments
     args = parser.parse_args()
@@ -66,12 +67,13 @@ if __name__ == "__main__":
     rad_scheme = args.rad_scheme
     verbose = args.verbose
     local = args.local
+    sample = args.sample
 
-    if network=="NETWORK:
+    if network=="NETWORK":
         rawdir,cleandir,qaqcdir,mergedir = None,None,None,None
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local)
+    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local, sample=sample)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
