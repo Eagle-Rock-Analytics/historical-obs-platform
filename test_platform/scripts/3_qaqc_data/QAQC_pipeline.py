@@ -292,9 +292,9 @@ def qaqc_ds_to_df(ds, verbose=False):
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars:
             qc_var = var + "_eraqc" # variable/column label
-            era_qc_vars.append(qc_var)
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
             if var+"_eraqc" not in era_qc_vars:
+                era_qc_vars.append(qc_var)
                 ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
     # Save attributes to inheret them to the QAQC'ed file
