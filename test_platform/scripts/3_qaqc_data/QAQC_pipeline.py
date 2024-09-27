@@ -21,6 +21,7 @@ import s3fs
 from io import BytesIO, StringIO
 import time
 import tempfile
+from mpi4py import MPI
 
 from simplempi import simpleMPI
 #from simplempi.parfor import parfor, pprint
@@ -981,6 +982,12 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
     -----------------------------------
     """
 #    import pdb; pdb.set_trace()
+#    if MPI.COMM_WORLD.Get_size()==1:
+#        useMPI=False
+#    else:
+#        useMPI=True
+#    print(useMPI)
+#    smpi = simpleMPI(useMPI=useMPI)
     smpi = simpleMPI()
 
     # Read in network files
@@ -1175,5 +1182,7 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
             # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network_ds, end_api)) 
             s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(station, end_api)) 
     
+    MPI.Finalize()
+
     return
 
