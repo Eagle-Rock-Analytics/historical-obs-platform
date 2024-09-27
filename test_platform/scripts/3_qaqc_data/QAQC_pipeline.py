@@ -1011,8 +1011,8 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
                smpi.pprint(f"Sample station '{sample}' not in network/stations_df. Please double-check names")
                exit()
                stations_sample = list(files_df['era-id'])
-        
-            smpi.pprint('Running {} files on {} network'.format(len(stations_sample), network), flush=True)
+            stations_sample=[sample] 
+        smpi.pprint('Running {} files on {} network'.format(len(stations_sample), network), flush=True)
             # stations_sample = ['RAWS_TS735']
     else:
         stations_sample = None
