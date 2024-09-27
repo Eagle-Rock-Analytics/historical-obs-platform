@@ -206,24 +206,24 @@ def qaqc_ds_to_df(ds, verbose=False):
                     "rsds_duration", "rsds_flag"] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
-    era_qc_vars = [] # our qc variable
+    era_qc_vars = [] # our ERA qc variable
+
     for var in ds.data_vars:
-        if 'q_code' in var:
+        if 'q_code' in var: 
             raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
-        if '_qc' in var:
+        if '_qc' in var: 
             raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
-        if '_eraqc' in var:
+        if '_eraqc' in var: 
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
     for var in ds.data_vars:
-        if var not in exclude_qaqc and var not in raw_qc_vars:
+        if var not in exclude_qaqc and var not in raw_qc_vars and var not in era_qc_vars:
             qc_var = var + "_eraqc" # variable/column label
-            era_qc_vars.append(qc_var)
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
-            if var+"_eraqc" not in era_qc_vars:
-                ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
+            #era_qc_vars.append(qc_var)
+            ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
-    # Save attributes to inheret them to the QAQC'ed file
+# Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
