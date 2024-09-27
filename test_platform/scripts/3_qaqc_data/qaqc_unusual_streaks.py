@@ -240,6 +240,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
     
     station = df['station'].dropna().unique()[0]
     
+    # import pdb; pdb.set_trace()
     try:
         # Infere resolution from data
         resolutions = infere_res(df)
@@ -340,7 +341,7 @@ def qaqc_unusual_repeated_streaks(df, plot=True, local=False, verbose=False, min
                     ind = np.logical_and(new_df['year']==k[0], 
                                          new_df['month']==k[1]
                                         )
-                    unusual_streaks_plot(new_df[ind], 'tas', station="test", local=True)
+                    unusual_streaks_plot(new_df[ind], var, station="test", local=local)
                 printf('{} subset plots produced for flagged obs in {}'.format(len(keys), var), verbose=verbose, log_file=log_file, flush=True)     
         
         return new_df

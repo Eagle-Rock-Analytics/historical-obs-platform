@@ -88,8 +88,10 @@ def pdf_bounds(df, mu, sigma, bins):
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
-        printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination')
-        return (y, bnds[0], bnds[-1]) # returning furthest edge cases, return to in V2
+        printf('PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination', 
+               log_file=log_file, flush=True)
+        return (y, int(0), int(len(y)-1)) # returning furthest edge cases, return to in V2
+        # return (y, bnds[0], bnds[-1]) # returning furthest edge cases, return to in V2
 
     else:
         # find first index
@@ -129,6 +131,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     # This piece will return a dictionary with the var name as key, and values are pd.Series with the
     # month and the number of years of data
     global stn_length
+
     stn_length = map(qaqc_var_length_bypass_check, [df]*len(vars_to_check), vars_to_check)
     stn_length = {k:v for k,v in zip(vars_to_check, stn_length)}
     
