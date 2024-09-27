@@ -292,9 +292,9 @@ def qaqc_ds_to_df(ds, verbose=False):
     era_qc_vars = [] # our ERA qc variable
 
     for var in ds.data_vars:
-        if 'q_code' in var:
+        if 'q_code' in var: 
             raw_qc_vars.append(var) # raw qc variable, need to keep for comparison, then drop
-        if '_qc' in var:
+        if '_qc' in var: 
             raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
         if '_eraqc' in var:
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
@@ -306,7 +306,7 @@ def qaqc_ds_to_df(ds, verbose=False):
             #era_qc_vars.append(qc_var)
             ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
-    # Save attributes to inheret them to the QAQC'ed file
+# Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 

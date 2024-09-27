@@ -147,7 +147,7 @@ def id_flag(flag_to_id):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=None, local=False):
+def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
     '''Produces timeseries of variables that have flags placed'''
     
     # first check if var has flags, only produce plots of vars with flags
@@ -175,13 +175,14 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False):
 
             legend = ax.legend(loc=0, prop={'size': 8})    
 
-            # plot aesthetics
-            ylab, units, miny, maxy = _plot_format_helper(var)
-            plt.ylabel('{} [{}]'.format(ylab, units));
-            plt.xlabel('')
-            plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
+        # plot aesthetics
+        ylab, units, miny, maxy = _plot_format_helper(var)
+        plt.ylabel('{} [{}]'.format(ylab, units));
+        plt.xlabel('')
+        plt.title('Full station timeseries: {0}'.format(df['station'].unique()[0]), fontsize=10)
 
-            # save to AWS
+        # save to AWS
+        if savefig:
             bucket_name = 'wecc-historical-wx'
             directory = '3_qaqc_wx'
             img_data = BytesIO()
@@ -199,7 +200,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False):
             # save locally if needed
             if local:
                 fig.savefig('qaqc_figs/{}.png'.format(figname), format='png', dpi=dpi, bbox_inches="tight")
-            
+        
             # close figure to save memory
             plt.close()
             
