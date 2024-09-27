@@ -299,8 +299,8 @@ def qaqc_ds_to_df(ds, verbose=False):
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
 
     for var in ds.data_vars:
-        eraqc_var = var + "_eraqc" # variable/column label
-        if var not in exclude_qaqc and var not in raw_qc_vars and var not in eraqc_var:
+        if var not in exclude_qaqc and var not in raw_qc_vars and var not in era_qc_vars:
+            qc_var = var + "_eraqc" # variable/column label
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
             #era_qc_vars.append(qc_var)
             ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
