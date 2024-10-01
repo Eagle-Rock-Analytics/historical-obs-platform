@@ -1185,4 +1185,3 @@ def whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme,
     MPI.Finalize()
 
     return
-
