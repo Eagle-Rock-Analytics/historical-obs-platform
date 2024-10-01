@@ -16,12 +16,15 @@ import matplotlib.pyplot as plt
 import cartopy.feature as cf
 from matplotlib.ticker import MaxNLocator
 import cartopy.crs as ccrs
+
 import datetime
+
 # from qaqc_eval_plot import event_plot, latlon_to_mercator_cartopy
 
 sys.path.append(os.path.expanduser('../'))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
-from QAQC_pipeline import qaqc_ds_to_df 
+from QAQC_pipeline import qaqc_ds_to_df
+
 
 def known_issue_check(network, var, stn):
     '''
@@ -89,12 +92,7 @@ def known_issue_check(network, var, stn):
             # V2 note: noted in qaqc_buoy_check but not handled -- would require new function
 
 
-def subset_eval_stns(event_to_eval, 
-                     stn_list, 
-                     subset=None, 
-                     return_stn_ids=False,
-                     specific_station=None,
-                    ):
+def subset_eval_stns(event_to_eval, stn_list, subset=None, return_stn_ids=False):
     '''
     Identifies stations to evaluate for specific V1 QA/QC events.
     Option to subset to a more manageable number of random stations for initial evaluation. 
@@ -161,9 +159,7 @@ def subset_eval_stns(event_to_eval,
     event_stns_local = gpd.overlay(event_stns, target_counties, how="intersection") # subsetting for stations within county boundaries
     print('{} potential stations available for evaluation for {} event.'.format(len(event_stns_local), event_to_eval))
 
-    if specific_station is not None:
-        eval_stns = event_stns_local[event_stns_local['era-id']==specific_station]
-    elif subset != None:
+    if subset != None:
         if len(event_stns_local) <= subset:
             eval_stns = event_stns_local
         else:
@@ -480,8 +476,6 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=["bottom", "left"],
                     ls=":", lw=0.5)
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
-
-    return fig,ax
 
 def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
