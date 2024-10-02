@@ -3,7 +3,7 @@ set -e
 set -x
 
 PYTHON_VERSION=3.9.18
-ENVIRONMENT_NAME=era_py${PYTHON_VERSION/./}
+ENVIRONMENT_NAME=hist-obs
 
 #save list of conda envs as temp file
 conda env list > $HOME/.my_conda_envs

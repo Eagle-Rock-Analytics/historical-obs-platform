@@ -44,12 +44,6 @@ era2ghcn_vars = {
 }
 
 #--------------------------------------------------------------------------------
-# projection stuffs
-census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
-ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
-
-#--------------------------------------------------------------------------------
-# 
 def known_issue_check(network, var, stn):
     '''
     Identifies if station under evaluation has a known network issue.
@@ -117,7 +111,6 @@ def known_issue_check(network, var, stn):
 
 
 #--------------------------------------------------------------------------------
-# 
 def subset_eval_stns(event_to_eval, stn_list, specific_station=None,
                      subset=None, return_stn_ids=False):
     '''
@@ -211,7 +204,6 @@ def subset_eval_stns(event_to_eval, stn_list, specific_station=None,
     return eval_stns
 
 #--------------------------------------------------------------------------------
-# 
 def id_all_flags(ds):
     '''Prints all unique values of all eraqaqc flags'''
     ds_vars = list(ds.keys())
@@ -223,7 +215,6 @@ def id_all_flags(ds):
             print(var, np.unique(ds[var].data))
 
 #--------------------------------------------------------------------------------
-# 
 def pull_nc_from_aws(fname):
     print('Retrieving data for station...')
     s3 = s3fs.S3FileSystem(anon=False)
@@ -239,7 +230,6 @@ def pull_nc_from_aws(fname):
         print(f'Station {fname} not found in bucket -- please check if station completed QA/QC.')
 
 #--------------------------------------------------------------------------------
-# 
 def event_info(event, alt_start_date=None, alt_end_date=None):
     start_date = {
         "santa_ana_wind"   : "1988-02-16",
@@ -270,7 +260,6 @@ def event_info(event, alt_start_date=None, alt_end_date=None):
     return (event_start, event_end)
 
 #--------------------------------------------------------------------------------
-# 
 def event_subset(df, event, buffer=7, alt_start_date=None, alt_end_date=None):
     """Subsets for the event itself + buffer around to identify event"""
     print('Subsetting station record for event duration with {} day buffer...'.format(str(buffer)))
@@ -284,7 +273,6 @@ def event_subset(df, event, buffer=7, alt_start_date=None, alt_end_date=None):
     return event_sub
 
 #--------------------------------------------------------------------------------
-# 
 def flags_during_event(subset_df, var, event):
     """Provides info on which flags were placed during event for evaluation"""
     print('Flags set on {} during {} event: {}'.format(var, event, subset_df[var+'_eraqc'].unique()))
@@ -294,7 +282,6 @@ def flags_during_event(subset_df, var, event):
     return all_event_flags
 
 #--------------------------------------------------------------------------------
-# 
 def multi_stn_check(list_of_stations, event, buffer=7, alt_start_date=None, alt_end_date=None):
     """this function does all the major identification steps outlined in the notebook"""
     for stn in list_of_stations:
@@ -341,7 +328,6 @@ def multi_stn_check(list_of_stations, event, buffer=7, alt_start_date=None, alt_
         #     print('{} is flagged during {}!'.format(stn, event))
 
 #--------------------------------------------------------------------------------
-# 
 def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_stn_ids=True):
     print('Subsetting station record for event duration with {} day buffer...'.format(str(buffer)))
     
@@ -372,7 +358,53 @@ def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_
     return eval_stns
 
 #--------------------------------------------------------------------------------
-# 
+# def return_ghcn_vars(ghcn_df, input_var):
+#     '''
+#     Given an input variable, return GHCNh location variables and all relevant data variables,
+#     rather than utilizing the whole 240 cols, or having to know how ghcnh labels the cols.
+
+#     input_var must follow ERA naming scheme (tas, tdps, ps, pr, etc.)
+#     '''
+#     ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
+
+#     # include station-ID, time, loc, elevation (cols 1-10)
+#     stn_info_cols = ['Station_ID', 'Station_name',
+#                      'Year','Month','Day','Hour','Minute',
+#                      'Latitude','Longitude','Elevation']
+    
+#     var_cols = []
+#     if input_var == 'tas':
+#         varquery = 'temperature'
+        
+#     elif input_var == 'tdps' or 'tdps_derived':
+#         varquery = 'dew_point_temperature'
+        
+#     elif input_var == 'ps' or 'psl':
+#         varquery = 'station_level_pressure'
+        
+#     elif input_var == 'sfcWind_dir':
+#         varquery = 'wind_direction'
+        
+#     elif input_var == 'sfcWind':
+#         varquery = ['wind_speed', 'wind_gust']
+
+#     elif input_var == 'hurs':
+#         varquery = 'relative_humidity'
+        
+#     elif input_var == 'rsds':
+#         print('GHCNh data does not have solar radiation data to evaluate against.')
+#         varquery = '' 
+        
+#     elif input_var == 'pr' or input_var == 'pr_1h' or input_var == 'pr_5min':
+#         varquery = 'precipitation'
+
+#     i = ghcn_df.query()
+    
+#     var_cols = [i for i in ghcnh_vars if varquery in i]
+#     cols_to_return = stn_info_cols + var_cols
+
+#     return ghcn_df[[cols_to_return]]
+
 def return_ghcn_vars(ghcn_df, input_var):
     '''
     Given an input variable, return GHCNh location variables and all relevant data variables,
@@ -414,7 +446,9 @@ def return_ghcn_vars(ghcn_df, input_var):
         raise Exception(f"Variable {input_var} not in variables' dictionary")
 
 #--------------------------------------------------------------------------------
-# 
+# projection stuffs
+census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
+ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
 def latlon_to_mercator_cartopy(lat, lon):
 
     proj_latlon = CRS('EPSG:4326')
@@ -427,7 +461,6 @@ def latlon_to_mercator_cartopy(lat, lon):
     return x, y
 
 #--------------------------------------------------------------------------------
-# 
 def stn_visualize(stn_id, stn_list, event_to_eval):
     # grab station id info and reproject coords
     stn = stn_list.loc[stn_list['era-id'] == stn_id]
@@ -467,11 +500,10 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=["bottom", "left"],
                     ls=":", lw=0.5)
     ax.set_title("{} evaluation \nat {}".format(event_to_eval, stn_id))
-
     return fig,ax
 
 #--------------------------------------------------------------------------------
-# 
+
 def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
     
@@ -512,10 +544,3 @@ def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None)
     plt.ylabel('{} [{}]'.format(ylab, units));
     plt.xlabel('')
     plt.title('QA/QC event evaluation: {}: {}'.format(event, df['station'].unique()[0]), fontsize=10)
-
-
-
-
-
-
-

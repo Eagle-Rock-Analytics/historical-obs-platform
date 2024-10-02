@@ -219,7 +219,6 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
         18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
     """
-
     printf("Running: qaqc_precip_logic_accum_amounts", log_file=log_file, verbose=verbose)
 
     # identify which precipitation vars are reported by a station
@@ -246,33 +245,40 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
             if 'pr_1h' in pr_vars:
                 # only use valid obs for precip vars
                 df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_1h')
-                df.loc[df_valid['pr_5min'] > df_valid['pr_1h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_5min'] > df_valid['pr_1h']).index
+                df.loc[ind, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
                 
             if 'pr_24h' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_24h')
-                df.loc[df_valid['pr_5min'] > df_valid['pr_24h'], 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_5min'] > df_valid['pr_24h']).index
+                df.loc[ind, 'pr_5min_eraqc'] = 16 # see era_qaqc_flag_meanings.csv
 
         if 'pr_1h' in pr_vars:
             if 'pr_5min' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_1h')
-                df.loc[df_valid['pr_1h'] < df_valid['pr_5min'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_1h'] < df_valid['pr_5min']).index
+                df.loc[ind, 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
                 
             if 'pr_24h' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_1h', var2='pr_24h')
-                df.loc[df_valid['pr_1h'] > df_valid['pr_24h'], 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_1h'] > df_valid['pr_24h']).index
+                df.loc[ind, 'pr_1h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
 
         if 'pr_24h' in pr_vars:
             if 'pr_5min' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_5min', var2='pr_24h')
-                df.loc[df_valid['pr_24h'] < df_valid['pr_5min'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_24h'] < df_valid['pr_5min']).index
+                df.loc[ind, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv
             
             if 'pr_1h' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_1h', var2='pr_24h')
-                df.loc[df_valid['pr_24h'] < df_valid['pr_1h'], 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv        
+                ind = (df_valid['pr_24h'] < df_valid['pr_1h']).index
+                df.loc[ind, 'pr_24h_eraqc'] = 17 # see era_qaqc_flag_meanings.csv        
             
             if 'pr_localmid' in pr_vars:
                 df_valid = grab_valid_obs(df, var='pr_localmid', var2='pr_24h')
-                df.loc[df_valid['pr_24h'] < df_valid['pr_localmid'], 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
+                ind = (df_valid['pr_24h'] < df_valid['pr_localmid']).index
+                df.loc[ind, 'pr_24h_eraqc'] = 18 # see era_qaqc_flag_meanings.csv
 
         return df
 
@@ -304,6 +310,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
 
+    # import pdb; pdb.set_trace()
     printf("Running: qaqc_crossvar_logic_calm_wind_dir", log_file=log_file, verbose=verbose)
 
     try:
@@ -313,6 +320,9 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         # check that wind direction is provided
         if 'sfcWind_dir' not in df.columns:
             printf('Station does not report wind direction - bypassing wind cross-variable logic check', log_file=log_file, verbose=verbose)
+            return df
+        elif 'sfcWind_dir' in df.columns and 'sfcWind' not in df.columns:
+            printf('Station does reports wind direction, but not wind speed - bypassing wind cross-variable logic check', log_file=log_file, verbose=verbose)
             return df
             
         # use only valid observations

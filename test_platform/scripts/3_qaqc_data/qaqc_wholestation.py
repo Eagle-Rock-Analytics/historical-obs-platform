@@ -200,7 +200,7 @@ def qaqc_elev_infill(df, verbose=False):
     '''
     Test if elevation is NA/missing. 
     Three in-fill scenarios:
-        1 - If all values are nan, in-fill from from DEM
+        1 - If all values are nan, in-fill from DEM
         2 - If some values are missing, in-fill from station for consistency (e.g., OtherISD, ASOSAWOS)
         3 - If all values are nan, and DEM fails to retrieve (over ocean), set to 0 (e.g., NDBC, MARITIME)
 
