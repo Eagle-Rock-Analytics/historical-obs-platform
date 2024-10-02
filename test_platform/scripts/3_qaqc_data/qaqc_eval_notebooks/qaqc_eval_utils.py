@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import sys
 import os
+import tempfile
 
 import matplotlib.pyplot as plt
 import cartopy.feature as cf
@@ -24,6 +25,16 @@ import datetime
 sys.path.append(os.path.expanduser('../'))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
 from QAQC_pipeline import qaqc_ds_to_df
+
+#--------------------------------------------------------------------------------
+# Local Temp and Permanent Saving File Directory
+global local_tmp_dir, local_perm_dir
+local_tmp_dir = "./tmp"
+local_perm_dir = "../Train_Files"
+
+for dir in [local_tmp_dir, local_perm_dir]:
+    if not os.path.exists(dir):
+        os.mkdir(dir)
 
 #--------------------------------------------------------------------------------
 # Equivalence in variable names from ERA to GHCN
@@ -220,7 +231,7 @@ def pull_nc_from_aws(fname):
     s3 = s3fs.S3FileSystem(anon=False)
     network = fname.split('_')[0]
     s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, fname)
-
+    print(f'{s3_url}')
     try:
         s3_file_obj = s3.open(s3_url, mode='rb')
         ds = xr.open_dataset(s3_file_obj, engine='h5netcdf')
@@ -230,6 +241,52 @@ def pull_nc_from_aws(fname):
         print(f'Station {fname} not found in bucket -- please check if station completed QA/QC.')
 
 #--------------------------------------------------------------------------------
+<<<<<<< HEAD
+=======
+# 
+def download_nc_from_aws(station, save=False):
+
+    # Temp file for downloading from s3
+    tmpFileName = tempfile.NamedTemporaryFile(dir = local_tmp_dir, 
+                                              prefix = "", 
+                                              suffix = ".nc",
+                                              delete = True)
+
+    # Local file name to read/write from
+    localFileName = f"{local_perm_dir}/{station}.nc"
+
+    # s3 details
+    print('Retrieving data for station...')
+    s3 = s3fs.S3FileSystem(anon=False)
+    network = station.split('_')[0]
+    s3_url = 's3://wecc-historical-wx/3_qaqc_wx_dev/{}/{}.nc'.format(network, station)
+
+    # Read file
+    # If file is already downloaded locally, read it
+    if os.path.exists(localFileName):
+        ds = xr.open_dataset(localFileName, engine='h5netcdf').load()
+    # If not, download from s3 bucket
+    else:
+#        try:
+            s3_file_obj = s3.get(s3_url, tmpFileName.name)
+            ds = xr.open_dataset(tmpFileName.name, engine='h5netcdf').load()
+
+#        except:
+#            raise ValueError(f'Station {station} not found in bucket -- please check if station completed QA/QC.')
+
+    # If we want to save file to disk, copy the temp file to the storage training folder
+    if save and not os.path.exists(localFileName):
+        os.system(f"cp {tmpFileName.name} {localFileName}")    
+
+    # Download temp file to avoid disk filling
+    # os.system(f"rm {tmpFileName.name}")
+    tmpFileName.close()
+    
+    return ds
+    
+#--------------------------------------------------------------------------------
+# 
+>>>>>>> 1a5df62 (Documentation to FPR)
 def event_info(event, alt_start_date=None, alt_end_date=None):
     start_date = {
         "santa_ana_wind"   : "1988-02-16",
