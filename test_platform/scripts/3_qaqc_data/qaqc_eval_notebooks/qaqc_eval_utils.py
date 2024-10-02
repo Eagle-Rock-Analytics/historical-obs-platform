@@ -469,26 +469,12 @@ def return_ghcn_vars(ghcn_df, input_var):
     ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
 
     # include station-ID, time, loc, elevation (cols 1-10)
-    stn_info_cols = ['Station_ID', 'Station_name',
+    stn_info_cols = ['Station_ID', 'Station_name', 'time',
                      'Year','Month','Day','Hour','Minute',
                      'Latitude','Longitude','Elevation']
-    vars = {
-        'tas': 'temperature',
-        'tdps': 'dew_point_temperature',
-        'tdps_derived': 'dew_point_temperature',
-        'ps': 'station_level_pressure',
-        'psl': 'station_level_pressure',
-        'sfcWind_dir': 'wind_direction',
-        'sfcWind': 'wind_speed',
-        'tas': 'temperature',
-        'hurs': 'relative_humidity',
-        'rsds': "N/A",
-        'pr': 'precipitation',
-        'pr_1h': 'precipitation',
-        'pr_5min': 'precipitation',
-    }
-    if input_var in vars.keys():
-        i = ghcn_df.columns.get_loc(vars[input_var])
+
+    if input_var in era2ghcn_vars.keys():
+        i = ghcn_df.columns.get_loc(era2ghcn_vars[input_var])
         j = i+6
         # For wind, include wind gust
         if input_var=="sfcWind":
