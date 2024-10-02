@@ -53,7 +53,7 @@ era2ghcn_vars = {
         'pr_1h': 'precipitation',
         'pr_5min': 'precipitation',
 }
-
+ghcn2era_vars = {value: key for key, value in era2ghcn_vars.items()}
 #--------------------------------------------------------------------------------
 def known_issue_check(network, var, stn):
     '''
@@ -241,8 +241,6 @@ def pull_nc_from_aws(fname):
         print(f'Station {fname} not found in bucket -- please check if station completed QA/QC.')
 
 #--------------------------------------------------------------------------------
-<<<<<<< HEAD
-=======
 # 
 def download_nc_from_aws(station, save=False):
 
@@ -286,7 +284,6 @@ def download_nc_from_aws(station, save=False):
     
 #--------------------------------------------------------------------------------
 # 
->>>>>>> 1a5df62 (Documentation to FPR)
 def event_info(event, alt_start_date=None, alt_end_date=None):
     start_date = {
         "santa_ana_wind"   : "1988-02-16",
