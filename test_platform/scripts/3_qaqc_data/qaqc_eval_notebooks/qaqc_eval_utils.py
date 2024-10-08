@@ -9,6 +9,7 @@ import s3fs
 import xarray as xr
 import numpy as np
 import pandas as pd
+import math
 import sys
 import os
 
@@ -517,3 +518,54 @@ def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None)
     plt.ylabel('{} [{}]'.format(ylab, units));
     plt.xlabel('')
     plt.title('QA/QC event evaluation: {}: {}'.format(event, df['station'].unique()[0]), fontsize=10)
+
+
+def _all_nan(l):
+    return all(math.isnan(x) for x in l)
+
+def flagged_station_search(stn_list, event_start_date, event_end_date, flag_info=False, save_all_stns=False):
+    '''
+    Helper function that finds flagged stations during an event of interest. 
+    Designed to only be run sporadically, as it will take some time to run through 1000+ stations.
+
+    Similar to the station list search functions. 
+    '''
+
+    active_flag_stns = []
+    
+    # warning about downloading all of these files
+    if save_all_stns:
+        print('Warning: All stations will be downloaded to local memory. Depending on size of station list, this may be 1000+ stations and GB-TB of memory!')
+
+    # read file from AWS
+    for stn_id in stn_list['era-id']:
+        print(f'Checking flags in {stn_id}...')
+        ds_to_check = download_nc_from_aws(stn_id, save=save_all_stns)
+
+        # subset by event dates with buffer
+        ds_to_check_sub = ds_to_check.sel(time=slice(event_start_date, event_end_date))
+
+        # if no date coverage
+        if len(ds_to_check_sub) == 0:
+            continue
+
+        # check if flags are placed, search through any _eraqc var
+        vars_to_check = [i for i in ds_to_check_sub.data_vars if '_eraqc' in i]
+        flag_list = []
+
+        for v in vars_to_check:
+            for item in np.unique(ds_to_check_sub[v]):
+                flag_list.append(item)
+
+        print(_all_nan(flag_list))
+        # has_numeric = all(isinstance(item, (np.nan)) for item in flag_list) # list of all values in _eraqc vars, including flags and nan
+        # print(has_numeric)
+        if _all_nan(flag_list): # flag is not present
+            continue
+
+        else: # flag is present
+            active_flag_stns.append(stn_id)
+            if flag_info:
+                print(f'{stn_id} has flags placed during event ({event_start_date}-{event_end_date}): {flag_list}')
+                    
+    return active_flag_stns  
