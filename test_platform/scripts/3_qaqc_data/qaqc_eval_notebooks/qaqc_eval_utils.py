@@ -331,55 +331,8 @@ def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_
 
     return eval_stns
 
-
-
-
-# def return_ghcn_vars(ghcn_df, input_var):
-#     '''
-#     Given an input variable, return GHCNh location variables and all relevant data variables,
-#     rather than utilizing the whole 240 cols, or having to know how ghcnh labels the cols.
-
-#     input_var must follow ERA naming scheme (tas, tdps, ps, pr, etc.)
-#     '''
-#     ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
-
-#     # include station-ID, time, loc, elevation (cols 1-10)
-#     stn_info_cols = ['Station_ID', 'Station_name',
-#                      'Year','Month','Day','Hour','Minute',
-#                      'Latitude','Longitude','Elevation']
     
-#     var_cols = []
-#     if input_var == 'tas':
-#         varquery = 'temperature'
-        
-#     elif input_var == 'tdps' or 'tdps_derived':
-#         varquery = 'dew_point_temperature'
-        
-#     elif input_var == 'ps' or 'psl':
-#         varquery = 'station_level_pressure'
-        
-#     elif input_var == 'sfcWind_dir':
-#         varquery = 'wind_direction'
-        
-#     elif input_var == 'sfcWind':
-#         varquery = ['wind_speed', 'wind_gust']
 
-#     elif input_var == 'hurs':
-#         varquery = 'relative_humidity'
-        
-#     elif input_var == 'rsds':
-#         print('GHCNh data does not have solar radiation data to evaluate against.')
-#         varquery = '' 
-        
-#     elif input_var == 'pr' or input_var == 'pr_1h' or input_var == 'pr_5min':
-#         varquery = 'precipitation'
-
-#     i = ghcn_df.query()
-    
-#     var_cols = [i for i in ghcnh_vars if varquery in i]
-#     cols_to_return = stn_info_cols + var_cols
-
-#     return ghcn_df[[cols_to_return]]
 
 def return_ghcn_vars(ghcn_df, input_var):
     '''
@@ -523,7 +476,7 @@ def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None)
 def _all_nan(l):
     return all(math.isnan(x) for x in l)
 
-def flagged_station_search(stn_list, event_start_date, event_end_date, flag_info=False, save_all_stns=False):
+def flagged_station_search(stn_list, event_start_date, event_end_date, buffer=7, flag_info=False, save_all_stns=False, export_flagged_stns_2csv=False):
     '''
     Helper function that finds flagged stations during an event of interest. 
     Designed to only be run sporadically, as it will take some time to run through 1000+ stations.
@@ -539,11 +492,17 @@ def flagged_station_search(stn_list, event_start_date, event_end_date, flag_info
 
     # read file from AWS
     for stn_id in stn_list['era-id']:
-        print(f'Checking flags in {stn_id}...')
-        ds_to_check = download_nc_from_aws(stn_id, save=save_all_stns)
+        print(f'\nChecking flags in {stn_id}...')
+        try:
+            ds_to_check = download_nc_from_aws(stn_id, save=save_all_stns)
+        except:
+            print(f'{stn_id} is not available in bucket -- please check')
+            continue
 
         # subset by event dates with buffer
-        ds_to_check_sub = ds_to_check.sel(time=slice(event_start_date, event_end_date))
+        event_start = pd.Timestamp(event_start_date)
+        event_end = pd.Timestamp(event_end_date)
+        ds_to_check_sub = ds_to_check.sel(time=slice(event_start - pd.Timedelta(days=buffer), event_end + pd.Timedelta(days=buffer)))
 
         # if no date coverage
         if len(ds_to_check_sub) == 0:
@@ -557,15 +516,22 @@ def flagged_station_search(stn_list, event_start_date, event_end_date, flag_info
             for item in np.unique(ds_to_check_sub[v]):
                 flag_list.append(item)
 
-        print(_all_nan(flag_list))
+        # print(_all_nan(flag_list))
         # has_numeric = all(isinstance(item, (np.nan)) for item in flag_list) # list of all values in _eraqc vars, including flags and nan
         # print(has_numeric)
         if _all_nan(flag_list): # flag is not present
+            print(f'{stn_id} has no flags during event. Moving to next station.')
             continue
 
         else: # flag is present
             active_flag_stns.append(stn_id)
             if flag_info:
-                print(f'{stn_id} has flags placed during event ({event_start_date}-{event_end_date}): {flag_list}')
-                    
-    return active_flag_stns  
+                print(f'{stn_id} has flags placed during event ({event_start - pd.Timedelta(days=buffer)} - {event_end + pd.Timedelta(days=buffer)}): {flag_list}')
+    
+    if export_flagged_stns_2csv:
+        _to_export = train_stns.loc[train_stns['era-id'].isin(active_flag_stns)]
+        fn = f'flagged_station_search_{event_start_date}_{event_end_date}'
+        _to_export.to_csv(f'{fn}.csv')
+        print(f'Flagged stations exported to csv file as: {fn}.csv')
+                   
+    return active_flag_stns
