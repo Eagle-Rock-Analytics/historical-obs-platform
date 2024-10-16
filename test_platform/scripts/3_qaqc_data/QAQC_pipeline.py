@@ -185,6 +185,42 @@ def read_network_files(network):
         # Create a new DataFrame to hold the groups
         final_df = pd.concat([df.assign(Group=i) for i, df in enumerate(groups)]).reset_index(drop=True).drop(columns="Group")
 
+    # If it's a network (not training) run, return df as is
+    if network != "TRAINING":
+        return df
+    else:
+        df['file_size'] = df['key'].apply(lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)['ContentLength'])
+        df = df.sort_values(by=["file_size","network","era-id"]).drop(columns="exist")
+
+        # Evenly distribute df by size to help with memory errors
+        #Number of groups is the total number of stations divided by the node size
+        num_groups = len(df)//(72*3)
+        total_size = df['file_size'].sum()
+        target_size = total_size / num_groups
+        target_size
+        
+        groups = []
+        current_group = []
+        current_group_size = 0
+        
+        # Sort DataFrame by size to improve grouping efficiency
+        df_sorted = df.sort_values(by='file_size', ascending=False)
+        
+        for index, row in df_sorted.iterrows():
+            if current_group_size + row['file_size'] > target_size and current_group:
+                groups.append(pd.DataFrame(current_group))
+                current_group = []
+                current_group_size = 0
+        
+            current_group.append(row)
+            current_group_size += row['file_size']
+        
+        if current_group:
+            groups.append(pd.DataFrame(current_group))
+        
+        # Create a new DataFrame to hold the groups
+        final_df = pd.concat([df.assign(Group=i) for i, df in enumerate(groups)]).reset_index(drop=True).drop(columns="Group")
+
         return final_df
 
 #----------------------------------------------------------------------------
@@ -286,10 +322,14 @@ def qaqc_ds_to_df(ds, verbose=False):
     exclude_qaqc = ["time", "station", "lat", "lon", 
                     "qaqc_process", "sfcWind_method", 
                     "pr_duration", "pr_depth", "PREC_flag",
-                    "rsds_duration", "rsds_flag"] # lat, lon have different qc check
+                    "rsds_duration", "rsds_flag", 
+                    "anemometer_height_m",
+                    "thermometer_height_m"
+                   ] # lat, lon have different qc check
 
     raw_qc_vars = [] # qc_variable for each data variable, will vary station to station
     era_qc_vars = [] # our ERA qc variable
+    old_era_qc_vars = [] # our ERA qc variable
 
     for var in ds.data_vars:
         if 'q_code' in var: 
@@ -298,15 +338,26 @@ def qaqc_ds_to_df(ds, verbose=False):
             raw_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
         if '_eraqc' in var:
             era_qc_vars.append(var) # raw qc variables, need to keep for comparison, then drop
+            old_era_qc_vars.append(var)
 
+    print(f"era_qc existing variables:\n{era_qc_vars}")
+    n_qc = len(era_qc_vars)
+    
     for var in ds.data_vars:
-        if var not in exclude_qaqc and var not in raw_qc_vars and var not in era_qc_vars:
+        if var not in exclude_qaqc and var not in raw_qc_vars and "_eraqc" not in var:
             qc_var = var + "_eraqc" # variable/column label
-            # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
-            #era_qc_vars.append(qc_var)
-            ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
 
-# Save attributes to inheret them to the QAQC'ed file
+            # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
+            if qc_var not in era_qc_vars:
+                print(f"nans created for {qc_var}")
+                ds = ds.assign({qc_var: xr.ones_like(ds[var])*np.nan})
+                era_qc_vars.append(qc_var)
+    
+    print("{} created era_qc variables".format(len(era_qc_vars)-len(old_era_qc_vars)))
+    if len(era_qc_vars)!=n_qc:    
+        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+    
+    # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var:ds[var].attrs for var in list(ds.data_vars.keys())}
 
@@ -315,20 +366,22 @@ def qaqc_ds_to_df(ds, verbose=False):
         df = ds.to_dataframe()
 
     # instrumentation heights
-    try:
-        df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
-    except:
-        print("Filling anemometer_height_m with NaN.", flush=True)
-        df['anemometer_height_m'] = np.ones(len(df))*np.nan
-    finally:
-        pass
-    try:
-        df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
-    except:
-        print("Filling thermometer_height_m with NaN.", flush=True)
-        df['thermometer_height_m'] = np.ones(len(df))*np.nan
-    finally:
-        pass
+    if 'anemometer_height_m' not in df.columns:
+        try:
+            df['anemometer_height_m'] = np.ones(ds['time'].shape)*ds.anemometer_height_m
+        except:
+            print("Filling anemometer_height_m with NaN.", flush=True)
+            df['anemometer_height_m'] = np.ones(len(df))*np.nan
+        finally:
+            pass
+    if 'thermometer_height_m' not in df.columns:
+        try:
+            df['thermometer_height_m'] = np.ones(ds['time'].shape)*ds.thermometer_height_m
+        except:
+            print("Filling thermometer_height_m with NaN.", flush=True)
+            df['thermometer_height_m'] = np.ones(len(df))*np.nan
+        finally:
+            pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
