@@ -144,7 +144,7 @@ def subset_eval_stns(event_to_eval, stn_list, specific_station=None,
     # print('{} potential stations available for evaluation for {} event!'.format(len(event_stns), event_to_eval))
 
     # identify stations in geographic region we are looking for
-    census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
+    census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp" 
     ca_county = gpd.read_file(census_shp_dir)
 
     # different areas based on events
@@ -441,8 +441,9 @@ def return_ghcn_vars(ghcn_df, input_var):
 
 #--------------------------------------------------------------------------------
 # projection stuffs
-census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
+census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp" 
 ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
+
 def latlon_to_mercator_cartopy(lat, lon):
 
     proj_latlon = CRS('EPSG:4326')
