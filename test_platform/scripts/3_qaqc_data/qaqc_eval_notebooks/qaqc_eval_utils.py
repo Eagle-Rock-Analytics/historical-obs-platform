@@ -54,6 +54,7 @@ era2ghcn_vars = {
         'pr_5min': 'precipitation',
 }
 ghcn2era_vars = {value: key for key, value in era2ghcn_vars.items()}
+
 #--------------------------------------------------------------------------------
 def known_issue_check(network, var, stn):
     '''
@@ -412,53 +413,6 @@ def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_
     return eval_stns
 
 #--------------------------------------------------------------------------------
-# def return_ghcn_vars(ghcn_df, input_var):
-#     '''
-#     Given an input variable, return GHCNh location variables and all relevant data variables,
-#     rather than utilizing the whole 240 cols, or having to know how ghcnh labels the cols.
-
-#     input_var must follow ERA naming scheme (tas, tdps, ps, pr, etc.)
-#     '''
-#     ghcnh_vars = pd.read_csv('ghcnh_data_headers.csv')
-
-#     # include station-ID, time, loc, elevation (cols 1-10)
-#     stn_info_cols = ['Station_ID', 'Station_name',
-#                      'Year','Month','Day','Hour','Minute',
-#                      'Latitude','Longitude','Elevation']
-    
-#     var_cols = []
-#     if input_var == 'tas':
-#         varquery = 'temperature'
-        
-#     elif input_var == 'tdps' or 'tdps_derived':
-#         varquery = 'dew_point_temperature'
-        
-#     elif input_var == 'ps' or 'psl':
-#         varquery = 'station_level_pressure'
-        
-#     elif input_var == 'sfcWind_dir':
-#         varquery = 'wind_direction'
-        
-#     elif input_var == 'sfcWind':
-#         varquery = ['wind_speed', 'wind_gust']
-
-#     elif input_var == 'hurs':
-#         varquery = 'relative_humidity'
-        
-#     elif input_var == 'rsds':
-#         print('GHCNh data does not have solar radiation data to evaluate against.')
-#         varquery = '' 
-        
-#     elif input_var == 'pr' or input_var == 'pr_1h' or input_var == 'pr_5min':
-#         varquery = 'precipitation'
-
-#     i = ghcn_df.query()
-    
-#     var_cols = [i for i in ghcnh_vars if varquery in i]
-#     cols_to_return = stn_info_cols + var_cols
-
-#     return ghcn_df[[cols_to_return]]
-
 def return_ghcn_vars(ghcn_df, input_var):
     '''
     Given an input variable, return GHCNh location variables and all relevant data variables,
@@ -543,7 +497,6 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     return fig,ax
 
 #--------------------------------------------------------------------------------
-
 def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
     
