@@ -55,6 +55,7 @@ era2ghcn_vars = {
         'pr_5min': 'precipitation',
 }
 ghcn2era_vars = {value: key for key, value in era2ghcn_vars.items()}
+
 #--------------------------------------------------------------------------------
 def known_issue_check(network, var, stn):
     '''
@@ -144,7 +145,7 @@ def subset_eval_stns(event_to_eval, stn_list, specific_station=None,
     # print('{} potential stations available for evaluation for {} event!'.format(len(event_stns), event_to_eval))
 
     # identify stations in geographic region we are looking for
-    census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
+    census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp" 
     ca_county = gpd.read_file(census_shp_dir)
 
     # different areas based on events
@@ -411,8 +412,8 @@ def find_other_events(df, event_start, event_end, buffer=7, subset=None, return_
         print('Stations selected for evaluation:\n', list(eval_stns['era-id']))
 
     return eval_stns
-  
 
+#--------------------------------------------------------------------------------
 def return_ghcn_vars(ghcn_df, input_var):
     '''
     Given an input variable, return GHCNh location variables and all relevant data variables,
@@ -441,8 +442,9 @@ def return_ghcn_vars(ghcn_df, input_var):
 
 #--------------------------------------------------------------------------------
 # projection stuffs
-census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/" 
+census_shp_dir = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp" 
 ca_county = gpd.read_file(census_shp_dir) # from s3 bucket
+
 def latlon_to_mercator_cartopy(lat, lon):
 
     proj_latlon = CRS('EPSG:4326')
@@ -497,7 +499,6 @@ def stn_visualize(stn_id, stn_list, event_to_eval):
     return fig,ax
 
 #--------------------------------------------------------------------------------
-
 def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None):
     '''Produces timeseries of variables that have flags placed'''
     
