@@ -9,6 +9,10 @@ Approach:
 
 Inputs: Cleaned data for an individual network
 Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
+
+Example how to run in the command line: 
+python ALLNETWORKS_qaqc.py -n="VALLEYWATER" -z=True
+
 """
 
 import os
@@ -48,16 +52,18 @@ if __name__ == "__main__":
         epilog="""Possible stations:
                   [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
                    HOLFUY, HPWREN, LOXWFO, MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
-                   RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
+                   RAWS, SGXWFO, SHASAVAL, VALLEYWATER, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
                """
     )
     
     # Define arguments for the program
-    parser.add_argument('-n', '--network', default="TRAINING", help="Network name (default to 'VCAPCD')", type=str)
+    # Zarr is a required argument-- you cannot run the script without setting this to True or False 
+    parser.add_argument('-n', '--network', default="TRAINING", help="Network name (default to 'TRAINING')", type=str)
     parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (default to False)", type=bool)
     parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros'", type=str)
     parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False)", type=bool)
     parser.add_argument('-s', '--sample', default="all", help="How many stations to run (default to 'all'l)", type=str)
+    parser.add_argument('-z', '--zarr', required=True, help="Read zarr files from s3? zarr = True: Read zarr stores. zarr = False: read netcdf files.", type=bool)
 
     # Parse arguments
     args = parser.parse_args()
@@ -68,12 +74,13 @@ if __name__ == "__main__":
     verbose = args.verbose
     local = args.local
     sample = args.sample
+    zarr = args.zarr
 
     if network=="NETWORK":
         rawdir,cleandir,qaqcdir,mergedir = None,None,None,None
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local, sample=sample)
+    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, zarr, verbose=verbose, local=local, sample=sample)
 
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
