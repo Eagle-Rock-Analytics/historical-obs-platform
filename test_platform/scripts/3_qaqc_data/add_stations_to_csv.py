@@ -5,6 +5,8 @@ The script reads all the zarr files in s3 bucket 2 (wecc-historical-wx/2_clean_w
 Then, retrieves the filename and elevation from each zarr and appends it (writes it) to the existing csv
 Lastly, the updated csv is outputted to s3 or locally
 
+NOTE: this script only works with zarr files (at the moment)
+
 Author: Nicole Keeney 
 Creation Date: Nov 27, 2024
 Modification History: n/a 
@@ -138,8 +140,8 @@ def add_stations_to_csv():
     stations_df = stations_df.sort_values("era-id", ignore_index=True)
 
     # Rewrite/save locally
-    # stations_df.to_csv(csv_local_path, index=False)
-    # print("csv saved locally to: {0}".format(csv_local_path))
+    stations_df.to_csv(csv_local_path, index=False)
+    print("csv saved locally to: {0}".format(csv_local_path))
 
     # Rewrite/save to s3 bucket
     stations_df.to_csv(csv_s3_filepath, index=False)
