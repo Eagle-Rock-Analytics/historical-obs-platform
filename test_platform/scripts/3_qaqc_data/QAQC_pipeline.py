@@ -191,10 +191,10 @@ def read_network_files(network, zarr):
         lambda row: "4_merge_wx/{}/".format(row)
     )
 
-    # If its a zarr store, use the zarr file extension (".zarr/")
+    # If its a zarr store, use the zarr file extension (".zarr")
     if zarr == True:
         full_df["key"] = full_df.apply(
-            lambda row: row["cleandir"] + row["era-id"] + ".zarr/", axis=1
+            lambda row: row["cleandir"] + row["era-id"] + ".zarr", axis=1
         )
 
     # If its a netcdf, use the netcdf file extension (".nc")
@@ -403,7 +403,7 @@ def process_output_ds(
         if zarr == False:  # Upload as netcdf
             s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
         elif zarr == True:
-            filepath_s3 = "s3://{0}/{1}/{2}".format(bucket_name, qaqcdir, filename)
+            filepath_s3 = "s3://{0}/{1}{2}".format(bucket_name, qaqcdir, filename)
             ds.to_zarr(
                 filepath_s3,
                 consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
