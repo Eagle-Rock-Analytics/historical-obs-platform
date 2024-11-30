@@ -18,6 +18,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pytz
+import warnings
 import sys
 import os
 import s3fs
@@ -26,6 +27,13 @@ from datetime import datetime, timezone
 from pathlib import Path  # to get file suffix
 import time
 import tempfile
+
+# Set name of bucket and folder containing data
+bucket = "wecc-historical-wx"
+folder_raw = "1_raw_wx/VALLEYWATER"  # Raw data
+folder_clean = (
+    "2_clean_wx/VALLEYWATER"  # Where to upload cleaned files. Folder must already exist
+)
 
 
 def main():
@@ -39,11 +47,6 @@ def main():
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
 
-    # Set name of bucket and folder containing data
-    bucket = "wecc-historical-wx"
-    folder_raw = "1_raw_wx/VALLEYWATER"  # Raw data
-    folder_clean = "2_clean_wx/VALLEYWATER"  # Where to upload cleaned files. Folder must already exist
-
     # Read csv file containing station data from s3 bucket
     station_info_filename = "VALLEYWATER_station_info.csv"
     fs = s3fs.S3FileSystem()
@@ -51,15 +54,15 @@ def main():
         "s3://{0}/{1}/{2}".format(bucket, folder_raw, station_info_filename)
     ) as f:
         station_info_df = pd.read_csv(f)
-    station_info_df.head()
 
     # Get all the filenames
     filenames = get_filenames_in_s3_folder(bucket=bucket, folder=folder_raw)
     filenames = [
         file for file in filenames if "station_info" not in file
     ]  # Ignore station info csv file
-    print(filenames)
 
+    # Loop through each file, clean/reformat, and upload to s3
+    # Print a pretty progress bar to console :)
     for i in progressbar(range(len(filenames))):
         filename = filenames[i]
 
@@ -74,7 +77,9 @@ def main():
 
         # Get station info from filename
         network, station_id, time_start, time_end = filename.split("_")
-        network = network.upper()
+        network = (
+            network.upper()
+        )  # Capitalize the network following hist-obs conventions
 
         # Get station info from csv file
         station_info_i = station_info_df[
@@ -115,11 +120,25 @@ def main():
             }
         )
 
+        # Add elevation data filled with NaNs
+        nan_data = np.full(
+            ds["pr_15min"].shape, np.nan
+        )  # Array of same shape as existing data variable
+        ds = ds.assign(
+            {"elevation": (ds.dims, nan_data)}
+        )  # Add new data variable "elevation" to Dataset
+
         # Assign appropriate variable & coordinate attributes
         ds[var_name].attrs = {
             "long_name": "15_minute_precipitation_amount",
             "units": "mm/15min",
             "comment": "Precipitation accumulated in previous 15 minutes.",
+        }
+        ds["elevation"].attrs = {
+            "standard_name": "height_above_mean_sea_level",
+            "long_name": "station_elevation",
+            "units": "meter",
+            "positive": "up",
         }
         ds["station"].attrs = {"long_name": "station_id"}
         ds["time"].attrs = {
@@ -149,7 +168,7 @@ def main():
             "Networks": "VALLEYWATER",
             "sensor_height_m": np.nan,
             "disclaimer": "This document was prepared as a result of work funded by the Santa Clara Valley Water District. It does not necessarily represent the views of the Santa Clara Valley Water District or its employees. Neither the Santa Clara Valley Water District, nor it's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by Santa Clara Valley Water District, nor has the Santa Clara Valley Water District passed upon the accuracy of the information in this document.",
-            "history": "VALLEYWATER_clean.ipynb script run on {} UTC".format(timestamp),
+            "history": "VALLEYWATER_clean.py script run on {} UTC".format(timestamp),
             "comment": "Intermediate data product: may not have been subject to any cleaning or QA/QC processing",
             "raw_files_merged": 1,
         }
@@ -416,4 +435,7 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
 
 
 if __name__ == "__main__":
-    main()
+    with warnings.catch_warnings():
+        # Annoying RuntimeWarning is raised... ignore here so we can better evaluate the print output of the function, which includes a progress bar
+        warnings.simplefilter("ignore")
+        main()
