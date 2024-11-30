@@ -2,8 +2,9 @@
 1. Download raw data from AWS bucket 
 2. Infill missing timesteps with 0
 3. Convert time PST --> UTC 
-3. Reformat column names
-4. Upload cleaned file to s3 
+4. Add empty elevation variable
+5. Reformat data, add attributes, etc. 
+6. Upload cleaned file to s3 as a zarr store 
 
 Author: Nicole Keeney
 Creation Date: 11/18/2024
