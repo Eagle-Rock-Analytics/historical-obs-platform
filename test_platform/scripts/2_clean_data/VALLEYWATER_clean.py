@@ -9,6 +9,7 @@ Author: Nicole Keeney
 Creation Date: 11/18/2024
 Modification History: 
 - 11/26/2024: converted from a python notebook to a python script
+- 11/30/2024: added empty elevation variable with proper attributes
 """
 
 ## Imports
@@ -34,7 +35,6 @@ folder_clean = (
 
 
 def main():
-
     # For attributes of netCDF file.
     timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
 
