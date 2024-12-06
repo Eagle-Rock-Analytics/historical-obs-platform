@@ -37,6 +37,9 @@ folder_clean = (
 
 
 def main():
+    # Name of variable
+    var_name = "pr_15min"
+
     # For attributes of netCDF file.
     timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
 
@@ -105,7 +108,6 @@ def main():
 
         # Convert precip units in --> mm
         precip_col_name = "Precipitation (in.)"
-        var_name = "pr_15min"
         if precip_col_name not in list(df.columns):  # Ensure that the column exists!
             raise ValueError(
                 "'{}' expected as a column name in station data but not found".format(
