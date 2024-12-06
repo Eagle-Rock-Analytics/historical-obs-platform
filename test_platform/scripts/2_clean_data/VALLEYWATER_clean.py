@@ -54,7 +54,7 @@ def main():
             "start-date": [],
             "end-date": [],
             "cleaned": [],
-            "time-cleaned": [],
+            "time_cleaned": [],
             "network": [],
             "{0}_nobs".format(var_name): [],
             "total_nobs": [],
@@ -219,7 +219,7 @@ def main():
                 "start-date": [time[0].strftime("%m-%d-%Y, %H:%M:%S")],
                 "end-date": [time[-1].strftime("%m-%d-%Y, %H:%M:%S")],
                 "cleaned": ["Y"],
-                "time-cleaned": [timestamp],
+                "time_cleaned": [timestamp],
                 "network": [network],
                 "{0}_nobs".format(var_name): [nobs],
                 "total_nobs": [
