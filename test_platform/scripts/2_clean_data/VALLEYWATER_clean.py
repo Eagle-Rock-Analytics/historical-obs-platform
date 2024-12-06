@@ -216,8 +216,8 @@ def main():
                 "longitude": [station_info_i["lon"].item()],
                 "latitude": [station_info_i["lat"].item()],
                 "elevation": [np.nan],
-                "start-date": [time[0]],
-                "end-date": [time[0]],
+                "start-date": [time[0].strftime("%m-%d-%Y, %H:%M:%S")],
+                "end-date": [time[-1].strftime("%m-%d-%Y, %H:%M:%S")],
                 "cleaned": ["Y"],
                 "time-cleaned": [timestamp],
                 "network": [network],
@@ -237,7 +237,7 @@ def main():
     )
 
     # Save csv file with station info to AWS
-    csv_s3_filepath = "s3://{0}/{1}/stationlist_VALLEYWATER_merge.csv".format(
+    csv_s3_filepath = "s3://{0}/{1}/stationlist_VALLEYWATER_cleaned.csv".format(
         bucket, folder_clean
     )
     stations_df.to_csv(csv_s3_filepath, index=False)
