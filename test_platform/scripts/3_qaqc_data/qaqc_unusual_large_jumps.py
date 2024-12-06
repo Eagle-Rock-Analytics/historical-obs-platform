@@ -91,7 +91,7 @@ def qaqc_unusual_large_jumps(df, iqr_thresh=6, min_datapoints=50, plot=True, loc
 
     try:
         # Define test variables and check if they are in the dataframe
-        check_vars = ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
+        check_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid',"tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
         variables = [var for var in check_vars if var in df.columns]
 
         printf("Running {} on {}".format("qaqc_unusual_large_jumps", variables), verbose=verbose, log_file=log_file, flush=True)

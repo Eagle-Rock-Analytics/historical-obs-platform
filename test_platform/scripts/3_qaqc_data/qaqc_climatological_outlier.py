@@ -75,7 +75,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     # import pdb; pdb.set_trace()
     new_df = df.copy()
     
-    vars_to_check = ['tas', 'tdps', 'tdps_derived']
+    vars_to_check = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid','tas', 'tdps', 'tdps_derived']
     # vars_to_check = ['tas']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 

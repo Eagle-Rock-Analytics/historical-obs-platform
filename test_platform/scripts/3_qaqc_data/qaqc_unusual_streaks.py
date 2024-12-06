@@ -108,7 +108,7 @@ def infere_res_var(df, var):
 def infere_res(df, verbose=False):
     """
     """
-    check_vars = ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    check_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid',"tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
     variables = [var for var in check_vars if var in df.columns]
     # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
     # printf(variables, log_file=log_file, verbose=verbose)

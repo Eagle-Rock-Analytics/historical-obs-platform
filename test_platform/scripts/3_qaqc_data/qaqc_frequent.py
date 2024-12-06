@@ -77,7 +77,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     
     # this check is only done on air temp, dewpoint temp, and pressure
     vars_to_remove = ['qc', 'duration', 'method', 'flag', 'depth'] # list of var substrings to remove if present in var
-    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
+    vars_to_include = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid', 'tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
@@ -210,6 +210,11 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
             printf('Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions', log_file=log_file, verbose=verbose)
             df_to_test = df.loc[df[var] >= bin_s]
+
+    # Don't check for zeros in precip vars 
+    # We expect a lot of the precip data to be zero and don't want to flag frequent zeros 
+    elif var in ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']: 
+        df_to_test = df.loc[df[var] != 0]
             
     else: # all other variables
         df_to_test = df
