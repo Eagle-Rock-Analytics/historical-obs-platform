@@ -243,6 +243,31 @@ def main():
     stations_df.to_csv(csv_s3_filepath, index=False)
     print("Station list csv saved to s3 path: {0}".format(csv_s3_filepath))
 
+    # Merge VW station list with existing full station list
+    full_station_list_s3_path = (
+        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
+    )
+    print(
+        "Adding VW station data to full station list located at {0}".format(
+            full_station_list_s3_path
+        )
+    )
+    stations_all_df = pd.read_csv(full_station_list_s3_path, index_col=0)
+
+    # Concatenate VW data to main dataframe
+    stations_df_new = pd.concat([stations_df, stations_all_df], ignore_index=True)
+
+    # Re-sort into alphabetical order, just in case!
+    stations_df_new = stations_df_new.sort_values("era-id", ignore_index=True)
+
+    # Move nobs back to final column position
+    # When merging, it gets relocated
+    stations_df_new["total_nobs"] = stations_df_new.pop("total_nobs")
+
+    # Write to s3
+    stations_df_new.to_csv(full_station_list_s3_path)
+    print("SUCCESS: csv file updated with VW info in s3")
+
     print("SCRIPT COMPLETE")
 
 
