@@ -214,6 +214,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # Don't check for zeros in precip vars 
     # We expect a lot of the precip data to be zero and don't want to flag frequent zeros 
     elif var in ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']: 
+        printf("Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected", log_file=log_file, verbose=verbose)      
         df_to_test = df.loc[df[var] != 0]
             
     else: # all other variables
