@@ -172,11 +172,14 @@ def read_network_files(network, zarr):
         Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
     """
     # Read csv from local drive
+    # THIS FILE IS NOT CURRENT
     # csv_filepath_local = "temp_clean_all_station_list.csv"
     # full_df = pd.read_csv(csv_filepath_local).loc[:,['era-id','network']]
 
-    # Read csv from s3 (preferred method)
-    csv_filepath_s3 = "s3://{0}/temp_clean_all_station_list.csv".format(bucket_name)
+    # Read csv from s3
+    csv_filepath_s3 = (
+        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
+    )
     full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
     # Add path info as new columns
