@@ -9,8 +9,9 @@
 Author: Nicole Keeney
 Creation Date: 11/18/2024
 Modification History: 
-- 11/26/2024: converted from a python notebook to a python script
-- 11/30/2024: added empty elevation variable with proper attributes
+- 11/26/2024: Converted from a python notebook to a python script
+- 11/30/2024: Added empty elevation variable with proper attributes
+- 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.  
 """
 
 ## Imports
@@ -38,6 +39,22 @@ folder_clean = (
 def main():
     # For attributes of netCDF file.
     timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
+
+    # Create empty dataframe for storing QAQC and station info
+    # This will be saved as a csv file and used in QAQC step 3
+    stations_df = pd.DataFrame(
+        {
+            "era-id": [],
+            "longitude": [],
+            "latitude": [],
+            "elevation": [],
+            "start-date": [],
+            "end-date": [],
+            "cleaned": [],
+            "time-cleaned": [],
+            "network": [],
+        }
+    )
 
     # Define temporary directory in local drive for downloading data from S3 bucket
     # If the directory doesn't exist, it will be created
@@ -184,6 +201,43 @@ def main():
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
             mode="w",  # Write & overwrite if file with same name exists already
         )
+
+        # Now, save info for this station to stations dataframe
+        # Info for each station is saved as a single row, which is then appended as a row to the master dataframe
+        time = pd.to_datetime(ds.time.values)
+        nobs = int(len(df[var_name]))  # Number of observations
+        stations_df_i = pd.DataFrame(
+            {
+                "era-id": ["{0}_{1}".format(network, station_id)],
+                "longitude": [station_info_i["lon"].item()],
+                "latitude": [station_info_i["lat"].item()],
+                "elevation": [np.nan],
+                "start-date": [time[0]],
+                "end-date": [time[0]],
+                "cleaned": ["Y"],
+                "time-cleaned": [timestamp],
+                "network": [network],
+                "{0}_nobs".format(var_name): [nobs],
+                "total_nobs": [
+                    nobs
+                ],  # Total nobs is the same as single variable nobs because we just have one variable
+            }
+        )
+        stations_df = pd.concat([stations_df, stations_df_i], ignore_index=True)
+
+        # Re-sort into alphabetical/numerical order
+        stations_df = stations_df.sort_values("era-id", ignore_index=True)
+
+    print(
+        "Completed uploading all zarrs for VALLEYWATER QAQC step 2. Saving csv station list..."
+    )
+
+    # Save csv file with station info to AWS
+    csv_s3_filepath = "s3://{0}/{1}/stationlist_VALLEYWATER_merge.csv".format(
+        bucket, folder_clean
+    )
+    stations_df.to_csv(csv_s3_filepath, index=False)
+    print("Station list csv saved to s3 path: {0}".format(csv_s3_filepath))
 
     print("SCRIPT COMPLETE")
 
