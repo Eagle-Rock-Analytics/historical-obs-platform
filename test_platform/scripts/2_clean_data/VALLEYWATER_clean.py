@@ -53,6 +53,8 @@ def main():
             "cleaned": [],
             "time-cleaned": [],
             "network": [],
+            "{0}_nobs".format(var_name): [],
+            "total_nobs": [],
         }
     )
 
