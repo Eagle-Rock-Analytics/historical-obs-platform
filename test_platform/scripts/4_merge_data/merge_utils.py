@@ -82,9 +82,9 @@ def precip_hourly_standardization(df):
             print('Station reports daily precipitation - bypassing hourly aggregation', flush=True)
             return df
         if 'pr_5min' in pr_vars and 'pr_24h' not in pr_vars and 'pr_1h' not in pr_vars:
-            
-        return df
+            df = df[['time', 'tas', 'pr_5min', 'pr_5min_qc', 'tas_qc', 'pr_1h', 'tas_eraqc', 'pr_5min_eraqc', 'pr_1h_eraqc']]
 
+        return df
     except Exception as e:
         print("precip_hourly_standardization failed with Exception: {0}".format(e), flush=true)
         return None
