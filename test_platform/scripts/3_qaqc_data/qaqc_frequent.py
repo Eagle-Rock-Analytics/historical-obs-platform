@@ -183,13 +183,17 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # seasons
     szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] 
     
+    # Some variables use a different bin size than the default 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ['ps', 'ps_altimeter', 'psl', 'ps_derived']
+    pr_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
     
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
     elif var == 'rsds':
         bin_s = 50
+    elif var in pr_vars: 
+        bin_s = 5 # mm
     else:
         bin_s = 1 
          
@@ -215,7 +219,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # We expect a lot of the precip data to be zero and don't want to flag frequent zeros 
     elif var in ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']: 
         printf("Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected", log_file=log_file, verbose=verbose)      
-        df_to_test = df.loc[df[var] != 0]
+        df_to_test = df.loc[df[var] >= bin_s]
             
     else: # all other variables
         df_to_test = df
