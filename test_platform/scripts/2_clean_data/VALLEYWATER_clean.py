@@ -12,6 +12,7 @@ Modification History:
 - 11/26/2024: Converted from a python notebook to a python script
 - 11/30/2024: Added empty elevation variable with proper attributes
 - 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.  
+- 12/12/2024: Change datetime conversion from using tz_localize and tz_convert to a simple +8 hr following advice from Valley Water team
 """
 
 ## Imports
@@ -329,13 +330,8 @@ def read_and_clean_data(
     df = df.set_index("time").resample(min_tdelta).asfreq().fillna(value=0)
 
     # Convert to UTC
-    # You need to convert to an array after (.values) because xarray doesn't know how to deal with the timezone
-    df.index = (
-        df.index.tz_localize("US/Pacific", ambiguous="NaT", nonexistent="NaT")
-        .tz_convert("UTC")
-        .values
-    )
-    df.index.name = "time"
+    # Original data is in PST
+    df["time"] = df["time"] + 8
 
     return df
 
