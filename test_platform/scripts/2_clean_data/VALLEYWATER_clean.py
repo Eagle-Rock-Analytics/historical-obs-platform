@@ -313,7 +313,8 @@ def read_and_clean_data(
 
     # Convert "Timestamp" column to column "Time"
     # Convert values to datetime object
-    df["time"] = pd.to_datetime(df["Timestamp"].values)
+    # Convert PST to UTC (add 8 hr)
+    df["time"] = pd.to_datetime(df["Timestamp"].values) + 8
     df.drop("Timestamp", axis=1, inplace=True)
 
     # Check that minimum time delta between observations is the same as the function argument for tdelta
@@ -328,10 +329,6 @@ def read_and_clean_data(
 
     # Infill missing timestamps with 0
     df = df.set_index("time").resample(min_tdelta).asfreq().fillna(value=0)
-
-    # Convert to UTC
-    # Original data is in PST
-    df["time"] = df["time"] + 8
 
     return df
 
