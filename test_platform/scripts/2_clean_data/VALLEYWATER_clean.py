@@ -320,6 +320,7 @@ def read_and_clean_data(
         df["time"] = df["time"] + pd.DateOffset(hours=8)
     except:
         print("Failed time conversion for file: {0}".format(filename))
+        raise ValueError("Cleaning failed.")
 
     df.drop("Timestamp", axis=1, inplace=True)
 
