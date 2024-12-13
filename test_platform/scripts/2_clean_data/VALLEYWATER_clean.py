@@ -314,7 +314,13 @@ def read_and_clean_data(
     # Convert "Timestamp" column to column "Time"
     # Convert values to datetime object
     # Convert PST to UTC (add 8 hr)
-    df["time"] = pd.to_datetime(df["Timestamp"].values) + pd.DateOffset(hours=8)
+    df["time"] = pd.to_datetime(df["Timestamp"].values)
+
+    try:
+        df["time"] = df["time"] + pd.DateOffset(hours=8)
+    except:
+        print("Failed time conversion for file: {0}".format(filename))
+
     df.drop("Timestamp", axis=1, inplace=True)
 
     # Check that minimum time delta between observations is the same as the function argument for tdelta
