@@ -127,19 +127,15 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
             df_valid[var] = filtered
             
             # Flag outliers
-            printf('Flagging outliers in {0}'.format(var), log_file=log_file, verbose=verbose)
             df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row, bin_size=bin_size))
-            printf('Outliers flagged in {0}'.format(var), log_file=log_file, verbose=verbose)
 
             # Save original for plotting
             df_plot = df_valid.copy()
 
             # Drop all non-flagged values
             df_valid = df_valid.dropna(subset=['flag'])
-
-            # # Debug
-            # if "tdps" in var:
-            #     display(df_valid)
+            if len(df_valid) != 0: 
+                printf('Outliers flagged in {0}'.format(var), log_file=log_file, verbose=verbose) # only print statement if flags are set
         
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var+'_eraqc'] = df_valid['flag']

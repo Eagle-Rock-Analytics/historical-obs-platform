@@ -191,7 +191,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
     elif var == 'rsds':
-        bin_s = 50
+        bin_s = 50 # W/m2
     elif var in pr_vars: 
         bin_s = 5 # mm
     else:

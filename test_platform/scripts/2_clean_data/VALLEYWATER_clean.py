@@ -1,18 +1,28 @@
-""" Valley Water Data: QAQC 2
-1. Download raw data from AWS bucket 
-2. Infill missing timesteps with 0
-3. Convert time PST --> UTC 
-4. Add empty elevation variable
-5. Reformat data, add attributes, etc. 
-6. Upload cleaned file to s3 as a zarr store 
+"""
+This script performs data cleaning for networks pulled through Valley Water API for historical observational analysis
+in AR pattern recognition. These stations may be ingested into the Historical Data Platform in a future iteration, but 
+processing conforms to the HDP standard of quality.
 
-Author: Nicole Keeney
-Creation Date: 11/18/2024
-Modification History: 
+Approach:
+(1) Read through variables and drop unnecessary variables
+(2) Infill missing timesteps with 0 in precipitation record 
+(3) Convert time PST --> UTC 
+(4) Add empty elevation variable, to be infilled via DEM
+(5) Converts station metadata to standard format, with unique identifier
+(6) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
+(7) Tracks existing qa/qc flag for review
+(8) Outputs cleaned variables as a single .Zarr for each station in an individual network.
+
+Inputs: Raw data for the network's stations, with each csv file representing a station.
+Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .Zarr.
+
+Modification History:
 - 11/26/2024: Converted from a python notebook to a python script
 - 11/30/2024: Added empty elevation variable with proper attributes
 - 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.  
 - 12/12/2024: Change datetime conversion from using tz_localize and tz_convert to a simple +8 hr following advice from Valley Water team
+
+Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
 
 ## Imports

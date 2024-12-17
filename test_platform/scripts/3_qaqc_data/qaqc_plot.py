@@ -24,7 +24,7 @@ import time
 # Related to:
 # PerformanceWarning: indexing past lexsort depth may impact performance.
 # clim_outlier_plot(df_plot.loc[i][var], month, hour, bin_size=0.1, station=station, local=True)
-# It's because we are using multiindex and is not sorted, for now leeaving like that since
+# It's because we are using multiindex and is not sorted, for now leaving like that since
 # it's not a big deal. Check for V2 if ordering de multiindex would preserve order for final/original df
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
@@ -124,11 +124,11 @@ def _plot_format_helper(var):
 
     maxes = {"tas": T_X, "tdps": D_X, "tdps_derived": D_X, "sfcWind": W_X, "sfcWind_dir": N_X,
              "ps": S_X, "psl": S_X, "ps_altimeter": S_X, "ps_derived": S_X, "rsds":R_X,
-             "pr": P_X, "pr_5min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X,
+             "pr": P_X, "pr_5min": P_X, "pr_15min": P_X, "pr_1h": P_X, "pr_24h": P_X, "pr_localmid": P_X,
              "hurs":H_X, "elevation": E_X}
     mins =  {"tas": T_N, "tdps": D_N, "tdps_derived": D_N, "sfcWind": W_N, "sfcWind_dir": N_N,
              "ps": S_N, "psl": S_N, "ps_altimeter": S_N, "ps_derived": S_N, "rsds": R_N,
-             "pr": P_N, "pr_5min": P_N, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N,
+             "pr": P_N, "pr_5min": P_N, "pr_15min": P_X, "pr_1h": P_N, "pr_24h": P_N, "pr_localmid": P_N,
              "hurs":H_N, "elevation": E_N}
     miny = mins[var]['North_America']
     maxy = maxes[var]['North_America']
@@ -305,21 +305,22 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     ''' 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ['ps', 'ps_altimeter', 'ps_derived', 'psl']
+    pr_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
         
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
+    elif var in pr_vars:
+        bin_s = 5 # mm
     elif var == 'rsds':
-        bin_s = 50
+        bin_s = 50 # W/m2
     else:
         bin_s = 1 
         
     bins = create_bins_frequent(df, var, bin_s)
     
     # first identify which values are flagged and "where"
-    
-    ## Year-by-year flag (24): plot all data for that year
+    # Year-by-year flag (24): plot all data for that year
     flag_df = df.loc[df[var+'_eraqc'] == 24]
-    
     if len(flag_df) != 0:
         
         # identify year(s) with flagged data
@@ -329,9 +330,8 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
             df_to_plot = df.loc[df['year']==y]
             _plot = frequent_plot_helper(df_to_plot, var, bins, flag=24, yr=y, rad_scheme=rad_scheme)
             
-    ## Seasonal flag (25): plot all data for that year and season + specific handling for winter
+    # Seasonal flag (25): plot all data for that year and season + specific handling for winter
     flag_df = df.loc[df[var+'_eraqc'] == 25]
-    
     if len(flag_df) != 0:
         
         # identify unique years with flagged seasonal data
@@ -547,12 +547,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
         local [bool] : if True, saves plot locally, else: only saves plot to AWS
         date [str] : title for zoomed in plots for individual flagged obs
     """
-     
-    # Create figure
-    # if date is not None:
-    #     fig,ax = plt.subplots(figsize=(7,3))
-    # else:
-    #     
+       
     fig,ax = plt.subplots(figsize=(10,3))
 
     # Plot variable and flagged data
@@ -604,7 +599,6 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
     # close figure to save memory
     plt.close('all')
 
-    # return '{}.png'.format(figname), '{0}/{1}/{2}.png'.format(directory, network, figname)
     return 
 
 #============================================================================================================
