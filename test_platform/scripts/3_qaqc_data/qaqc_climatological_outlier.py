@@ -76,7 +76,7 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     new_df = df.copy()
     
     vars_to_check = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid','tas', 'tdps', 'tdps_derived']
-    # vars_to_check = ['tas']
+    pr_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
@@ -127,6 +127,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
             df_valid[var] = filtered
             
             # Flag outliers
+            if var in pr_vars: # testing on bin size for VW
+                bin_size = 0.1
             df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row, bin_size=bin_size))
 
             # Save original for plotting
@@ -139,8 +141,6 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
         
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var+'_eraqc'] = df_valid['flag']
-
-            # display(df_valid)
 
             # Plot flagged values
             if plot:

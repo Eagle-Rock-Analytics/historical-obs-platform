@@ -990,7 +990,7 @@ def run_qaqc_pipeline(
             verbose=verbose,
             flush=True,
         )
-    ####
+    
     printf(
         "Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
@@ -1108,13 +1108,6 @@ def whole_station_qaqc(
     for station in stations: # full run
     -----------------------------------
     """
-    #    import pdb; pdb.set_trace()
-    #    if MPI.COMM_WORLD.Get_size()==1:
-    #        useMPI=False
-    #    else:
-    #        useMPI=True
-    #    print(useMPI)
-    #    smpi = simpleMPI(useMPI=useMPI)
     smpi = simpleMPI()
 
     # Read in network files
@@ -1130,20 +1123,14 @@ def whole_station_qaqc(
                 test=e,
             )
 
-        # pprint(len(files_df))
-        # pprint(files_df['network'].unique())
-        # pprint(files_df['exist'].values.any())
-
         # TESTING SUBSET
         if sample == "all":
             stations_sample = list(files_df["era-id"].values)
         elif all(char.isnumeric() for char in sample):
             nSample = int(sample)
             files_df = files_df.sample(nSample)
-            # print(len(files_df))
             stations_sample = list(files_df["era-id"])
 
-            # print(stations_sample)
         else:
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
@@ -1159,7 +1146,6 @@ def whole_station_qaqc(
             "Running {} files on {} network".format(len(stations_sample), network),
             flush=True,
         )
-        # stations_sample = ['RAWS_TS735']
     else:
         stations_sample = None
         files_df = None
@@ -1167,7 +1153,6 @@ def whole_station_qaqc(
     files_df = smpi.comm.bcast(files_df, root=0)
     stations_sample = smpi.comm.bcast(stations_sample, root=0)
 
-    # smpi.pprint(stations_sample)
 
     # if smpi.rank==0:
     stations_sample_scatter = smpi.scatterList(stations_sample)
@@ -1196,9 +1181,6 @@ def whole_station_qaqc(
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
             # ----------------------------------------------------------------------------
-            # smpi.pprint(station)
-            # smpi.pprint(files_df['era-id'].values)
-            # pprint(files_df[files_df['era-id']==station])
 
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
             qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
@@ -1206,8 +1188,6 @@ def whole_station_qaqc(
                 0
             ]
 
-            # smpi.pprint(station, file_name, qaqcdir, network_ds)
-            # exit()
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
             # if file_name not in files: # dont run qa/qc on a station that isn't cleaned

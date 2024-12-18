@@ -84,8 +84,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         printf("Running qaqc_frequent_vals on {}".format(vars_to_check), log_file=log_file, verbose=verbose)
 
         for var in vars_to_check:
-            # if var=="rsds":
-            #     import pdb; pdb.set_trace()
             printf('Running frequent values check on: {}'.format(var), log_file=log_file, verbose=verbose)
             df_valid = grab_valid_obs(df, var) # subset for valid obs
             
@@ -148,8 +146,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 if 24 in df[var+'_eraqc'].unique() or 25 in df[var+'_eraqc'].unique(): # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
-        # Drop month,year vars used for calculations
-        # df = df.drop(columns=['month','year'])
         return df
     
     except Exception as e:
@@ -178,8 +174,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     '''    
-    # if var=="rsds":
-    #     import pdb; pdb.set_trace() 
+
     # seasons
     szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] 
     
@@ -193,7 +188,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     elif var == 'rsds':
         bin_s = 50 # W/m2
     elif var in pr_vars: 
-        bin_s = 5 # mm
+        bin_s = 0.1 # mm
     else:
         bin_s = 1 
          

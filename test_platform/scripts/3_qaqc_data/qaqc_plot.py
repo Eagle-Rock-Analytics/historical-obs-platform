@@ -149,10 +149,14 @@ def id_flag(flag_to_id):
 ## flagged timeseries plot
 def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
     '''Produces timeseries of variables that have flags placed'''
+
+    # testing
+    print('flag value plot on: ', var)
     
     # first check if var has flags, only produce plots of vars with flags
     if len(df[var+'_eraqc'].dropna().unique()) != 0: 
-        
+        print(len(df[var+'_eraqc'].dropna().unique())) # testing
+
         # create figure
         fig,ax = plt.subplots(figsize=(10,3))
         
@@ -162,6 +166,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
 
         # identify flagged data, can handle multiple flags
         for flag in df[var+'_eraqc'].dropna().unique():
+            print(flag)
             flag_name = id_flag(flag)
             flag_label = "{:.3f}% of data flagged by {}".format(
                 100*len(df.loc[df[var+'_eraqc'] == flag, var])/len(df), 
