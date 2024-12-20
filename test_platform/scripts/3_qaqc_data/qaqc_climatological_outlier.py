@@ -129,6 +129,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
             # Flag outliers
             if var in pr_vars: # testing on bin size for VW
                 bin_size = 0.1
+            else: 
+                bin_size = bin_size
             df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row, bin_size=bin_size))
 
             # Save original for plotting

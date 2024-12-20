@@ -147,7 +147,7 @@ def id_flag(flag_to_id):
 
 #============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=False):
+def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
     '''Produces timeseries of variables that have flags placed'''
 
     # testing
