@@ -240,7 +240,7 @@ def qaqc_elev_infill(df, verbose=False):
 
                 if (len(nan_lats) == 1) and (len(nan_lons) == 1): # single lat-lon pair for missing elevs
                     try:
-                        dem_elev_value = _grab_dem_elev_m(df['lat'].iloc[0], df['lon'].iloc[0])
+                        dem_elev_value = _grab_dem_elev_m(list(nan_lats), list(nan_lons))
                         df.loc[df['elevation'].isnull() == True, 'elevation_eraqc'] = 3 # see era_qaqc_flag_meanings.csv
                         df.loc[df['elevation'].isnull() == True, 'elevation'] = float(dem_elev_value)
 
@@ -287,8 +287,7 @@ def qaqc_elev_infill(df, verbose=False):
             except:
                 printf("Elevation cannot be in-filled", log_file=log_file, verbose=verbose)
                 return None
-    else:
-        return df
+    return df
 
 #----------------------------------------------------------------------
 def qaqc_elev_range(df, verbose=False):
@@ -537,7 +536,7 @@ def flag_summary(df, verbose=False, local=False):
 
     for var in obs_vars:
         try:
+            print('Flag summary plot on ', var)
             flagged_timeseries_plot(df, var)
         except Exception as e:
             printf("flagged_timeseries_plot failed for {} with Exception: {}".format(var, e), log_file=log_file, verbose=verbose)
-            

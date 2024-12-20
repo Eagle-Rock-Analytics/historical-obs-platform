@@ -77,15 +77,13 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     
     # this check is only done on air temp, dewpoint temp, and pressure
     vars_to_remove = ['qc', 'duration', 'method', 'flag', 'depth'] # list of var substrings to remove if present in var
-    vars_to_include = ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
+    vars_to_include = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid', 'tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'ps_derived', 'rsds'] 
     vars_to_check = [var for var in df.columns if any(True for item in vars_to_include if item in var) and not any(True for item in vars_to_remove if item in var)]
 
     try:
         printf("Running qaqc_frequent_vals on {}".format(vars_to_check), log_file=log_file, verbose=verbose)
 
         for var in vars_to_check:
-            # if var=="rsds":
-            #     import pdb; pdb.set_trace()
             printf('Running frequent values check on: {}'.format(var), log_file=log_file, verbose=verbose)
             df_valid = grab_valid_obs(df, var) # subset for valid obs
             
@@ -148,8 +146,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 if 24 in df[var+'_eraqc'].unique() or 25 in df[var+'_eraqc'].unique(): # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
-        # Drop month,year vars used for calculations
-        # df = df.drop(columns=['month','year'])
         return df
     
     except Exception as e:
@@ -178,18 +174,21 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     '''    
-    # if var=="rsds":
-    #     import pdb; pdb.set_trace() 
+
     # seasons
     szns = [[3,4,5], [6,7,8], [9,10,11], [12,1,2]] 
     
+    # Some variables use a different bin size than the default 
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ['ps', 'ps_altimeter', 'psl', 'ps_derived']
+    pr_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
     
     if var in ps_vars: 
         bin_s = 100 # all of our pressure vars are in Pa, convert to 100 Pa bin size
     elif var == 'rsds':
-        bin_s = 50
+        bin_s = 50 # W/m2
+    elif var in pr_vars: 
+        bin_s = 0.1 # mm
     else:
         bin_s = 1 
          
@@ -210,6 +209,12 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
             printf('Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions', log_file=log_file, verbose=verbose)
             df_to_test = df.loc[df[var] >= bin_s]
+
+    # Don't check for zeros in precip vars 
+    # We expect a lot of the precip data to be zero and don't want to flag frequent zeros 
+    elif var in ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']: 
+        printf("Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected", log_file=log_file, verbose=verbose)      
+        df_to_test = df.loc[df[var] >= bin_s]
             
     else: # all other variables
         df_to_test = df

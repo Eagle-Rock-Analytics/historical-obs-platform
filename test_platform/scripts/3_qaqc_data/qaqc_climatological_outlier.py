@@ -75,8 +75,8 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
     # import pdb; pdb.set_trace()
     new_df = df.copy()
     
-    vars_to_check = ['tas', 'tdps', 'tdps_derived']
-    # vars_to_check = ['tas']
+    vars_to_check = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid','tas', 'tdps', 'tdps_derived']
+    pr_vars = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
@@ -127,24 +127,22 @@ def qaqc_climatological_outlier(df, winsorize=True, winz_limits=[0.05,0.05], bin
             df_valid[var] = filtered
             
             # Flag outliers
-            printf('Flagging outliers in {0}'.format(var), log_file=log_file, verbose=verbose)
+            if var in pr_vars: # testing on bin size for VW
+                bin_size = 0.1
+            else: 
+                bin_size = bin_size
             df_valid['flag'] = df_valid.groupby(["month","hour"])[var].transform(lambda row: flag_clim_outliers(row, bin_size=bin_size))
-            printf('Outliers flagged in {0}'.format(var), log_file=log_file, verbose=verbose)
 
             # Save original for plotting
             df_plot = df_valid.copy()
 
             # Drop all non-flagged values
             df_valid = df_valid.dropna(subset=['flag'])
-
-            # # Debug
-            # if "tdps" in var:
-            #     display(df_valid)
+            if len(df_valid) != 0: 
+                printf('Outliers flagged in {0}'.format(var), log_file=log_file, verbose=verbose) # only print statement if flags are set
         
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var+'_eraqc'] = df_valid['flag']
-
-            # display(df_valid)
 
             # Plot flagged values
             if plot:
