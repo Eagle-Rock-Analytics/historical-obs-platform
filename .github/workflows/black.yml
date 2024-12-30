@@ -1,3 +1,6 @@
+# Check for Black formatting on push and pull request 
+# Based on documentation from https://black.readthedocs.io/en/stable/integrations/github_actions.html
+
 name: Lint
 
 on: [push, pull_request]
@@ -8,4 +11,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: psf/black@stable
-
