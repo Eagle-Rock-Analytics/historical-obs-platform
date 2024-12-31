@@ -69,7 +69,6 @@ bucket_name = "wecc-historical-wx"
 # ============================================================================
 # Define global functions and variables
 
-
 # ----------------------------------------------------------------------------
 def setup_error_handling():
     """ """
@@ -269,7 +268,9 @@ def process_output_ds(
     verbose=False,
     local=False,
 ):
-    """ """
+    """ 
+    DOCUMENTATION NEEDED
+    """
     # Convert back to dataset
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -1124,9 +1125,7 @@ def whole_station_qaqc(
 
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
             qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
-            network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[
-                0
-            ]
+            network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[0]
 
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
