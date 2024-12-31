@@ -536,7 +536,6 @@ def flag_summary(df, verbose=False, local=False):
 
     for var in obs_vars:
         try:
-            print('Flag summary plot on ', var)
             flagged_timeseries_plot(df, var)
         except Exception as e:
             printf("flagged_timeseries_plot failed for {} with Exception: {}".format(var, e), log_file=log_file, verbose=verbose)
