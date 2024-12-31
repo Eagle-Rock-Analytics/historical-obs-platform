@@ -57,13 +57,16 @@ if __name__ == "__main__":
     )
     
     # Define arguments for the program
-    # Zarr is a required argument-- you cannot run the script without setting this to True or False 
-    parser.add_argument('-n', '--network', default="TRAINING", help="Network name (default to 'TRAINING')", type=str)
-    parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (default to False)", type=bool)
-    parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros'", type=str)
-    parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False)", type=bool)
-    parser.add_argument('-s', '--sample', default="all", help="How many stations to run (default to 'all'l)", type=str)
-    parser.add_argument('-z', '--zarr', required=True, help="Read zarr files from s3? zarr = True: Read zarr stores. zarr = False: read netcdf files.", type=bool)
+    parser.add_argument('-n', '--network', default="TRAINING", help="Network name (default to 'TRAINING').", type=str)
+    parser.add_argument('-l', '--local', default=False, help="Save files and plots locally (default to False).", type=bool)
+    parser.add_argument('-r', '--rad_scheme', default="remove_zeros", help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros').", type=str)
+    parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False).", type=bool)
+    parser.add_argument('-s', '--sample', default="all", help="How many stations to run (default to 'all'l).", type=str)
+
+    # TODO: Making Zarr a required argument-- you cannot run the script without setting this to True or False 
+    # As of Jan 2025, only VALLEYWATER stations are in Zarr format
+    # Was causing a bug with a bad merge for .nc files being force set to True (should be false)
+    parser.add_argument('-z', '--zarr', default=False, help="Read zarr files from s3? zarr = True: Read zarr stores. zarr = False: read netcdf files. Default to False.", type=bool)
 
     # Parse arguments
     args = parser.parse_args()
@@ -80,8 +83,9 @@ if __name__ == "__main__":
         rawdir,cleandir,qaqcdir,mergedir = None,None,None,None
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, zarr, verbose=verbose, local=local, sample=sample)
+    whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local, sample=sample, zarr=zarr)
 
+# ---------------------------------------------------------------------------------
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging
