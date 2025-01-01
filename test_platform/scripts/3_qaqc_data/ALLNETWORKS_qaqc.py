@@ -81,6 +81,8 @@ if __name__ == "__main__":
 
     if network=="NETWORK":
         rawdir,cleandir,qaqcdir,mergedir = None,None,None,None
+    elif network=="VALLEYWATER": # Bug fix handling for VW stations to force set to True for the time being.
+        zarr = True
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local, sample=sample, zarr=zarr)
