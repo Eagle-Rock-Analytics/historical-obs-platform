@@ -11,7 +11,7 @@ Inputs: Cleaned data for an individual network
 Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
 
 Example how to run in the command line: 
-python ALLNETWORKS_qaqc.py -n="VALLEYWATER" -z=True
+python ALLNETWORKS_qaqc.py -n="VALLEYWATER"
 
 """
 
@@ -63,11 +63,6 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', default=False, help="Print statements throughout script (default to False).", type=bool)
     parser.add_argument('-s', '--sample', default="all", help="How many stations to run (default to 'all'l).", type=str)
 
-    # TODO: Making Zarr a required argument-- you cannot run the script without setting this to True or False.
-    # As of Jan 2025, only VALLEYWATER stations are in Zarr format, re-implement once networks are zarrified. 
-    # Was causing a bug with a bad merge for .nc files being force set to True (should be false).
-    parser.add_argument('-z', '--zarr', default=False, help="Read zarr files from s3? zarr = True: Read zarr stores. zarr = False: read netcdf files. Default to False.", type=bool)
-
     # Parse arguments
     args = parser.parse_args()
     network = args.network
@@ -77,12 +72,17 @@ if __name__ == "__main__":
     verbose = args.verbose
     local = args.local
     sample = args.sample
-    zarr = args.zarr
 
+    # Set zarr argument 
+    zarrified_networks = ["VALLEYWATER"] # Any networks with zarrified data 
+    if network in zarrified_networks: 
+        zarr = True
+    else: 
+        zarr = False 
+
+    # Set paths to data in AE bucket 
     if network=="NETWORK":
         rawdir,cleandir,qaqcdir,mergedir = None,None,None,None
-    elif network=="VALLEYWATER": # Bug fix handling for VW stations to force set to True for the time being.
-        zarr = True
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     whole_station_qaqc(network, cleandir, qaqcdir, rad_scheme, verbose=verbose, local=local, sample=sample, zarr=zarr)
