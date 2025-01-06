@@ -17,3 +17,4 @@
 - [ ] Black formatting has been utilized
 - [ ] Tagged/notified at least 1 reviewer for this PR
 - [ ] Any new files are placed in the appropriate location following the established organizational structure of the repository (see the README for more info)
+- [ ] Delete branch once PR is merged in
