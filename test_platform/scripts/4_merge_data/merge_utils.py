@@ -4,6 +4,7 @@ for the Historical Observations Platform.
 """
 
 ## Import Libraries
+from functools import reduce
 import boto3
 import geopandas as gp
 import numpy as np
@@ -45,6 +46,8 @@ def hourly_standardization(df):
     ------
         1) pr_5min < pr_1h < pr_24h
         2) pr_localmid should never exceed pr_24h
+        3.) top of the hour 
+        4.) summatino across hour
 
     Input:
     ------
@@ -75,18 +78,19 @@ def hourly_standardization(df):
                 'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
                 "elevation_eraqc", "qaqc_process"]
 
-    #precipitatino and solar radiation
-    sum_vars = ["time","tas",
+    # Aggregation across hour variables, standard meteorological convention: precipitation and solar radiation
+    sum_vars = ["time",
                 "pr","pr_localmid","pr_24h","pr_5min","pr_1h",
                 "rsds"]
 
-    #temperature, dewpoint, wind speed, wind direction, relative humidity, air pressure
+    # Top of the hour variables, standard meteorological convention: temperature, dewpoint temperature, pressure, humidity, winds
     instant_vars = ["time",
                 "tdps","tdps_derived",
-                "ps","psl","ps_altimeter",
+                "ps","psl","ps_altimeter","ps_derived",  
                 "hurs",
                 "sfcwind","sfcwind_dir",
-                "total"]
+                "total",
+                "tas"]
     
     ##### subset the dataframe
     print("generating subsets", flush=True)
@@ -113,17 +117,30 @@ def hourly_standardization(df):
         else: 
             print('performing hourly aggregation', flush=True)
             constant_result =  constant_df.resample('1h',on='time').first()
-            qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x))
             instant_result =  instant_df.resample('1h',on='time').first()
-            sum_result =  sum_df.resample('1h',on='time').sum().rename(columns={'pr_5min': 'pr_1hr_test'})
+            sum_result =  sum_df.resample('1h',on='time').sum()
+            qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique()))
+
+            print('generating variable counts per hour', flush=True)
+            constant_result_counts =  constant_df.resample('1h',on='time').count()
+            constant_result_counts.columns = constant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+
+            instant_result_counts =  instant_df.resample('1h',on='time').count()
+            instant_result_counts.columns = instant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+
+            sum_result_counts =  sum_df.resample('1h',on='time').count()
+            sum_result_counts.columns = sum_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+
+            qaqc_result_counts =  qaqc_df.resample('1h',on='time').count()
+            qaqc_result_counts.columns = qaqc_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
 
             print('producing final result', flush=True)
-            result_list = [sum_result,instant_result,constant_result,qaqc_result]
+            result_list = [sum_result,instant_result,constant_result,qaqc_result,sum_result_counts,instant_result_counts,constant_result_counts,qaqc_result_counts]
             result = reduce(lambda  left,right: pd.merge(left,right,on=['time'],
                                             how='outer'), result_list)
             return result
         
     
     except Exception as e:
-        print("precip_hourly_standardization failed with Exception: {0}".format(e), flush=True)
+        print("hourly_standardization failed with Exception: {0}".format(e), flush=True)
         return None
