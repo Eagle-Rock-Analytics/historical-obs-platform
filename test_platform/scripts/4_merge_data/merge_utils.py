@@ -46,7 +46,7 @@ def open_log_file_merge(file):
 #-----------------------------------------------------------------------------
 def hourly_standardization(df):
     """
-
+    
     Resamples meteorological variables to hourly timestep according to standard convention. 
 
     Rules:
@@ -95,7 +95,7 @@ def hourly_standardization(df):
                 "hurs",
                 "sfcwind","sfcwind_dir"]
     
-    # QAQC flags
+    # QAQC flags, which remain constants within each hour
     qaqc_vars = ["time","tas_qc", "tas_eraqc",
                 "pr_5min_eraqc","pr_1h_eraqc","pr_5min_qc",'pr_eraqc','pr_depth_qc', 
                 "ps_qc",'ps_altimeter_qc','ps_eraqc','ps_altimeter_eraqc', 
@@ -104,10 +104,10 @@ def hourly_standardization(df):
                 'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
                 "elevation_eraqc", "qaqc_process"]
     
-    # All variables, necessary
+    # All variables, necessary for producing columns with hourly counts for each variable
     all_vars = constant_vars+sum_vars+instant_vars+qaqc_vars
     
-    ##### subset the dataframe according to rules
+    ##### Subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
 
     qaqc_df = df[[col for col in qaqc_vars if col in df.columns]]
@@ -122,7 +122,7 @@ def hourly_standardization(df):
     all_vars_df = df[[col for col in all_vars if col in df.columns]]
     
     ##### 
-    printf("Checking if dataset contains sub-hourly precipitation data",  verbose=verbose, log_file=log_file, flush=True)
+    
     try:        
         # if station does not report any variable, bypass
         if len(df.columns) == 0:
@@ -140,7 +140,7 @@ def hourly_standardization(df):
             all_vars_counts.columns = all_vars_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
             # Aggregating and outputting reduced dataframe
-            result_list = [sum_result,instant_result,constant_result,qaqc_result,sum_result_counts,instant_result_counts,constant_result_counts,qaqc_result_counts]
+            result_list = [sum_result,instant_result,constant_result,qaqc_result,all_vars_counts]
             result = reduce(lambda  left,right: pd.merge(left,right,on=['time'],
                                             how='outer'), result_list)
             return result
