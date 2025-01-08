@@ -104,6 +104,9 @@ def hourly_standardization(df):
                 'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
                 "elevation_eraqc", "qaqc_process"]
     
+    # All variables, necessary
+    all_vars = constant_vars+sum_vars+instant_vars+qaqc_vars
+    
     ##### subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
 
@@ -115,6 +118,8 @@ def hourly_standardization(df):
     sum_df = df[[col for col in sum_vars if col in df.columns]]
 
     instant_df = df[[col for col in instant_vars if col in df.columns]]
+
+    all_vars_df = df[[col for col in all_vars if col in df.columns]]
     
     ##### 
     printf("Checking if dataset contains sub-hourly precipitation data",  verbose=verbose, log_file=log_file, flush=True)
@@ -131,17 +136,8 @@ def hourly_standardization(df):
             qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique())) # adding unique flags
 
             # Generating variable counts per hour
-            constant_result_counts =  constant_df.resample('1h',on='time').count()
-            constant_result_counts.columns = constant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
-
-            instant_result_counts =  instant_df.resample('1h',on='time').count()
-            instant_result_counts.columns = instant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
-
-            sum_result_counts =  sum_df.resample('1h',on='time').count()
-            sum_result_counts.columns = sum_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
-
-            qaqc_result_counts =  qaqc_df.resample('1h',on='time').count()
-            qaqc_result_counts.columns = qaqc_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
+            all_vars_counts =  all_vars_df.resample('1h',on='time').count()
+            all_vars_counts.columns = all_vars_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
             # Aggregating and outputting reduced dataframe
             result_list = [sum_result,instant_result,constant_result,qaqc_result,sum_result_counts,instant_result_counts,constant_result_counts,qaqc_result_counts]
@@ -150,5 +146,5 @@ def hourly_standardization(df):
             return result
         
     except Exception as e:
-        print("hourly_standardization failed with Exception: {0}".format(e), verbose=verbose, log_file=log_file, flush=True)
+        printf("hourly_standardization failed with Exception: {0}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
