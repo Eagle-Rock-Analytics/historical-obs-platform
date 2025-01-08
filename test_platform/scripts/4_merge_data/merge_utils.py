@@ -49,7 +49,6 @@ def hourly_standardization(df):
 
     Resamples meteorological variables to hourly timestep according to standard convention. 
 
-    
     Rules:
     ------
         1.) top of the hour: take the first value in each hour
@@ -73,7 +72,7 @@ def hourly_standardization(df):
             None
     """
 
-    print("Running: hourly_standardization", flush=True)
+    printf("Running: hourly_standardization", verbose=verbose, log_file=log_file, flush=True)
 
     ##### define the variables for each sub-dataframe #####
 
@@ -91,12 +90,10 @@ def hourly_standardization(df):
 
     # Top of the hour variables, standard meteorological convention: temperature, dewpoint temperature, pressure, humidity, winds
     instant_vars = ["time",
-                "tdps","tdps_derived",
+                "tas", "tdps","tdps_derived",
                 "ps","psl","ps_altimeter","ps_derived",  
                 "hurs",
-                "sfcwind","sfcwind_dir",
-                "total",
-                "tas"]
+                "sfcwind","sfcwind_dir"]
     
     # QAQC flags
     qaqc_vars = ["time","tas_qc", "tas_eraqc",
@@ -107,9 +104,7 @@ def hourly_standardization(df):
                 'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
                 "elevation_eraqc", "qaqc_process"]
     
-    ##### subset the dataframe
-    print("generating subsets", flush=True)
-
+    ##### subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
 
     qaqc_df = df[[col for col in qaqc_vars if col in df.columns]]
@@ -122,40 +117,38 @@ def hourly_standardization(df):
     instant_df = df[[col for col in instant_vars if col in df.columns]]
     
     ##### 
-    print("checking if dataset contains sub-hourly precipitation data", flush=True)
-    # TODO: add to log file
+    printf("Checking if dataset contains sub-hourly precipitation data",  verbose=verbose, log_file=log_file, flush=True)
     try:        
-        # if station does not report any precipitation values, or only one, bypass
+        # if station does not report any variable, bypass
         if len(df.columns) == 0:
-            print('Empty dataset - bypassing hourly aggregation', flush=True)
+            printf('Empty dataset - bypassing hourly aggregation', verbose=verbose, log_file=log_file, flush=True)
             return df
         else: 
-            print('performing hourly aggregation', flush=True)
+            # Performing hourly aggregation
             constant_result =  constant_df.resample('1h',on='time').first()
             instant_result =  instant_df.resample('1h',on='time').first()
             sum_result =  sum_df.resample('1h',on='time').sum()
-            qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique()))
+            qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique())) # adding unique flags
 
-            print('generating variable counts per hour', flush=True)
+            # Generating variable counts per hour
             constant_result_counts =  constant_df.resample('1h',on='time').count()
-            constant_result_counts.columns = constant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+            constant_result_counts.columns = constant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
             instant_result_counts =  instant_df.resample('1h',on='time').count()
-            instant_result_counts.columns = instant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+            instant_result_counts.columns = instant_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
             sum_result_counts =  sum_df.resample('1h',on='time').count()
-            sum_result_counts.columns = sum_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+            sum_result_counts.columns = sum_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
             qaqc_result_counts =  qaqc_df.resample('1h',on='time').count()
-            qaqc_result_counts.columns = qaqc_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd")
+            qaqc_result_counts.columns = qaqc_result_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
 
-            print('producing final result', flush=True)
+            # Aggregating and outputting reduced dataframe
             result_list = [sum_result,instant_result,constant_result,qaqc_result,sum_result_counts,instant_result_counts,constant_result_counts,qaqc_result_counts]
             result = reduce(lambda  left,right: pd.merge(left,right,on=['time'],
                                             how='outer'), result_list)
             return result
         
-    
     except Exception as e:
-        print("hourly_standardization failed with Exception: {0}".format(e), log_file=log_file, flush=True)
+        print("hourly_standardization failed with Exception: {0}".format(e), verbose=verbose, log_file=log_file, flush=True)
         return None
