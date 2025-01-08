@@ -26,7 +26,7 @@ from mpi4py import MPI
 
 from simplempi import simpleMPI
 
-# from simplempi.parfor import parfor, pprint
+from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -188,16 +188,18 @@ def read_network_files(network, zarr):
     full_df["exist"] = np.zeros(len(full_df)).astype("bool")
 
     # Setting up the QAQC training station list to match temp_clean_all_station_list
-    df = pd.read_csv("qaqc_training_station_list.csv")
-    df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
-    df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
-    df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
-    df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
-    df["key"] = df.apply(lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1)
-    df["exist"] = np.zeros(len(df)).astype("bool")
+    if network == "TRAINING":
+        print("Using training station list!")
+        df = pd.read_csv("qaqc_training_station_list.csv")
+        df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
+        df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
+        df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
+        df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
+        df["key"] = df.apply(lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1)
+        df["exist"] = np.zeros(len(df)).astype("bool")
 
     # If it's a network (not training) run, keep it fast by only checking that network files on s3
-    if network != "TRAINING":
+    else:
         df = full_df.copy()[
             full_df["network"] == network
         ]  # To use the full dataset for specific sample stations
@@ -1049,6 +1051,14 @@ def whole_station_qaqc(
     """
     smpi = simpleMPI()
 
+    specific_sample = None
+    # ------------------------------------------
+    # How to run on a specific station
+    # Uncomment "specific_sample" and input desired station id as a list of strings
+    # Example: ["ASOSAWOS_74948400395"]
+    # specific_sample = ["ASOSAWOS_74948400395", "ASOSAWOS_74509023244", "ASOSAWOS_72494523293"]
+    # ------------------------------------------
+
     # Read in network files
     if smpi.rank == 0:
         try:
@@ -1063,8 +1073,13 @@ def whole_station_qaqc(
             )
 
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
+        # Subsetting for a specific set of stations in a single network
+        if specific_sample:
+            print(f'Running on specific stations: {specific_sample}')
+            stations_sample = specific_sample
+
         # "all" for no restrictions on sample size
-        if sample == "all":
+        elif sample == "all":
             stations_sample = list(files_df["era-id"].values)
 
         # DOCUMENTATION NEEDED
@@ -1072,6 +1087,7 @@ def whole_station_qaqc(
             nSample = int(sample)
             files_df = files_df.sample(nSample)
             stations_sample = list(files_df["era-id"])
+            print(stations_sample)
 
         # DOCUMENTATION NEEDED
         else:
@@ -1082,16 +1098,16 @@ def whole_station_qaqc(
                 )
                 exit()
                 stations_sample = list(files_df["era-id"])
-
             stations_sample = [sample]
+
         smpi.pprint(
-            "Running {} files on {} network".format(len(stations_sample), network),
+            "Running {} files on {} network and these stations {}".format(len(stations_sample), network, stations_sample),
             flush=True,
         )
     else:
         stations_sample = None
         files_df = None
-
+        
     files_df = smpi.comm.bcast(files_df, root=0)
     stations_sample = smpi.comm.bcast(stations_sample, root=0)
 
@@ -1099,16 +1115,15 @@ def whole_station_qaqc(
     stations_sample_scatter = smpi.scatterList(stations_sample)
 
     # Loop over stations
-    # for station in stations_sample:
+    for station in stations_sample:
     # for station in parfor(stations_sample):
-    for station in stations_sample_scatter:
         try:
             # ----------------------------------------------------------------------------
-            # Set up error handling.
+            # Set up error handling
             errors, end_api, timestamp = setup_error_handling()
 
             # ----------------------------------------------------------------------------
-            ## Set log file
+            # Set log file
             global log_file
             ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
             log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
@@ -1121,8 +1136,8 @@ def whole_station_qaqc(
             open_log_file_gaps(log_file)
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
+            
             # ----------------------------------------------------------------------------
-
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
             qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
             network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[0]
