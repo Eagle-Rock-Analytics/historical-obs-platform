@@ -39,6 +39,11 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir, mergedir
 
 #-----------------------------------------------------------------------------
+def open_log_file_merge(file):
+    global log_file
+    log_file = file
+
+#-----------------------------------------------------------------------------
 def hourly_standardization(df):
     """
     
@@ -142,5 +147,5 @@ def hourly_standardization(df):
         
     
     except Exception as e:
-        print("hourly_standardization failed with Exception: {0}".format(e), flush=True)
+        print("hourly_standardization failed with Exception: {0}".format(e), log_file=log_file, flush=True)
         return None
