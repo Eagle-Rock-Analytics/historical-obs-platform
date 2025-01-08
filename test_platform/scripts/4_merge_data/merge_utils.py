@@ -56,6 +56,8 @@ def hourly_standardization(df):
             - standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
         2.) summation across hour: sum observations within each hour
             - standard convention for precipitation and solar radiation
+        3.) constant across the hour: take the first value in each hour
+            - this applies to variables, like station name and location, that do not change within each hour
 
     Input:
     ------
