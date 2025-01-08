@@ -46,13 +46,16 @@ def open_log_file_merge(file):
 #-----------------------------------------------------------------------------
 def hourly_standardization(df):
     """
+
+    Resamples meteorological variables to hourly timestep according to standard convention. 
+
     
     Rules:
     ------
-        1) pr_5min < pr_1h < pr_24h
-        2) pr_localmid should never exceed pr_24h
-        3.) top of the hour 
-        4.) summatino across hour
+        1.) top of the hour: take the first value in each hour
+            - standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
+        2.) summation across hour: sum observations within each hour
+            - standard convention for precipitation and solar radiation
 
     Input:
     ------
@@ -62,6 +65,8 @@ def hourly_standardization(df):
     -------
         if success:
             df [pd.DataFrame]: QAQC dataframe with all columns resampled to one hour
+            - QAQC dataframe with all columns resampled to one hour (column name retained)
+            - columns with hourly observation counts for each variables (column name "nobs_" + x + "_hourstd", e.g. "nobs_tas_hourstd")
         if failure:
             None
     """
@@ -69,19 +74,13 @@ def hourly_standardization(df):
     print("Running: hourly_standardization", flush=True)
 
     ##### define the variables for each sub-dataframe #####
+
+    # Variables that remain constant within each hour
     constant_vars = ["time","station", "lat", "lon", "elevation",
                     "anemometer_height_m","thermometer_height_m",
                     'sfcWind_method',
                     'pr_duration',
                     "hour","day","month","year","date"]
-
-    qaqc_vars = ["time","tas_qc", "tas_eraqc",
-                "pr_5min_eraqc","pr_1h_eraqc","pr_5min_qc",'pr_eraqc','pr_depth_qc', 
-                "ps_qc",'ps_altimeter_qc','ps_eraqc','ps_altimeter_eraqc', 
-                'psl_qc','psl_eraqc',
-                'tdps_qc','tdps_eraqc',
-                'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
-                "elevation_eraqc", "qaqc_process"]
 
     # Aggregation across hour variables, standard meteorological convention: precipitation and solar radiation
     sum_vars = ["time",
@@ -96,6 +95,15 @@ def hourly_standardization(df):
                 "sfcwind","sfcwind_dir",
                 "total",
                 "tas"]
+    
+    # QAQC flags
+    qaqc_vars = ["time","tas_qc", "tas_eraqc",
+                "pr_5min_eraqc","pr_1h_eraqc","pr_5min_qc",'pr_eraqc','pr_depth_qc', 
+                "ps_qc",'ps_altimeter_qc','ps_eraqc','ps_altimeter_eraqc', 
+                'psl_qc','psl_eraqc',
+                'tdps_qc','tdps_eraqc',
+                'sfcWind_qc','sfcWind_dir_qc','sfcWind_eraqc','sfcWind_dir_eraqc'
+                "elevation_eraqc", "qaqc_process"]
     
     ##### subset the dataframe
     print("generating subsets", flush=True)
