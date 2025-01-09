@@ -1056,7 +1056,7 @@ def whole_station_qaqc(
     # How to run on a specific station
     # Uncomment "specific_sample" and input desired station id as a list of strings
     # Example: ["ASOSAWOS_74948400395"]
-    # specific_sample = ["ASOSAWOS_74948400395", "ASOSAWOS_74509023244", "ASOSAWOS_72494523293"]
+    specific_sample = ["ASOSAWOS_74948400395", "ASOSAWOS_74509023244", "ASOSAWOS_72494523293"]
     # ------------------------------------------
 
     # Read in network files
