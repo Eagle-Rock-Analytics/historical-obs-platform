@@ -65,9 +65,9 @@ def hourly_standardization(df):
     Output:
     -------
         if success:
-            df [pd.DataFrame]: QAQC dataframe with all columns resampled to one hour
-            - QAQC dataframe with all columns resampled to one hour (column name retained)
-            - columns with hourly observation counts for each variables (column name "nobs_" + x + "_hourstd", e.g. "nobs_tas_hourstd")
+            df [pd.DataFrame]
+                QAQC dataframe with all columns resampled to one hour (column name retained)
+                columns with hourly observation counts for each variables (column name "nobs_" + x + "_hourstd", e.g. "nobs_tas_hourstd")
         if failure:
             None
     """
