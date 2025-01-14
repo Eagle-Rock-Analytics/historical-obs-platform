@@ -69,7 +69,7 @@ def hourly_standardization(df,verbose=True):
     
     Resamples meteorological variables to hourly timestep according to standard convention. 
 
-    Rules:
+    Rules
     ------
         1.) top of the hour: take the first value in each hour
             - standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
@@ -78,11 +78,15 @@ def hourly_standardization(df,verbose=True):
         3.) constant across the hour: take the first value in each hour
             - this applies to variables, like station name and location, that do not change within each hour
 
-    Input:
+    Parameters
     ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+        df: pd.DataFrame 
+            station dataset converted to dataframe through QAQC pipeline
+        verbose: <pending explanation>
+            input for printing to printf() to print to log file
+            
 
-    Output:
+    Returns
     -------
         if success:
             df [pd.DataFrame]
