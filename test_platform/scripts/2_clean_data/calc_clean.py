@@ -10,6 +10,7 @@ for the Historical Observations Platform.
 import geopandas as gp
 import numpy as np
 
+
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
     """
@@ -18,9 +19,9 @@ def get_wecc_poly(terrpath, marpath):
     Returns: spatial objects for each shapefile, and bounding box for their union.
     """
     t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)   ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds    ## Combine polygons and get bounding box of union.
-    return t,m, bbox
+    m = gp.read_file(marpath)  ## Read in marine WECC shapefile.
+    bbox = t.union(m).bounds  ## Combine polygons and get bounding box of union.
+    return t, m, bbox
 
 
 ## Unit conversions, if required
@@ -34,14 +35,16 @@ def _unit_degC_to_K(data):
     data = data + 273.15
     return data
 
+
 def _unit_degF_to_K(data):
     """
     Converts temperature from degF to K
     Inputs: temperature (degF)
     Returns: temperature (K)
     """
-    data = (5/9) * (data - 32) + 273.15
+    data = (5 / 9) * (data - 32) + 273.15
     return data
+
 
 ## Air pressure conversions: Desired working unit should be Pa
 def _unit_pres_hpa_to_pa(data):
@@ -51,8 +54,9 @@ def _unit_pres_hpa_to_pa(data):
     Returns: air pressure (Pa)
     Note: this also works for the conversion from mb
     """
-    data = data * 100.
+    data = data * 100.0
     return data
+
 
 def _unit_pres_kpa_to_pa(data):
     """
@@ -60,8 +64,9 @@ def _unit_pres_kpa_to_pa(data):
     Inputs: air pressure (kPa)
     Returns: air pressure (Pa)
     """
-    data = data * 1000.
+    data = data * 1000.0
     return data
+
 
 def _unit_pres_inHg_to_pa(data):
     """
@@ -71,6 +76,7 @@ def _unit_pres_inHg_to_pa(data):
     """
     data = data * 3386.39
     return data
+
 
 ## Wind speed conversions: Desired working unit should be m/s
 def _unit_windspd_kts_to_ms(data):
@@ -82,6 +88,7 @@ def _unit_windspd_kts_to_ms(data):
     data = data / 1.94
     return data
 
+
 def _unit_windspd_mph_to_ms(data):
     """
     Converts windspeed from miles-per-hour to m/s
@@ -91,6 +98,7 @@ def _unit_windspd_mph_to_ms(data):
     data = data / 2.237
     return data
 
+
 ## Moisture conversions: Desired working unit should be  kg/kg
 def _unit_moisture_gkg_to_kgkg(data):
     """
@@ -98,8 +106,9 @@ def _unit_moisture_gkg_to_kgkg(data):
     Inputs: moisture ratio (g/kg)
     Returns: moisture ratio (kg/kg)
     """
-    data = data / 1000.
+    data = data / 1000.0
     return data
+
 
 ## Precipitation conversions: Desired working unit should be mm/TIME
 ## Note on desired unit - the conversion to hourly as a rate will occur in calc_qaqc
@@ -112,6 +121,7 @@ def _unit_precip_in_to_mm(data):
     data = data * 25.4
     return data
 
+
 ## Elevation conversions: Desired working unit should be meters
 def _unit_elev_ft_to_m(data):
     """
@@ -122,6 +132,7 @@ def _unit_elev_ft_to_m(data):
     data = data * 0.3048
     return data
 
+
 ## Latitude/Longitude conversions: Desired working unit should be decimal degrees N/W
 ## Need to also accomodate inputs such as: 41.56.54
 def _lat_dms_to_dd(data):
@@ -130,8 +141,9 @@ def _lat_dms_to_dd(data):
     Input: latitude (DMS) example: 39.02.33
     Returns: latitude (dd) example: 39.16
     """
-    data = float(data[:2]) + float(data[3:5])/60 + float(data[6:])/3600
+    data = float(data[:2]) + float(data[3:5]) / 60 + float(data[6:]) / 3600
     return data
+
 
 def _lon_dms_to_dd(data):
     """
@@ -145,14 +157,15 @@ def _lon_dms_to_dd(data):
         _deg = float(data[:3])
         _min = float(data[4:6])
         _sec = float(data[7:])
-        data = -1 * (_deg + _min/60 + _sec/3600)
+        data = -1 * (_deg + _min / 60 + _sec / 3600)
     else:
-        data = data.strip('-')
+        data = data.strip("-")
         _deg = float(data[:3])
         _min = float(data[4:6])
         _sec = float(data[7:])
-        data = -1 * (_deg + _min/60 + _sec/3600)
+        data = -1 * (_deg + _min / 60 + _sec / 3600)
     return data
+
 
 def _lon_DMm_to_Dd(data):
     """
@@ -162,8 +175,9 @@ def _lon_DMm_to_Dd(data):
     """
     _min = float(data[:3])
     _sec = float(data[3:])
-    data = -1 * (_min + _sec/60)
+    data = -1 * (_min + _sec / 60)
     return data
+
 
 def _lat_DMm_to_Dd(data):
     """
@@ -173,8 +187,9 @@ def _lat_DMm_to_Dd(data):
     """
     _deg = float(data[:2])
     _mm = float(data[2:])
-    data = (_deg + _mm/60)
+    data = _deg + _mm / 60
     return data
+
 
 ##---------------------------------------------------------------------------------------------
 ## Derived variable calculations
@@ -184,10 +199,17 @@ def _calc_dewpointtemp_opt1(tas, hurs):
     Inputs: air temperature (K), relative humidity (0-100 scale)
     Returns: dew point temperature (K)
     """
-    es = 0.611 * np.exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure
-    e_vap = (es * hurs)/100.                        # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
-    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))**-1   # calculates dew point temperature, units = K
+    es = 0.611 * np.exp(
+        5423 * ((1 / 273) - (1 / tas))
+    )  # calculates saturation vapor pressure
+    e_vap = (
+        es * hurs
+    ) / 100.0  # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    tdps = (
+        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
+    ) ** -1  # calculates dew point temperature, units = K
     return tdps
+
 
 def _calc_dewpointtemp_opt2(e_vap):
     """
@@ -195,8 +217,11 @@ def _calc_dewpointtemp_opt2(e_vap):
     Inputs: vapor pressure (Pa)
     Returns: dew point temperature (K)
     """
-    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))**-1   # calculates dew point temperature, units = K
+    tdps = (
+        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
+    ) ** -1  # calculates dew point temperature, units = K
     return tdps
+
 
 def _calc_relhumid(tas, tdps):
     """
@@ -204,10 +229,15 @@ def _calc_relhumid(tas, tdps):
     Inputs: air temperature, dewpoint temperature (both K)
     Returns: realtive humidity (%, or 0-100 scale)
     """
-    es = 0.611 * np.exp(5423 * ((1/273) - (1/tas)))   # calculates saturation vapor pressure using air temp
-    e_vap = 0.611 * np.exp(5423 * ((1/273) - (1/tdps)))   # calculates vapor pressure using dew point temp
-    hurs = 100 * (e_vap/es)
+    es = 0.611 * np.exp(
+        5423 * ((1 / 273) - (1 / tas))
+    )  # calculates saturation vapor pressure using air temp
+    e_vap = 0.611 * np.exp(
+        5423 * ((1 / 273) - (1 / tdps))
+    )  # calculates vapor pressure using dew point temp
+    hurs = 100 * (e_vap / es)
     return hurs
+
 
 def _calc_windmag(u10, v10):
     """
@@ -215,18 +245,24 @@ def _calc_windmag(u10, v10):
     Inputs: u and v wind components (both m/s)
     Returns: wind speed/magnitude (m/s)
     """
-    sfcWind = np.sqrt((u10)**2  + (v10)**2)   # calculates wind magnitude, units = ms-1
+    sfcWind = np.sqrt(
+        (u10) ** 2 + (v10) ** 2
+    )  # calculates wind magnitude, units = ms-1
     return sfcWind
 
-def _calc_winddir(u10, v10):    # This function would only be needed if wind components are provided, but direction is not
+
+def _calc_winddir(
+    u10, v10
+):  # This function would only be needed if wind components are provided, but direction is not
     """
     Calculates wind direction
     Inputs: u and v wind components (both m/s)
     Returns: wind direction (degrees)
     NOTE: this is not functional at the moment due to performance issues
     """
-    pass        # this is a complicated calculation -- looking for options
-    #return sfcWind_dir
+    pass  # this is a complicated calculation -- looking for options
+    # return sfcWind_dir
+
 
 def _calc_ps(psl, elev, temp):
     """
@@ -236,8 +272,9 @@ def _calc_ps(psl, elev, temp):
     Note: this calculation checks with this formula, with differences due to rounding in the decimal place:
     https://keisan.casio.com/exec/system/1224575267
     """
-    ps = psl / ((1 - ((0.0065 * elev)/(temp + 0.0065 * elev)))**-5.257)
+    ps = psl / ((1 - ((0.0065 * elev) / (temp + 0.0065 * elev))) ** -5.257)
     return ps
+
 
 def _calc_ps_alt(alt, elev):
     """
@@ -247,7 +284,7 @@ def _calc_ps_alt(alt, elev):
     Note: this calculation uses the following formula:
     https://www.weather.gov/media/epz/wxcalc/stationPressure.pdf
     """
-    alt = alt / 3386.39 # Convert altimeter from Pa to inHg for use in formula
-    ps = alt * ((288-0.0065*elev)/288)**5.2561
-    ps = _unit_pres_inHg_to_pa(ps) # Convert back to Pa from inHg
+    alt = alt / 3386.39  # Convert altimeter from Pa to inHg for use in formula
+    ps = alt * ((288 - 0.0065 * elev) / 288) ** 5.2561
+    ps = _unit_pres_inHg_to_pa(ps)  # Convert back to Pa from inHg
     return ps

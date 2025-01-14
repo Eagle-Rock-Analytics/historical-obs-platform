@@ -9,6 +9,7 @@ for the Historical Observations Platform.
 ## Import Libraries
 import geopandas as gp
 
+
 ## Useful functions
 def get_wecc_poly(terrpath, marpath):
     """
@@ -17,9 +18,10 @@ def get_wecc_poly(terrpath, marpath):
     Returns: spatial objects for each shapefile, and bounding box for their union.
     """
     t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)   ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds    ## Combine polygons and get bounding box of union.
-    return t,m, bbox
+    m = gp.read_file(marpath)  ## Read in marine WECC shapefile.
+    bbox = t.union(m).bounds  ## Combine polygons and get bounding box of union.
+    return t, m, bbox
+
 
 def _lat_dms_to_dd(data):
     """
@@ -27,10 +29,11 @@ def _lat_dms_to_dd(data):
     Input: latitude (DMS) example: 39.02.33
     Returns: latitude (dd) example: 39.16
     """
-    data = float(data[:2]) + float(data[3:5])/60 + float(data[6:])/3600
+    data = float(data[:2]) + float(data[3:5]) / 60 + float(data[6:]) / 3600
     return data
 
-def _lon_dms_to_dd(data): 
+
+def _lon_dms_to_dd(data):
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
@@ -42,12 +45,11 @@ def _lon_dms_to_dd(data):
         _deg = float(data[:3])
         _min = float(data[4:6])
         _sec = float(data[7:])
-        data = -1 * (_deg + _min/60 + _sec/3600)
+        data = -1 * (_deg + _min / 60 + _sec / 3600)
     else:
-        data = data.strip('-')
+        data = data.strip("-")
         _deg = float(data[:3])
         _min = float(data[4:6])
         _sec = float(data[7:])
-        data = -1 * (_deg + _min/60 + _sec/3600)
+        data = -1 * (_deg + _min / 60 + _sec / 3600)
     return data
-
