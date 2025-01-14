@@ -5,6 +5,7 @@ get_all_homr_ids returns a table with all NCDC IDs in WECC states and high-level
 get_all_homr_metadata reads in this table and queries all NCDC IDs in these states for detailed information, including sensor maintenance logs, obstructions
 and detailed remarks. These are saved as 6 tables, linked through the shared NCDC ID.
 """
+
 # From https://www.ncei.noaa.gov/access/homr/api
 
 # Returns four tables

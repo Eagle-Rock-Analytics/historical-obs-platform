@@ -821,9 +821,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
 
                             # generate attribute names
                             for index, row in dates.iterrows():
-                                row[
-                                    "names"
-                                ] = f"anemometer_height_m_{row.wind_speed_1_start[0:10]}_{row.wind_speed_1_end[0:10]}"
+                                row["names"] = (
+                                    f"anemometer_height_m_{row.wind_speed_1_start[0:10]}_{row.wind_speed_1_end[0:10]}"
+                                )
                                 ds.attrs[row["names"]] = float(
                                     row["wind_speed_1_position"]
                                 )
@@ -881,9 +881,9 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
 
                             # generate attribute names
                             for index, row in dates.iterrows():
-                                row[
-                                    "names"
-                                ] = f"thermometer_height_m_{row.air_temp_1_start[0:10]}_{row.air_temp_1_end[0:10]}"
+                                row["names"] = (
+                                    f"thermometer_height_m_{row.air_temp_1_start[0:10]}_{row.air_temp_1_end[0:10]}"
+                                )
                                 ds.attrs[row["names"]] = float(
                                     row["air_temp_1_position"]
                                 )
@@ -941,17 +941,17 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
                             if pd.notnull(ds["elevation"].values[0]):
                                 # generate attribute names
                                 for index, row in dates.iterrows():
-                                    row[
-                                        "names"
-                                    ] = f"barometer_elevation_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}"
+                                    row["names"] = (
+                                        f"barometer_elevation_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}"
+                                    )
                                     ds.attrs[row["names"]] = float(
                                         row["pressure_1_position"]
                                     ) + float(ds["elevation"].values[0])
                             else:
                                 for index, row in dates.iterrows():
-                                    row[
-                                        "names"
-                                    ] = f"barometer_height_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}"
+                                    row["names"] = (
+                                        f"barometer_height_m_{row.pressure_1_start[0:10]}_{row.pressure_1_end[0:10]}"
+                                    )
                                     ds.attrs[row["names"]] = float(
                                         row["pressure_1_position"]
                                     )

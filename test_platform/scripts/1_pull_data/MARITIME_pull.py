@@ -9,6 +9,7 @@ Notes:
 1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
+
 ## Load packages
 import requests
 from datetime import datetime, date

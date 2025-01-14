@@ -1,6 +1,7 @@
 """
 DEPRACATED AS OF NOV 8 2022. Use MADIS_pull.py instead, which includes the solar radiation data from this dataset.
 """
+
 ## Scraping script for CWOP network -- solar radiation data only through Google drive
 ## Notes: Testing using 2020 and 2021
 ## Notes: Years 2009 thru 2017 will need access

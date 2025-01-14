@@ -352,9 +352,9 @@ def qaqc_unusual_repeated_streaks(
             bad_hourly = hourly_repeats(
                 test_df, var=var, threshold=threshold
             )  # Bad hourly returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_hourly), var + "_eraqc"
-            ] = 27  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
+                27  # Flag _eraqc variable
+            )
             printf(
                 "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
@@ -384,9 +384,9 @@ def qaqc_unusual_repeated_streaks(
                 wind_min_value,
                 min_sequence_length=min_sequence_length,
             )  # Bad straight returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_straight), var + "_eraqc"
-            ] = 28  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
+                28  # Flag _eraqc variable
+            )
             printf(
                 "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
@@ -408,9 +408,9 @@ def qaqc_unusual_repeated_streaks(
             bad_whole = consecutive_fullDay_repeats(
                 test_df, var, threshold
             )  # Bad whole returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_whole), var + "_eraqc"
-            ] = 29  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
+                29  # Flag _eraqc variable
+            )
             printf(
                 "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00

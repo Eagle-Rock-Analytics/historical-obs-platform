@@ -1,6 +1,7 @@
 """
 SCRIPT IS DEPRACATED AS OF NOV 14 2022. USE pull_qa.py INSTEAD.
 """
+
 ## Step 0: Environment set-up
 # Import libraries
 from ftplib import FTP

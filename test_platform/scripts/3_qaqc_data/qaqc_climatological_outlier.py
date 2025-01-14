@@ -389,9 +389,7 @@ def gap_search(freq, left, right):
     )  # Yellow flag, all values beyond the threshold are flagged
     for i, f in zip(range(len(left_freq) - 1, -1, -1), left_freq[::-1]):
         if f < 0.1:
-            left_flag[
-                0 : i + 1
-            ] = (
+            left_flag[0 : i + 1] = (
                 -1
             )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
             break
@@ -402,9 +400,7 @@ def gap_search(freq, left, right):
     )  # Yellow flag, all values beyond the threshold are flagged
     for i, f in zip(range(len(right_freq)), right_freq):
         if f < 0.1:
-            right_flag[
-                i:
-            ] = (
+            right_flag[i:] = (
                 -1
             )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
             break

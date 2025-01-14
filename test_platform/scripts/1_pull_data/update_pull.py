@@ -3,6 +3,7 @@ This script contains the functions needed to update all data on a weekly basis.
 Data will be downloaded from the last date updated in AWS until 45 days prior to the present day (the window of final data).
 
 """
+
 from datetime import datetime, timezone, timedelta
 import ASOSAWOS_pullftp
 from SCANSNOTEL_pull import get_scan_station_data
