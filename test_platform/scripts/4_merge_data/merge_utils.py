@@ -64,10 +64,10 @@ def printf(*args, verbose=True, log_file=None, **kwargs):
             pass
 
 #-----------------------------------------------------------------------------
-def hourly_standardization(df,verbose=True):
+def hourly_standardization(df,verbose=verbose):
     """
     
-    Resamples meteorological variables to hourly timestep according to standard convention. 
+    Resamples meteorological variables to hourly timestep according to standard conventions. 
 
     Rules
     ------
@@ -82,16 +82,15 @@ def hourly_standardization(df,verbose=True):
     ------
         df: pd.DataFrame 
             station dataset converted to dataframe through QAQC pipeline
-        verbose: <pending explanation>
-            input for printing to printf() to print to log file
-            
+        verbose: boolean
+            input for printf() to print to log file - set in script initialization
 
     Returns
     -------
         if success:
             df [pd.DataFrame]
-                QAQC dataframe with all columns resampled to one hour (column name retained)
-                columns with hourly observation counts for each variables (column name "nobs_" + x + "_hourstd", e.g. "nobs_tas_hourstd")
+                QAQC dataframe with all columns resampled to one hour (column name retained) and
+                columns with hourly observation counts for each variables
         if failure:
             None
     """
