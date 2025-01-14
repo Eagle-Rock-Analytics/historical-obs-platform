@@ -21,7 +21,7 @@ import xarray as xr
 
 # Set envr variables
 workdir = "/path/to/working/directory/"
-years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
+years = list(map(str, range(1980, datetim.enow().year + 1)))  # If needed
 
 
 ## Step 1: Read in qa/qc data
@@ -34,7 +34,7 @@ years = list(map(str,range(1980,datetim.enow().year+1))) # If needed
 ## Likely needs extensive error checking + outputs to user
 ## Data formatting
 ## Drop source variables that are not priority variables when needed for derived priority variables
-## This would be the relevant moisture variables for relative humidity and dewpoint temperature if they are not observed 
+## This would be the relevant moisture variables for relative humidity and dewpoint temperature if they are not observed
 
 
 ## Step 3: Product documentation

@@ -69,6 +69,7 @@ bucket_name = "wecc-historical-wx"
 # ============================================================================
 # Define global functions and variables
 
+
 # ----------------------------------------------------------------------------
 def setup_error_handling():
     """ """
@@ -137,6 +138,7 @@ def file_on_s3(df, zarr):
     substring_in_filepath = df["era-id"].isin(file_st)
     return substring_in_filepath
 
+
 # ----------------------------------------------------------------------------
 ## Read network nc files
 def read_network_files(network, zarr):
@@ -161,9 +163,7 @@ def read_network_files(network, zarr):
     full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
     # Add path info as new columns
-    full_df["rawdir"] = full_df["network"].apply(
-        lambda row: "1_raw_wx/{}/".format(row)
-    )
+    full_df["rawdir"] = full_df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
     full_df["cleandir"] = full_df["network"].apply(
         lambda row: "2_clean_wx/{}/".format(row)
     )
@@ -195,7 +195,9 @@ def read_network_files(network, zarr):
         df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
         df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
         df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
-        df["key"] = df.apply(lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1)
+        df["key"] = df.apply(
+            lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1
+        )
         df["exist"] = np.zeros(len(df)).astype("bool")
 
     # If it's a network (not training) run, keep it fast by only checking that network files on s3
@@ -270,7 +272,7 @@ def process_output_ds(
     verbose=False,
     local=False,
 ):
-    """ 
+    """
     DOCUMENTATION NEEDED
     """
     # Convert back to dataset
@@ -931,7 +933,7 @@ def run_qaqc_pipeline(
             verbose=verbose,
             flush=True,
         )
-    
+
     printf(
         "Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
@@ -1075,7 +1077,7 @@ def whole_station_qaqc(
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
         # Subsetting for a specific set of stations in a single network
         if specific_sample:
-            print(f'Running on specific stations: {specific_sample}')
+            print(f"Running on specific stations: {specific_sample}")
             stations_sample = specific_sample
 
         # "all" for no restrictions on sample size
@@ -1101,13 +1103,15 @@ def whole_station_qaqc(
             stations_sample = [sample]
 
         smpi.pprint(
-            "Running {} files on {} network and these stations {}".format(len(stations_sample), network, stations_sample),
+            "Running {} files on {} network and these stations {}".format(
+                len(stations_sample), network, stations_sample
+            ),
             flush=True,
         )
     else:
         stations_sample = None
         files_df = None
-        
+
     files_df = smpi.comm.bcast(files_df, root=0)
     stations_sample = smpi.comm.bcast(stations_sample, root=0)
 
@@ -1116,7 +1120,7 @@ def whole_station_qaqc(
 
     # Loop over stations
     for station in stations_sample:
-    # for station in parfor(stations_sample):
+        # for station in parfor(stations_sample):
         try:
             # ----------------------------------------------------------------------------
             # Set up error handling
@@ -1136,11 +1140,13 @@ def whole_station_qaqc(
             open_log_file_gaps(log_file)
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
-            
+
             # ----------------------------------------------------------------------------
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
             qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
-            network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[0]
+            network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[
+                0
+            ]
 
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
@@ -1249,7 +1255,7 @@ def whole_station_qaqc(
                     log_file=log_file,
                     verbose=verbose,
                     flush=True,
-                ) 
+                )
                 df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
                     ds,
                     network_ds,
