@@ -5,22 +5,26 @@ processing conforms to the HDP standard of quality.
 
 Approach:
 (1) Read through variables and drop unnecessary variables
-(2) Infill missing timesteps with 0 in precipitation record 
-(3) Convert time PST --> UTC 
-(4) Add empty elevation variable, to be infilled via DEM
-(5) Converts station metadata to standard format, with unique identifier
-(6) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
-(7) Tracks existing qa/qc flag for review
-(8) Outputs cleaned variables as a single .Zarr for each station in an individual network.
+(2) Infill mis-timed timesteps at the correct 15 min interval with NaN in precipitation record 
+(3) Add empty elevation variable, to be infilled via DEM
+(4) Converts station metadata to standard format, with unique identifier
+(5) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
+(6) Tracks existing qa/qc flag(s) for review
+(7) Outputs cleaned variables as a single zarr for each station in an individual network.
 
 Inputs: Raw data for the network's stations, with each csv file representing a station.
-Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .Zarr.
+Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as zarr.
 
 Modification History:
 - 11/26/2024: Converted from a python notebook to a python script
 - 11/30/2024: Added empty elevation variable with proper attributes
 - 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.  
 - 12/12/2024: Change datetime conversion from using tz_localize and tz_convert to a simple +8 hr following advice from Valley Water team
+- 01/14/2025:
+    - Modified to work with new VW data that contains information about gaps. 
+    - Missing timesteps are filled with NaN instead of 0. 
+    - Time conversion removed because the new data contains a time column in UTC timezone  
+    - Data read in using pd.read_csv() instead of tempfile method 
 
 Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
@@ -37,10 +41,10 @@ import boto3
 from datetime import datetime, timezone
 from pathlib import Path  # to get file suffix
 import time
-import tempfile
 
 # Set name of bucket and folder containing data
 bucket = "wecc-historical-wx"
+network = "VALLEYWATER"
 folder_raw = "1_raw_wx/VALLEYWATER"  # Raw data
 folder_clean = (
     "2_clean_wx/VALLEYWATER"  # Where to upload cleaned files. Folder must already exist
@@ -48,11 +52,11 @@ folder_clean = (
 
 
 def main():
-    # Name of variable
-    var_name = "pr_15min"
-
-    # For attributes of netCDF file.
+    # For attributes of exported file
     timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
+
+    # ERA-formatted variable name
+    era_var_name = "pr_15min"
 
     # Create empty dataframe for storing QAQC and station info
     # This will be saved as a csv file and used in QAQC step 3
@@ -67,71 +71,95 @@ def main():
             "cleaned": [],
             "time_cleaned": [],
             "network": [],
-            "{0}_nobs".format(var_name): [],
+            "{0}_nobs".format(era_var_name): [],
             "total_nobs": [],
         }
     )
 
-    # Define temporary directory in local drive for downloading data from S3 bucket
-    # If the directory doesn't exist, it will be created
-    temp_dir = "../../data/tmp"
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-
-    # Read csv file containing station data from s3 bucket
-    station_info_filename = "VALLEYWATER_station_info.csv"
-    fs = s3fs.S3FileSystem()
-    with fs.open(
-        "s3://{0}/{1}/{2}".format(bucket, folder_raw, station_info_filename)
-    ) as f:
-        station_info_df = pd.read_csv(f)
-
-    # Get all the filenames
     filenames = get_filenames_in_s3_folder(bucket=bucket, folder=folder_raw)
-    filenames = [
-        file for file in filenames if "station_info" not in file
-    ]  # Ignore station info csv file
+    filenames = [file for file in filenames if "Precip_Increm.Final@" in file]
+
+    # Read in csv containing information about each station
+    # Lat, lon, name, and watershed :)
+    # This info was manually retrieved from the API
+    # See scrape_json_file.ipynb for more info (in the valley water repo)
+    station_info_df = pd.read_csv(
+        "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/VALLEYWATER_station_info.csv"
+    )
 
     # Loop through each file, clean/reformat, and upload to s3
     # Print a pretty progress bar to console :)
     for i in progressbar(range(len(filenames))):
         filename = filenames[i]
 
-        # Read in and clean the data
-        df = read_and_clean_data(
-            bucket=bucket,
-            folder=folder_raw,
-            filename=filename,
-            temp_dir=temp_dir,
-            delete=True,
+        # Read in file
+        filename = "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/Precip_Increm.Final@6001.EntireRecord.csv"
+        df = pd.read_csv(
+            filename, header=14
+        )  # Remove header from each file so it can be read in as a dataframe
+
+        # Convert time to datetime so it can be better managed programmatically
+        # No time conversion needed since UTC column already exists in data
+        # I have to do dt.tz_localize(None) because pandas does a weird thing where it adds the UTC timezone to the dtype of the object
+        # xarray didn't know how to convert it to a datetime index when I converted it to a Dataset later in the pipeline
+        df["time"] = pd.to_datetime(df["ISO 8601 UTC"]).dt.tz_localize(None)
+
+        # Delete unused columns
+        df = df[["time", "Value", "Approval Level"]]
+
+        # Remove rows where Approval Level = Null
+        # If theres a big chunk of missing data, only one NaN value is reported in the middle of that chunk
+        # This messes up the temporal resolution of the data
+        # We will remove that random NaN value in the middle of the chunk, which is identified by Approval Level = Null
+        # Then, we will fill the entire missing data chunk with NaNs at the appropriate temporal resolution of the data
+        df = df[~df["Approval Level"].isnull()]
+
+        # Infill missing timestamps with -999
+        # This helps us trace these values so that we can add the era QAQC flag to show that they were infilled with NaN
+        # In a later step, we will replace -999 with NaN (after adding the QAQC flag)
+        expected_tdelta = pd.Timedelta("0 days 00:15:00")  # 15 minutes
+        df = df.set_index("time").resample(expected_tdelta).asfreq().fillna(value=-999)
+
+        # Flag with ERA QAQC variable appropriate for NaN to correct timestamp
+        # Where the Value is -999, fill the QAQC with the qaqc number
+        # Where the value is NOT -999, fill the QAQC with NaN
+        df[era_var_name + "_eraqc"] = (
+            df["Value"]
+            .where(df["Value"] == -999, other=np.NaN)
+            .where(df["Value"] != -999, other=30)
         )
 
-        # Get station info from filename
-        network, station_id, time_start, time_end = filename.split("_")
-        network = (
-            network.upper()
-        )  # Capitalize the network following hist-obs conventions
+        # Also replace -999 in Values with NaN
+        # Double checking on original NaNs not being accidentally flagged
+        df = df.replace({"Value": {-999: np.NaN}})
+
+        # Set Approval Level to appropriate values
+        df = df.replace({"Approval Level": {-999: np.NaN}}).rename(
+            columns={"Approval Level": "raw_qc"}
+        )
+
+        # Convert precip units in --> mm
+        precip_col_name = "Value"  # Variable name in raw data
+        df[era_var_name] = df[precip_col_name] * 25.4  # Convert in --> mm
+
+        # Retrieve station ID from the filename
+        station_id = int(filename.split("@")[1].split(".EntireRecord.csv")[0])
 
         # Get station info from csv file
         station_info_i = station_info_df[
             station_info_df["station_id"] == int(station_id)
         ]
 
-        # Convert precip units in --> mm
-        precip_col_name = "Precipitation (in.)"
-        if precip_col_name not in list(df.columns):  # Ensure that the column exists!
-            raise ValueError(
-                "'{}' expected as a column name in station data but not found".format(
-                    precip_col_name
-                )
-            )
-        df = df.rename(
-            columns={precip_col_name: var_name}
-        )  # Rename column following naming conventions
-        df[var_name] = df[var_name] * 25.4  # Convert in --> mm
+        # Remove date strings from filename
+        # Convert to uppercase characters to match existing filename formatting conventions
+        # Current format: VALLEYWATER_[station_id].csv
+        relative_filepath = "{}_{}.zarr".format(network, station_id)
 
         # Convert data type to xarray object
-        ds = xr.Dataset.from_dataframe(df)
+        df_pr = df[
+            [era_var_name, era_var_name + "_eraqc", "raw_qc"]
+        ]  # Just preserve the precip data
+        ds = xr.Dataset.from_dataframe(df_pr)
         ds = ds.expand_dims(
             {"station": ["{}_{}".format(network, station_id)]}
         )  # Add singleton dimension for station network + id
@@ -159,7 +187,7 @@ def main():
         )  # Add new data variable "elevation" to Dataset
 
         # Assign appropriate variable & coordinate attributes
-        ds[var_name].attrs = {
+        ds[era_var_name].attrs = {
             "long_name": "15_minute_precipitation_amount",
             "units": "mm/15min",
             "comment": "Precipitation accumulated in previous 15 minutes.",
@@ -202,10 +230,6 @@ def main():
             "comment": "Intermediate data product: may not have been subject to any cleaning or QA/QC processing",
             "raw_files_merged": 1,
         }
-        # Remove date strings from filename
-        # Convert to uppercase characters to match existing filename formatting conventions
-        # Current format: VALLEYWATER_[station_id].csv
-        relative_filepath = "{}_{}.zarr".format(network, station_id)
 
         # Set the complete filepath to the s3 bucket
         filepath_s3 = "s3://{}/{}/{}".format(bucket, folder_clean, relative_filepath)
@@ -220,7 +244,7 @@ def main():
         # Now, save info for this station to stations dataframe
         # Info for each station is saved as a single row, which is then appended as a row to the master dataframe
         time = pd.to_datetime(ds.time.values)
-        nobs = int(len(df[var_name]))  # Number of observations
+        nobs = int(len(df[era_var_name]))  # Number of observations
         stations_df_i = pd.DataFrame(
             {
                 "era-id": ["{0}_{1}".format(network, station_id)],
@@ -232,7 +256,7 @@ def main():
                 "cleaned": ["Y"],
                 "time_cleaned": [timestamp],
                 "network": [network],
-                "{0}_nobs".format(var_name): [nobs],
+                "{0}_nobs".format(era_var_name): [nobs],
                 "total_nobs": [
                     nobs
                 ],  # Total nobs is the same as single variable nobs because we just have one variable
@@ -282,94 +306,6 @@ def main():
     print("SCRIPT COMPLETE")
 
 
-def read_and_clean_data(
-    bucket, folder, filename, temp_dir="", tdelta="0h15min0s", delete=True
-):
-    """
-    1. Read in file from s3 bucket
-    2. Infill missing timestamps with 0
-    3. Rename/reformat columns
-
-    Parameters
-    ----------
-    bucket: str
-        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc...
-    folder: str
-        Folder within the bucket containing the data you want to read
-    filename: str
-        Name of the file in the bucket (i.e. "ValleyWater_6004_1900-01-01_2024-11-11.csv")
-    temp_dir: str, optional
-        Temporary directory for storing downloaded data
-        Default to current directory
-    tdelta: str, optional
-        Time delta between station observations
-        String must be formatted as such: "[n]h[x]min[y]s" where n,x,y represent the hours, minutes, and seconds
-        Default to "0h15min0s" (15 minutes)
-        Function will check that the station minimum time delta == tdelta
-    delete: boolean, optional
-        Delete the local version of the data after downloading?
-        Default to True
-
-    Returns
-    -------
-    df: pd.DataFrame
-
-    """
-
-    # Read raw data from bucket
-    df = read_data_from_s3(
-        bucket=bucket, folder=folder, filename=filename, temp_dir=temp_dir
-    )
-
-    # Convert "Timestamp" column to column "Time"
-    # Convert values to datetime object
-    # Convert PST to UTC (add 8 hr)
-    df["time"] = pd.to_datetime(df["Timestamp"].values)
-
-    try:
-        df["time"] = df["time"] + pd.DateOffset(hours=8)
-    except:
-        print("Failed time conversion for file: {0}".format(filename))
-        raise ValueError("Cleaning failed.")
-
-    df.drop("Timestamp", axis=1, inplace=True)
-
-    # Check that minimum time delta between observations is the same as the function argument for tdelta
-    timedelta_row = df["time"].diff()
-    min_tdelta = strftdelta(timedelta_row.min())
-    if (min_tdelta) != tdelta:
-        print(
-            "WARNING: Your input timedelta is not the same as the minimum timedelta found in the data. \nYour input timedelta: tdelta = {0}\nMinimum timedelta found in the data: {1}".format(
-                tdelta, min_tdelta
-            )
-        )
-
-    # Infill missing timestamps with 0
-    df = df.set_index("time").resample(min_tdelta).asfreq().fillna(value=0)
-
-    return df
-
-
-def strftdelta(tdelta):
-    """Get timedelta string for pd.Timedelta object
-
-    Arguments
-    ---------
-    tdelta: pd.Timedelta
-
-    Returns
-    -------
-    str: timedelta in string format
-        Format is "[n]h[x]min[y]s" where n,x,y represent the hours, minutes, and seconds
-        This format can be used by the pd.resample function
-
-    """
-    d = {"days": tdelta.days}
-    d["hours"], rem = divmod(tdelta.seconds, 3600)
-    d["minutes"], d["seconds"] = divmod(rem, 60)
-    return "{}h{}min{}s".format(d["hours"], d["minutes"], d["seconds"])
-
-
 def get_filenames_in_s3_folder(bucket, folder):
     """Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
@@ -403,78 +339,20 @@ def get_filenames_in_s3_folder(bucket, folder):
 
     """
 
+    if folder[:-1] != "/":  # add slash
+        folder = folder + "/"
+
     s3 = boto3.resource("s3")
     s3_bucket = s3.Bucket(bucket)
 
     # Get all the filenames
-    # Just get relative path (f.key.split(folder + "/")[1])
-    files_in_s3 = [
-        f.key.split(folder + "/")[1]
-        for f in s3_bucket.objects.filter(Prefix=folder).all()
-    ]
+    files_in_s3 = [f.key for f in s3_bucket.objects.filter(Prefix=folder).all()]
 
-    # Delete empty filenames
-    # I think the "empty" filename/s is just the bucket path, which isn't a file but is read as an object by the objects.filter function
-    files_in_s3 = [f for f in files_in_s3 if f != ""]
+    # Get filenames with URI
+    # This allows you to load the file directly using the path
+    filenames_with_uri = ["s3://{}/{}".format(bucket, file) for file in files_in_s3]
 
-    return files_in_s3
-
-
-def read_data_from_s3(bucket, folder, filename, temp_dir=""):
-    """Read data from AWS s3 bucket
-
-    Parameters
-    ----------
-    bucket: str
-        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc...
-    folder: str
-        Folder within the bucket containing the data you want to read
-    filename: str
-        Name of the file in the bucket (i.e. "ASOSAWOS_72012200114.nc")
-    temp_dir: str, optional
-        Temporary directory for storing downloaded data
-        Default to current directory
-
-    Returns
-    -------
-    station_data: xr.Dataset (data_type = "netcdf") or pd.DataFrame (data_type = "csv")
-
-    Example
-    -------
-    Proper arguments for data with the s3 URI: s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/ValleyWater_5007_1980-01-01_2024-11-08.csv
-    >>> read_data_from_s3(
-    >>>     bucket = "wecc-historical-wx",
-    >>>     folder = "1_raw_wx/VALLEYWATER",
-    >>>     filename = "ValleyWater_6001_1900-01-01_2024-11-11.csv"
-    >>> )
-
-    """
-    # Get suffix of filename (i.e. .csv, .nc)
-    suffix = Path(filename).suffix
-
-    # Temp file for downloading from s3
-    temp_file = tempfile.NamedTemporaryFile(
-        dir=temp_dir, prefix="", suffix=suffix, delete=True
-    )
-
-    # Create s3 file system
-    s3 = s3fs.S3FileSystem(anon=False)
-
-    # Get URL to netcdf in S3
-    s3_url = "s3://{}/{}/{}".format(bucket, folder, filename)
-
-    # Read data
-    s3_file_obj = s3.get(s3_url, temp_file.name)
-
-    if suffix in [".nc", ".h5"]:
-        station_data = xr.open_dataset(temp_file.name, engine="h5netcdf").load()
-    elif suffix == ".csv":
-        station_data = pd.read_csv(temp_file.name)
-
-    # Close temporary file
-    temp_file.close()
-
-    return station_data
+    return filenames_with_uri
 
 
 def progressbar(it, prefix="", size=60, out=sys.stdout):
