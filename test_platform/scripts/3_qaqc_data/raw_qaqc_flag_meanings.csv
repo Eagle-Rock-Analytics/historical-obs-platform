@@ -1,436 +1,436 @@
-network, raw_qc_flag, raw_qc_flag_meaning
-NDBC/MARITIME,0,Blank - No quality control (QC) has been performed
-NDBC/MARITIME,1,Good - QC has been performed: record appears correct
-NDBC/MARITIME,3,Doubtful - QC has been performed: record appears doubtful
-NDBC/MARITIME,4,Erroneous - QC has been perfromed: record appears erroneous
-NDBC/MARITIME,5,Changes - The record has been changed as a result of QC
-NDBC/MARITIME,6,Acceptable - QC has been performed: record seems inconsistent with other records
-NDBC/MARITIME,7,Off Position - There is a problem with the buoy position or mooring. Data may still be useful.
-NDBC/MARITIME,8,Reserved
-NDBC/MARITIME,9,Reserved - indicates missing elements
-Synoptic Data,1,SynopticLabs Range Check (sl_range_check)
-Synoptic Data,3,SynopticLabs Temporal Persistence Check (sl_pers_check)
-Synoptic Data,10,SynopticLabs Wind Speed vs. Maximum Gusts (sl_windspd_maxgust_check)
-Synoptic Data,12,SynopticLabs Wind Speed vs. Wind Direction (sl_windspd_winddir_check)
-MADIS (NOAA),13,MADIS Range Check (ma_range_check)
-MADIS (NOAA),14,MADIS Position Consistency Check (ma_position_check)
-MADIS (NOAA),15,MADIS Internal Consistency Check (ma_int_cons_check)
-MADIS (NOAA),16,MADIS Temporal Consistency Check (ma_temp_cons_check)
-MADIS (NOAA),17,MADIS Statistical Spatial Consistency Check (ma_stat_spatial_cons_check)
-MADIS (NOAA),18,MADIS Spatial Consistency Check (ma_stat_cons_check)
-MADIS (NOAA),19,MADIS Forecast Model Consistency Check (ma_fcst_cons_check)
-MADIS (NOAA),20,MADIS Statistical Model Consistency Check (ma_stat_model_cons_check)
-MADIS (NOAA),21,MADIS Kalman Filter Check (ma_kal_filter_check)
-MADIS (NOAA),22,MADIS SLP vs. Station Pressure (ma_slp_stnpres_check)
-MADIS (NOAA),23,MADIS Pressure Change vs. Station Pressure (ma_pres_chng_stn_pres_check)
-MADIS (NOAA),24,MADIS Air Temperature vs. Dewpoint Temperature (ma_airtemp_dwpt_check)
-MADIS (NOAA),25,MADIS Air Temperature vs. Max/Min Temperature (ma_airtemp_mmtemp_check)
-MADIS (NOAA),26,MADIS Air Temperature vs. SST (ma_airtemp_SST_check)
-MADIS (NOAA),27,MADIS Wind Direction vs. Wind Speed (ma_winddir_windspd_check)
-MADIS (NOAA),28,MADIS Wind Speed vs. Maximum Gusts (ma_windspd_maxgust_check)
-MADIS (NOAA),29,MADIS Wind Speed vs. Present Weather (ma_windspd_preswx_check)
-MADIS (NOAA),30,MADIS Wind Speed vs. Peak Wind Speed (ma_windspd_peak_windspd_check)
-MADIS (NOAA),31,MADIS Wind Speed vs. Maximum Wind Speed (ma_windspd_max_windspd_check)
-MADIS (NOAA),32,MADIS Wind Direction at 10m vs. Wind Speed at 10m (ma_winddir10m_windspd10m_check)
-MADIS (NOAA),33,MADIS Wind Direction at 20m vs. Wind Speed at 20m (ma_winddir20m_windspd20m_check)
-MADIS (NOAA),34,MADIS Maximum Gusts vs. Peak Wind Speed (ma_maxgust_peak_windspd_check)
-MADIS (NOAA),35,MADIS Maximum Gusts vs. Maximum Wind Speed (ma_maxgust_max_windspd_check)
-MADIS (NOAA),36,MADIS Peak Wind Speed vs. Present Weather (ma_peak_windspd_preswx_check)
-MADIS (NOAA),37,MADIS Horizontal Visibility (VV) vs. Present Weather (ww) (ma_hvis_preswx_check)
-MADIS (NOAA),38,MADIS Present Weather vs. Air temperature (ma_preswx_airtemp_check)
-MADIS (NOAA),39,MADIS Present Weather vs. Total Cloud Cover (ma_preswx_totcldcov_check)
-MADIS (NOAA),40,MADIS Present Weather vs. Low/Middle Cloud Cover (ma_preswx_lmcldcov_check)
-MADIS (NOAA),41,MADIS Present Weather vs. Accumulated Precipitation (ma_preswx_accprecip_check)
-MADIS (NOAA),42,MADIS Present Weather vs. Air temperature; Wind Speed; and Dewpoint (ma_preswx_airtemp_windspd_dwpt_check)
-MADIS (NOAA),43,MADIS Past Weather vs. Accumulated Precipitation (ma_pastwx_accprecip_check)
-MADIS (NOAA),44,MADIS Total Cloud Cover vs. Layer Cloud cover (ma_totcldcov_layer_cldcov_check)
-MADIS (NOAA),45,MADIS Total Cloud Cover vs. Low/Middle Cloud Cover (ma_totcldcov_lmcldcov_check)
-MADIS (NOAA),46,MADIS Total Cloud Cover vs. Low/Middle/High Cloud Type (ma_totcldcov_lmhcldtype_check)
-MADIS (NOAA),47,MADIS Total Cloud Cover vs. L/M Cloud Cover and Low/Middle/High Cloud Type (ma_totcldcov_lmcldcov_lmhcldtype_check)
-MADIS (NOAA),48,MADIS Total Cloud Cover vs. Visibility (ma_totcldcov_vis_check)
-MADIS (NOAA),49,MADIS Total Cloud Cover vs. Present Weather (ma_tocldcov_preswx_check)
-MADIS (NOAA),50,MADIS Low/Middle Cloud Cover vs. Low/Middle/High Cloud Types (ma_lmcldcov_lmhcldtype_check)
-MADIS (NOAA),51,MADIS Low/Middle Cloud Cover vs. Layer Cloud Type (ma_lmcldcov_layercldtype_check)
-MADIS (NOAA),52,MADIS Low Cloud Type vs. Layer Cloud Type (ma_lcldtype_layercldtype_check)
-MADIS (NOAA),53,MADIS Low Cloud Type vs. Low/Middle Cloud Cover (ma_lcldtype_lmcldcov_check)
-MADIS (NOAA),54,MADIS Low/Middle Cloud Type vs. Low/Middle Cloud Cover (ma_lmcldtype_lmcldcov_check)
-MADIS (NOAA),55,MADIS Low Cloud Type vs. Middle/High Cloud Type (ma_lcldtype_mhcldtype_check)
-MADIS (NOAA),56,MADIS Low Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_lcldtype_hcldtype_totcldcov_lmcldcov_check)
-MADIS (NOAA),57,MADIS Middle Cloud Type vs. High Cloud Type (ma_mcldtype_hcldtype_check)
-MADIS (NOAA),58,MADIS Middle Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_mcldtype_hcldtype_totcldcov_lmcldcov_check)
-MADIS (NOAA),59,MADIS Middle Cloud Type vs. Layer Cloud Type (ma_mcldtype_layercldtype_check)
-MADIS (NOAA),60,MADIS Middle Cloud Type vs. Low Cloud Type and Layer Cloud Type (ma_mcldtype_lcldtype_layercldtype_check)
-MADIS (NOAA),61,MADIS High Cloud Type vs. Layer Cloud Type (ma_hcldtype_layercldtype_check)
-MADIS (NOAA),62,MADIS High Cloud Type vs. L/M Cloud Type and Layer Cloud Type (ma_hcldtype_lmcldtype_layercldtype)
-MADIS (NOAA),63,MADIS High Cloud Type vs. Total Cloud Cover (ma_hcldtype_totcldcov_check)
-MADIS (NOAA),64,MADIS Layer Cloud Cover vs. Cloud Layer Reports (ma_layercldcov_cldlayerreps_check)
-MADIS (NOAA),65,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Type (ma_layercldcov_lmhcldtype_check)
-MADIS (NOAA),66,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Cover (ma_layercldcov_lmhcldcov_check)
-MADIS (NOAA),67,MADIS Layer Cloud Type vs. Low/Middle/High Cloud type (ma_layercldtype_lmhcldtype_check)
-MADIS (NOAA),68,MADIS Layer Cloud Type vs. Low/Middle Cloud Cover and Layer Cloud Cover (ma_layercldtype_lmhcldcov_layercldcov_check)
-MADIS (NOAA),69,MADIS Layer Cloud Base vs. Low/Middle/High cloud type (ma_layercldbase_lmhcldtype_check)
-MADIS (NOAA),70,MADIS Layer Cloud Base vs. Layer Cloud Type (ma_layercldbase_layercldtype_check)
-MADIS (NOAA),71,MADIS Layer Cloud Base vs. Low/Middle Cloud Cover (ma_layercldbase_lmhcldcov_check)
-MADIS (NOAA),72,MADIS Layer Cloud Base vs. High Cloud Type and Layer Cloud Type (ma_layercldbase_hcldtype_layercldtype_check)
-MADIS (NOAA),73,MADIS Accumulated Precip (during period) vs. Snow Depth (ma_accprecip_snowdepth_check)
-MADIS (NOAA),74,MADIS Accumulated Precip (during period) vs. Snowfall (ma_accprecip_snowfall_check)
-MADIS (NOAA),75,MADIS Accumulated Precip (during period) vs. Accumulated Precip (24h) (ma_accprecip_24hrprecip_check)
-MADIS (NOAA),76,MADIS Snow Depth vs. Snow Water Equivalent (ma_snowdepth_swe_check)
-ARLFRD,77,ARLFRD Manual Data Check (arlfrd_manual_check)
-MesoWest,78,MesoWest Multivariate Linear Regression Check (mw_multvariate_lin_reg_check)
-MesoWest,79,MesoWest 24 Hour Wind Persistence Check (mw_24h_wind_persistence_check)
-MesoWest,80,MesoWest UU2DVAR Rejection (mw_uu2dvar_rejection)
-Synoptic Data,81,SynopticLabs Rate Change Check (sl_rate_check)
-Synoptic Data,100,SynopticLabs Percentile High Flag Check (sl_percentile_hiflag_check)
-Synoptic Data,101,SynopticLabs Percentile High Outlier Check (sl_percentile_hioutlier_check)
-Synoptic Data,102,SynopticLabs Percentile Low Flag Check (sl_percentile_loflag_check)
-Synoptic Data,103,SynopticLabs Percentile Low Outlier Check (sl_percentile_looutlier_check)
-Synoptic Data,104,SynopticLabs Spatial Percentile Check (sl_spatial_percentile_check)
-Synoptic Data,105,SynopticLabs Spatial Value Check (sl_spatial_value_check)
-SCAN/SNOTEL,V,Valid
-SCAN/SNOTEL,S,Suspect
-SCAN/SNOTEL,E,Edited
-NDBC/MARITIME,T,Transmission parity error (Applies to continuous winds and non-WPM wave data and DART data)
-NDBC/MARITIME,M,Missing sensor data (A result of a garbled or missing message)
-NDBC/MARITIME,W,A WPM wave message is short
-NDBC/MARITIME,D,Delete measurement from release and archive 
-NDBC/MARITIME,S,Invalid statistical parameter
-NDBC/MARITIME,V,Failed time continuity
-NDBC/MARITIME,L,Failed range limits
-NDBC/MARITIME,H,Hierarchy reversal has occurred (BARO
-NDBC/MARITIME,R,A related measurement has failed a hard QC check
-NDBC/MARITIME,a,Measurement is above monthly
-NDBC/MARITIME,b,Measurement is below monthly
-NDBC/MARITIME,d,Failed standard deviation test (continuous winds only)
-NDBC/MARITIME,f,Measurement failed hourly time continuity
-NDBC/MARITIME,g,Failed gust-to-mean wind speed ratio (applies to standard and continuous winds)
-NDBC/MARITIME,i,Continuous and hourly wind speeds don't agree
-NDBC/MARITIME,j,One
-NDBC/MARITIME,k,Difference between duplicate measurements is too high
-NDBC/MARITIME,m,High frequency spikes detected in wave spectrum
-NDBC/MARITIME,n,Measurement failed comparison with NCEP model fields
-NDBC/MARITIME,p,Failed wave height to wave period comparison test
-NDBC/MARITIME,q,Swell direction is from an improbably direction
-NDBC/MARITIME,r,Related measurement failed (continuous winds only)
-NDBC/MARITIME,S,Stuck raw compass (RCOMP and WDIR are flagged)
-NDBC/MARITIME,t,Tendency difference between duplicate sensors is too high
-NDBC/MARITIME,v,Failed relative humidity versus visibility check
-NDBC/MARITIME,w,Failed wind direction versus wave direction check
-NDBC/MARITIME,x,Wind wave energy is too high for prevailing wind speed
-NDBC/MARITIME,y,Wind wave energy is too low for prevailing wind speed
-NDBC/MARITIME,z,Failed bow azimuth versus wind direction check
-CIMIS,R,Hourly solar radiation - Sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is equal to or greater than 1.0; the sun is more than 10 degrees above the horizon and the measured hourly solar radiation is equal to or less than 0 Wm-2; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly solar radiation is equal to or greater than 10.00 Wm-2
-CIMIS,S,Hourly solar radiation - Measured hourly solar radiation is less than or equal to -50.00 Wm-2
-CIMIS,Y,Hourly solar radiation - The sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is greater than 0.85; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly radiation is equal to or greater than 6.00 Wm-2
-CIMIS,N,Hourly net radiation - Net radiation is not calculated for this station
-CIMIS,Q,Hourly net radiation - Solar radiation is severe (flagged S); two or all three sensors (solar radiation
-CIMIS,R,Hourly net radiation - Net radiation is less than -100
-CIMIS,S,Hourly net radiation - Solar radiation
-CIMIS,R,Hourly soil temperature - Soil temperature is far out of historical range (outside the 99.8% confidence interval)
-CIMIS,Y,Hourly soil temperature - Soil temperature is moderately out of historical range (outside the 96% confidence interval); soil temperature drop or rise between this hour and the previous hour is greater than 3 degC
-CIMIS,R,Hourly air temperature - Air temperature drop or rise between this hour and the previous hour is greater than 10 degC
-CIMIS,S,Hourly air temperature - Air temperature is constant for 4 hours in a row
-CIMIS,Y,Hourly air temperature - Air temperature is moderately out of historical range (outside of 96% confidence interval)
-CIMIS,Q,Hourly vapor pressure - Air temperature or precipitation is severe (eitehr or both are flagged S)
-CIMIS,R,Hourly vapor pressure - Vapor pressure is constant for 4 hours in a row; actual vapor pressure is equal to or less than to 0.00 kPa or actual vapor pressure is greater than 1.05 times the saturation vapor pressure
-CIMIS,S,Hourly vapor pressure - Vapor pressure is equal to or less than 0
-CIMIS,Y,Hourly vapor pressure - Relative humidity is less than 50% during an hour with 1.00 mm or more of precipitation
-CIMIS,I,Hourly wind speed - Wind speed is equal to or less than 0.447 (1 mph) or wind speed is constant for 4 hours in a row
-CIMIS,S,Hourly wind speed - Wind speed is equal to or less than 0; wind speed is equal to or greater than 45 m/s or 100 mph
-CIMIS,I,Hourly resultant wind - Wind speed is flagged I
-CIMIS,Q,Hourly resultant wind - Wind speed is severe
-CIMIS,R,Hourly resultant wind - Resultant wind is equal to or greater than wind speed
-CIMIS,S,Hourly wind direction - Wind direction is less than 0 or greater than 360 degrees
-CIMIS,R,Hourly wind direction - Wind direction is constant for 4 hours in a row
-CIMIS,S,Hourly standard deviation of wind direction - Wind direction is severe; standard dviation of wind direction is between 188 and 189
-CIMIS,R,Hourly standard deviation of wind direction - Wind direction is flagged R; standard deviation of wind speed is equal to or greater than 180 degrees or less than 0
-CIMIS,R,Hourly precipitation - Precipitation is more than 100 mm (4 inches); measured solar radiation is greater than 75% of calculated extraterrestrial radiation
-CIMIS,S,Hourly precipitation - Precipitation is less than 0
-CIMIS,Y,Hourly precipitation - Measured solar radiation is greater than 65% of calculated extraterrestrial radiation
-CIMIS,R,Hourly evapotranspiration - One or more of the above listed measurements is flagged R; wind speed is flagged I
-CIMIS,S,Hourly evapotranspiration - Precipitation is less than 0
-CIMIS,Y,Hourly evapotranspiration - One or more of the above listed measurements is flagged Y
-CIMIS,Q,Hourly relative humidity - Air temperature or vapor pressure is severe
-CIMIS,R,Hourly relative humidity - Air temperature or vapor pressure is flagged R
-CIMIS,Y,Hourly relative humidity - Air temperature or vapor pressure is flagged Y
-CIMIS,Q ,Dew point temperature - Relative humidity is flagged Q
-CIMIS,R,Dew point temperature - Relative humidity is flagged R
-CIMIS,Y,Dew point temperature - Relative humidity is flagged Y
-OtherISD,V01,qaqc_process - No A or M Quality Control applied
-OtherISD,V02,qaqc_process - Automated Quality Control
-OtherISD,V03,qaqc_process - subjected to Quality Control
-OtherISD,1,data_source - USAF SURFACE HOURLY observation
-OtherISD,2,data_source - NCEI SURFACE HOURLY observation
-OtherISD,3,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY merged observation
-OtherISD,4,data_source - USAF SURFACE HOURLY observation
-OtherISD,5,data_source - NCEI SURFACE HOURLY observation
-OtherISD,6,data_source - ASOS/AWOS observation from NCEI
-OtherISD,7,data_source - ASOS/AWOS observation merged with USAD SURFACE HOURLY observation
-OtherISD,8,data_source - MAPSO observation (NCEI)
-OtherISD,A,data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
-OtherISD,B,data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
-OtherISD,C,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
-OtherISD,D,data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
-OtherISD,E,data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation
-OtherISD,F,data_source - Form OMR/1001 – Weather Bureau city office (keyed data)
-OtherISD,G,data_source - SAO surface airways observation
-OtherISD,H,data_source - SAO surface airways observation
-OtherISD,I,data_source - Climate Reference Network observation
-OtherISD,J,data_source - Cooperative Network observation
-OtherISD,K,data_source - Radiation Network observation
-OtherISD,L,data_source - Data from Climate Data Modernization Program (CDMP) data source
-OtherISD,M,data_source - Data from National Renewable Energy Laboratory (NREL) data source
-OtherISD,N,data_source - NCAR / NCEI cooperative effort (various national datasets)
-OtherISD,O,data_source - Summary observation created by NCEI using hourly observations that may not share the same data source flag
-OtherISD,9,data_source - Missing
-OtherISD,0,sfcWind_dir_qc - Passed gross limits check
-OtherISD,1,sfcWind_dir_qc - Passed all quality control checks
-OtherISD,2,sfcWind_dir_qc - Suspect
-OtherISD,3,sfcWind_dir_qc - Erroneous
-OtherISD,4,sfcWind_dir_qc - Passed gross limits check
-OtherISD,5,sfcWind_dir_qc - Passed all quality control checks
-OtherISD,6,sfcWind_dir_qc - Suspect
-OtherISD,7,sfcWind_dir_qc - Erroneous
-OtherISD,9,sfcWind_dir_qc - Passed gross limits check if element is present
-OtherISD,A,sfcWind_method - Abridged Beaufort
-OtherISD,B,sfcWind_method - Beaufort
-OtherISD,C,sfcWind_method - Calm
-OtherISD,H,sfcWind_method - 5-Minute Average Speed
-OtherISD,N,sfcWind_method - Normal
-OtherISD,R,sfcWind_method - 60-Minute Average Speed
-OtherISD,Q,sfcWind_method - Squall
-OtherISD,T,sfcWind_method - 180 Minute Average Speed
-OtherISD,V,sfcWind_method - Variable
-OtherISD,9,sfcWind_method - Missing
-OtherISD,0,sfcWind_qc - Passed gross limits check
-OtherISD,1,sfcWind_qc - Passed all quality control checks
-OtherISD,2,sfcWind_qc - Suspect
-OtherISD,3,sfcWind_qc - Erroneous
-OtherISD,4,sfcWind_qc - Passed gross limits check
-OtherISD,5,sfcWind_qc - Passed all quality control checks
-OtherISD,6,sfcWind_qc - Suspect
-OtherISD,7,sfcWind_qc - Erroneous
-OtherISD,9,sfcWind_qc - Passed gross limits check if element is present
-OtherISD,0,tas_qc - Passed gross limits check
-OtherISD,1,tas_qc - Passed all quality control checks
-OtherISD,2,tas_qc - Suspect
-OtherISD,3,tas_qc - Erroneous
-OtherISD,4,tas_qc - Passed gross limits check
-OtherISD,5,tas_qc - Passed all quality control checks
-OtherISD,6,tas_qc - Suspect
-OtherISD,7,tas_qc - Erroneous
-OtherISD,9,tas_qc - Passed gross limits check if element is present
-OtherISD,A,tas_qc - Data value flagged as suspect
-OtherISD,C,tas_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values
-OtherISD,I,tas_qc - Data value not originally in data
-OtherISD,M,tas_qc - Manual changes made to value based on information provided by NWS or FAA
-OtherISD,P,tas_qc - Data value not originally flagged as suspect
-OtherISD,R,tas_qc - Data value replaced with value computed by NCEI software
-OtherISD,U,tas_qc - Data value replaced with edited value
-OtherISD,0,tdps_qc - Passed gross limits check
-OtherISD,1,tdps_qc - Passed all quality control checks
-OtherISD,2,tdps_qc - Suspect
-OtherISD,3,tdps_qc - Erroneous
-OtherISD,4,tdps_qc - Passed gross limits check
-OtherISD,5,tdps_qc - Passed all quality control checks
-OtherISD,6,tdps_qc - Suspect
-OtherISD,7,tdps_qc - Erroneous
-OtherISD,9,tdps_qc - Passed gross limits check if element is present
-OtherISD,A,tdps_qc - Data value flagged as suspect
-OtherISD,C,tdps_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values
-OtherISD,I,tdps_qc - Data value not originally in data
-OtherISD,M,tdps_qc - Manual changes made to value based on information provided by NWS or FAA
-OtherISD,P,tdps_qc - Data value not originally flagged as suspect
-OtherISD,R,tdps_qc - Data value replaced with value computed by NCEI software
-OtherISD,U,tdps_qc - Data value replaced with edited value
-OtherISD,0,psl_qc - Passed gross limits check
-OtherISD,1,psl_qc - Passed all quality control checks
-OtherISD,2,psl_qc - Suspect
-OtherISD,3,psl_qc - Erroneous
-OtherISD,4,psl_qc - Passed gross limits check
-OtherISD,5,psl_qc - Passed all quality control checks
-OtherISD,6,psl_qc - Suspect
-OtherISD,7,psl_qc - Erroneous
-OtherISD,9,psl_qc - Passed gross limits check if element is present
-OtherISD,1,pr_depth_qc - Measurement impossible or inaccurate
-OtherISD,2,pr_depth_qc - Trace
-OtherISD,3,pr_depth_qc - Begin accumulated period (precipitation amount missing until end of accumulated period)
-OtherISD,4,pr_depth_qc - End accumulated period
-OtherISD,5,pr_depth_qc - Begin deleted period (precipitation amount missing due to data problem)
-OtherISD,6,pr_depth_qc - End deleted period
-OtherISD,7,pr_depth_qc - Begin missing period
-OtherISD,8,pr_depth_qc - End missing period
-OtherISD,E,pr_depth_qc - Estimated data value (eg
-OtherISD,I,pr_depth_qc - Incomplete precipitation amount
-OtherISD,J,pr_depth_qc - Incomplete precipitation amount
-OtherISD,9,pr_depth_qc - Missing
-OtherISD,0,pr_qc - Passed gross limits check
-OtherISD,1,pr_qc - Passed all quality control checks
-OtherISD,2,pr_qc - Suspect
-OtherISD,3,pr_qc - Erroneous
-OtherISD,4,pr_qc - Passed gross limits check
-OtherISD,5,pr_qc - Passed all quality control checks
-OtherISD,6,pr_qc - Suspect
-OtherISD,7,pr_qc - Erroneous
-OtherISD,9,pr_qc - Passed gross limits check if element is present
-OtherISD,A,pr_qc - Data value flagged as suspect
-OtherISD,I,pr_qc - Data value not originally in data
-OtherISD,M,pr_qc - Manual changes made to value based on information provided by NWS or FAA
-OtherISD,P,pr_qc - Data value not originally flagged as suspect
-OtherISD,R,pr_qc - Data value replaced with value computed by NCEI software
-OtherISD,U,pr_qc - Data value replaced with edited value
-OtherISD,1,hurs_temp_qc - Passed all quality control checks
-OtherISD,3,hurs_temp_qc - Failed all quality control checks
-OtherISD,9,hurs_temp_qc - Missing
-OtherISD,0,hurs_temp_flag - Passed all quality control checks
-OtherISD,1,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,2,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,3,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,4,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,5,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,6,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,7,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,8,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,9,hurs_temp_flag - Did not pass all quality control checks
-OtherISD,1,hurs_qc - Passed all quality control checks
-OtherISD,3,hurs_qc - Failed all quality control checks
-OtherISD,9,hurs_qc - Missing
-OtherISD,0,hurs_flag - Passed all quality control checks
-OtherISD,1,hurs_flag - Did not pass all quality control checks
-OtherISD,2,hurs_flag - Did not pass all quality control checks
-OtherISD,3,hurs_flag - Did not pass all quality control checks
-OtherISD,4,hurs_flag - Did not pass all quality control checks
-OtherISD,5,hurs_flag - Did not pass all quality control checks
-OtherISD,6,hurs_flag - Did not pass all quality control checks
-OtherISD,7,hurs_flag - Did not pass all quality control checks
-OtherISD,8,hurs_flag - Did not pass all quality control checks
-OtherISD,9,hurs_flag - Did not pass all quality control checks
-OtherISD,0,rsds_flag - Untested (raw data)
-OtherISD,1,rsds_flag - Passed one-component test; data fall within max-min limits of Kt
-OtherISD,2,rsds_flag - Passed two-component test;  data fall within 0.03 of the Gompertz boundaries
-OtherISD,3,rsds_flag - Passed three-component test;  data come within + 0.03 of satisfying Kt = Kn + Kd
-OtherISD,4,rsds_flag - Passed visual inspection: not used by SERI_QC1
-OtherISD,5,rsds_flag - Failed visual inspection: not used by SERI_QC1
-OtherISD,6,rsds_flag - Value estimated ( passes all pertinent SERI_QC tests)
-OtherISD,7,rsds_flag - Failed one-component test (lower than allowed minimum)
-OtherISD,8,rsds_flag - Failed one-component test (higher than allowed maximum)
-OtherISD,9,rsds_flag - Passed three-component test but failed two-component test by 0.05
-OtherISD,10,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,11,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,12,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,13,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,14,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,15,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,16,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,17,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,18,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,19,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,20,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,21,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,22,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,23,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,24,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,25,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,26,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,27,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,28,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,29,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,30,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,31,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,32,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,33,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,34,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,35,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,36,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,37,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,38,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,39,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,40,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,41,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,42,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,43,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,44,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,45,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,46,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,47,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,48,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,49,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,50,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,51,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,52,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,53,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,54,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,55,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,56,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,57,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,58,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,59,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,60,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,61,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,62,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,63,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,64,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,65,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,66,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,67,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,68,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,69,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,70,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,71,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,72,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,73,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,74,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,75,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,76,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,77,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,78,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,79,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,80,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,81,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,82,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,83,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,84,rsds_flag - Failed two- or three- component tests in one of four ways
-OtherISD,85,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,86,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,87,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,88,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,89,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,90,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,91,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,92,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,93,rsds_flag - Failed two- or three- component tests in one of four ways.
-OtherISD,94,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94)
-OtherISD,95,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94)
-OtherISD,96,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94)
-OtherISD,97,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94)
-OtherISD,98,rsds_flag - Not used
-OtherISD,99,rsds_flag - Missing data
-OtherISD,0,rsds_qc - Passed gross limits check
-OtherISD,1,rsds_qc - Passed all quality control checks
-OtherISD,2,rsds_qc - Suspect
-OtherISD,3,rsds_qc - Erroneous
-OtherISD,9,rsds_qc - Missing
-OtherISD,0,ps_altimeter_qc - Passed gross limits check
-OtherISD,1,ps_altimeter_qc - Passed all quality control checks
-OtherISD,2,ps_altimeter_qc - Suspect
-OtherISD,3,ps_altimeter_qc - Erroneous
-OtherISD,4,ps_altimeter_qc - Passed gross limits check
-OtherISD,5,ps_altimeter_qc - Passed all quality control checks
-OtherISD,6,ps_altimeter_qc - Suspect
-OtherISD,7,ps_altimeter_qc - Erroneous
-OtherISD,M,ps_altimeter_qc - Manual changes made to value based on information provided by NWS or FAA
-OtherISD,9,ps_altimeter_qc - Passed gross limits check if element is present
-OtherISD,0,ps_qc - Passed gross limits check
-OtherISD,1,ps_qc - Passed all quality control checks
-OtherISD,2,ps_qc - Suspect
-OtherISD,3,ps_qc - Erroneous
-OtherISD,4,ps_qc - Passed gross limits check
-OtherISD,5,ps_qc - Passed all quality control checks
-OtherISD,6,ps_qc - Suspect
-OtherISD,7,ps_qc - Erroneous
-OtherISD,M,ps_qc - Manual changes made to value based on information provided by NWS or FAA
-OtherISD,9,ps_qc - Passed gross limits check if element is present
-VALLEYWATER,0,Approved
-VALLEYWATER,1,Preliminary
-VALLEYWATER,2,Reviewed
-VALLEYWATER,3,In Review
+network, raw_qc_flag, raw_qc_flag_meaning,
+NDBC/MARITIME,0,Blank - No quality control (QC) has been performed,
+NDBC/MARITIME,1,Good - QC has been performed: record appears correct,
+NDBC/MARITIME,3,Doubtful - QC has been performed: record appears doubtful,
+NDBC/MARITIME,4,Erroneous - QC has been perfromed: record appears erroneous,
+NDBC/MARITIME,5,Changes - The record has been changed as a result of QC,
+NDBC/MARITIME,6,Acceptable - QC has been performed: record seems inconsistent with other records,
+NDBC/MARITIME,7,Off Position - There is a problem with the buoy position or mooring. Data may still be useful.,
+NDBC/MARITIME,8,Reserved,
+NDBC/MARITIME,9,Reserved - indicates missing elements,
+Synoptic Data,1,SynopticLabs Range Check (sl_range_check),
+Synoptic Data,3,SynopticLabs Temporal Persistence Check (sl_pers_check),
+Synoptic Data,10,SynopticLabs Wind Speed vs. Maximum Gusts (sl_windspd_maxgust_check),
+Synoptic Data,12,SynopticLabs Wind Speed vs. Wind Direction (sl_windspd_winddir_check),
+MADIS (NOAA),13,MADIS Range Check (ma_range_check),
+MADIS (NOAA),14,MADIS Position Consistency Check (ma_position_check),
+MADIS (NOAA),15,MADIS Internal Consistency Check (ma_int_cons_check),
+MADIS (NOAA),16,MADIS Temporal Consistency Check (ma_temp_cons_check),
+MADIS (NOAA),17,MADIS Statistical Spatial Consistency Check (ma_stat_spatial_cons_check),
+MADIS (NOAA),18,MADIS Spatial Consistency Check (ma_stat_cons_check),
+MADIS (NOAA),19,MADIS Forecast Model Consistency Check (ma_fcst_cons_check),
+MADIS (NOAA),20,MADIS Statistical Model Consistency Check (ma_stat_model_cons_check),
+MADIS (NOAA),21,MADIS Kalman Filter Check (ma_kal_filter_check),
+MADIS (NOAA),22,MADIS SLP vs. Station Pressure (ma_slp_stnpres_check),
+MADIS (NOAA),23,MADIS Pressure Change vs. Station Pressure (ma_pres_chng_stn_pres_check),
+MADIS (NOAA),24,MADIS Air Temperature vs. Dewpoint Temperature (ma_airtemp_dwpt_check),
+MADIS (NOAA),25,MADIS Air Temperature vs. Max/Min Temperature (ma_airtemp_mmtemp_check),
+MADIS (NOAA),26,MADIS Air Temperature vs. SST (ma_airtemp_SST_check),
+MADIS (NOAA),27,MADIS Wind Direction vs. Wind Speed (ma_winddir_windspd_check),
+MADIS (NOAA),28,MADIS Wind Speed vs. Maximum Gusts (ma_windspd_maxgust_check),
+MADIS (NOAA),29,MADIS Wind Speed vs. Present Weather (ma_windspd_preswx_check),
+MADIS (NOAA),30,MADIS Wind Speed vs. Peak Wind Speed (ma_windspd_peak_windspd_check),
+MADIS (NOAA),31,MADIS Wind Speed vs. Maximum Wind Speed (ma_windspd_max_windspd_check),
+MADIS (NOAA),32,MADIS Wind Direction at 10m vs. Wind Speed at 10m (ma_winddir10m_windspd10m_check),
+MADIS (NOAA),33,MADIS Wind Direction at 20m vs. Wind Speed at 20m (ma_winddir20m_windspd20m_check),
+MADIS (NOAA),34,MADIS Maximum Gusts vs. Peak Wind Speed (ma_maxgust_peak_windspd_check),
+MADIS (NOAA),35,MADIS Maximum Gusts vs. Maximum Wind Speed (ma_maxgust_max_windspd_check),
+MADIS (NOAA),36,MADIS Peak Wind Speed vs. Present Weather (ma_peak_windspd_preswx_check),
+MADIS (NOAA),37,MADIS Horizontal Visibility (VV) vs. Present Weather (ww) (ma_hvis_preswx_check),
+MADIS (NOAA),38,MADIS Present Weather vs. Air temperature (ma_preswx_airtemp_check),
+MADIS (NOAA),39,MADIS Present Weather vs. Total Cloud Cover (ma_preswx_totcldcov_check),
+MADIS (NOAA),40,MADIS Present Weather vs. Low/Middle Cloud Cover (ma_preswx_lmcldcov_check),
+MADIS (NOAA),41,MADIS Present Weather vs. Accumulated Precipitation (ma_preswx_accprecip_check),
+MADIS (NOAA),42,MADIS Present Weather vs. Air temperature; Wind Speed; and Dewpoint (ma_preswx_airtemp_windspd_dwpt_check),
+MADIS (NOAA),43,MADIS Past Weather vs. Accumulated Precipitation (ma_pastwx_accprecip_check),
+MADIS (NOAA),44,MADIS Total Cloud Cover vs. Layer Cloud cover (ma_totcldcov_layer_cldcov_check),
+MADIS (NOAA),45,MADIS Total Cloud Cover vs. Low/Middle Cloud Cover (ma_totcldcov_lmcldcov_check),
+MADIS (NOAA),46,MADIS Total Cloud Cover vs. Low/Middle/High Cloud Type (ma_totcldcov_lmhcldtype_check),
+MADIS (NOAA),47,MADIS Total Cloud Cover vs. L/M Cloud Cover and Low/Middle/High Cloud Type (ma_totcldcov_lmcldcov_lmhcldtype_check),
+MADIS (NOAA),48,MADIS Total Cloud Cover vs. Visibility (ma_totcldcov_vis_check),
+MADIS (NOAA),49,MADIS Total Cloud Cover vs. Present Weather (ma_tocldcov_preswx_check),
+MADIS (NOAA),50,MADIS Low/Middle Cloud Cover vs. Low/Middle/High Cloud Types (ma_lmcldcov_lmhcldtype_check),
+MADIS (NOAA),51,MADIS Low/Middle Cloud Cover vs. Layer Cloud Type (ma_lmcldcov_layercldtype_check),
+MADIS (NOAA),52,MADIS Low Cloud Type vs. Layer Cloud Type (ma_lcldtype_layercldtype_check),
+MADIS (NOAA),53,MADIS Low Cloud Type vs. Low/Middle Cloud Cover (ma_lcldtype_lmcldcov_check),
+MADIS (NOAA),54,MADIS Low/Middle Cloud Type vs. Low/Middle Cloud Cover (ma_lmcldtype_lmcldcov_check),
+MADIS (NOAA),55,MADIS Low Cloud Type vs. Middle/High Cloud Type (ma_lcldtype_mhcldtype_check),
+MADIS (NOAA),56,MADIS Low Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_lcldtype_hcldtype_totcldcov_lmcldcov_check),
+MADIS (NOAA),57,MADIS Middle Cloud Type vs. High Cloud Type (ma_mcldtype_hcldtype_check),
+MADIS (NOAA),58,MADIS Middle Cloud Type vs. High Cloud Type and Total and L/M Cloud Cover (ma_mcldtype_hcldtype_totcldcov_lmcldcov_check),
+MADIS (NOAA),59,MADIS Middle Cloud Type vs. Layer Cloud Type (ma_mcldtype_layercldtype_check),
+MADIS (NOAA),60,MADIS Middle Cloud Type vs. Low Cloud Type and Layer Cloud Type (ma_mcldtype_lcldtype_layercldtype_check),
+MADIS (NOAA),61,MADIS High Cloud Type vs. Layer Cloud Type (ma_hcldtype_layercldtype_check),
+MADIS (NOAA),62,MADIS High Cloud Type vs. L/M Cloud Type and Layer Cloud Type (ma_hcldtype_lmcldtype_layercldtype),
+MADIS (NOAA),63,MADIS High Cloud Type vs. Total Cloud Cover (ma_hcldtype_totcldcov_check),
+MADIS (NOAA),64,MADIS Layer Cloud Cover vs. Cloud Layer Reports (ma_layercldcov_cldlayerreps_check),
+MADIS (NOAA),65,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Type (ma_layercldcov_lmhcldtype_check),
+MADIS (NOAA),66,MADIS Layer Cloud Cover vs. Low/Middle/High Cloud Cover (ma_layercldcov_lmhcldcov_check),
+MADIS (NOAA),67,MADIS Layer Cloud Type vs. Low/Middle/High Cloud type (ma_layercldtype_lmhcldtype_check),
+MADIS (NOAA),68,MADIS Layer Cloud Type vs. Low/Middle Cloud Cover and Layer Cloud Cover (ma_layercldtype_lmhcldcov_layercldcov_check),
+MADIS (NOAA),69,MADIS Layer Cloud Base vs. Low/Middle/High cloud type (ma_layercldbase_lmhcldtype_check),
+MADIS (NOAA),70,MADIS Layer Cloud Base vs. Layer Cloud Type (ma_layercldbase_layercldtype_check),
+MADIS (NOAA),71,MADIS Layer Cloud Base vs. Low/Middle Cloud Cover (ma_layercldbase_lmhcldcov_check),
+MADIS (NOAA),72,MADIS Layer Cloud Base vs. High Cloud Type and Layer Cloud Type (ma_layercldbase_hcldtype_layercldtype_check),
+MADIS (NOAA),73,MADIS Accumulated Precip (during period) vs. Snow Depth (ma_accprecip_snowdepth_check),
+MADIS (NOAA),74,MADIS Accumulated Precip (during period) vs. Snowfall (ma_accprecip_snowfall_check),
+MADIS (NOAA),75,MADIS Accumulated Precip (during period) vs. Accumulated Precip (24h) (ma_accprecip_24hrprecip_check),
+MADIS (NOAA),76,MADIS Snow Depth vs. Snow Water Equivalent (ma_snowdepth_swe_check),
+ARLFRD,77,ARLFRD Manual Data Check (arlfrd_manual_check),
+MesoWest,78,MesoWest Multivariate Linear Regression Check (mw_multvariate_lin_reg_check),
+MesoWest,79,MesoWest 24 Hour Wind Persistence Check (mw_24h_wind_persistence_check),
+MesoWest,80,MesoWest UU2DVAR Rejection (mw_uu2dvar_rejection),
+Synoptic Data,81,SynopticLabs Rate Change Check (sl_rate_check),
+Synoptic Data,100,SynopticLabs Percentile High Flag Check (sl_percentile_hiflag_check),
+Synoptic Data,101,SynopticLabs Percentile High Outlier Check (sl_percentile_hioutlier_check),
+Synoptic Data,102,SynopticLabs Percentile Low Flag Check (sl_percentile_loflag_check),
+Synoptic Data,103,SynopticLabs Percentile Low Outlier Check (sl_percentile_looutlier_check),
+Synoptic Data,104,SynopticLabs Spatial Percentile Check (sl_spatial_percentile_check),
+Synoptic Data,105,SynopticLabs Spatial Value Check (sl_spatial_value_check),
+SCAN/SNOTEL,V,Valid, data meets basic profile limits (is also default by WCIS storage system)
+SCAN/SNOTEL,S,Suspect, data does not meet limitations of sensor profile
+SCAN/SNOTEL,E,Edited, data record was manually edited by data editor
+NDBC/MARITIME,T,Transmission parity error (Applies to continuous winds and non-WPM wave data and DART data),
+NDBC/MARITIME,M,Missing sensor data (A result of a garbled or missing message),
+NDBC/MARITIME,W,A WPM wave message is short, missing a checksum
+NDBC/MARITIME,D,Delete measurement from release and archive ,
+NDBC/MARITIME,S,Invalid statistical parameter,
+NDBC/MARITIME,V,Failed time continuity,
+NDBC/MARITIME,L,Failed range limits,
+NDBC/MARITIME,H,Hierarchy reversal has occurred (BARO, WSPD
+NDBC/MARITIME,R,A related measurement has failed a hard QC check,
+NDBC/MARITIME,a,Measurement is above monthly, regional limit
+NDBC/MARITIME,b,Measurement is below monthly, regional limit
+NDBC/MARITIME,d,Failed standard deviation test (continuous winds only),
+NDBC/MARITIME,f,Measurement failed hourly time continuity,
+NDBC/MARITIME,g,Failed gust-to-mean wind speed ratio (applies to standard and continuous winds),
+NDBC/MARITIME,i,Continuous and hourly wind speeds don't agree,
+NDBC/MARITIME,j,One, and only one
+NDBC/MARITIME,k,Difference between duplicate measurements is too high,
+NDBC/MARITIME,m,High frequency spikes detected in wave spectrum, WVHGT is flagged
+NDBC/MARITIME,n,Measurement failed comparison with NCEP model fields,
+NDBC/MARITIME,p,Failed wave height to wave period comparison test,
+NDBC/MARITIME,q,Swell direction is from an improbably direction,
+NDBC/MARITIME,r,Related measurement failed (continuous winds only),
+NDBC/MARITIME,S,Stuck raw compass (RCOMP and WDIR are flagged),
+NDBC/MARITIME,t,Tendency difference between duplicate sensors is too high,
+NDBC/MARITIME,v,Failed relative humidity versus visibility check,
+NDBC/MARITIME,w,Failed wind direction versus wave direction check,
+NDBC/MARITIME,x,Wind wave energy is too high for prevailing wind speed,
+NDBC/MARITIME,y,Wind wave energy is too low for prevailing wind speed,
+NDBC/MARITIME,z,Failed bow azimuth versus wind direction check,
+CIMIS,R,Hourly solar radiation - Sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is equal to or greater than 1.0; the sun is more than 10 degrees above the horizon and the measured hourly solar radiation is equal to or less than 0 Wm-2; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly solar radiation is equal to or greater than 10.00 Wm-2,
+CIMIS,S,Hourly solar radiation - Measured hourly solar radiation is less than or equal to -50.00 Wm-2, or is equal to or greater than 4
+CIMIS,Y,Hourly solar radiation - The sun is more than 10 degrees above the horizon and the ratio of measured hourly solar radiation to calculated extraterrestrial radiation is greater than 0.85; the sun is less than 10 degrees above the horizon and the absolute value of measured hourly radiation is equal to or greater than 6.00 Wm-2,
+CIMIS,N,Hourly net radiation - Net radiation is not calculated for this station,
+CIMIS,Q,Hourly net radiation - Solar radiation is severe (flagged S); two or all three sensors (solar radiation, vapor pressure
+CIMIS,R,Hourly net radiation - Net radiation is less than -100, or equal to or greater than 800; solar radiation
+CIMIS,S,Hourly net radiation - Solar radiation, air temperature
+CIMIS,R,Hourly soil temperature - Soil temperature is far out of historical range (outside the 99.8% confidence interval),
+CIMIS,Y,Hourly soil temperature - Soil temperature is moderately out of historical range (outside the 96% confidence interval); soil temperature drop or rise between this hour and the previous hour is greater than 3 degC, or 5.4 degF
+CIMIS,R,Hourly air temperature - Air temperature drop or rise between this hour and the previous hour is greater than 10 degC, or 18 degF; air temperature is far out of historical range (outside the 99.8% confidence interval)
+CIMIS,S,Hourly air temperature - Air temperature is constant for 4 hours in a row,
+CIMIS,Y,Hourly air temperature - Air temperature is moderately out of historical range (outside of 96% confidence interval),
+CIMIS,Q,Hourly vapor pressure - Air temperature or precipitation is severe (eitehr or both are flagged S),
+CIMIS,R,Hourly vapor pressure - Vapor pressure is constant for 4 hours in a row; actual vapor pressure is equal to or less than to 0.00 kPa or actual vapor pressure is greater than 1.05 times the saturation vapor pressure,
+CIMIS,S,Hourly vapor pressure - Vapor pressure is equal to or less than 0,
+CIMIS,Y,Hourly vapor pressure - Relative humidity is less than 50% during an hour with 1.00 mm or more of precipitation,
+CIMIS,I,Hourly wind speed - Wind speed is equal to or less than 0.447 (1 mph) or wind speed is constant for 4 hours in a row,
+CIMIS,S,Hourly wind speed - Wind speed is equal to or less than 0; wind speed is equal to or greater than 45 m/s or 100 mph,
+CIMIS,I,Hourly resultant wind - Wind speed is flagged I,
+CIMIS,Q,Hourly resultant wind - Wind speed is severe,
+CIMIS,R,Hourly resultant wind - Resultant wind is equal to or greater than wind speed,
+CIMIS,S,Hourly wind direction - Wind direction is less than 0 or greater than 360 degrees,
+CIMIS,R,Hourly wind direction - Wind direction is constant for 4 hours in a row,
+CIMIS,S,Hourly standard deviation of wind direction - Wind direction is severe; standard dviation of wind direction is between 188 and 189,
+CIMIS,R,Hourly standard deviation of wind direction - Wind direction is flagged R; standard deviation of wind speed is equal to or greater than 180 degrees or less than 0,
+CIMIS,R,Hourly precipitation - Precipitation is more than 100 mm (4 inches); measured solar radiation is greater than 75% of calculated extraterrestrial radiation, the sun is 10 or more degrees above the horizon
+CIMIS,S,Hourly precipitation - Precipitation is less than 0,
+CIMIS,Y,Hourly precipitation - Measured solar radiation is greater than 65% of calculated extraterrestrial radiation, the sun is 10 or more degrees above the horizon
+CIMIS,R,Hourly evapotranspiration - One or more of the above listed measurements is flagged R; wind speed is flagged I,
+CIMIS,S,Hourly evapotranspiration - Precipitation is less than 0,
+CIMIS,Y,Hourly evapotranspiration - One or more of the above listed measurements is flagged Y,
+CIMIS,Q,Hourly relative humidity - Air temperature or vapor pressure is severe,
+CIMIS,R,Hourly relative humidity - Air temperature or vapor pressure is flagged R,
+CIMIS,Y,Hourly relative humidity - Air temperature or vapor pressure is flagged Y,
+CIMIS,Q ,Dew point temperature - Relative humidity is flagged Q,
+CIMIS,R,Dew point temperature - Relative humidity is flagged R,
+CIMIS,Y,Dew point temperature - Relative humidity is flagged Y,
+OtherISD,V01,qaqc_process - No A or M Quality Control applied,
+OtherISD,V02,qaqc_process - Automated Quality Control,
+OtherISD,V03,qaqc_process - subjected to Quality Control,
+OtherISD,1,data_source - USAF SURFACE HOURLY observation, candidate for merge with NCEI SURFACE HOURLY (not yet merged
+OtherISD,2,data_source - NCEI SURFACE HOURLY observation, candidate for merge with USAF SURFACE HOURLY (not yet merged
+OtherISD,3,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY merged observation,
+OtherISD,4,data_source - USAF SURFACE HOURLY observation,
+OtherISD,5,data_source - NCEI SURFACE HOURLY observation,
+OtherISD,6,data_source - ASOS/AWOS observation from NCEI,
+OtherISD,7,data_source - ASOS/AWOS observation merged with USAD SURFACE HOURLY observation,
+OtherISD,8,data_source - MAPSO observation (NCEI),
+OtherISD,A,data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation, candidate for merge with NCEI SURFACE HOURLY (not yet merged
+OtherISD,B,data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation, candidate for merge with USAF SURFACE HOURLY (not yet merged
+OtherISD,C,data_source - USAF SURFACE HOURLY/NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation,
+OtherISD,D,data_source - USAF SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation,
+OtherISD,E,data_source - NCEI SURFACE HOURLY/NCEI HOURLY PRECIPITATION merged observation,
+OtherISD,F,data_source - Form OMR/1001 – Weather Bureau city office (keyed data),
+OtherISD,G,data_source - SAO surface airways observation, pre-1949 (keyed data)
+OtherISD,H,data_source - SAO surface airways observation, 1965-1981 format/period (keyed data)
+OtherISD,I,data_source - Climate Reference Network observation,
+OtherISD,J,data_source - Cooperative Network observation,
+OtherISD,K,data_source - Radiation Network observation,
+OtherISD,L,data_source - Data from Climate Data Modernization Program (CDMP) data source,
+OtherISD,M,data_source - Data from National Renewable Energy Laboratory (NREL) data source,
+OtherISD,N,data_source - NCAR / NCEI cooperative effort (various national datasets),
+OtherISD,O,data_source - Summary observation created by NCEI using hourly observations that may not share the same data source flag,
+OtherISD,9,data_source - Missing,
+OtherISD,0,sfcWind_dir_qc - Passed gross limits check,
+OtherISD,1,sfcWind_dir_qc - Passed all quality control checks,
+OtherISD,2,sfcWind_dir_qc - Suspect,
+OtherISD,3,sfcWind_dir_qc - Erroneous,
+OtherISD,4,sfcWind_dir_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,sfcWind_dir_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,sfcWind_dir_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,sfcWind_dir_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,sfcWind_dir_qc - Passed gross limits check if element is present,
+OtherISD,A,sfcWind_method - Abridged Beaufort,
+OtherISD,B,sfcWind_method - Beaufort,
+OtherISD,C,sfcWind_method - Calm,
+OtherISD,H,sfcWind_method - 5-Minute Average Speed,
+OtherISD,N,sfcWind_method - Normal,
+OtherISD,R,sfcWind_method - 60-Minute Average Speed,
+OtherISD,Q,sfcWind_method - Squall,
+OtherISD,T,sfcWind_method - 180 Minute Average Speed,
+OtherISD,V,sfcWind_method - Variable,
+OtherISD,9,sfcWind_method - Missing,
+OtherISD,0,sfcWind_qc - Passed gross limits check,
+OtherISD,1,sfcWind_qc - Passed all quality control checks,
+OtherISD,2,sfcWind_qc - Suspect,
+OtherISD,3,sfcWind_qc - Erroneous,
+OtherISD,4,sfcWind_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,sfcWind_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,sfcWind_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,sfcWind_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,sfcWind_qc - Passed gross limits check if element is present,
+OtherISD,0,tas_qc - Passed gross limits check,
+OtherISD,1,tas_qc - Passed all quality control checks,
+OtherISD,2,tas_qc - Suspect,
+OtherISD,3,tas_qc - Erroneous,
+OtherISD,4,tas_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,tas_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,tas_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,tas_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,tas_qc - Passed gross limits check if element is present,
+OtherISD,A,tas_qc - Data value flagged as suspect, but accepted as a good value
+OtherISD,C,tas_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values, but they are accepted as valid.
+OtherISD,I,tas_qc - Data value not originally in data, but inserted by validator
+OtherISD,M,tas_qc - Manual changes made to value based on information provided by NWS or FAA,
+OtherISD,P,tas_qc - Data value not originally flagged as suspect, but replaced by validator
+OtherISD,R,tas_qc - Data value replaced with value computed by NCEI software,
+OtherISD,U,tas_qc - Data value replaced with edited value,
+OtherISD,0,tdps_qc - Passed gross limits check,
+OtherISD,1,tdps_qc - Passed all quality control checks,
+OtherISD,2,tdps_qc - Suspect,
+OtherISD,3,tdps_qc - Erroneous,
+OtherISD,4,tdps_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,tdps_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,tdps_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,tdps_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,tdps_qc - Passed gross limits check if element is present,
+OtherISD,A,tdps_qc - Data value flagged as suspect, but accepted as a good value
+OtherISD,C,tdps_qc - Temperature and dew point received from Automated Weather Observing System (AWOS) are reported in whole degrees Celsius. Automated QC flags these values, but they are accepted as valid.
+OtherISD,I,tdps_qc - Data value not originally in data, but inserted by validator
+OtherISD,M,tdps_qc - Manual changes made to value based on information provided by NWS or FAA,
+OtherISD,P,tdps_qc - Data value not originally flagged as suspect, but replaced by validator
+OtherISD,R,tdps_qc - Data value replaced with value computed by NCEI software,
+OtherISD,U,tdps_qc - Data value replaced with edited value,
+OtherISD,0,psl_qc - Passed gross limits check,
+OtherISD,1,psl_qc - Passed all quality control checks,
+OtherISD,2,psl_qc - Suspect,
+OtherISD,3,psl_qc - Erroneous,
+OtherISD,4,psl_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,psl_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,psl_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,psl_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,psl_qc - Passed gross limits check if element is present,
+OtherISD,1,pr_depth_qc - Measurement impossible or inaccurate,
+OtherISD,2,pr_depth_qc - Trace,
+OtherISD,3,pr_depth_qc - Begin accumulated period (precipitation amount missing until end of accumulated period),
+OtherISD,4,pr_depth_qc - End accumulated period,
+OtherISD,5,pr_depth_qc - Begin deleted period (precipitation amount missing due to data problem),
+OtherISD,6,pr_depth_qc - End deleted period,
+OtherISD,7,pr_depth_qc - Begin missing period,
+OtherISD,8,pr_depth_qc - End missing period,
+OtherISD,E,pr_depth_qc - Estimated data value (eg, from nearby station)
+OtherISD,I,pr_depth_qc - Incomplete precipitation amount, excludes one or more missing reports
+OtherISD,J,pr_depth_qc - Incomplete precipitation amount, excludes one or more erroneous reports
+OtherISD,9,pr_depth_qc - Missing,
+OtherISD,0,pr_qc - Passed gross limits check,
+OtherISD,1,pr_qc - Passed all quality control checks,
+OtherISD,2,pr_qc - Suspect,
+OtherISD,3,pr_qc - Erroneous,
+OtherISD,4,pr_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,pr_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,pr_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,pr_qc - Erroneous, data originate from an NCEI data source
+OtherISD,9,pr_qc - Passed gross limits check if element is present,
+OtherISD,A,pr_qc - Data value flagged as suspect, but accepted as a good value
+OtherISD,I,pr_qc - Data value not originally in data, but inserted by validator
+OtherISD,M,pr_qc - Manual changes made to value based on information provided by NWS or FAA,
+OtherISD,P,pr_qc - Data value not originally flagged as suspect, but replaced by validator
+OtherISD,R,pr_qc - Data value replaced with value computed by NCEI software,
+OtherISD,U,pr_qc - Data value replaced with edited value,
+OtherISD,1,hurs_temp_qc - Passed all quality control checks,
+OtherISD,3,hurs_temp_qc - Failed all quality control checks,
+OtherISD,9,hurs_temp_qc - Missing,
+OtherISD,0,hurs_temp_flag - Passed all quality control checks,
+OtherISD,1,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,2,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,3,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,4,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,5,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,6,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,7,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,8,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,9,hurs_temp_flag - Did not pass all quality control checks,
+OtherISD,1,hurs_qc - Passed all quality control checks,
+OtherISD,3,hurs_qc - Failed all quality control checks,
+OtherISD,9,hurs_qc - Missing,
+OtherISD,0,hurs_flag - Passed all quality control checks,
+OtherISD,1,hurs_flag - Did not pass all quality control checks,
+OtherISD,2,hurs_flag - Did not pass all quality control checks,
+OtherISD,3,hurs_flag - Did not pass all quality control checks,
+OtherISD,4,hurs_flag - Did not pass all quality control checks,
+OtherISD,5,hurs_flag - Did not pass all quality control checks,
+OtherISD,6,hurs_flag - Did not pass all quality control checks,
+OtherISD,7,hurs_flag - Did not pass all quality control checks,
+OtherISD,8,hurs_flag - Did not pass all quality control checks,
+OtherISD,9,hurs_flag - Did not pass all quality control checks,
+OtherISD,0,rsds_flag - Untested (raw data),
+OtherISD,1,rsds_flag - Passed one-component test; data fall within max-min limits of Kt, Kn
+OtherISD,2,rsds_flag - Passed two-component test;  data fall within 0.03 of the Gompertz boundaries,
+OtherISD,3,rsds_flag - Passed three-component test;  data come within + 0.03 of satisfying Kt = Kn + Kd,
+OtherISD,4,rsds_flag - Passed visual inspection: not used by SERI_QC1,
+OtherISD,5,rsds_flag - Failed visual inspection: not used by SERI_QC1,
+OtherISD,6,rsds_flag - Value estimated ( passes all pertinent SERI_QC tests),
+OtherISD,7,rsds_flag - Failed one-component test (lower than allowed minimum),
+OtherISD,8,rsds_flag - Failed one-component test (higher than allowed maximum),
+OtherISD,9,rsds_flag - Passed three-component test but failed two-component test by 0.05,
+OtherISD,10,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,11,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,12,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,13,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,14,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,15,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,16,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,17,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,18,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,19,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,20,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,21,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,22,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,23,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,24,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,25,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,26,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,27,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,28,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,29,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,30,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,31,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,32,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,33,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,34,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,35,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,36,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,37,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,38,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,39,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,40,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,41,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,42,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,43,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,44,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,45,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,46,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,47,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,48,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,49,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,50,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,51,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,52,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,53,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,54,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,55,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,56,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,57,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,58,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,59,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,60,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,61,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,62,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,63,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,64,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,65,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,66,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,67,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,68,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,69,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,70,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,71,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,72,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,73,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,74,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,75,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,76,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,77,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,78,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,79,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,80,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,81,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,82,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,83,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,84,rsds_flag - Failed two- or three- component tests in one of four ways,
+OtherISD,85,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,86,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,87,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,88,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,89,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,90,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,91,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,92,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,93,rsds_flag - Failed two- or three- component tests in one of four ways.,
+OtherISD,94,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95)
+OtherISD,95,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95)
+OtherISD,96,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95)
+OtherISD,97,rsds_flag - Data fails into physically impossible region where Kn > Kt by K-space distances of 0.05 to 0.10 (94), 0.10 to 0.15 (95)
+OtherISD,98,rsds_flag - Not used,
+OtherISD,99,rsds_flag - Missing data,
+OtherISD,0,rsds_qc - Passed gross limits check,
+OtherISD,1,rsds_qc - Passed all quality control checks,
+OtherISD,2,rsds_qc - Suspect,
+OtherISD,3,rsds_qc - Erroneous,
+OtherISD,9,rsds_qc - Missing,
+OtherISD,0,ps_altimeter_qc - Passed gross limits check,
+OtherISD,1,ps_altimeter_qc - Passed all quality control checks,
+OtherISD,2,ps_altimeter_qc - Suspect,
+OtherISD,3,ps_altimeter_qc - Erroneous,
+OtherISD,4,ps_altimeter_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,ps_altimeter_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,ps_altimeter_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,ps_altimeter_qc - Erroneous, data originate from an NCEI data source
+OtherISD,M,ps_altimeter_qc - Manual changes made to value based on information provided by NWS or FAA,
+OtherISD,9,ps_altimeter_qc - Passed gross limits check if element is present,
+OtherISD,0,ps_qc - Passed gross limits check,
+OtherISD,1,ps_qc - Passed all quality control checks,
+OtherISD,2,ps_qc - Suspect,
+OtherISD,3,ps_qc - Erroneous,
+OtherISD,4,ps_qc - Passed gross limits check, data originate from an NCEI data source
+OtherISD,5,ps_qc - Passed all quality control checks, data originate from an NCEI data source
+OtherISD,6,ps_qc - Suspect, data originate from an NCEI data source
+OtherISD,7,ps_qc - Erroneous, data originate from an NCEI data source
+OtherISD,M,ps_qc - Manual changes made to value based on information provided by NWS or FAA,
+OtherISD,9,ps_qc - Passed gross limits check if element is present,
+VALLEYWATER,0,Approved,Flag from internal Valley Water approval system: Approved 
+VALLEYWATER,1,Preliminary,Flag from internal Valley Water approval system: Preliminary
+VALLEYWATER,2,Reviewed,Flag from internal Valley Water approval system: Reviewed
+VALLEYWATER,3,In Review,Flag from internal Valley Water approval system: In Review
