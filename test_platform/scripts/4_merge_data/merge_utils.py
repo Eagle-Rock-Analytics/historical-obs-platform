@@ -93,8 +93,7 @@ def hourly_standardization(df,verbose=verbose):
     -------
         if success:
             df [pd.DataFrame]
-                QAQC dataframe with all columns resampled to one hour (column name retained) and
-                columns with hourly observation counts for each variables
+                QAQC dataframe with all columns resampled to one hour (column name retained) 
         if failure:
             None
     """
@@ -162,12 +161,8 @@ def hourly_standardization(df,verbose=verbose):
             sum_result =  sum_df.resample('1h',on='time').apply(lambda x: np.nan if x.isna().all() else x.sum(skipna=True))
             qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique())) # adding unique flags
 
-            # Generating variable counts per hour
-            all_vars_counts =  all_vars_df.resample('1h',on='time').count()
-            all_vars_counts.columns = all_vars_counts.columns.map(lambda x: "nobs_" + x + "_hourstd") # adding obs count per hour
-
             # Aggregating and outputting reduced dataframe
-            result_list = [sum_result,instant_result,constant_result,qaqc_result,all_vars_counts]
+            result_list = [sum_result,instant_result,constant_result,qaqc_result]
             result = reduce(lambda  left,right: pd.merge(left,right,on=['time'],
                                             how='outer'), result_list)
             return result
