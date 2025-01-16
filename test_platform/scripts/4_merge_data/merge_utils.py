@@ -159,7 +159,7 @@ def hourly_standardization(df,verbose=verbose):
             # Performing hourly aggregation
             constant_result =  constant_df.resample('1h',on='time').first()
             instant_result =  instant_df.resample('1h',on='time').first()
-            sum_result =  sum_df.resample('1h',on='time').apply(lambda x: np.nan if x.isna().all() else x.sum())
+            sum_result =  sum_df.resample('1h',on='time').apply(lambda x: np.nan if x.isna().all() else x.sum(skipna=True))
             qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique())) # adding unique flags
 
             # Generating variable counts per hour
