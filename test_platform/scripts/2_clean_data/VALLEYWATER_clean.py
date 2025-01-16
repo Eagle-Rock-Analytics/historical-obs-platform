@@ -134,14 +134,7 @@ def main():
         df = df.replace({"Value": {-999: np.NaN}})
 
         # Set Approval Level to appropriate values
-        approval_level_dict = {
-            "Approved": 0,
-            "Preliminary": 1,
-            "Reviewed": 2,
-            "In Review": 3,
-            -999: np.NaN,
-        }
-        df = df.replace({"Approval Level": approval_level_dict}).rename(
+        df = df.replace({"Approval Level": {-999: np.NaN}}).rename(
             columns={"Approval Level": "raw_qc"}
         )
 
