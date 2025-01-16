@@ -5,11 +5,11 @@ processing conforms to the HDP standard of quality.
 
 Approach:
 (1) Read through variables and drop unnecessary variables
-(2) Infill missing timesteps with NaN in precipitation record 
+(2) Infill mis-timed timesteps at the correct 15 min interval with NaN in precipitation record 
 (3) Add empty elevation variable, to be infilled via DEM
 (4) Converts station metadata to standard format, with unique identifier
 (5) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
-(6) Tracks existing qa/qc flag for review
+(6) Tracks existing qa/qc flag(s) for review
 (7) Outputs cleaned variables as a single zarr for each station in an individual network.
 
 Inputs: Raw data for the network's stations, with each csv file representing a station.
@@ -108,7 +108,7 @@ def main():
         df = df[["time", "Value", "Approval Level"]]
 
         # Remove rows where Approval Level = Null
-        # The data is weird in that if theres a big chunk of missing data, only one NaN value is reported in the middle of that chunk
+        # If theres a big chunk of missing data, only one NaN value is reported in the middle of that chunk
         # This messes up the temporal resolution of the data
         # We will remove that random NaN value in the middle of the chunk, which is identified by Approval Level = Null
         # Then, we will fill the entire missing data chunk with NaNs at the appropriate temporal resolution of the data
@@ -123,7 +123,6 @@ def main():
         # Flag with ERA QAQC variable appropriate for NaN to correct timestamp
         # Where the Value is -999, fill the QAQC with the qaqc number
         # Where the value is NOT -999, fill the QAQC with NaN
-        # Confusing logic, but it checks out-- I promise!
         df[era_var_name + "_eraqc"] = (
             df["Value"]
             .where(df["Value"] == -999, other=np.NaN)
@@ -131,9 +130,7 @@ def main():
         )
 
         # Also replace -999 in Values with NaN
-        # Maybe I'm being overly cautious here, but I want to make sure any original NaNs in the data aren't accidentally flagged if they aren't associated with a NaN approval level
-        # Like, perhaps it's a NaN but the Approval Level = "Approved"
-        # We wouldn't want to flag that value
+        # Double checking on original NaNs not being accidentally flagged
         df = df.replace({"Value": {-999: np.NaN}})
 
         # Set Approval Level to appropriate values
