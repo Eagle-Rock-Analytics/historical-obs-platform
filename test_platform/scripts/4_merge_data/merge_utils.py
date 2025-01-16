@@ -64,11 +64,15 @@ def printf(*args, verbose=True, log_file=None, **kwargs):
             pass
 
 #-----------------------------------------------------------------------------
+def custom_sum(df):
+    return df.apply(lambda x: np.nan if x.isna().all() else x.sum())
+
+#-----------------------------------------------------------------------------
 def hourly_standardization(df,verbose=verbose):
     """
     
     Resamples meteorological variables to hourly timestep according to standard conventions. 
-
+    
     Rules
     ------
         1.) top of the hour: take the first value in each hour
@@ -155,7 +159,7 @@ def hourly_standardization(df,verbose=verbose):
             # Performing hourly aggregation
             constant_result =  constant_df.resample('1h',on='time').first()
             instant_result =  instant_df.resample('1h',on='time').first()
-            sum_result =  sum_df.resample('1h',on='time').sum()
+            sum_result =  sum_df.resample('1h',on='time').apply(lambda x: np.nan if x.isna().all() else x.sum())
             qaqc_result = qaqc_df.resample('1h',on='time').apply(lambda x: ','.join(x.unique())) # adding unique flags
 
             # Generating variable counts per hour
