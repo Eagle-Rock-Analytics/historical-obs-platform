@@ -847,10 +847,7 @@ def clim_outlier_plot(
     max_bin = np.abs(bins).max()
     bins = np.arange(-max_bin - bin_size, max_bin + 2 * bin_size, bin_size)
 
-    freq, bins = np.histogram(
-        series,
-        bins=bins,
-    )
+    freq, bins = np.histogram(series, bins=bins,)
     area = sum(np.diff(bins) * freq)
 
     # Fit a normal distribution to the data

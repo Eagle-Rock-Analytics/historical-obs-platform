@@ -327,9 +327,9 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                         vals_to_flag = clim + (
                             left_bnd * iqr_baseline
                         )  # left_bnd is negative
-                        df.loc[df[var] <= vals_to_flag, var + "_eraqc"] = (
-                            22  # see era_qaqc_flag_meanings.csv
-                        )
+                        df.loc[
+                            df[var] <= vals_to_flag, var + "_eraqc"
+                        ] = 22  # see era_qaqc_flag_meanings.csv
 
             # bins[0:-1] takes the left edge of bins, suitable for left_bnd
             bins_beyond_right_bnd = np.argwhere(bins[:-1] >= right_bnd)
@@ -341,9 +341,9 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                             right_bnd * iqr_baseline
                         )  # upper limit threshold
                         # df.loc[df_valid[var] >= vals_to_flag, var+'_eraqc'] = 22 # see era_qaqc_flag_meanings.csv
-                        df.loc[df[var] >= vals_to_flag, var + "_eraqc"] = (
-                            22  # see era_qaqc_flag_meanings.csv
-                        )
+                        df.loc[
+                            df[var] >= vals_to_flag, var + "_eraqc"
+                        ] = 22  # see era_qaqc_flag_meanings.csv
 
             if plot:
                 if (

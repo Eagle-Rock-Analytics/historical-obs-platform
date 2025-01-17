@@ -388,10 +388,10 @@ def clean_scansnotel(rawdir, cleandir):
                 # Update attributes.
                 ds["time"].attrs["long_name"] = "time"
                 ds["time"].attrs["standard_name"] = "time"
-                ds["time"].attrs["comment"] = (
-                    "Converted from local time zone UTC{} to UTC.".format(
-                        str(int(hours_adj))
-                    )
+                ds["time"].attrs[
+                    "comment"
+                ] = "Converted from local time zone UTC{} to UTC.".format(
+                    str(int(hours_adj))
                 )
 
                 # Station ID

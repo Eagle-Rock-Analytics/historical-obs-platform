@@ -328,10 +328,7 @@ def fit_normal(series, bin_size=0.25, plot=False):
     max_bin = np.abs(bins).max()
     bins = np.arange(-max_bin - bin_size, max_bin + 2 * bin_size, bin_size)
 
-    freq, bins = np.histogram(
-        series,
-        bins=bins,
-    )
+    freq, bins = np.histogram(series, bins=bins,)
     area = sum(np.diff(bins) * freq)
 
     # Fit a normal distribution to the data
@@ -387,7 +384,9 @@ def gap_search(freq, left, right):
     )  # Yellow flag, all values beyond the threshold are flagged
     for i, f in zip(range(len(left_freq) - 1, -1, -1), left_freq[::-1]):
         if f < 0.1:
-            left_flag[0 : i + 1] = (
+            left_flag[
+                0 : i + 1
+            ] = (
                 -1
             )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
             break
@@ -398,7 +397,9 @@ def gap_search(freq, left, right):
     )  # Yellow flag, all values beyond the threshold are flagged
     for i, f in zip(range(len(right_freq)), right_freq):
         if f < 0.1:
-            right_flag[i:] = (
+            right_flag[
+                i:
+            ] = (
                 -1
             )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
             break
