@@ -215,7 +215,6 @@ def parse_madis_headers(file):
 
 # Function: take heads, read csv into pandas db and clean.
 def parse_madis_to_pandas(file, headers, errors, removedvars):
-
     ### TEMPORARY MISMATCH METADATA FIX
     if (
         len(file) > 24
@@ -410,7 +409,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
         errors["Error"].append("Whole network error: {}".format(e))
 
     else:  # If files read successfully, continue.
-
         dfs = []  # intialize empty df for appending
 
         ## Procedure for grouping of data in CWOP to split up 7k+ stations by first letter
@@ -469,7 +467,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
             ids = ids
 
         for i in ids:
-
             try:
                 stat_files = [
                     k for k in files if i in k
@@ -905,7 +902,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
                         "pressure_1_position" in sensorheights.columns
                         and True in sensorheights.pressure_1_position.notnull().values
                     ):  # If any value not null
-
                         if (
                             len(sensorheights.pressure_1_position) > 1
                             and sensorheights.pressure_1_position.nunique() != 1
@@ -1022,7 +1018,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
                             "wind_speed_1_position",
                             "pressure_1_position",
                         ]:
-
                             sensor_height = sensorheights[col].dropna().unique()
                             if col == "relative_humidity_1_position":
                                 ds = ds.assign_attrs(

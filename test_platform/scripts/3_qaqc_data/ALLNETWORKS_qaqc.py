@@ -9,6 +9,10 @@ Approach:
 
 Inputs: Cleaned data for an individual network
 Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
+
+Example how to run in the command line: 
+python ALLNETWORKS_qaqc.py -n="VALLEYWATER"
+
 """
 
 import os
@@ -39,7 +43,6 @@ except:
 # =================================================================================================
 # Main Function
 if __name__ == "__main__":
-
     # Create parser
     parser = argparse.ArgumentParser(
         prog="ALLNETWORKS_qaqc",
@@ -48,7 +51,7 @@ if __name__ == "__main__":
         epilog="""Possible stations:
                   [ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, 
                    HOLFUY, HPWREN, LOXWFO, MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, OtherISD, 
-                   RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
+                   RAWS, SGXWFO, SHASAVAL, VALLEYWATER, VCAPCD, MARITIME, NDBC, SCAN, SNOTEL]
                """,
     )
 
@@ -57,39 +60,37 @@ if __name__ == "__main__":
         "-n",
         "--network",
         default="TRAINING",
-        help="Network name (default to 'VCAPCD')",
+        help="Network name (default to 'TRAINING').",
         type=str,
     )
     parser.add_argument(
         "-l",
         "--local",
         default=False,
-        help="Save files and plots locally (default to False)",
+        help="Save files and plots locally (default to False).",
         type=bool,
     )
     parser.add_argument(
         "-r",
         "--rad_scheme",
         default="remove_zeros",
-        help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros'",
+        help="Radiation handling scheme for frequent values check. See qaqc_frequent_values for options (default to 'remove_zeros').",
         type=str,
     )
     parser.add_argument(
         "-v",
         "--verbose",
         default=False,
-        help="Print statements throughout script (default to False)",
+        help="Print statements throughout script (default to False).",
         type=bool,
     )
     parser.add_argument(
         "-s",
         "--sample",
         default="all",
-        help="How many stations to run (default to 'all'l)",
-        type=str,
+        help="How many stations to run (default to 'all').",
     )
 
-    # Parse arguments
     args = parser.parse_args()
     network = args.network
     if network.lower() == "training":
@@ -99,6 +100,14 @@ if __name__ == "__main__":
     local = args.local
     sample = args.sample
 
+    # Set zarr argument
+    zarrified_networks = ["VALLEYWATER"]  # Any networks with zarrified data
+    if network in zarrified_networks:
+        zarr = True
+    else:
+        zarr = False
+
+    # Set paths to data in AE bucket
     if network == "NETWORK":
         rawdir, cleandir, qaqcdir, mergedir = None, None, None, None
     else:
@@ -111,8 +120,10 @@ if __name__ == "__main__":
         verbose=verbose,
         local=local,
         sample=sample,
+        zarr=zarr,
     )
 
+# ---------------------------------------------------------------------------------
 # Dev to do:
 # reorder variables once entire qaqc is complete before saving
 # output csv of flags/consistent flagging

@@ -98,6 +98,11 @@ def qaqc_unusual_large_jumps(
     try:
         # Define test variables and check if they are in the dataframe
         check_vars = [
+            "pr_5min",
+            "pr_15min",
+            "pr_1h",
+            "pr_24h",
+            "pr_localmid",
             "tas",
             "tdps",
             "tdps_derived",
@@ -204,10 +209,6 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
     dates = pd.Series(potential_spike.index.values)
 
     for i in ind:
-
-        # Ignore edges for now
-        if i == 1 or i >= len(potential_spike) - 4:
-            continue
         # Indices, critical values, and values before and after potential spike
         im1, i0, ip1, ip2, ip3, ip4 = [i - 1, i, i + 1, i + 2, i + 3, i + 4]
         tm1, t0, tp1, tp2, tp3, tp4 = diff.iloc[[im1, i0, ip1, ip2, ip3, ip4]]

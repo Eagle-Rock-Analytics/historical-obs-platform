@@ -116,7 +116,6 @@ def get_cw3e_metadata(token, terrpath, marpath, bucket_name, directory):
 ## HourlyData_Full files do not include as many variables as the individual bytes files, so we download the entire dataset in byte format.
 # Station is an optional parameter to download one station at a time.
 def get_cw3e(bucket_name, directory, station=None):
-
     # ## Login.
     # ## using ftplib
     ftp = FTP("sioftp.ucsd.edu")
@@ -232,7 +231,6 @@ def get_cw3e(bucket_name, directory, station=None):
 def get_cw3e_update(
     bucket_name, directory, station=None, start_date=None, end_date=None
 ):
-
     # ## Login.
     # ## using ftplib
     ftp = FTP("sioftp.ucsd.edu")
@@ -299,7 +297,6 @@ def get_cw3e_update(
                     )  # Get station data format file
 
                 for k in data_years:
-
                     # Filter by years
                     if int(k) in years:
                         days_to_download = list(

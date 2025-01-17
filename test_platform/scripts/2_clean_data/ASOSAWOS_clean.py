@@ -113,9 +113,10 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
 
     # Reorganize
     stationlist_join = stationlist_join.drop(["Unnamed: 0_x", "Unnamed: 0_y"], axis=1)
-    stationlist_join["Pulled"], stationlist_join["Time_Checked"] = (
-        stationlist_join.pop("Pulled"),
-        stationlist_join.pop("Time_Checked"),
+    stationlist_join["Pulled"], stationlist_join["Time_Checked"] = stationlist_join.pop(
+        "Pulled"
+    ), stationlist_join.pop(
+        "Time_Checked"
     )  # Write to AWS
     # print(stationlist_join) # For testing
 
@@ -248,7 +249,6 @@ def clean_asosawos(rawdir, cleandir):
                             StringIO(gzipped_csv_file.read().decode())
                         )
                         for row in csv_reader:  # Each row is a record
-
                             # Initialize all variables and set to be NA by default.
                             string = row[0]  # Unpack list.
 

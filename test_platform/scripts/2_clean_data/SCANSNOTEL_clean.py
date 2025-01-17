@@ -74,7 +74,6 @@ except:
 
 ## Function: take heads, read csv into pandas db and clean.
 def clean_scansnotel(rawdir, cleandir):
-
     # Set up error handling.
     errors = {"File": [], "Time": [], "Error": []}  # Set up error handling.
     end_api = datetime.now().strftime(

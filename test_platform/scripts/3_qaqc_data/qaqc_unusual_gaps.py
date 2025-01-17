@@ -262,7 +262,6 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
             verbose=verbose,
         )
         for month in range(1, 13):
-
             # Sel month data
             monthly_df = df.loc[df["month"] == month]
 

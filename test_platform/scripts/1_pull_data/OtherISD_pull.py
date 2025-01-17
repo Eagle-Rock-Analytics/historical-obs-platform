@@ -162,7 +162,6 @@ def get_wecc_stations(
 def get_otherisd_data_ftp(
     station_list, bucket_name, directory, start_date=None, get_all=True
 ):
-
     # Set up error handling
     errors = {"Date": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(

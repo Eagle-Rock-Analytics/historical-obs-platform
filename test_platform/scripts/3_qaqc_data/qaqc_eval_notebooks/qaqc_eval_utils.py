@@ -397,9 +397,7 @@ def pull_nc_from_aws(fname):
 
 
 # --------------------------------------------------------------------------------
-#
 def download_nc_from_aws(station, save=False):
-
     # Temp file for downloading from s3
     tmpFileName = tempfile.NamedTemporaryFile(
         dir=local_tmp_dir, prefix="", suffix=".nc", delete=True
@@ -439,7 +437,6 @@ def download_nc_from_aws(station, save=False):
 
 
 # --------------------------------------------------------------------------------
-#
 def event_info(event, alt_start_date=None, alt_end_date=None):
     start_date = {
         "santa_ana_wind": "1988-02-16",
@@ -652,7 +649,6 @@ ca_county = gpd.read_file(census_shp_dir)  # from s3 bucket
 
 
 def latlon_to_mercator_cartopy(lat, lon):
-
     proj_latlon = CRS("EPSG:4326")
     proj_mercator = CRS("EPSG:3857")
 
@@ -741,7 +737,6 @@ def event_plot(df, var, event, alt_start_date=None, alt_end_date=None, dpi=None)
 
     # plot any flags placed by QA/QC
     if len(df[var + "_eraqc"].dropna().unique()) != 0:
-
         # identify flagged data, can handle multiple flags
         for flag in df[var + "_eraqc"].dropna().unique():
             flag_name = id_flag(flag)

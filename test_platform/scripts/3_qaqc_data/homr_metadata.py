@@ -182,7 +182,6 @@ def get_all_homr_metadata(bucket_name, savedir):
         {"homr_update.csv": updatedf},
     ]:
         for key, val in dic.items():
-
             csv_buffer = StringIO()
             val.to_csv(csv_buffer, index=False)
             content = csv_buffer.getvalue()

@@ -101,7 +101,6 @@ def get_meso_metadata(token, terrpath, marpath, bucket_name, directory):
 def get_raws_station_csv(
     token, ids, bucket_name, directory, start_date=None, **options
 ):
-
     # Set up error handling df.
     errors = {"Station ID": [], "Time": [], "Error": []}
 

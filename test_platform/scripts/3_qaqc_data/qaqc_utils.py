@@ -7,6 +7,7 @@ for the Historical Observations Platform.
 import boto3
 import geopandas as gp
 import numpy as np
+import time
 import pandas as pd
 import requests
 import urllib
@@ -17,6 +18,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
+import sys
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -32,12 +34,114 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
+def progressbar(it, prefix="", size=60, out=sys.stdout):
+    """
+    Print a progress bar to console
+
+    Parameters
+    ----------
+    it: int
+        iternation of list
+    size: int, optional
+        size (length) of progress bar
+
+    Returns
+    -------
+    progress bar printed to console
+
+    Example
+    -------
+    >>> for i in progressbar(10): # Progress bar of length 10 is printed after each iteration i
+    >>> # Loop does something
+
+    References
+    ----------
+    https://stackoverflow.com/questions/3160699/python-progress-bar
+
+    """
+    count = len(it)
+    start = time.time()  # time estimate start
+
+    def show(j):
+        x = int(size * j / count)
+        # time estimate calculation and string
+        remaining = ((time.time() - start) / j) * (count - j)
+        mins, sec = divmod(remaining, 60)  # limited to minutes
+        time_str = f"{int(mins):02}:{sec:03.1f}"
+        print(
+            f"{prefix}[{u'█'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
+            end="\r",
+            file=out,
+            flush=True,
+        )
+
+    show(0.1)  # avoid div/0
+    for i, item in enumerate(it):
+        yield item
+        show(i + 1)
+    print("\n", flush=True, file=out)
+
+
+# -----------------------------------------------------------------------------
 def get_file_paths(network):
     rawdir = "1_raw_wx/{}/".format(network)
     cleandir = "2_clean_wx/{}/".format(network)
     qaqcdir = "3_qaqc_wx/{}/".format(network)
     mergedir = "4_merge_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir, mergedir
+
+
+# -----------------------------------------------------------------------------
+def get_filenames_in_s3_folder(bucket, folder):
+    """Get a list of files in s3 bucket.
+    Make sure you follow the naming rules exactly for the two function arguments.
+    See example in the function docstrings for more details.
+
+    Parameters
+    ---------
+    bucket: str
+        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc...
+    folder: str
+        Folder within the bucket that you want the filenames from
+        MAKE SURE folder doesn't have a trailing "/"
+        i.e. it should be "[folder]", not "[folder]/"
+
+    Returns
+    -------
+    files_in_s3: list of str
+        List of filenames in the bucket
+
+    Example
+    -------
+    You want to get all the filenames in a s3 bucket with the following path:
+    s3 URI: "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/"
+    >>> get_filenames_in_s3_folder(
+    >>>    bucket = "wecc-historical-wx",
+    >>>    folder = "1_raw_wx/VALLEYWATER"
+    >>> )
+    ['ValleyWater_6001_1900-01-01_2024-11-11.csv','ValleyWater_6004_1900-01-01_2024-11-11.csv']
+
+    References
+    ----------
+    https://stackoverflow.com/questions/59225939/get-only-file-names-from-s3-bucket-folder
+
+    """
+
+    s3 = boto3.resource("s3")
+    s3_bucket = s3.Bucket(bucket)
+
+    # Get all the filenames
+    # Just get relative path (f.key.split(folder + "/")[1])
+    files_in_s3 = [
+        f.key.split(folder + "/")[1]
+        for f in s3_bucket.objects.filter(Prefix=folder).all()
+    ]
+
+    # Delete empty filenames
+    # I think the "empty" filename/s is just the bucket path, which isn't a file but is read as an object by the objects.filter function
+    files_in_s3 = [f for f in files_in_s3 if f != ""]
+
+    return files_in_s3
 
 
 # -----------------------------------------------------------------------------

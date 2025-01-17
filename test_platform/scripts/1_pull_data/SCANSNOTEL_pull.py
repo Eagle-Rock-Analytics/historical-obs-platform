@@ -145,7 +145,6 @@ def get_scan_station_data(
     networks=None,
     fileext=None,
 ):
-
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime("%Y%m%d%H%M")
 

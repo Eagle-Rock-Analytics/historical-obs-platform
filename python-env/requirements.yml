@@ -53,6 +53,7 @@ dependencies:
   - tqdm=4.66.4 #fancy progress bars for command line
   - xarray=2022.3.0 #N-D labeled arrays and datasets in Python
   - xesmf=0.8.5 #Universal Regridder for Geospatial Data
+  - zarr # Cloud-optimized data. Unpinned the version since we haven't tested yet (i.e. haven't testing building the env with this import line); it should probably be version=2.18.2
   - pip:
       - fastkde==2.0.1 #fast Kernel Density Estimation
       - gitsummary==0.2 # makes it simple to print git repo info in a notebook or script

@@ -118,7 +118,10 @@ def ftp_to_aws(ftp, file, directory):
 # Outputs: one asosawos-stations.csv file and a stations object.
 # This function is called internally in get_wecc_stations().
 def get_asosawos_stations():
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
     # Get AWOS stations.
     awosurl = "https://www.ncei.noaa.gov/access/homr/file/awos-stations.txt"
     awosr = requests.get(awosurl)
@@ -402,7 +405,10 @@ def get_wecc_stations(terrpath, marpath):
 def get_asosawos_data_ftp(
     station_list, bucket_name, directory, start_date=None, get_all=True
 ):
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
     # Set up error handling
     errors = {"Date": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(

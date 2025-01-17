@@ -191,7 +191,6 @@ def clean_otherisd(rawdir, cleandir):
                             StringIO(gzipped_csv_file.read().decode())
                         )
                         for row in csv_reader:  # Each row is a record
-
                             # Initialize all variables and set to be NA by default.
                             string = row[0]  # Unpack list.
 

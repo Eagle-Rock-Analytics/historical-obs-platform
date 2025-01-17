@@ -26,7 +26,7 @@ from mpi4py import MPI
 
 from simplempi import simpleMPI
 
-# from simplempi.parfor import parfor, pprint
+from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -99,44 +99,70 @@ def print_qaqc_failed(
 
 
 # ----------------------------------------------------------------------------
-## Check if network nc files are in s3 bucket
-def file_on_s3(da):
+## Check if network files are in s3 bucket
+def file_on_s3(df, zarr):
+    """Check if network files are in s3 bucket
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Table with information about each network and station
+    zarr: boolean
+        Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
+
+    Returns
+    -------
+    substring_in_filepath: boolean
+        True/False: Is the file in the s3 bucket?
+
+    """
+
     files = []  # Get files
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=da["cleandir"].iloc[0]):
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix=df["cleandir"].iloc[0]):
         file = str(item.key)
         files += [file]
-    file_st = [f.split(".nc")[0].split("/")[-1] for f in files if f.endswith(".nc")]
-    return da["era-id"].isin(file_st)
 
+    # Depending on file type, modify the filepaths differently
+    # The goal is to check if the era-id is contained in each substring
+    if zarr == False:  # Get netcdf files
+        file_st = [f.split(".nc")[0].split("/")[-1] for f in files if f.endswith(".nc")]
+    elif zarr == True:  # Get zarrs
+        # We just want to get the top directory for each station, i.e. "VALLEYWATER_6001.zarr/"
+        # Since each station has a bunch of individual zarr stores, the split() function returns many copies of the same string
+        # We just want one filename per station
+        file_st = [
+            file.split(".zarr/")[0].split("/")[-1] for file in files if ".zarr/" in file
+        ]
+        file_st = [x for i, x in enumerate(file_st) if x not in file_st[:i]]
 
-# ----------------------------------------------------------------------------
-# ## Read network nc files
-# def read_network_files(network, cleandir):
-#     """
-#     """
-#     files = [] # Get files
-#     for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#         file = str(item.key)
-#         files += [file]
-
-#     # Get cleaned station file and read in metadata
-#     station_file = [file for file in files if 'stationlist_' in file]
-#     obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
-#     station_file = pd.read_csv(BytesIO(obj['Body'].read()))
-#     stations = station_file['ERA-ID'].dropna()
-#     files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
-
-#     return files, stations
+    substring_in_filepath = df["era-id"].isin(file_st)
+    return substring_in_filepath
 
 
 # ----------------------------------------------------------------------------
 ## Read network nc files
-# def read_network_files_training():
-def read_network_files(network):
-    """ """
-    full_df = pd.read_csv("temp_clean_all_station_list.csv").loc[
-        :, ["era-id", "network"]
-    ]
+def read_network_files(network, zarr):
+    """Read files for a network from AWS
+
+    Parameters
+    ----------
+    network: str
+        Name of network
+    zarr: boolean
+        Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
+    """
+    # Read csv from local drive
+    # THIS FILE IS NOT CURRENT
+    # csv_filepath_local = "temp_clean_all_station_list.csv"
+    # full_df = pd.read_csv(csv_filepath_local).loc[:,['era-id','network']]
+
+    # Read csv from s3
+    csv_filepath_s3 = (
+        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
+    )
+    full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
+
+    # Add path info as new columns
     full_df["rawdir"] = full_df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
     full_df["cleandir"] = full_df["network"].apply(
         lambda row: "2_clean_wx/{}/".format(row)
@@ -147,30 +173,43 @@ def read_network_files(network):
     full_df["mergedir"] = full_df["network"].apply(
         lambda row: "4_merge_wx/{}/".format(row)
     )
-    full_df["key"] = full_df.apply(
-        lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1
-    )
+
+    # If its a zarr store, use the zarr file extension (".zarr")
+    if zarr == True:
+        full_df["key"] = full_df.apply(
+            lambda row: row["cleandir"] + row["era-id"] + ".zarr", axis=1
+        )
+
+    # If its a netcdf, use the netcdf file extension (".nc")
+    elif zarr == False:
+        full_df["key"] = full_df.apply(
+            lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1
+        )
     full_df["exist"] = np.zeros(len(full_df)).astype("bool")
 
-    df = pd.read_csv("qaqc_training_station_list.csv")
-    df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
-    df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
-    df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
-    df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
-    df["key"] = df.apply(lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1)
-    df["exist"] = np.zeros(len(df)).astype("bool")
+    # Setting up the QAQC training station list to match temp_clean_all_station_list
+    if network == "TRAINING":
+        print("Using training station list!")
+        df = pd.read_csv("qaqc_training_station_list.csv")
+        df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
+        df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
+        df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
+        df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
+        df["key"] = df.apply(
+            lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1
+        )
+        df["exist"] = np.zeros(len(df)).astype("bool")
 
     # If it's a network (not training) run, keep it fast by only checking that network files on s3
-    if network != "TRAINING":
-        # df = df[df['network']==network]
+    else:
         df = full_df.copy()[
             full_df["network"] == network
         ]  # To use the full dataset for specific sample stations
 
+    # subset for specific network
     for n in df["network"].unique():
         ind = df["network"] == n
-        df.loc[ind, "exist"] = file_on_s3(df[ind])
-
+        df.loc[ind, "exist"] = file_on_s3(df[ind], zarr=zarr)
     df = df[df["exist"]]
 
     # If it's a network (not training) run, return df as is
@@ -187,7 +226,6 @@ def read_network_files(network):
         num_groups = len(df) // (72 * 3)
         total_size = df["file_size"].sum()
         target_size = total_size / num_groups
-        target_size
 
         groups = []
         current_group = []
@@ -207,49 +245,6 @@ def read_network_files(network):
 
         if current_group:
             groups.append(pd.DataFrame(current_group))
-
-        # Create a new DataFrame to hold the groups
-        final_df = (
-            pd.concat([df.assign(Group=i) for i, df in enumerate(groups)])
-            .reset_index(drop=True)
-            .drop(columns="Group")
-        )
-
-    # If it's a network (not training) run, return df as is
-    if network != "TRAINING":
-        return df
-    else:
-        df["file_size"] = df["key"].apply(
-            lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)["ContentLength"]
-        )
-        df = df.sort_values(by=["file_size", "network", "era-id"]).drop(columns="exist")
-
-        # Evenly distribute df by size to help with memory errors
-        # Number of groups is the total number of stations divided by the node size
-        num_groups = len(df) // (72 * 3)
-        total_size = df["file_size"].sum()
-        target_size = total_size / num_groups
-        target_size
-
-        groups = []
-        current_group = []
-        current_group_size = 0
-
-        # Sort DataFrame by size to improve grouping efficiency
-        df_sorted = df.sort_values(by="file_size", ascending=False)
-
-        for index, row in df_sorted.iterrows():
-            if current_group_size + row["file_size"] > target_size and current_group:
-                groups.append(pd.DataFrame(current_group))
-                current_group = []
-                current_group_size = 0
-
-            current_group.append(row)
-            current_group_size += row["file_size"]
-
-        if current_group:
-            groups.append(pd.DataFrame(current_group))
-
         # Create a new DataFrame to hold the groups
         final_df = (
             pd.concat([df.assign(Group=i) for i, df in enumerate(groups)])
@@ -272,10 +267,13 @@ def process_output_ds(
     qaqcdir,
     errors,
     end_api,
+    zarr,
     verbose=False,
     local=False,
 ):
-    """ """
+    """
+    DOCUMENTATION NEEDED
+    """
     # Convert back to dataset
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -324,7 +322,10 @@ def process_output_ds(
 
     # Write station file to netcdf format
     try:
-        filename = station + ".nc"  # Make file name
+        if zarr == False:
+            filename = station + ".nc"  # Make file name
+        elif zarr == True:
+            filename = station + ".zarr"
         filepath = qaqcdir + filename  # Writes file path
 
         tmpFile = tempfile.NamedTemporaryFile(
@@ -344,11 +345,15 @@ def process_output_ds(
             verbose=verbose,
             flush=True,
         )
-        s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
+        if zarr == False:  # Upload as netcdf
+            ds.to_zarr(
+                filepath_s3,
+                consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
+                mode="w",  # Write & overwrite if file with same name exists already
+            )
         printf(
             "Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(
                 time.time() - t0
-            ),
             log_file=log_file,
             verbose=verbose,
             flush=True,
@@ -923,7 +928,6 @@ def run_qaqc_pipeline(
             verbose=verbose,
             flush=True,
         )
-    ####
     printf(
         "Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
@@ -1027,26 +1031,34 @@ def run_qaqc_pipeline(
 # ==============================================================================
 ## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
 def whole_station_qaqc(
-    network, cleandir, qaqcdir, rad_scheme, verbose=False, local=False, sample=None
+    network,
+    cleandir,
+    qaqcdir,
+    rad_scheme,
+    zarr,
+    verbose=False,
+    local=False,
+    sample=None,
 ):
     """
     -----------------------------------
     for station in stations: # full run
     -----------------------------------
     """
-    #    import pdb; pdb.set_trace()
-    #    if MPI.COMM_WORLD.Get_size()==1:
-    #        useMPI=False
-    #    else:
-    #        useMPI=True
-    #    print(useMPI)
-    #    smpi = simpleMPI(useMPI=useMPI)
     smpi = simpleMPI()
+
+    specific_sample = None
+    # ------------------------------------------
+    # How to run on a specific station
+    # Uncomment "specific_sample" and input desired station id as a list of strings
+    # Example: ["ASOSAWOS_74948400395"]
+    # specific_sample = ["ASOSAWOS_74948400395", "ASOSAWOS_74509023244", "ASOSAWOS_72494523293"]
+    # ------------------------------------------
 
     # Read in network files
     if smpi.rank == 0:
         try:
-            files_df = read_network_files(network)
+            files_df = read_network_files(network, zarr)
         except Exception as e:
             errors = print_qaqc_failed(
                 errors,
@@ -1056,34 +1068,40 @@ def whole_station_qaqc(
                 test=e,
             )
 
-        # pprint(len(files_df))
-        # pprint(files_df['network'].unique())
-        # pprint(files_df['exist'].values.any())
+        # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
+        # Subsetting for a specific set of stations in a single network
+        if specific_sample:
+            print(f"Running on specific stations: {specific_sample}")
+            stations_sample = specific_sample
 
-        # TESTING SUBSET
-        if sample == "all":
+        # "all" for no restrictions on sample size
+        elif sample == "all":
             stations_sample = list(files_df["era-id"].values)
+
+        # DOCUMENTATION NEEDED
         elif all(char.isnumeric() for char in sample):
             nSample = int(sample)
             files_df = files_df.sample(nSample)
-            # print(len(files_df))
             stations_sample = list(files_df["era-id"])
-            # print(stations_sample)
+            print(stations_sample)
+
+        # DOCUMENTATION NEEDED
         else:
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
-                # if smpi.rank==0:
                 smpi.pprint(
                     f"Sample station '{sample}' not in network/stations_df. Please double-check names"
                 )
                 exit()
                 stations_sample = list(files_df["era-id"])
             stations_sample = [sample]
+
         smpi.pprint(
-            "Running {} files on {} network".format(len(stations_sample), network),
+            "Running {} files on {} network and these stations {}".format(
+                len(stations_sample), network, stations_sample
+            ),
             flush=True,
         )
-        # stations_sample = ['RAWS_TS735']
     else:
         stations_sample = None
         files_df = None
@@ -1091,22 +1109,19 @@ def whole_station_qaqc(
     files_df = smpi.comm.bcast(files_df, root=0)
     stations_sample = smpi.comm.bcast(stations_sample, root=0)
 
-    # smpi.pprint(stations_sample)
-
     # if smpi.rank==0:
     stations_sample_scatter = smpi.scatterList(stations_sample)
 
     # Loop over stations
-    # for station in stations_sample:
-    # for station in parfor(stations_sample):
-    for station in stations_sample_scatter:
+    for station in stations_sample:
+        # for station in parfor(stations_sample):
         try:
             # ----------------------------------------------------------------------------
-            # Set up error handling.
+            # Set up error handling
             errors, end_api, timestamp = setup_error_handling()
 
             # ----------------------------------------------------------------------------
-            ## Set log file
+            # Set log file
             global log_file
             ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
             log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
@@ -1119,27 +1134,17 @@ def whole_station_qaqc(
             open_log_file_gaps(log_file)
             open_log_file_frequent(log_file)
             open_log_file_clim(log_file)
-            # ----------------------------------------------------------------------------
-            # smpi.pprint(station)
-            # smpi.pprint(files_df['era-id'].values)
-            # pprint(files_df[files_df['era-id']==station])
 
+            # ----------------------------------------------------------------------------
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
             qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
             network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[
                 0
             ]
 
-            # smpi.pprint(station, file_name, qaqcdir, network_ds)
-            # exit()
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
             # if file_name not in files: # dont run qa/qc on a station that isn't cleaned
-            #     printf("{} was not cleaned - skipping qa/qc".format(station), log_file=log_file, verbose=verbose, flush=True)
-            #     message = "No cleaned data for this station, does not proceed to qa/qc: see cleaned station list for reason"
-            #     errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api,
-            #                                message=message, test="whole_station_qaqc")
-            #     continue
             # else:
             ## The file_df dataframe must have already checked if file exist in clean directory
             ###################################################################################################
@@ -1158,20 +1163,35 @@ def whole_station_qaqc(
                     warnings.filterwarnings("ignore", category=RuntimeWarning)
                     ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
             except:
-                with fs.open(aws_url) as fileObj:
+                if zarr == False:  # Read netcdf file
+                    with fs.open(aws_url) as fileObj:
+                        try:
+                            printf(
+                                "Reading {}".format(aws_url),
+                                log_file=log_file,
+                                verbose=verbose,
+                                flush=True,
+                            )
+                            with warnings.catch_warnings():
+                                warnings.filterwarnings(
+                                    "ignore", category=RuntimeWarning
+                                )
+                                ds = xr.open_dataset(fileObj).load()
+                        except Exception as e:
+                            printf(
+                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
+                                    station
+                                ),
+                                log_file=log_file,
+                                verbose=verbose,
+                                flush=True,
+                            )
+                elif zarr == True:  # Or, read zarr
                     try:
-                        printf(
-                            "Reading {}".format(aws_url),
-                            log_file=log_file,
-                            verbose=verbose,
-                            flush=True,
-                        )
-                        with warnings.catch_warnings():
-                            warnings.filterwarnings("ignore", category=RuntimeWarning)
-                            ds = xr.open_dataset(fileObj).load()
+                        ds = xr.open_zarr(aws_url)
                     except Exception as e:
                         printf(
-                            "{} did not pass QA/QC - station not saved.".format(
+                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
                                 station
                             ),
                             log_file=log_file,
@@ -1224,7 +1244,7 @@ def whole_station_qaqc(
                     log_file=log_file,
                     verbose=verbose,
                     flush=True,
-                )  # testing
+                )
                 df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
                     ds,
                     network_ds,
@@ -1257,6 +1277,7 @@ def whole_station_qaqc(
                         qaqcdir,
                         errors,
                         end_api,
+                        zarr,
                         verbose=verbose,
                         local=local,
                     )
@@ -1327,14 +1348,13 @@ def whole_station_qaqc(
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
+
             # Make sure error files save to correct directory
-            # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+"errors_{}_{}.csv".format(network_ds, end_api))
             s3_cl.put_object(
                 Bucket=bucket_name,
                 Body=content,
                 Key=qaqcdir + "errors_{}_{}.csv".format(station, end_api),
             )
-
     MPI.Finalize()
 
     return

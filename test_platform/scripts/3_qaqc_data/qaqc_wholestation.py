@@ -280,7 +280,7 @@ def qaqc_elev_infill(df, verbose=False):
                 ):  # single lat-lon pair for missing elevs
                     try:
                         dem_elev_value = _grab_dem_elev_m(
-                            df["lat"].iloc[0], df["lon"].iloc[0]
+                            list(nan_lats), list(nan_lons)
                         )
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             3  # see era_qaqc_flag_meanings.csv
@@ -362,8 +362,7 @@ def qaqc_elev_infill(df, verbose=False):
                     "Elevation cannot be in-filled", log_file=log_file, verbose=verbose
                 )
                 return None
-    else:
-        return df
+    return df
 
 
 # ----------------------------------------------------------------------

@@ -85,7 +85,6 @@ def get_meso_metadata(token, terrpath, marpath):
 def get_cwop_station_csv(
     token, ids, bucket_name, directory, start_date=None, **options
 ):
-
     # This is somewhat unneccesary because AWS buckets don't actually have directories (its more user-friendly organizational structures)
     # https://stackoverflow.com/questions/1939743/amazon-s3-boto-how-to-create-a-folder
     try:

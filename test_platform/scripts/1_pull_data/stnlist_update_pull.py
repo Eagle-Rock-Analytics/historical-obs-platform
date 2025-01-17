@@ -479,7 +479,6 @@ def isd_get_missing_files(missing_files, bucket_name, network):
 # After attempted redownload, read in station list and add column "Downloaded" with Y/N.
 # Inputs: AWS bucket name, network name
 def update_station_list(bucket_name, network):
-
     # Define list of all MADIS networks.
     MADIS = [
         "CAHYDRO",
@@ -651,7 +650,6 @@ def maritime_retry_downloads(bucket_name, network):
 ## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
 ## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
 def download_comparison(bucket_name, network):
-
     # Get list of files in folder
     directory = "1_raw_wx/" + network
     files = []
@@ -714,7 +712,6 @@ def download_comparison(bucket_name, network):
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
 def retry_downloads(token, bucket_name, networks=None):
-
     # Set paths to WECC shapefiles in AWS bucket.
     wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
     wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"

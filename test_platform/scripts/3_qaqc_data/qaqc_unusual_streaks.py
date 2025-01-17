@@ -115,6 +115,11 @@ def infere_res_var(df, var):
 def infere_res(df, verbose=False):
     """ """
     check_vars = [
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
         "tas",
         "tdps",
         "tdps_derived",
@@ -148,16 +153,16 @@ straight_repeat_criteria = {
         0.1: [24, 7],  # 24 values or 7 days
     },
     "tdps": {
-        1: [80, 14],
-        0.5: [60, 10],
-        0.1: [48, 7],
-    },  # of  # or  # or
+        1: [80, 14],  # of
+        0.5: [60, 10],  # or
+        0.1: [48, 7],  # or
+    },
     "psl": {1: [120, 28], 0.5: [100, 21], 0.1: [72, 14]},  # of  # or  # or
     "sfcWind": {
-        1: [40, 14],
-        0.5: [30, 10],
-        0.1: [24, 7],
-    },  # of  # or  # or
+        1: [40, 14],  # of
+        0.5: [30, 10],  # or
+        0.1: [24, 7],  # or
+    },
 }
 straight_repeat_criteria["tdps_derived"] = straight_repeat_criteria["tdps"]
 straight_repeat_criteria["ps"] = straight_repeat_criteria["psl"]
@@ -168,10 +173,10 @@ straight_repeat_criteria["ps_altimeter"] = straight_repeat_criteria["psl"]
 # Hour repeat streak criteria
 hour_repeat_criteria = {
     "tas": {
-        1: 25,
-        0.5: 20,
-        0.1: 15,
-    }  # 40 days  # 20 days  # 15 days
+        1: 25,  # 40 days
+        0.5: 20,  # 20 days
+        0.1: 15,  # 15 days
+    }
 }
 # All variables have the same hourly criteria
 hour_repeat_criteria["tdps"] = hour_repeat_criteria["tas"]
@@ -186,11 +191,11 @@ hour_repeat_criteria["sfcWind"] = hour_repeat_criteria["tas"]
 # Day repeat streak criteria
 day_repeat_criteria = {
     "tas": {
-        1: 10,
-        0.5: 7,
-        0.1: 5,
+        1: 10,  # 10 days
+        0.5: 7,  #  7 days
+        0.1: 5,  #  5 days
     }
-}  # 10 days  #  7 days  #  5 days
+}
 # All variables have the same daily criteria
 day_repeat_criteria["tdps"] = day_repeat_criteria["tas"]
 day_repeat_criteria["tdps_derived"] = day_repeat_criteria["tas"]
@@ -210,7 +215,6 @@ WIND_MIN_VALUE = {1: 1.0, 0.5: 0.5, 0.1: 0.5}
 # ---------------------------------------------------------------------------------------------------
 # Function to create a new column for consecutive months
 def consecutive_months(series):
-
     indices = np.where(np.diff(series.values) > 1)[0] + 1
     clusters = np.split(series.values, indices)
     isin = [series.isin(c) for c in clusters]
@@ -617,7 +621,6 @@ def consecutive_repeats(
 
 # ---------------------------------------------------------------------------------------------------
 def full_day_compare(series0, series1):
-
     ind = []
     groups = []
     g = 0

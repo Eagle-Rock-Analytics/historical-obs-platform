@@ -44,7 +44,6 @@ raw_path = "1_raw_wx/"
 # Function calls Synoptic API to get network metadata and save to AWS.
 # Takes Synoptic API token as input.
 def get_network_metadata(token):
-
     # Produce table of station metadata from Synoptic API
     r = requests.get(
         "https://api.synopticdata.com/v2/networks?token={}".format(token)
@@ -127,7 +126,6 @@ def get_madis_metadata(token, terrpath, marpath, networkid, bucket_name, directo
 def get_madis_station_csv(
     token, ids, bucket_name, directory, start_date=None, **options
 ):
-
     # Set up error handling df.
     errors = {"Station ID": [], "Time": [], "Error": []}
 
@@ -221,11 +219,9 @@ def get_madis_station_csv(
         Key=directory + "errors_{}_{}.csv".format(networkname, end_api),
     )
 
-
 def get_madis_station_csv_update(
     token, ids, bucket_name, directory, start_date=None, end_date=None, **options
 ):
-
     # Set up error handling df.
     errors = {"Station ID": [], "Time": [], "Error": []}
 
@@ -416,7 +412,6 @@ def madis_pull(token, networks=None, pause=None):
 # Pause: Optional. If True, prompts user to indicate yes to continue before downloading large networks.
 ## Automatically set to yes when networks is not specified.
 def madis_update(token, networks=None, pause=None, start_date=None, end_date=None):
-
     if networks is None:  # If no networks provided, pull full list.
         networkdf = get_network_metadata(token)
         networkdf = networkdf[

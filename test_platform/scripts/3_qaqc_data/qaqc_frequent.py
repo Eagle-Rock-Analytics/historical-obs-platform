@@ -86,7 +86,20 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         "flag",
         "depth",
     ]  # list of var substrings to remove if present in var
-    vars_to_include = ["tas", "tdps", "ps", "psl", "ps_altimeter", "ps_derived", "rsds"]
+    vars_to_include = [
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+        "tas",
+        "tdps",
+        "ps",
+        "psl",
+        "ps_altimeter",
+        "ps_derived",
+        "rsds",
+    ]
     vars_to_check = [
         var
         for var in df.columns
@@ -102,8 +115,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         )
 
         for var in vars_to_check:
-            # if var=="rsds":
-            #     import pdb; pdb.set_trace()
             printf(
                 "Running frequent values check on: {}".format(var),
                 log_file=log_file,
@@ -211,8 +222,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 ):  # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
 
-        # Drop month,year vars used for calculations
-        # df = df.drop(columns=['month','year'])
         return df
 
     except Exception as e:
@@ -246,18 +255,21 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     """
-    # if var=="rsds":
-    #     import pdb; pdb.set_trace()
+
     # seasons
     szns = [[3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 1, 2]]
 
+    # Some variables use a different bin size than the default
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ["ps", "ps_altimeter", "psl", "ps_derived"]
+    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
 
     if var in ps_vars:
         bin_s = 100  # all of our pressure vars are in Pa, convert to 100 Pa bin size
     elif var == "rsds":
-        bin_s = 50
+        bin_s = 50  # W/m2
+    elif var in pr_vars:
+        bin_s = 0.1  # mm
     else:
         bin_s = 1
 
@@ -290,6 +302,16 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                 verbose=verbose,
             )
             df_to_test = df.loc[df[var] >= bin_s]
+
+    # Don't check for zeros in precip vars
+    # We expect a lot of the precip data to be zero and don't want to flag frequent zeros
+    elif var in ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]:
+        printf(
+            "Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected",
+            log_file=log_file,
+            verbose=verbose,
+        )
+        df_to_test = df.loc[df[var] >= bin_s]
 
     else:  # all other variables
         df_to_test = df
@@ -380,7 +402,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     elif data_group == "seasonal_annual":
         for yr in df_to_test.year.unique():
             for szn in szns:
-
                 # all seasons except winter
                 if szn != [12, 1, 2]:
                     df_szn = df_to_test.loc[
@@ -523,7 +544,6 @@ def synergistic_flag(df, num_temp_vars):
     flags_to_set = [24, 25]
 
     for flag_to_set in flags_to_set:
-
         if "tas" in num_temp_vars and "tdps" in num_temp_vars:
             df.loc[df["tas_eraqc"] == flag_to_set, "tdps_eraqc"] = flag_to_set
             df.loc[df["tdps_eraqc"] == flag_to_set, "tas_eraqc"] = flag_to_set

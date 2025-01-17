@@ -190,7 +190,6 @@ def get_maritime_station_ids(terrpath, marpath, directory_mar, directory_ndbc):
 ## Read in MARITIME data using HTTP access.
 ## Removing "get_all" functionality for now, but may need to be redesigned in future for current year/preliminary data
 def get_maritime(stations, bucket_name, network, years=None):
-
     # Set up error handling df.
     errors = {"Station ID": [], "Time": [], "Error": []}
 
@@ -318,7 +317,6 @@ def get_maritime(stations, bucket_name, network, years=None):
 # As above, but with start and end time filtering functionality. Note here we can only filter download by start and end month, so we download all
 # data for month even if only a few days are requested.
 def get_maritime_update(stations, bucket_name, network, start_date=None, end_date=None):
-
     # Set up error handling df.
     errors = {"Station ID": [], "Time": [], "Error": []}
 
@@ -351,7 +349,6 @@ def get_maritime_update(stations, bucket_name, network, start_date=None, end_dat
         int(datetime.now().strftime("%j")) <= 45
     ):  # if download occurring in first 45 days of year
         if (str(datetime.now().year - 1)) in years:  # and includes previous year's data
-
             # get list of months from start to end.
             date_list = pd.period_range(start=start_date, end=end_date, freq="M")
             month_list = [month.strftime("%b") for month in date_list]
@@ -408,7 +405,6 @@ def get_maritime_update(stations, bucket_name, network, start_date=None, end_dat
 
         else:  # if year in present year, download by month. only applicable for the NDBC stored data (non-Canadian source)
             for filename in dir_stations["STATION_ID"]:
-
                 try:
                     if (
                         filename in canadian_owners
@@ -480,7 +476,6 @@ def get_maritime_update(stations, bucket_name, network, start_date=None, end_dat
                     # Then, download all months in month list
 
                     for i in prior_year_months:
-
                         month_nom = datetime.strptime(
                             i, "%b"
                         ).month  # Get month in number form

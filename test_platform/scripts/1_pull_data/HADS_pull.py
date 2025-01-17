@@ -152,7 +152,6 @@ def get_hads_stations(terrpath, marpath):
 
 
 def get_file_links(url):
-
     # create response object
     r = requests.get(url)
 
@@ -181,7 +180,6 @@ def get_file_links(url):
 def link_to_aws(links, bucket_name, directory):
     s3 = boto3.resource("s3")
     for i, (file_link, dates) in enumerate(links):
-
         """iterate through all links in links
         and download them one by one"""
         # UPDATE TO REFLECT ZIPPED LIST - TO DO.

@@ -43,7 +43,6 @@ reporting_vars = [
 # open original hadISD netCDFs, expand time axis,
 # count where all data or var-specific is missing
 for s in range(len(wecc_df)):
-
     stn_id = wecc_df["station id"][s]
     icao_i = wecc_df["icao"][s]
     f_id = stn_id + "_" + icao_i

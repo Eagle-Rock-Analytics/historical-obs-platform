@@ -50,7 +50,6 @@ def delete_files_from_AWS(network, which_to_delete):
 
     # deletes only update pull files with date extensions that are empty
     if which_to_delete == "empty":
-
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
 
@@ -118,7 +117,6 @@ def delete_files_from_AWS(network, which_to_delete):
 
     # deletes ALL update pull files with date extensions
     elif which_to_delete == "update_pull":
-
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
 
@@ -172,12 +170,10 @@ def delete_files_from_AWS(network, which_to_delete):
     # deletes the monthly files from NDBC, MARITIME after year file is in
     # note: CIMIS has monthly files, but should not delete, as these files retain data for all stations
     elif which_to_delete == "monthly":
-
         # grab raw data directory for specific network
         rawdir, cleandir, qaqcdir = get_file_paths(network)
 
         if network == "NDBC" or network == "MARITIME":
-
             # get files
             all_files = []
             for item in s3.Bucket(bucket_name).objects.filter(Prefix=rawdir):

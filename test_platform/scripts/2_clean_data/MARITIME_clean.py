@@ -336,9 +336,7 @@ def clean_buoys(rawdir, cleandir, network):
 
                             with BytesIO(obj.get()["Body"].read()) as tf:
                                 tf.seek(0)  # rewind the file
-
                                 with zipfile.ZipFile(tf, mode="r") as zipf:
-
                                     for subfile in zipf.namelist():
                                         filestn = subfile.replace(".csv", "")
                                         filestn = int(

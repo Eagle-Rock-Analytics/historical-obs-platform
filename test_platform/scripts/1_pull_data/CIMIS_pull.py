@@ -88,7 +88,6 @@ def get_cimis_stations(directory):
 # get_all: True or False. If False, only download files whose last edit date is newer than
 #  the most recent files downloaded in the save folder. Only use to update a complete set of files.
 def get_cimis_data_ftp(bucket_name, directory, years=None, get_all=True):
-
     # Set up error handling
     errors = {"File": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(
@@ -179,7 +178,6 @@ def get_cimis_data_ftp(bucket_name, directory, years=None, get_all=True):
                     # We don't save hourlyallstns.zip because it'll be less compatible with the get_all = False option or future updating runs. Instead, download all files.
                     ftp_to_aws(ftp, filename, directory)
                 else:
-
                     modifiedTime = ftp.sendcmd("MDTM " + filename)[
                         4:
                     ].strip()  # Returns time modified (in UTC)
@@ -232,7 +230,6 @@ def get_cimis_data_ftp(bucket_name, directory, years=None, get_all=True):
 # start_date: optional
 # end_date: optional
 def get_cimis_update_ftp(bucket_name, directory, start_date=None, end_date=None):
-
     # Set up error handling
     errors = {"File": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(
