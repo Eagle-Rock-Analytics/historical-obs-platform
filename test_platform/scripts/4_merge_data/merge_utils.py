@@ -75,7 +75,7 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def hourly_standardization(df, verbose=verbose):
+def hourly_standardization(df, verbose=verbose, log_file=log_file):
     """
 
     Resamples meteorological variables to hourly timestep according to standard conventions.

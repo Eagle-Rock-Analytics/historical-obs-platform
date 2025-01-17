@@ -87,9 +87,8 @@ if __name__ == "__main__":
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
     run_merge_pipeline(
         network,
-        cleandir,
         qaqcdir,
-        rad_scheme,
+        mergedir,
         verbose=verbose,
         local=local,
         sample=sample,

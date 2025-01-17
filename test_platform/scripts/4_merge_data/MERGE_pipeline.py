@@ -206,9 +206,44 @@ def run_merge_pipeline(
     local=local,
     log_file=None,
 ):
-    """DOCUMENTATION NEEDED"""
-    # xarray ds for a station to pandas df in the format needed for processing
+    """Runs all final merge standardization functions, and exports final station file.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        Data object with information about each network and station
+    network: str
+        Network identifier
+    file_name: str
+        Station filename
+    errors: str
+        Path to the errors file location -- CHECK
+    station: str
+        Staiton identifier
+    end_api: str
+        Script end time, for error handling csv
+    verbose: boolean
+        Flag as to whether to print runtime statements to terminal. Default is False. Set in ALLNETWORKS_merge.py run.
+    local: boolean
+        Flag as to whehter to save station file, log file, figures to local directory. Default is False. Set in ALLNETWORKS_merge.py run.
+    log_file: str 
+        Path to the log file location -- CHECK
+
+    Returns
+    -------
+    None (?)
+        Theoretically the merged file will save to AWS and nothing else gets returned locally. 
+    """
+
+    # Convert to working dataframe
     df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds, verbose=verbose)
+
+    # Set up timing and logging for script runtime
+    t0 = time.time()
+    printf("Merge tests", log_file=log_file, verbose=verbose, flush=True)
+    
+    # Set up final dataframe, in case
+    stn_to_merge = df.copy()
 
     ##########################################################
     ## Merge Functions: Order of operations
@@ -224,18 +259,33 @@ def run_merge_pipeline(
     # Part 1: Derive any missing variables
     # TODO: Do this only for variables which the station has no sensor for (do not mix observed & calculated values)
     # Will require meteorological formulae -- some in calc_clean.py, some in climakitae?
-    # dew point temperature
-    # relative humidity
-
+        # dew point temperature
+        # relative humidity
     # Not started
 
+    # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
-    # In-progress
+    new_df = hourly_standardization(df, verbose=verbose, log_file=log_file)
+    if new_df is None:
+        errors = print_merge_failed(
+            errors, 
+            station,
+            end_api,
+            message="hourly standardization failed",
+            test="hourly_standardization",
+            verbose=verbose,
+        )
+        return [None]
+    else:
+        stn_to_merge = new_df
+        printf("pass hourly_standardization", log_file=log_file, verbose=verbose, flush=True)
 
+    # ----------------------------------------------------------
     # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
     # TODO: Homogenize/concatenate ASOS/AWOS stations where there are historical jumps
     # Not started
 
+    # ----------------------------------------------------------
     # Part 4: Remove duplicate stations
     # TODO:
     # name string matching
@@ -243,21 +293,28 @@ def run_merge_pipeline(
     # some buoys will get flagged here!
     # Not started
 
+    # ----------------------------------------------------------
     # Part 5: Re-orders variables into final preferred order
     # TODO:
     # Not started
 
+    # ----------------------------------------------------------
     # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
     # TODO: Decision needs to be made as to whether we keep raw qc variables and/or eraqc variables in final data product
     # Not started
 
+    # ----------------------------------------------------------
     # Part 7: Exports final station file as a .nc file (or .zarr)
     # TODO: Decision as to final format that is publically available
     # AE preference would be zarrs
     # local user preference may be .nc or .csv ?
     # Not started
-    ## Assign ds attributes and save .nc file
+    # Assign ds attributes and save .nc file
     # process output ds
     # Close and save log file
     # Write errors to csv
     # Make sure error files save to correct directory
+
+
+    # for testing!
+    return stn_to_merge.head(3)
