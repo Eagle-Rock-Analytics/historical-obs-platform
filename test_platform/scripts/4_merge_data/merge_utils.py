@@ -188,8 +188,6 @@ def hourly_standardization(df, verbose=verbose):
 
     instant_df = df[[col for col in instant_vars if col in df.columns]]
 
-    all_vars_df = df[[col for col in all_vars if col in df.columns]]
-
     #####
 
     try:
