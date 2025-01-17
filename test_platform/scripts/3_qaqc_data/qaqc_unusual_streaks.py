@@ -147,9 +147,17 @@ straight_repeat_criteria = {
         0.5: [30, 10],  # 30 values or 10 days
         0.1: [24, 7],  # 24 values or 7 days
     },
-    "tdps": {1: [80, 14], 0.5: [60, 10], 0.1: [48, 7],},  # of  # or  # or
+    "tdps": {
+        1: [80, 14],
+        0.5: [60, 10],
+        0.1: [48, 7],
+    },  # of  # or  # or
     "psl": {1: [120, 28], 0.5: [100, 21], 0.1: [72, 14]},  # of  # or  # or
-    "sfcWind": {1: [40, 14], 0.5: [30, 10], 0.1: [24, 7],},  # of  # or  # or
+    "sfcWind": {
+        1: [40, 14],
+        0.5: [30, 10],
+        0.1: [24, 7],
+    },  # of  # or  # or
 }
 straight_repeat_criteria["tdps_derived"] = straight_repeat_criteria["tdps"]
 straight_repeat_criteria["ps"] = straight_repeat_criteria["psl"]
@@ -159,7 +167,11 @@ straight_repeat_criteria["ps_altimeter"] = straight_repeat_criteria["psl"]
 # ----------------------------------------------------------------------
 # Hour repeat streak criteria
 hour_repeat_criteria = {
-    "tas": {1: 25, 0.5: 20, 0.1: 15,}  # 40 days  # 20 days  # 15 days
+    "tas": {
+        1: 25,
+        0.5: 20,
+        0.1: 15,
+    }  # 40 days  # 20 days  # 15 days
 }
 # All variables have the same hourly criteria
 hour_repeat_criteria["tdps"] = hour_repeat_criteria["tas"]
@@ -172,7 +184,13 @@ hour_repeat_criteria["sfcWind"] = hour_repeat_criteria["tas"]
 
 # ----------------------------------------------------------------------
 # Day repeat streak criteria
-day_repeat_criteria = {"tas": {1: 10, 0.5: 7, 0.1: 5,}}  # 10 days  #  7 days  #  5 days
+day_repeat_criteria = {
+    "tas": {
+        1: 10,
+        0.5: 7,
+        0.1: 5,
+    }
+}  # 10 days  #  7 days  #  5 days
 # All variables have the same daily criteria
 day_repeat_criteria["tdps"] = day_repeat_criteria["tas"]
 day_repeat_criteria["tdps_derived"] = day_repeat_criteria["tas"]
@@ -330,9 +348,9 @@ def qaqc_unusual_repeated_streaks(
             bad_hourly = hourly_repeats(
                 test_df, var=var, threshold=threshold
             )  # Bad hourly returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_hourly), var + "_eraqc"
-            ] = 27  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
+                27  # Flag _eraqc variable
+            )
             printf(
                 "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
@@ -362,9 +380,9 @@ def qaqc_unusual_repeated_streaks(
                 wind_min_value,
                 min_sequence_length=min_sequence_length,
             )  # Bad straight returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_straight), var + "_eraqc"
-            ] = 28  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
+                28  # Flag _eraqc variable
+            )
             printf(
                 "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
@@ -386,9 +404,9 @@ def qaqc_unusual_repeated_streaks(
             bad_whole = consecutive_fullDay_repeats(
                 test_df, var, threshold
             )  # Bad whole returns a pd.Series of time stamps
-            new_df.loc[
-                new_df["time"].isin(bad_whole), var + "_eraqc"
-            ] = 29  # Flag _eraqc variable
+            new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
+                29  # Flag _eraqc variable
+            )
             printf(
                 "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00

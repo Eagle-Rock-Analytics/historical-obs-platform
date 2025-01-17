@@ -85,9 +85,9 @@ def get_elevs(url):
     ]  # Split into rows
     df = pd.DataFrame(composite_list)
     df.columns = columns
-    df[
-        "Tide_Reference"
-    ] = np.NAN  # Add 6th column -- don't really  need this column, drop in update
+    df["Tide_Reference"] = (
+        np.NAN
+    )  # Add 6th column -- don't really  need this column, drop in update
 
     # Table 2 has 6 columns
     tabletext = tables[1]
