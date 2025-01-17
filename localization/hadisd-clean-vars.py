@@ -437,9 +437,9 @@ for s in range(len(wecc_df)):
 
         if rht:
             no_report = ds["no_report"][:, 0:2]
-            no_report.attrs["long_name"] = (
-                "Temperature and/or dewpoint not reported by station"
-            )
+            no_report.attrs[
+                "long_name"
+            ] = "Temperature and/or dewpoint not reported by station"
             no_report.attrs["reporting_v_order"] = "temperatures, dewpoints"
             no_report_t = str(int(sum(ds["no_report"][:, 0].values)))
             no_report.attrs["temperature_obs_not_reported"] = no_report_t
@@ -447,9 +447,9 @@ for s in range(len(wecc_df)):
             no_report.attrs["dewpoint_obs_not_reported"] = no_report_d
             fl_obs = ds["flagged_rh"]
             temp_rs = ds["reporting_stats"][0:2]
-            temp_rs.attrs["long_name"] = (
-                "Temperature and dewpoint reporting frequency and accuracy for each month"
-            )
+            temp_rs.attrs[
+                "long_name"
+            ] = "Temperature and dewpoint reporting frequency and accuracy for each month"
             temp_rs.attrs["reporting_v_order"] = "temperatures, dewpoints"
 
         else:
@@ -459,9 +459,9 @@ for s in range(len(wecc_df)):
             no_report.attrs["obs_not_reported"] = no_report_total
             fl_obs = ds["flagged_obs"][:, i]
             temp_rs = ds["reporting_stats"][i]
-            temp_rs.attrs["long_name"] = (
-                "Reporting frequency and accuracy for each month"
-            )
+            temp_rs.attrs[
+                "long_name"
+            ] = "Reporting frequency and accuracy for each month"
 
         fl_obs.attrs["long_name"] = "Observation values removed by QC flags"
         fl_obs.attrs["units"] = ds[v].attrs["units"]
@@ -540,9 +540,9 @@ for s in range(len(wecc_df)):
             merged_ds.encoding["dtype"] = "S1"
 
         else:
-            merged_ds.attrs["description"] = (
-                "time series showing when station was not reporting any data"
-            )
+            merged_ds.attrs[
+                "description"
+            ] = "time series showing when station was not reporting any data"
             merged_ds.encoding["_FillValue"] = -1e30
 
         # some xarray encoding stuff
