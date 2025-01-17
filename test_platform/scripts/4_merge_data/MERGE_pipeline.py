@@ -1,29 +1,3 @@
-# ---------------------------------------------------------------------------------
-# Dev to do:
-# reorder variables once entire qaqc is complete before saving
-# output csv of flags/consistent flagging
-# check the h5netcdf vs. netcdf4 engine
-# delete testing notes
-
-
-
-## Step 1: Read in qa/qc data
-## Reading in all datasources here?
-## Performance/efficiency checks
-## Station de-duplication checks
-
-
-## Step 2: Merge data
-## Likely needs extensive error checking + outputs to user
-## Data formatting
-## Drop source variables that are not priority variables when needed for derived priority variables
-## This would be the relevant moisture variables for relative humidity and dewpoint temperature if they are not observed
-
-
-## Step 3: Product documentation
-## Introductory paragraph(s) about final data product (Grace?)
-
-
 """
 This script performs the final merge protocols for cleaned and quality controlled station data for ingestion into the Historical Observations Platform, 
 and is independent of network. 
