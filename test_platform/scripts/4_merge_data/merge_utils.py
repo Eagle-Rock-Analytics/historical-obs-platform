@@ -152,7 +152,6 @@ def hourly_standardization(df, verbose=verbose):
 
     # QAQC flags, which remain constants within each hour
     qaqc_vars = [
-        "time",
         "tas_qc",
         "tas_eraqc",
         "pr_5min_eraqc",
@@ -181,10 +180,9 @@ def hourly_standardization(df, verbose=verbose):
     ##### Subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
 
-    qaqc_df = df[[col for col in qaqc_vars if col in df.columns]]
-    qaqc_vars_subset = qaqc_df.columns.tolist()
-    qaqc_vars_subset.remove("time")
-    qaqc_df[qaqc_vars_subset] = qaqc_df[qaqc_vars_subset].astype(str)
+    qaqc_df = df[[col for col in qaqc_vars if col in df.columns if col != "time"]]
+    qaqc_df = qaqc_df.astype(str)
+    qaqc_df.insert(0, "time", df["time"])
 
     sum_df = df[[col for col in sum_vars if col in df.columns]]
 
