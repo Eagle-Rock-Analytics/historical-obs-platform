@@ -49,6 +49,7 @@ bucket_name = "wecc-historical-wx"
 # ----------------------------------------------------------------------------
 # Global functions and variables
 
+
 # POTENTIALLY MOVE INTO UTILS
 def setup_error_handling():
     """DOCUMETNATION NEEDED"""
@@ -59,8 +60,9 @@ def setup_error_handling():
     )  # Set end time to be current time at beginning of download: for error handling csv
 
     timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-    
+
     return errors, end_api, timestamp
+
 
 # ----------------------------------------------------------------------------
 def print_merge_failed(
@@ -77,6 +79,7 @@ def print_merge_failed(
     errors["Time"].append(end_api)
     errors["Error"].append("Failure on {}".format(test))
     return errors
+
 
 # ----------------------------------------------------------------------------
 ## Check if network files are in s3 bucket
@@ -117,18 +120,19 @@ def file_on_s3(df, zarr):
     substring_in_filepath = df["era-id"].isin(file_st)
     return substring_in_filepath
 
+
 # ----------------------------------------------------------------------------
 ## COULD BE PUT IN UTILS
-# 
+#
 def merge_ds_to_df(ds, verbose=verbose):
-    """Converts xarray ds for a station to pandas df in the format needed for processing. 
+    """Converts xarray ds for a station to pandas df in the format needed for processing.
 
     Parameters
     ----------
     ds: xr.Dataset
         Data object with information about each network and station
     verbose: boolean
-        Flag as to whether to print runtime statements to terminal. Default is False. Set in ALLNETWORKS_merge.py run. 
+        Flag as to whether to print runtime statements to terminal. Default is False. Set in ALLNETWORKS_merge.py run.
 
     Returns
     -------
@@ -141,7 +145,7 @@ def merge_ds_to_df(ds, verbose=verbose):
     var_attrs:
         Save variable attributes to inherent to the final merged file
     """
-    
+
     # Save attributes to inherent them to the final merged file
     attrs = ds.attrs
     var_attrs = {var: ds[var].attrs for var in list(ds.data_vars.keys())}
@@ -192,19 +196,19 @@ def merge_ds_to_df(ds, verbose=verbose):
 # ----------------------------------------------------------------------------
 # Run full merge pipeline
 def run_merge_pipeline(
-    ds, 
+    ds,
     network,
-    file_name, 
+    file_name,
     errors,
-    station, 
+    station,
     end_api,
     verbose=verbose,
     local=local,
     log_file=None,
 ):
-    """ DOCUMENTATION NEEDED """
+    """DOCUMENTATION NEEDED"""
     # xarray ds for a station to pandas df in the format needed for processing
-    df, MultiIndex, attrs var_attrs = merge_ds_to_df(ds, verbose=verbose)
+    df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds, verbose=verbose)
 
     ##########################################################
     ## Merge Functions: Order of operations
@@ -219,47 +223,41 @@ def run_merge_pipeline(
     # =========================================================
     # Part 1: Derive any missing variables
     # TODO: Do this only for variables which the station has no sensor for (do not mix observed & calculated values)
-        # Will require meteorological formulae -- some in calc_clean.py, some in climakitae?
-        # dew point temperature
-        # relative humidity
-        
+    # Will require meteorological formulae -- some in calc_clean.py, some in climakitae?
+    # dew point temperature
+    # relative humidity
+
     # Not started
 
     # Part 2: Standardize sub-hourly observations to hourly
     # In-progress
 
-
     # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
     # TODO: Homogenize/concatenate ASOS/AWOS stations where there are historical jumps
     # Not started
 
-
     # Part 4: Remove duplicate stations
-    # TODO: 
-        # name string matching
-        # stations within a certain distance (vs. lat-lon matching)
-            # some buoys will get flagged here!
+    # TODO:
+    # name string matching
+    # stations within a certain distance (vs. lat-lon matching)
+    # some buoys will get flagged here!
     # Not started
-
 
     # Part 5: Re-orders variables into final preferred order
     # TODO:
     # Not started
 
-
     # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
     # TODO: Decision needs to be made as to whether we keep raw qc variables and/or eraqc variables in final data product
     # Not started
 
-
     # Part 7: Exports final station file as a .nc file (or .zarr)
     # TODO: Decision as to final format that is publically available
-        # AE preference would be zarrs
-        # local user preference may be .nc or .csv ?
+    # AE preference would be zarrs
+    # local user preference may be .nc or .csv ?
     # Not started
-        ## Assign ds attributes and save .nc file
-            # process output ds
-            # Close and save log file
-            # Write errors to csv
-            # Make sure error files save to correct directory
-
+    ## Assign ds attributes and save .nc file
+    # process output ds
+    # Close and save log file
+    # Write errors to csv
+    # Make sure error files save to correct directory
