@@ -85,7 +85,7 @@ if __name__ == "__main__":
         rawdir, cleandir, qaqcdir, mergedir = None, None, None, None
     else:
         rawdir, cleandir, qaqcdir, mergedir = get_file_paths(network)
-    whole_station_qaqc(
+    run_merge_pipeline(
         network,
         cleandir,
         qaqcdir,
