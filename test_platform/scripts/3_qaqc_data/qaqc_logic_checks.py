@@ -88,9 +88,9 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
                 # only use valid obs for both dewpoint and air temp
                 df_valid = grab_valid_obs(df, var="tas", var2=dew_var)
                 isBad = df_valid.loc[df_valid[dew_var] > df_valid["tas"]]
-                df.loc[
-                    isBad.index, dew_var + "_eraqc"
-                ] = 12  # see qaqc_flag_meanings.csv
+                df.loc[isBad.index, dew_var + "_eraqc"] = (
+                    12  # see qaqc_flag_meanings.csv
+                )
 
         return df
 
@@ -246,9 +246,9 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         else:
             for item in pr_vars:
                 df_valid = grab_valid_obs(df, item)  # subset for valid obs
-                df.loc[
-                    df_valid[item] < 0, item + "_eraqc"
-                ] = 10  # see era_qaqc_flag_meanings.csv
+                df.loc[df_valid[item] < 0, item + "_eraqc"] = (
+                    10  # see era_qaqc_flag_meanings.csv
+                )
         return df
 
     except Exception as e:
