@@ -34,7 +34,7 @@ timestamp = datetime.now()
 
 ## -----------------------------------------------------------------------------------------------------------------
 ## This may happen via various methods depending on how the data is stored
-files = os.listdir(workdir) # Gets list of files in directory to work with
+files = os.listdir(workdir)  # Gets list of files in directory to work with
 
 ## netCDF
 files = list(filter(lambda f: f.endswith(".nc"), files))
@@ -50,7 +50,11 @@ files = list(filter(lambda f: f.endswith(".txt"), files))
 
 
 ## Step 2: Read in datafile and drop variables that aren't of interest
-dropvars = ['var1', 'var2', 'var3'] # will depend on each datasource and what it provides
+dropvars = [
+    "var1",
+    "var2",
+    "var3",
+]  # will depend on each datasource and what it provides
 # alternative: dropvars = [] pulling column headers from data file and doing an anti-join
 # conceptually using pandas: https://stackoverflow.com/questions/38516664/anti-join-pandas
 # datasource would need to have a variable header, at least one does not
@@ -61,9 +65,11 @@ dropvars = ['var1', 'var2', 'var3'] # will depend on each datasource and what it
 # This is based on if files are listed by station
 ids = list()
 for file in files:
-    id = re.sub(".*.nc", "", file) # removes all YYYYMM (and trailing metadata/file extension, if .nc)
-    id = re.sub('XXXX_', "", id) # removes leading ndbc (example)
-    id = re.sub("_", "", id) # removes remaining underscores
+    id = re.sub(
+        ".*.nc", "", file
+    )  # removes all YYYYMM (and trailing metadata/file extension, if .nc)
+    id = re.sub("XXXX_", "", id)  # removes leading ndbc (example)
+    id = re.sub("_", "", id)  # removes remaining underscores
     if id not in ids:
         ids.append(id)
 
@@ -73,10 +79,13 @@ for file in files:
 # ----------------------------------------------------------------------------------------------------------
 
 file = os.path.join(workdir, filename)
-def preprocess(ds):
-    return ds.drop_vars(dropvars) # Drops variables that aren't of interest
 
-ds = xr.open_dataset(file, drop_variables = dropvars)
+
+def preprocess(ds):
+    return ds.drop_vars(dropvars)  # Drops variables that aren't of interest
+
+
+ds = xr.open_dataset(file, drop_variables=dropvars)
 print(ds)
 
 
