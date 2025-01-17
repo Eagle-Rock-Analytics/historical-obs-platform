@@ -405,10 +405,6 @@ def get_wecc_stations(terrpath, marpath):
 def get_asosawos_data_ftp(
     station_list, bucket_name, directory, start_date=None, get_all=True
 ):
-<<<<<<< HEAD
-
-=======
->>>>>>> main
     # Set up error handling
     errors = {"Date": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(
