@@ -220,10 +220,12 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     printf("Running: qaqc_precip_logic_nonegvals", log_file=log_file, verbose=verbose)
 
+    df_neg_pr = df.copy(deep=True)
+
     # identify which precipitation vars are reported by a station
     vars_to_remove = ["qc", "duration", "method", "depth"]
     all_pr_vars = [
-        var for var in df.columns if "pr" in var
+        var for var in df_neg_pr.columns if "pr" in var
     ]  # can be variable length depending if there is a raw qc var
     pr_vars = [
         var
@@ -245,11 +247,10 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
             )
         else:
             for item in pr_vars:
-                df_valid = grab_valid_obs(df, item)  # subset for valid obs
-                df.loc[df_valid[item] < 0, item + "_eraqc"] = (
-                    10  # see era_qaqc_flag_meanings.csv
-                )
-        return df
+                df_valid = grab_valid_obs(df_neg_pr, item)  # subset for valid obs
+                df_valid.loc[df_valid[item] < 0, item + "_eraqc"] = 10  # see era_qaqc_flag_meanings.csv
+                
+        return df_valid
 
     except Exception as e:
         printf(
