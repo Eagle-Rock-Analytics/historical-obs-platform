@@ -93,7 +93,6 @@ def main():
         filename = filenames[i]
 
         # Read in file
-        filename = "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/Precip_Increm.Final@6001.EntireRecord.csv"
         df = pd.read_csv(
             filename, header=14
         )  # Remove header from each file so it can be read in as a dataframe
