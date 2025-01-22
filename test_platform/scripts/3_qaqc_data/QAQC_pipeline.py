@@ -1266,6 +1266,7 @@ def whole_station_qaqc(
                     rad_scheme,
                     verbose=verbose,
                     local=local,
+                    log_file=log_file,
                 )
 
                 ## Assign ds attributes and save .nc file
@@ -1312,7 +1313,7 @@ def whole_station_qaqc(
                     errors,
                     station,
                     end_api,
-                    message="Cannot read files in from AWS: {0}".format(e),
+                    message="run_qaqc_pipeline failed with error: {}".format(e),
                     test="run_qaqc_pipeline",
                     verbose=verbose,
                 )
@@ -1368,4 +1369,4 @@ def whole_station_qaqc(
             )
     MPI.Finalize()
 
-    return
+    return None
