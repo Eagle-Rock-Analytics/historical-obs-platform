@@ -19,36 +19,24 @@ from io import BytesIO, StringIO
 import scipy.stats as stats
 import scipy.signal as signal
 
+# New logger function
+from log_config import logger
+
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_unusual_gaps import *
 except:
-    print("Error importing qaqc_unusual_gaps.py")
+    logger.debug("Error importing qaqc_unusual_gaps.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_clim(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
-
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 # ----------------------------------------------------------------------
 ## climatological outlier check
@@ -100,11 +88,8 @@ def qaqc_climatological_outlier(
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
 
     try:
-        printf(
-            "Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
+        logger.info(
+            "Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom)
         )
 
         # whole station bypass check first
@@ -113,10 +98,8 @@ def qaqc_climatological_outlier(
 
         for var in vars_to_anom:
             # only work with non-flagged values
-            printf(
-                "Checking for climatological outliers in: {}".format(var),
-                log_file=log_file,
-                verbose=verbose,
+            logger.info(
+                "Checking for climatological outliers in: {}".format(var)
             )
             df_valid = grab_valid_obs(
                 new_df, var, kind="drop"
@@ -127,10 +110,8 @@ def qaqc_climatological_outlier(
 
             # Bypass if there are not valid observations
             if df_valid[var].size == 0:
-                printf(
-                    "Not valid observations for: {}".format(var),
-                    log_file=log_file,
-                    verbose=verbose,
+                logger.info(
+                    "Not valid observations for: {}".format(var)
                 )
                 continue
 
@@ -201,10 +182,8 @@ def qaqc_climatological_outlier(
             # Drop all non-flagged values
             df_valid = df_valid.dropna(subset=["flag"])
             if len(df_valid) != 0:
-                printf(
-                    "Outliers flagged in {0}".format(var),
-                    log_file=log_file,
-                    verbose=verbose,
+                logger.info(
+                    "Outliers flagged in {0}".format(var)
                 )  # only print statement if flags are set
 
             # Flag original data
@@ -227,7 +206,6 @@ def qaqc_climatological_outlier(
                 for i, ind in enumerate(index):
                     # Extract actual month/hour from index
                     month, hour = ind
-                    # print("{} out of {}".format(i,len(index)))
 
                     # Plot distribution
                     clim_outlier_plot(
@@ -242,10 +220,8 @@ def qaqc_climatological_outlier(
         return new_df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_climatological_outlier failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -354,8 +330,6 @@ def fit_normal(series, bin_size=0.25, plot=False):
         right = len(bins) - 2
 
     if plot:
-        # print(len(bins))
-        # print(left, right)
         # Plot the histogram of the series
         fig, ax = plt.subplots()
         ax.hist(series, bins=bins, density=False, alpha=0.35, label="Histogram")
@@ -364,7 +338,6 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
         ax.set_yscale("log")
         ymin = min(0.08, freq[freq > 0].min())
-        # print(ymin, freq[freq>0].min())
         ymax = np.ceil(freq.max() / 100) * 100
         ax.set_ylim(ymin, ymax)
         # ax.set_xlim(xmin, xmax)

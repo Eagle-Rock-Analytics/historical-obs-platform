@@ -18,31 +18,19 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_frequent(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
-
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 ## frequent values + helper functions
 # -----------------------------------------------------------------------------
@@ -76,7 +64,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     """
     # import pdb; pdb.set_trace()
-    printf("Running: qaqc_frequent_vals", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_frequent_vals")
 
     # this check is only done on air temp, dewpoint temp, and pressure
     vars_to_remove = [
@@ -108,17 +96,13 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     ]
 
     try:
-        printf(
+        logger.info(
             "Running qaqc_frequent_vals on {}".format(vars_to_check),
-            log_file=log_file,
-            verbose=verbose,
         )
 
         for var in vars_to_check:
-            printf(
+            logger.info(
                 "Running frequent values check on: {}".format(var),
-                log_file=log_file,
-                verbose=verbose,
             )
             df_valid = grab_valid_obs(df, var)  # subset for valid obs
 
@@ -133,13 +117,10 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
             # if no values are flagged as suspect, end function, no need to proceed
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
-                printf(
+                logger.info(
                     "No unusually frequent values detected for entire {} observation record".format(
                         var
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                )
+                    ),                )
                 # goes to seasonal check, no bypass
 
             else:
@@ -170,20 +151,13 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 verbose=verbose,
             )  ## DECISION: December is from the current year
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
-                printf(
-                    "No unusually frequent values detected for seasonal {} observation record".format(
-                        var
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                )
+                logger.info(
+                    "No unusually frequent values detected for seasonal {} observation record".format(var),                )
                 continue  # bypasses to next variable
 
             else:
-                printf(
-                    "Unusually frequent values detected in seasonal distribution, continuing to annual check",
-                    log_file=log_file,
-                    verbose=verbose,
+                logger.info(
+                    "Unusually frequent values detected in seasonal distribution, continuing to annual check",                
                 )
                 # year by year --> December selection must be specific
                 df_valid = frequent_bincheck(
@@ -225,10 +199,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_frequent_vals failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -277,39 +249,31 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     if var == "rsds":
         if rad_scheme == "all_hours":
             # all valid observations included -- frequent flag will set on 0/nighttime hours
-            printf(
+            logger.info(
                 "Radiation frequent value check scheme: all_hours selected, will flag nighttime",
-                log_file=log_file,
-                verbose=verbose,
             )
             df_to_test = df
 
         elif rad_scheme == "day_hours":
             # only day hours -- 7am-8pm as "day"
-            printf(
+            logger.info(
                 "Radiation frequent value check scheme: day_hours selected, day set to 7am - 8pm",
-                log_file=log_file,
-                verbose=verbose,
             )
             # 6am PST ~ 1400 UTC, 8pm PST ~ 0400 UTC
             df_to_test = df.loc[(df["hour"] >= 14) | (df["hour"] <= 4)]
 
         elif rad_scheme == "remove_zeros":
             # remove all zeros -- may remove too many zeros, impact daytime cloudy conditions, regional (PNW)
-            printf(
+            logger.info(
                 "Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions",
-                log_file=log_file,
-                verbose=verbose,
             )
             df_to_test = df.loc[df[var] >= bin_s]
 
     # Don't check for zeros in precip vars
     # We expect a lot of the precip data to be zero and don't want to flag frequent zeros
     elif var in ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]:
-        printf(
+        logger.info(
             "Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected",
-            log_file=log_file,
-            verbose=verbose,
         )
         df_to_test = df.loc[df[var] >= bin_s]
 
@@ -351,11 +315,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             )
 
             if len(flagged_bins) != 0:
-                printf(
-                    "Flagging bin: {0}".format(flagged_bins),
-                    log_file=log_file,
-                    verbose=verbose,
-                )
+                logger.info(
+                    "Flagging bin: {0}".format(flagged_bins),                )
 
                 for sus_bin in flagged_bins:
                     df.loc[
@@ -434,10 +395,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     )
 
                     if len(flagged_bins) != 0:
-                        printf(
+                        logger.info(
                             "Flagging bins: {0}".format(flagged_bins),
-                            log_file=log_file,
-                            verbose=verbose,
                         )
 
                         for sus_bin in flagged_bins:
@@ -467,17 +426,13 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     ]  # previous year's dec
                     if len(df_d) == 0:  # catching very first year instance
                         df_djf = df_jf
-                        printf(
+                        logger.info(
                             "Winter season: proceeding with just Jan/Feb, no previous Dec",
-                            log_file=log_file,
-                            verbose=verbose,
                         )  ## DECISION
 
                     else:
-                        printf(
+                        logger.info(
                             "Winter season: concatenating previous Dec",
-                            log_file=log_file,
-                            verbose=verbose,
                         )
                         df_djf = pd.concat([df_d, df_jf])
 
@@ -498,10 +453,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     )
 
                     if len(flagged_bins) != 0:
-                        printf(
+                        logger.info(
                             "Flagging bins: {0}".format(flagged_bins),
-                            log_file=log_file,
-                            verbose=verbose,
                         )
 
                         for sus_bin in flagged_bins:

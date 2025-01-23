@@ -18,6 +18,9 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 # plt.switch_backend('Agg')
 import time
 
@@ -35,18 +38,9 @@ warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 from IPython.display import display
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
-
 
 # ============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
@@ -271,7 +265,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
             plt.close()
 
         # Useful completion statement
-        print(f"Flag summary plot produced on: {var}")
+        logger.info(f"Flag summary plot produced on: {var}")
 
         # return
 
@@ -682,7 +676,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
                 elif x < thresholds[0]:  # left tail
                     bar.set_color("r")
     except:
-        print("PDF boundaries issue -- skipping left and right tails")
+        logger.info("PDF boundaries issue -- skipping left and right tails")
 
     # title and useful annotations
     plt.title(

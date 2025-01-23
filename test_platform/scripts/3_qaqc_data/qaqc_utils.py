@@ -20,6 +20,9 @@ from io import BytesIO, StringIO
 import scipy.stats as stats
 import sys
 
+# # New logger function
+# from log_config import logger
+
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -30,7 +33,6 @@ wecc_terr = (
     "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
-
 
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
@@ -157,26 +159,26 @@ def get_wecc_poly(terrpath, marpath):
     return t, m, bbox
 
 
-# -----------------------------------------------------------------------------
-# Log print auxiliary functions
-def printf(*args, verbose=True, log_file=None, **kwargs):
-    import datetime
+# # -----------------------------------------------------------------------------
+# # Log print auxiliary functions
+# def printf(*args, verbose=True, log_file=None, **kwargs):
+#     import datetime
 
-    tLog = lambda: datetime.datetime.utcnow().strftime("%m-%d-%Y %H:%M:%S") + " : \t"
-    args = [str(a) for a in args]
+#     tLog = lambda: datetime.datetime.utcnow().strftime("%m-%d-%Y %H:%M:%S") + " : \t"
+#     args = [str(a) for a in args]
 
-    if verbose:
-        if log_file is not None:
-            print(" ".join([tLog(), *args]), **kwargs) or print(
-                " ".join([tLog(), *args]), file=log_file, **kwargs
-            )
-        else:
-            print(" ".join([tLog(), *args]), **kwargs)
-    else:
-        if log_file is not None:
-            print(" ".join([tLog(), *args]), file=log_file, **kwargs)
-        else:
-            pass
+#     if verbose:
+#         if log_file is not None:
+#             print(" ".join([tLog(), *args]), **kwargs) or print(
+#                 " ".join([tLog(), *args]), file=log_file, **kwargs
+#             )
+#         else:
+#             print(" ".join([tLog(), *args]), **kwargs)
+#     else:
+#         if log_file is not None:
+#             print(" ".join([tLog(), *args]), file=log_file, **kwargs)
+#         else:
+#             pass
 
 
 # -----------------------------------------------------------------------------
@@ -199,10 +201,12 @@ def pdf_bounds(df, mu, sigma, bins):
     # add vertical lines to indicate thresholds where pdf y=0.1
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
-        printf(
+        logger.info(
             "PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination",
-            log_file=log_file,
-            flush=True,
+        )
+        print(
+            "PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination",
+            flush=True
         )
         return (
             y,
@@ -262,7 +266,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
 
     for var in vars_to_check:
         if stn_length[var].max() < min_num_months:
-            df.loc[:, var + "_eraqc"] = 19  # see era_qaqc_flag_meanings.csv
+            df.loc[:, [var + "_eraqc"]] = 19  # see era_qaqc_flag_meanings.csv
 
     return df, stn_length
 
