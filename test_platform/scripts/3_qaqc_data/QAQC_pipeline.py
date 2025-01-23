@@ -1167,7 +1167,6 @@ def whole_station_qaqc(
             # TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/" + file_name
-            printf(aws_url, log_file=log_file, verbose=verbose, flush=True)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():
@@ -1293,14 +1292,6 @@ def whole_station_qaqc(
                         verbose=verbose,
                         local=local,
                     )
-                    printf(
-                        "Done writing. Ellapsed time: {:.2f} s.\n".format(
-                            time.time() - t0
-                        ),
-                        log_file=log_file,
-                        verbose=verbose,
-                        flush=True,
-                    )
 
             except Exception as e:
                 printf(
@@ -1318,34 +1309,6 @@ def whole_station_qaqc(
                     verbose=verbose,
                 )
 
-                # Print error file location
-                printf(
-                    "errors_{0}_{1}.csv saved to {2}\n".format(
-                        network_ds, end_api, bucket_name + "/" + qaqcdir
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-
-                # Close an save log file
-                # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
-                # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
-                log_object = "{}/{}".format(os.getcwd(), log_fname)
-                log_path = "{}/{}".format(qaqcdir, log_fname).replace("//", "/")
-                s3.Bucket(bucket_name).upload_file(log_object, log_path)
-                # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose, flush=True)
-
-                # Done with station qaqc
-                printf(
-                    "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                        station, time.time() - T0
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-                log_file.close()
         except Exception as e:
             printf(
                 "QAQC failed\n\n{}\n{}\n\n".format(station, e),
@@ -1360,13 +1323,40 @@ def whole_station_qaqc(
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
-
+                
+            # Done with station qaqc
+            printf(
+                "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
+                    station, time.time() - T0
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
+            )
+            
             # Make sure error files save to correct directory
             s3_cl.put_object(
                 Bucket=bucket_name,
                 Body=content,
-                Key=qaqcdir + "errors_{}_{}.csv".format(station, end_api),
+                Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
-    MPI.Finalize()
+            # Print error file location
+            printf("errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
+                    network_ds, end_api, bucket_name + "/" + qaqcdir
+                   ),
+                   log_file=log_file,
+                   verbose=verbose,
+                   flush=True,
+            )
+            
+            # Save log file to s3 bucket
+            log_file.close()
+            printf("Saving log file to s3://{0}/{1}{2}\n".format(
+                bucket_name, qaqcdir, log_fname),
+                   log_file=log_file,
+                   verbose=verbose,
+                   flush=True,
+            )
+            s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
 
     return None
