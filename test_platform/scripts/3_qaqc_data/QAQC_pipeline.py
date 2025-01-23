@@ -1218,16 +1218,7 @@ def whole_station_qaqc(
                         "Done writing. Ellapsed time: {:.2f} s.\n".format(
                             time.time() - t0
                         ),
-                    )
-
-                    # Print error file location
-                    logger.info(
-                        "Saving log file to s3://{0}/{1}{2}\n".format(
-                            bucket_name, qaqcdir, log_fname),
-                    )
-                    
-                    # Save log file to s3 bucket
-                    s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}") 
+                    ) 
             
             except Exception as e:
                 logger.info(
@@ -1240,13 +1231,6 @@ def whole_station_qaqc(
                     message="run_qaqc_pipeline failed with error: {}".format(e),
                     test="run_qaqc_pipeline",
                     verbose=verbose,
-                )
-
-                # Print error file location
-                logger.info(
-                    "errors_{0}_{1}.csv saved to {2}\n".format(
-                        network_ds, end_api, bucket_name + "/" + qaqcdir
-                    ),
                 )
 
                 # Close an save log file
@@ -1282,6 +1266,19 @@ def whole_station_qaqc(
                 Body=content,
                 Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
+            # Print error file location
+            logger.info(
+                "errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
+                    network_ds, end_api, bucket_name + "/" + qaqcdir
+                ),
+            )
+            
+            # Save log file to s3 bucket
+            logger.info(
+                "Saving log file to s3://{0}/{1}{2}\n".format(
+                    bucket_name, qaqcdir, log_fname),
+            )
+            s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
             
     # MPI.COMM_WORLD.barrier() # This barrier call resolves the Segfault.
     # MPI.Finalize()
