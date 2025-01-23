@@ -50,7 +50,7 @@ for d in dirs:
         os.makedirs(d)
 
 from log_config import setup_logger
-
+os.environ["HDF5_USE_FILE_LOCKING"] = "TRUE"
 # ----------------------------------------------------------------------------
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -525,6 +525,10 @@ def run_qaqc_pipeline(
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 
+    # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
+    ds.close()
+    del(ds)
+    
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -1278,7 +1282,8 @@ def whole_station_qaqc(
                 Body=content,
                 Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
-
-    MPI.Finalize()
+            
+    # MPI.COMM_WORLD.barrier() # This barrier call resolves the Segfault.
+    # MPI.Finalize()
 
     return None
