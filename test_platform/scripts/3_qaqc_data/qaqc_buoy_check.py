@@ -32,6 +32,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
+
 ## NDBC and MARITIME only
 # -----------------------------------------------------------------------------
 def spurious_buoy_check(df, qc_vars, verbose=False):
@@ -142,7 +143,9 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         if verbose:
             logger.info(
-                "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(station),
+                "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(
+                    station
+                ),
             )
 
         for new_var in qc_vars:

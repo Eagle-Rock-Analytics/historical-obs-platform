@@ -42,6 +42,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
+
 # ----------------------------------------------------------------------
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=False):
@@ -108,7 +109,8 @@ def qaqc_missing_vals(df, verbose=False):
             )
 
             logger.info(
-                "Updating missing values for: {}".format(item),)
+                "Updating missing values for: {}".format(item),
+            )
     except Exception as e:
         logger.info(e)
         return None
@@ -296,9 +298,7 @@ def qaqc_elev_infill(df, verbose=False):
                             ] = float(dem_elev_value)
 
             except:  # elevation cannot be obtained from DEM
-                logger.info(
-                    "Elevation cannot be in-filled"
-                )
+                logger.info("Elevation cannot be in-filled")
                 return None
 
         # some stations have a single/few nan reported, in-fill from station for consistency
@@ -344,8 +344,7 @@ def qaqc_elev_infill(df, verbose=False):
 
             # elevation cannot be in-filled
             except:
-                logger.info(
-                    "Elevation cannot be in-filled")
+                logger.info("Elevation cannot be in-filled")
                 return None
     return df
 
@@ -379,7 +378,8 @@ def qaqc_elev_range(df, verbose=False):
         df["elevation"].values.any() > 6210.0
     ):
         logger.info(
-            "Station out of range for WECC -- station does not proceed through QAQC")
+            "Station out of range for WECC -- station does not proceed through QAQC"
+        )
         return None
 
     # Elevation value is present and within reasonable value range
@@ -455,7 +455,7 @@ def qaqc_sensor_height_t(df, verbose=False):
     except Exception as e:
         logger.info(
             "qaqc_sensor_height_t failed with Exception: {}".format(e),
-            )
+        )
         return None
 
 
@@ -498,7 +498,7 @@ def qaqc_sensor_height_w(df, verbose=False):
             df["sfcWind_dir_eraqc"] = 8
             logger.info(
                 "Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks",
-                )
+            )
 
         else:  # sensor height present
             # Check if anemometer height is within 10 m +/- 1/3 m
@@ -511,13 +511,13 @@ def qaqc_sensor_height_w(df, verbose=False):
                 df["sfcWind_dir_eraqc"] = 9
                 logger.info(
                     "Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks",
-                    )
+                )
         return df
 
     except Exception as e:
         logger.info(
             "qaqc_sensor_height_w failed with Exception: {}".format(e),
-            )
+        )
         return None
 
 
@@ -640,7 +640,7 @@ def qaqc_world_record(df, verbose=False):
     except Exception as e:
         logger.info(
             "qaqc_world_record failed with Exception: {}".format(e),
-            )
+        )
         return None
 
 
@@ -664,7 +664,7 @@ def flag_summary(df, verbose=False, local=False):
     for var in eraqc_vars:
         logger.info(
             "Flags set on {}: {}".format(var, df[var].unique()),
-            )  # unique flag values
+        )  # unique flag values
         logger.info(
             "Coverage of {} obs flagged: {}% of obs".format(
                 var,

@@ -34,6 +34,7 @@ wecc_terr = (
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
+
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
 def progressbar(it, prefix="", size=60, out=sys.stdout):
@@ -206,7 +207,7 @@ def pdf_bounds(df, mu, sigma, bins):
         )
         print(
             "PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination",
-            flush=True
+            flush=True,
         )
         return (
             y,

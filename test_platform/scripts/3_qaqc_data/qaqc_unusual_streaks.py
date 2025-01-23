@@ -37,6 +37,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
+
 # ----------------------------------------------------------------------
 def infere_freq(df):
     """ """

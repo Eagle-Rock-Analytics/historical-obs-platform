@@ -42,6 +42,7 @@ except Exception as e:
 
 from IPython.display import display
 
+
 # ============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):

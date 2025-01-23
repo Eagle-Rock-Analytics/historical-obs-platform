@@ -38,6 +38,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
+
 # ----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(
@@ -98,9 +99,7 @@ def qaqc_climatological_outlier(
 
         for var in vars_to_anom:
             # only work with non-flagged values
-            logger.info(
-                "Checking for climatological outliers in: {}".format(var)
-            )
+            logger.info("Checking for climatological outliers in: {}".format(var))
             df_valid = grab_valid_obs(
                 new_df, var, kind="drop"
             )  # subset for valid obs, distribution drop yellow flags
@@ -110,9 +109,7 @@ def qaqc_climatological_outlier(
 
             # Bypass if there are not valid observations
             if df_valid[var].size == 0:
-                logger.info(
-                    "Not valid observations for: {}".format(var)
-                )
+                logger.info("Not valid observations for: {}".format(var))
                 continue
 
             # Winsorize data and calculate climatology by month/hour with winsorized data

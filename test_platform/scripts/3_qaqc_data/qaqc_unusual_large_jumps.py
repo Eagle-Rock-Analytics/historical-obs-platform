@@ -36,6 +36,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
+
 # -----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(

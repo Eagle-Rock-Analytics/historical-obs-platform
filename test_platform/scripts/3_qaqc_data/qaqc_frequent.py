@@ -32,6 +32,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
+
 ## frequent values + helper functions
 # -----------------------------------------------------------------------------
 def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
@@ -120,7 +121,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 logger.info(
                     "No unusually frequent values detected for entire {} observation record".format(
                         var
-                    ),                )
+                    ),
+                )
                 # goes to seasonal check, no bypass
 
             else:
@@ -152,12 +154,15 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             )  ## DECISION: December is from the current year
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
                 logger.info(
-                    "No unusually frequent values detected for seasonal {} observation record".format(var),                )
+                    "No unusually frequent values detected for seasonal {} observation record".format(
+                        var
+                    ),
+                )
                 continue  # bypasses to next variable
 
             else:
                 logger.info(
-                    "Unusually frequent values detected in seasonal distribution, continuing to annual check",                
+                    "Unusually frequent values detected in seasonal distribution, continuing to annual check",
                 )
                 # year by year --> December selection must be specific
                 df_valid = frequent_bincheck(
@@ -316,7 +321,8 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
 
             if len(flagged_bins) != 0:
                 logger.info(
-                    "Flagging bin: {0}".format(flagged_bins),                )
+                    "Flagging bin: {0}".format(flagged_bins),
+                )
 
                 for sus_bin in flagged_bins:
                     df.loc[
