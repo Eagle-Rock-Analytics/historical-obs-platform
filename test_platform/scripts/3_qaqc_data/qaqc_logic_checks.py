@@ -248,11 +248,13 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         else:
             for item in pr_vars:
                 df_valid = grab_valid_obs(df_neg_pr, item)  # subset for valid obs
-                df_valid.loc[df_valid[item] < 0, item + "_eraqc"] = (
-                    10  # see era_qaqc_flag_meanings.csv
-                )
+                df_to_flag = df_valid.loc[df_valid[item] < 0]
 
-        return df_valid
+                # flag in original df
+                if len(df_to_flag) != 0: 
+                    df_neg_pr.loc[df_neg_pr.index.isin(df_to_flag.index), item + "_eraqc"] = 10  # see era_qaqc_flag_meanings.csv
+
+        return df_neg_pr
 
     except Exception as e:
         printf(

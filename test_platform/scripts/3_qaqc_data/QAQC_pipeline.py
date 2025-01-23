@@ -458,7 +458,6 @@ def qaqc_ds_to_df(ds, verbose=False):
             )  # raw qc variables, need to keep for comparison, then drop
             old_era_qc_vars.append(var)
 
-    print(f"era_qc existing variables:\n{era_qc_vars}")
     n_qc = len(era_qc_vars)
 
     for var in ds.data_vars:
@@ -467,13 +466,11 @@ def qaqc_ds_to_df(ds, verbose=False):
 
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
             if qc_var not in era_qc_vars:
-                print(f"nans created for {qc_var}")
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    print("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
     if len(era_qc_vars) != n_qc:
-        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars))) # logger instead
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -490,7 +487,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 np.ones(ds["time"].shape) * ds.anemometer_height_m
             )
         except:
-            print("Filling anemometer_height_m with NaN.", flush=True)
+            logger.info("Filling anemometer_height_m with NaN.", flush=True)
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
         finally:
             pass
@@ -500,7 +497,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 np.ones(ds["time"].shape) * ds.thermometer_height_m
             )
         except:
-            print("Filling thermometer_height_m with NaN.", flush=True)
+            logger.info("Filling thermometer_height_m with NaN.", flush=True)
             df["thermometer_height_m"] = np.ones(len(df)) * np.nan
         finally:
             pass
@@ -1089,7 +1086,6 @@ def whole_station_qaqc(
             nSample = int(sample)
             files_df = files_df.sample(nSample)
             stations_sample = list(files_df["era-id"])
-            print(stations_sample)
 
         # DOCUMENTATION NEEDED
         else:
