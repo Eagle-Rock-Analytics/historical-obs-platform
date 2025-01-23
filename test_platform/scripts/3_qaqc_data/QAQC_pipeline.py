@@ -471,9 +471,10 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    print("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
+    printf("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
     if len(era_qc_vars) != n_qc:
-        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+        # printf("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+        printf("{}".format([var for var in era_qc_vars if var not in old_era_qc_vars]))
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -547,6 +548,10 @@ def run_qaqc_pipeline(
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 
+    # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
+    ds.close()
+    del(ds)
+    
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -1350,7 +1355,6 @@ def whole_station_qaqc(
             )
             
             # Save log file to s3 bucket
-            log_file.close()
             printf("Saving log file to s3://{0}/{1}{2}\n".format(
                 bucket_name, qaqcdir, log_fname),
                    log_file=log_file,
@@ -1358,5 +1362,6 @@ def whole_station_qaqc(
                    flush=True,
             )
             s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
+            log_file.close()
 
     return None
