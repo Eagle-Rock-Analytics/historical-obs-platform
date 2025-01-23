@@ -471,7 +471,9 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    printf("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
+    printf(
+        "{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars))
+    )
     if len(era_qc_vars) != n_qc:
         # printf("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
         printf("{}".format([var for var in era_qc_vars if var not in old_era_qc_vars]))
@@ -550,8 +552,8 @@ def run_qaqc_pipeline(
 
     # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
     ds.close()
-    del(ds)
-    
+    del ds
+
     ##########################################################
     ## QAQC Functions
     # Order of operations
@@ -1328,7 +1330,7 @@ def whole_station_qaqc(
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
-                
+
             # Done with station qaqc
             printf(
                 "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
@@ -1338,7 +1340,7 @@ def whole_station_qaqc(
                 verbose=verbose,
                 flush=True,
             )
-            
+
             # Make sure error files save to correct directory
             s3_cl.put_object(
                 Bucket=bucket_name,
@@ -1346,20 +1348,23 @@ def whole_station_qaqc(
                 Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
             # Print error file location
-            printf("errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
+            printf(
+                "errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
                     network_ds, end_api, bucket_name + "/" + qaqcdir
-                   ),
-                   log_file=log_file,
-                   verbose=verbose,
-                   flush=True,
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
             )
-            
+
             # Save log file to s3 bucket
-            printf("Saving log file to s3://{0}/{1}{2}\n".format(
-                bucket_name, qaqcdir, log_fname),
-                   log_file=log_file,
-                   verbose=verbose,
-                   flush=True,
+            printf(
+                "Saving log file to s3://{0}/{1}{2}\n".format(
+                    bucket_name, qaqcdir, log_fname
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
             )
             s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
             log_file.close()
