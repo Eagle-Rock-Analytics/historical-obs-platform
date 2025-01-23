@@ -1214,11 +1214,6 @@ def whole_station_qaqc(
                         verbose=verbose,
                         local=local,
                     )
-                    logger.info(
-                        "Done writing. Ellapsed time: {:.2f} s.\n".format(
-                            time.time() - t0
-                        ),
-                    ) 
             
             except Exception as e:
                 logger.info(
@@ -1232,22 +1227,7 @@ def whole_station_qaqc(
                     test="run_qaqc_pipeline",
                     verbose=verbose,
                 )
-
-                # Close an save log file
-                # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
-                # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
-                # log_object = "{}/{}".format(os.getcwd(), log_fname)
-                # log_path = "{}/{}".format(qaqcdir, log_fname).replace("//", "/")
-
-                # s3.Bucket(bucket_name).upload_file(log_object, log_path)
-                # logger.info('{} saved to {}\n'.format(log_fname, log_path))
-
-                # Done with station qaqc
-                logger.info(
-                    "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                        station, time.time() - T0
-                    ),
-                )
+                
         except Exception as e:
             logger.info(
                 "QAQC failed\n\n{}\n{}\n\n".format(station, e),
@@ -1259,6 +1239,13 @@ def whole_station_qaqc(
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
+
+            # Done with station qaqc
+            logger.info(
+                "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
+                    station, time.time() - T0
+                ),
+            )
 
             # Make sure error files save to correct directory
             s3_cl.put_object(
