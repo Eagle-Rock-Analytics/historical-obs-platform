@@ -1267,7 +1267,9 @@ def whole_station_qaqc(
             )
             s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
             
-    # MPI.COMM_WORLD.barrier() # This barrier call resolves the Segfault.
-    # MPI.Finalize()
-
+            # Close logging handlers manually
+            for handler in logger.handlers:
+                handler.close()
+                logger.removeHandler(handler)
+    
     return None
