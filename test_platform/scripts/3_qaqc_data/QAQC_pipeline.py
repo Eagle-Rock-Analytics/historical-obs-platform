@@ -457,6 +457,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     if len(era_qc_vars) != n_qc:
         logger.info("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
     exit
+
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var: ds[var].attrs for var in list(ds.data_vars.keys())}
@@ -1100,7 +1101,6 @@ def whole_station_qaqc(
             # TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/" + file_name
-            # logger.info(aws_url)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():
@@ -1182,6 +1182,7 @@ def whole_station_qaqc(
                     rad_scheme,
                     verbose=verbose,
                     local=local,
+                    log_file=log_file,
                 )
 
                 ## Assign ds attributes and save .nc file
@@ -1260,5 +1261,4 @@ def whole_station_qaqc(
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
-
     return None
