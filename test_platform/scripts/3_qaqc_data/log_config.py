@@ -75,7 +75,7 @@ def remove_file_handler_by_filename(logger, filename):
 
     Returns
     -------
-    N/A
+    None
 
     """
     ## NEEDS DOCUMENTATION IMPROVEMENT
@@ -90,6 +90,8 @@ def remove_file_handler_by_filename(logger, filename):
                 break  # Exit after removing the first matching handler
     else:
         print(f"No FileHandler found for {filename}")
+
+    return None
 
 
 # Call this to initialize the logger
