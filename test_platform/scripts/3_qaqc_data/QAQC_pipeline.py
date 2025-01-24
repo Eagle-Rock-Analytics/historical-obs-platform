@@ -435,7 +435,7 @@ def qaqc_ds_to_df(ds, verbose=False):
         #     old_era_qc_vars.append(var)
 
     logger.info(f"Existing era_qc variables:\n{era_qc_vars}")
-    n_qc = len(era_qc_vars) # determine length of eraqc variables per station
+    n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
 
     # only in-fill nans for valid variables
     for var in ds.data_vars:
@@ -1026,7 +1026,7 @@ def whole_station_qaqc(
                 logger.info(
                     f"Sample station '{sample}' not in network/stations_df. Please double-check names",
                 )
-                exit() # end script
+                exit()  # end script
                 stations_sample = list(files_df["era-id"])
             stations_sample = [sample]
 
