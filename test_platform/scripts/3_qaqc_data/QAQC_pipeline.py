@@ -471,9 +471,12 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    print("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
+    printf(
+        "{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars))
+    )
     if len(era_qc_vars) != n_qc:
-        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+        # printf("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+        printf("{}".format([var for var in era_qc_vars if var not in old_era_qc_vars]))
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -546,6 +549,10 @@ def run_qaqc_pipeline(
     """ """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
+
+    # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
+    ds.close()
+    del ds
 
     ##########################################################
     ## QAQC Functions
@@ -1167,7 +1174,6 @@ def whole_station_qaqc(
             # TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/" + file_name
-            printf(aws_url, log_file=log_file, verbose=verbose, flush=True)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():
@@ -1266,6 +1272,7 @@ def whole_station_qaqc(
                     rad_scheme,
                     verbose=verbose,
                     local=local,
+                    log_file=log_file,
                 )
 
                 ## Assign ds attributes and save .nc file
@@ -1292,14 +1299,6 @@ def whole_station_qaqc(
                         verbose=verbose,
                         local=local,
                     )
-                    printf(
-                        "Done writing. Ellapsed time: {:.2f} s.\n".format(
-                            time.time() - t0
-                        ),
-                        log_file=log_file,
-                        verbose=verbose,
-                        flush=True,
-                    )
 
             except Exception as e:
                 printf(
@@ -1312,39 +1311,11 @@ def whole_station_qaqc(
                     errors,
                     station,
                     end_api,
-                    message="Cannot read files in from AWS: {0}".format(e),
+                    message="run_qaqc_pipeline failed with error: {}".format(e),
                     test="run_qaqc_pipeline",
                     verbose=verbose,
                 )
 
-                # Print error file location
-                printf(
-                    "errors_{0}_{1}.csv saved to {2}\n".format(
-                        network_ds, end_api, bucket_name + "/" + qaqcdir
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-
-                # Close an save log file
-                # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
-                # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
-                log_object = "{}/{}".format(os.getcwd(), log_fname)
-                log_path = "{}/{}".format(qaqcdir, log_fname).replace("//", "/")
-                s3.Bucket(bucket_name).upload_file(log_object, log_path)
-                # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose, flush=True)
-
-                # Done with station qaqc
-                printf(
-                    "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                        station, time.time() - T0
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-                log_file.close()
         except Exception as e:
             printf(
                 "QAQC failed\n\n{}\n{}\n\n".format(station, e),
@@ -1360,12 +1331,42 @@ def whole_station_qaqc(
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
 
+            # Done with station qaqc
+            printf(
+                "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
+                    station, time.time() - T0
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
+            )
+
             # Make sure error files save to correct directory
             s3_cl.put_object(
                 Bucket=bucket_name,
                 Body=content,
-                Key=qaqcdir + "errors_{}_{}.csv".format(station, end_api),
+                Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
-    MPI.Finalize()
+            # Print error file location
+            printf(
+                "errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
+                    network_ds, end_api, bucket_name + "/" + qaqcdir
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
+            )
 
-    return
+            # Save log file to s3 bucket
+            printf(
+                "Saving log file to s3://{0}/{1}{2}\n".format(
+                    bucket_name, qaqcdir, log_fname
+                ),
+                log_file=log_file,
+                verbose=verbose,
+                flush=True,
+            )
+            s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
+            log_file.close()
+
+    return None
