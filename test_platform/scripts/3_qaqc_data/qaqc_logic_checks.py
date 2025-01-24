@@ -61,13 +61,17 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
                 # only use valid obs for both dewpoint and air temp
                 df_valid = grab_valid_obs(df, var="tas", var2=dew_var)
                 isBad = df_valid.loc[df_valid[dew_var] > df_valid["tas"]]
-                df.loc[isBad.index, dew_var + "_eraqc"] = 12 # see qaqc_flag_meanings.csv
+                df.loc[
+                    isBad.index, dew_var + "_eraqc"
+                ] = 12  # see qaqc_flag_meanings.csv
 
         return df
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e)
+            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
+                e
+            )
         )
         return None
 
@@ -147,7 +151,9 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e)
+            "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
+                e
+            )
         )
         return None
 
