@@ -18,30 +18,19 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_gaps(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
@@ -88,11 +77,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
 
     try:
-        printf(
+        logger.info(
             "Running {} on {}".format("qaqc_unusual_gaps", vars_to_check),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
 
         # whole station bypass check first
@@ -120,10 +106,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         return df_part2
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_unusual_gaps failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -159,10 +143,8 @@ def qaqc_dist_gap_part1(
     network = df["station"].unique()[0].split("_")[0]
 
     for var in vars_to_check:
-        printf(
+        logger.info(
             "Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var),
-            log_file=log_file,
-            verbose=verbose,
         )
         for month in range(1, 13):
             monthly_df = df.loc[df["month"] == month]
@@ -175,12 +157,10 @@ def qaqc_dist_gap_part1(
                 df, var, kind="drop"
             )  # drops data flagged with 20
             if len(df_valid) == 0 or df_valid[var].isnull().all():
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue  # variable has no valid data
 
@@ -199,12 +179,10 @@ def qaqc_dist_gap_part1(
             years_to_flag = df_month[index_to_flag].index
 
             for year in years_to_flag:
-                printf(
+                logger.info(
                     "Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month".format(
                         var, month, int(year), iqr_thresh
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
 
             # flag all obs in that month
@@ -256,10 +234,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
     """
 
     for var in vars_to_check:
-        printf(
+        logger.info(
             "Running unusual gaps check on: {}, qaqc_dist_gap_part2".format(var),
-            log_file=log_file,
-            verbose=verbose,
         )
         for month in range(1, 13):
             # Sel month data
@@ -272,12 +248,10 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                 monthly_df, var, kind="drop"
             )  # drops data flagged with 20
             if len(df_valid) == 0 or df_valid[var].isnull().all() == True:
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue  # variable has no valid data
 
@@ -287,12 +261,10 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # Bug due to repeated values giving iqr=0 and failing to calculate bins below
             if iqr_range(df_valid, var) == 0:
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue
 

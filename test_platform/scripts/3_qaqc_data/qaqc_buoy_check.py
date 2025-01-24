@@ -18,21 +18,19 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_buoy(file):
-    global log_file
-    log_file = file
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
 ## NDBC and MARITIME only
@@ -42,7 +40,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
     """
-    printf("Running: spurious_buoy_check", log_file=log_file, verbose=verbose)
+    logger.info("Running: spurious_buoy_check")
 
     known_issues = [
         "NDBC_46023",
@@ -75,10 +73,8 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
     station = df["station"].unique()[0]
 
     if station in known_issues:
-        printf(
+        logger.info(
             "{0} has a known issue, checking data coverage".format(station),
-            log_file=log_file,
-            verbose=verbose,
         )
 
         # buoys with "data" past their disestablishment dates
@@ -146,12 +142,10 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         if verbose:
-            printf(
+            logger.info(
                 "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage".format(
                     station
                 ),
-                log_file=log_file,
-                verbose=verbose,
             )
 
         for new_var in qc_vars:
