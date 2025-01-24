@@ -475,8 +475,7 @@ def qaqc_ds_to_df(ds, verbose=False):
         except:
             logger.info("Filling anemometer_height_m with NaN.")
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
+
     if "thermometer_height_m" not in df.columns:
         try:
             df["thermometer_height_m"] = (
@@ -485,8 +484,6 @@ def qaqc_ds_to_df(ds, verbose=False):
         except:
             logger.info("Filling thermometer_height_m with NaN.")
             df["thermometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
