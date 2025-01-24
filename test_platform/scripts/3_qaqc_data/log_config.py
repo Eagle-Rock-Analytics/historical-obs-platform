@@ -5,18 +5,18 @@ import os
 
 # Configure the logger
 def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
-    """Configures logger for more efficient tracing of QAQC processes and errors. 
+    """Configures logger for more efficient tracing of QAQC processes and errors.
 
     Parameters
     ----------
     log_file: str
         Path to QAQC log file
     verbose: boolean, optional
-        Prints script progress to local terminal. Default is False. 
+        Prints script progress to local terminal. Default is False.
 
     Returns
     -------
-    logger: 
+    logger:
         Information to be sent to logger / log file
     """
 

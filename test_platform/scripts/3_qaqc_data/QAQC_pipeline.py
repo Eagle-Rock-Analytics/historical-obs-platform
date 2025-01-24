@@ -1057,7 +1057,6 @@ def whole_station_qaqc(
 
     for station in stations_sample_scatter:
         try:
-
             # ----------------------------------------------------------------------------
             # Set up error handling
             errors, end_api, timestamp = setup_error_handling()
