@@ -473,7 +473,6 @@ def qaqc_ds_to_df(ds, verbose=False):
                 np.ones(ds["time"].shape) * ds.anemometer_height_m
             )
         except:
-
             logger.info("Filling anemometer_height_m with NaN.")
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
         finally:
@@ -1057,7 +1056,6 @@ def whole_station_qaqc(
 
     for station in stations_sample_scatter:
         try:
-
             # ----------------------------------------------------------------------------
             # Set up error handling
             errors, end_api, timestamp = setup_error_handling()
