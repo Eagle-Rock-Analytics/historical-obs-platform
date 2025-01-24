@@ -191,9 +191,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    logger.info(
-        f"Running qaqc_precip_logic_nonegvals on: {pr_vars}"
-    )
+    logger.info(f"Running qaqc_precip_logic_nonegvals on: {pr_vars}")
 
     try:
         if not pr_vars:  # precipitation variable(s) is not present
@@ -214,9 +212,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         return df_neg_pr
 
     except Exception as e:
-        logger.info(
-            f"qaqc_precip_logic_nonegvals failed with Exception: {e}"
-        )
+        logger.info(f"qaqc_precip_logic_nonegvals failed with Exception: {e}")
         return None
 
 

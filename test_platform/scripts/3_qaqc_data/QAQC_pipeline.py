@@ -26,7 +26,7 @@ from mpi4py import MPI
 import logging
 from simplempi import simpleMPI
 
-#from simplempi.parfor import parfor, pprint
+# from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -1024,7 +1024,9 @@ def whole_station_qaqc(
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
                 logger.info(
-                    "Sample station '{}' not in network/stations_df. Please double-check names".format(sample),
+                    "Sample station '{}' not in network/stations_df. Please double-check names".format(
+                        sample
+                    ),
                 )
                 exit()
                 stations_sample = list(files_df["era-id"])
@@ -1117,14 +1119,18 @@ def whole_station_qaqc(
                                 ds = xr.open_dataset(fileObj).load()
                         except Exception as e:
                             logger.info(
-                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(station)
+                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
+                                    station
+                                )
                             )
                 elif zarr == True:  # Or, read zarr
                     try:
                         ds = xr.open_zarr(aws_url)
                     except Exception as e:
                         logger.info(
-                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(station),
+                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
+                                station
+                            ),
                         )
             # Testing speed-up re-order in case file is locally found
             # =====================================================================================
