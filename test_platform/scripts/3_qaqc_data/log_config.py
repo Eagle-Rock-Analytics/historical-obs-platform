@@ -5,6 +5,21 @@ import os
 
 # Configure the logger
 def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
+    """Configures logger for more efficient tracing of QAQC processes and errors. 
+
+    Parameters
+    ----------
+    log_file: str
+        Path to QAQC log file
+    verbose: boolean, optional
+        Prints script progress to local terminal. Default is False. 
+
+    Returns
+    -------
+    logger: 
+        Information to be sent to logger / log file
+    """
+
     # Retrieve the existing logger (or create a new one if it doesn't exist)
     logger = logging.getLogger("sharedLogger")
     logger.setLevel(logging.DEBUG)
@@ -49,9 +64,22 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
 
 
 def remove_file_handler_by_filename(logger, filename):
+    """Remove a specific FileHandler from the logger by matching the filename.
+
+    Inputs
+    ------
+    logger:
+        Input logger handler
+    filename: str
+        Filename of logger handler
+
+    Returns
+    -------
+    N/A
+
     """
-    Remove a specific FileHandler from the logger by matching the filename.
-    """
+    ## NEEDS DOCUMENTATION IMPROVEMENT
+
     for handler in logger.handlers:
         if isinstance(handler, logging.FileHandler):
             # Check if the handler's baseFilename matches the specified filename
@@ -66,5 +94,6 @@ def remove_file_handler_by_filename(logger, filename):
 
 # Call this to initialize the logger
 logger = setup_logger()
+
 # Now, let's remove the handler for default log file to avoid duplication in printing to console (verbose=True)
 remove_file_handler_by_filename(logger, f"{os.getcwd()}/default_qaqc_log.log")
