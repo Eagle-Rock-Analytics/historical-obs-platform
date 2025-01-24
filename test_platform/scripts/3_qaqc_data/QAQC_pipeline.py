@@ -470,7 +470,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 era_qc_vars.append(qc_var)
 
     if len(era_qc_vars) != n_qc:
-        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars))) # logger instead
+        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))  # logger instead
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
