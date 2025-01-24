@@ -19,14 +19,14 @@ import pandas as pd
 import xarray as xr
 import boto3
 import s3fs
-from io import BytesIO, StringIO
+from io import StringIO
 import time
 import tempfile
 from mpi4py import MPI
 import logging
 from simplempi import simpleMPI
 
-from simplempi.parfor import parfor, pprint
+#from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -445,7 +445,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
                 logger.info(
-                    f"nans created for {qc_var}",
+                    "nans created for {}".format(qc_var),
                 )
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
@@ -524,6 +524,7 @@ def run_qaqc_pipeline(
     rad_scheme,
     verbose=False,
     local=False,
+    log_file=log_file,
 ):
     """ """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
@@ -1023,7 +1024,7 @@ def whole_station_qaqc(
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
                 logger.info(
-                    f"Sample station '{sample}' not in network/stations_df. Please double-check names",
+                    "Sample station '{}' not in network/stations_df. Please double-check names".format(sample),
                 )
                 exit()
                 stations_sample = list(files_df["era-id"])
@@ -1099,7 +1100,6 @@ def whole_station_qaqc(
             # TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/" + file_name
-            # logger.info(aws_url)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():
@@ -1117,18 +1117,14 @@ def whole_station_qaqc(
                                 ds = xr.open_dataset(fileObj).load()
                         except Exception as e:
                             logger.info(
-                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
-                                    station
-                                ),
+                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(station)
                             )
                 elif zarr == True:  # Or, read zarr
                     try:
                         ds = xr.open_zarr(aws_url)
                     except Exception as e:
                         logger.info(
-                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
-                                station
-                            ),
+                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(station),
                         )
             # Testing speed-up re-order in case file is locally found
             # =====================================================================================
@@ -1161,7 +1157,7 @@ def whole_station_qaqc(
                     ds = ds.drop_duplicates(dim="time")
 
                 logger.info(
-                    "Done reading. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
+                    f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
                 )
 
                 # CHECK THE ENGINE HERE:
