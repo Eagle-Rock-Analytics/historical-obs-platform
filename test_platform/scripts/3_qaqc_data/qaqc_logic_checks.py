@@ -67,7 +67,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            f"qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {e}"
+            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e)
         )
         return None
 
@@ -147,7 +147,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            f"qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {e}"
+            "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e)
         )
         return None
 
@@ -189,7 +189,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    logger.info(f"Running qaqc_precip_logic_nonegvals on: {pr_vars}")
+    logger.info("Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars))
 
     try:
         if not pr_vars:  # precipitation variable(s) is not present
@@ -210,7 +210,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         return df_neg_pr
 
     except Exception as e:
-        logger.info(f"qaqc_precip_logic_nonegvals failed with Exception: {e}")
+        logger.info("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e))
         return None
 
 
@@ -317,7 +317,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            f"qaqc_precip_logic_accum_amounts failed with Exception: {e}",
+            "qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e),
         )
         return None
 
@@ -389,7 +389,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            f"qaqc_crossvar_logic_calm_wind_dir failed with Exception: {e}",
+            "qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e),
         )
         return None
 
@@ -432,12 +432,12 @@ def qaqc_pressure_units_fix(df, verbose=False):
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
                     logger.info(
-                        f"Pressure units on {var} updated to be Pa",
+                        "Pressure units on {} updated to be Pa".format(var),
                     )
         return df
 
     except Exception as e:
         logger.info(
-            f"qaqc_pressure_units_fix failed with Exception: {e}",
+            "qaqc_pressure_units_fix failed with Exception: {}".format(e),
         )
         return None
