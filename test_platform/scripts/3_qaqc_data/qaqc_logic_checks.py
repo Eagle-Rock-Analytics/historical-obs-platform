@@ -4,19 +4,7 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
-import geopandas as gp
-import numpy as np
-import pandas as pd
-import requests
-import urllib
 import datetime
-import math
-import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
-import scipy.stats as stats
 
 # New logger function
 from log_config import logger
@@ -24,7 +12,7 @@ from log_config import logger
 try:
     from qaqc_utils import *
 except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+    logger.debug(f"Error importing qaqc_utils: {e}")
 
 
 # -----------------------------------------------------------------------------
@@ -81,9 +69,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
-                e
-            ),
+            f"qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {e}"
         )
         return None
 
@@ -163,9 +149,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
-                e
-            ),
+            f"qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {e}"
         )
         return None
 
@@ -208,7 +192,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
     logger.info(
-        "Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars),
+        f"Running qaqc_precip_logic_nonegvals on: {pr_vars}"
     )
 
     try:
@@ -231,7 +215,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_precip_logic_nonegvals failed with Exception: {0}".format(e),
+            f"qaqc_precip_logic_nonegvals failed with Exception: {e}"
         )
         return None
 
@@ -339,7 +323,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_precip_logic_accum_amounts failed with Exception: {0}".format(e),
+            f"qaqc_precip_logic_accum_amounts failed with Exception: {e}",
         )
         return None
 
@@ -411,7 +395,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e),
+            f"qaqc_crossvar_logic_calm_wind_dir failed with Exception: {e}",
         )
         return None
 
@@ -454,12 +438,12 @@ def qaqc_pressure_units_fix(df, verbose=False):
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
                     logger.info(
-                        "Pressure units on {} updated to be Pa".format(var),
+                        f"Pressure units on {var} updated to be Pa",
                     )
         return df
 
     except Exception as e:
         logger.info(
-            "qaqc_pressure_units_fix failed with Exception: {}".format(e),
+            f"qaqc_pressure_units_fix failed with Exception: {e}",
         )
         return None
