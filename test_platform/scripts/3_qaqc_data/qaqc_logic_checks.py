@@ -98,15 +98,15 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     logger.info(
         "Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb",
     )
+    df_dpt = df.copy(deep=True)
+
+    # first check that tdps and/or tdps_derived are provided
+    dew_vars = [col for col in df_dpt.columns if "tdps" in col]
+    all_dew_vars = [
+        var for var in dew_vars if "qc" not in var
+    ]  # remove all qc variables so they do not also run through: raw, eraqc
 
     try:
-        df_dpt = df.copy(deep=True)
-        # first check that tdps and/or tdps_derived are provided
-        dew_vars = [col for col in df_dpt.columns if "tdps" in col]
-        all_dew_vars = [
-            var for var in dew_vars if "qc" not in var
-        ]  # remove all qc variables so they do not also run through: raw, eraqc
-
         # dew point is not present
         if not all_dew_vars:
             logger.info(
@@ -152,7 +152,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         return None
 
 
-# ----------------------------------------------------------------------
+## ----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df, verbose=False):
     """
