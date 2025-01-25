@@ -417,7 +417,7 @@ def qaqc_ds_to_df(ds, verbose=False):
 
     raw_qc_vars = []  # qc_variable for each data variable, will vary station to station
     era_qc_vars = []  # our ERA qc variable
-    old_era_qc_vars = []  # our ERA qc variable
+    # old_era_qc_vars = []  # our ERA qc variable
 
     for var in ds.data_vars:
         if "q_code" in var:
@@ -428,14 +428,16 @@ def qaqc_ds_to_df(ds, verbose=False):
             raw_qc_vars.append(
                 var
             )  # raw qc variables, need to keep for comparison, then drop
-        if "_eraqc" in var:
-            era_qc_vars.append(
-                var
-            )  # raw qc variables, need to keep for comparison, then drop
-            old_era_qc_vars.append(var)
+        # if "_eraqc" in var:
+        #     era_qc_vars.append(
+        #         var
+        #     )  # raw qc variables, need to keep for comparison, then drop
+        #     old_era_qc_vars.append(var)
 
-    n_qc = len(era_qc_vars)
+    logger.info(f"Existing era_qc variables:\n{era_qc_vars}")
+    n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
 
+    # only in-fill nans for valid variables
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars and "_eraqc" not in var:
             qc_var = var + "_eraqc"  # variable/column label
@@ -450,14 +452,14 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    logger.info(
-        "{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars))
-    )
-    logger.info(old_era_qc_vars)
+    logger.info("Created {} era_qc variables".format(len(era_qc_vars)))
     logger.info(era_qc_vars)
-    if len(era_qc_vars) != n_qc:
-        logger.info("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
-    exit
+    # logger.info(old_era_qc_vars)
+
+    # if len(era_qc_vars) != n_qc:
+    #     logger.info("Difference in eraqc variables, please check: {}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+    #     exit()
+
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
     var_attrs = {var: ds[var].attrs for var in list(ds.data_vars.keys())}
@@ -1025,17 +1027,9 @@ def whole_station_qaqc(
                         sample
                     ),
                 )
-                exit()
+                exit()  # end script
                 stations_sample = list(files_df["era-id"])
             stations_sample = [sample]
-
-        # print(stations_sample)
-        # print(files_df)
-        # raise
-        # ### DEBUG - REMOVE
-        # files_df = files_df_new[files_df_new["era-id"] == "RAWS_AATC1"]
-        # # print(files_df)
-        # stations_sample = ["RAWS_AATC1"]
 
         print(
             "Running a sample of {} files on {} network \n Stations: {}".format(
@@ -1053,7 +1047,6 @@ def whole_station_qaqc(
     stations_sample_scatter = smpi.scatterList(stations_sample)
 
     # Loop over stations
-
     for station in stations_sample_scatter:
         try:
             # ----------------------------------------------------------------------------
@@ -1258,5 +1251,4 @@ def whole_station_qaqc(
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
-
     return None
