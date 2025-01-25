@@ -236,20 +236,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     # seasons
     szns = [[3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 1, 2]]
 
-    # Some variables use a different bin size than the default
-    # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ["ps", "ps_altimeter", "psl", "ps_derived"]
-    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
-
-    if var in ps_vars:
-        bin_s = 100  # all of our pressure vars are in Pa, convert to 100 Pa bin size
-    elif var == "rsds":
-        bin_s = 50  # W/m2
-    elif var in pr_vars:
-        bin_s = 0.1  # mm
-    else:
-        bin_s = 1
-
     # radiation schemes for assessment
     if var == "rsds":
         if rad_scheme == "all_hours":
@@ -272,7 +258,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             logger.info(
                 "Radiation frequent value check scheme: remove_zeros selected, may remove valid daytime (cloudy) conditions",
             )
-            df_to_test = df.loc[df[var] >= bin_s]
+            df_to_test = df.loc[df[var] >= get_bin_size_by_var(var)]
 
     # Don't check for zeros in precip vars
     # We expect a lot of the precip data to be zero and don't want to flag frequent zeros
@@ -280,7 +266,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
         logger.info(
             "Precipitation frequent value check scheme: QAQC will not flag high frequency of zeroes, because high frequency of zero precipitation is expected",
         )
-        df_to_test = df.loc[df[var] >= bin_s]
+        df_to_test = df.loc[df[var] >= get_bin_size_by_var(var)]
 
     else:  # all other variables
         df_to_test = df
@@ -291,7 +277,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
 
     # all data/annual checks
     if data_group == "all":
-        bins = create_bins_frequent(df_to_test, var, bin_size=bin_s)
+        bins = create_bins_frequent(df_to_test, var)
         bar_counts, bins = np.histogram(df_to_test[var], bins=bins)
         flagged_bins = bins_to_flag(bar_counts, bins)
 
@@ -311,9 +297,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             df_yr = df_to_test.loc[df_to_test["year"] == yr]
             if df_yr[var].isna().all() == True:  # some vars will have nan years
                 continue
-            bins = create_bins_frequent(
-                df_yr, var, bin_size=bin_s
-            )  # using 1 degC/hPa bin width
+            bins = create_bins_frequent(df_yr, var)  # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_yr[var], bins=bins)
             flagged_bins = bins_to_flag(
                 bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=10
@@ -343,9 +327,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
             ]
             if df_szn[var].isna().all() == True:
                 continue
-            bins = create_bins_frequent(
-                df_szn, var, bin_size=bin_s
-            )  # using 1 degC/hPa bin width
+            bins = create_bins_frequent(df_szn, var)  # using 1 degC/hPa bin width
             bar_counts, bins = np.histogram(df_szn[var], bins=bins)
             flagged_bins = bins_to_flag(
                 bar_counts, bins, bin_main_thresh=20, secondary_bin_main_thresh=20
@@ -390,7 +372,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                             break  # after last season in last year
 
                     bins = create_bins_frequent(
-                        df_szn, var, bin_size=bin_s
+                        df_szn, var
                     )  # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_szn[var], bins=bins)
                     flagged_bins = bins_to_flag(
@@ -448,7 +430,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                         continue
 
                     bins = create_bins_frequent(
-                        df_djf, var, bin_size=bin_s
+                        df_djf, var
                     )  # using 1 degC/hPa bin width
                     bar_counts, bins = np.histogram(df_djf[var], bins=bins)
                     flagged_bins = bins_to_flag(

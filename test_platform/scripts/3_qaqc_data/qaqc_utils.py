@@ -37,6 +37,82 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
+
+
+def get_bin_size_by_var(var):
+    """Get bin size for a given variable
+
+    Parameters
+    ----------
+    var: str
+        String variable name
+
+    Returns
+    -------
+    float
+
+    """
+    # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
+    # all of our pressure vars are in Pa, convert to 100 Pa bin size
+    bin_size_by_var = {
+        "default": 1,  # Bin size for all other variables
+        "ps": 100,  # Pa
+        "ps_altimeter": 100,  # Pa
+        "psl": 100,  # Pa
+        "ps_derived": 100,  # Pa
+        "pr_5min": 0.1,  # mm
+        "pr_15min": 0.1,  # mm
+        "pr_1h": 0.1,  # mm
+        "pr_24h": 0.1,  # mm
+        "pr_localmid": 0.1,
+        "rsds": 50,  # W/m2
+    }
+    return bin_size_by_var[var]
+
+
+def create_bins_frequent(df, var, bin_size=None):
+    """Create bins from data covering entire data range
+    Used in frequent value check and qaqc plot of frequent values
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Table of the data
+    var: str
+        String name of the variable
+    bin_size: float, optional
+        Size of the bins
+        See function get_bin_size_by_var for default value
+
+    Returns
+    -------
+    bins: np.array
+
+    """
+
+    if bin_size is None:
+        bin_size = get_bin_size_by_var("default")
+    else:
+        bin_size = get_bin_size_by_var(var)
+
+    # Get data
+    data = df[var]
+
+    # radiation handling
+    if var != "rsds":
+        # Compute bins using the min and max of the data
+        b_min = np.floor(np.nanmin(data))
+        b_max = np.ceil(np.nanmax(data))
+        bins = np.arange(b_min, b_max + 1, bin_size)
+
+    else:
+        b_min = 0
+        b_max = int(np.ceil(np.nanmax(data / 100))) * 100  # rounds up to next hundred
+        bins = np.arange(b_min, b_max + 50, bin_size)
+
+    return bins
+
+
 def progressbar(it, prefix="", size=60, out=sys.stdout):
     """
     Print a progress bar to console

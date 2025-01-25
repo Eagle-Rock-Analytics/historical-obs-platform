@@ -17,6 +17,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
+from qaqc_utils import create_bins_frequent
 
 # New logger function
 from log_config import logger
@@ -358,30 +359,6 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
 
 
 # -----------------------------------------------------------------------------------------
-def create_bins_frequent(df, var, bin_size=0.25):
-    """Create bins from data covering entire data range"""
-
-    # ideally shouldn't have to have a separate function for this
-
-    # grab data
-    data = df[var]
-
-    # radiation handling
-    if var != "rsds":
-        # set up bins
-        b_min = np.floor(np.nanmin(data))
-        b_max = np.ceil(np.nanmax(data))
-        bins = np.arange(b_min, b_max + 1, bin_size)
-
-    else:
-        b_min = 0
-        b_max = int(np.ceil(np.nanmax(data / 100))) * 100  # rounds up to next hundred
-        bins = np.arange(b_min, b_max + 50, bin_size)
-
-    return bins
-
-
-# -----------------------------------------------------------------------------------------
 def frequent_vals_plot(df, var, rad_scheme, local=False):
     """
     Produces a histogram of the diagnostic histogram per variable,
@@ -392,16 +369,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     ps_vars = ["ps", "ps_altimeter", "ps_derived", "psl"]
     pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
 
-    if var in ps_vars:
-        bin_s = 100  # all of our pressure vars are in Pa, convert to 100 Pa bin size
-    elif var in pr_vars:
-        bin_s = 5  # mm
-    elif var == "rsds":
-        bin_s = 50  # W/m2
-    else:
-        bin_s = 1
-
-    bins = create_bins_frequent(df, var, bin_s)
+    bins = create_bins_frequent(df, var)
 
     # first identify which values are flagged and "where"
     # Year-by-year flag (24): plot all data for that year
