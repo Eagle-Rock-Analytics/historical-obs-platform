@@ -20,32 +20,21 @@ import matplotlib
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 plt.switch_backend("Agg")
 
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_spikes(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
@@ -87,7 +76,7 @@ def qaqc_unusual_large_jumps(
     - HadISD uses 100, this can be modified and tweaked in future development
     """
 
-    printf("Running: qaqc_unusual_large_jumps", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_unusual_large_jumps")
     INDEX = df.index
     df = df.copy(deep=True)
     df.set_index(df["time"], inplace=True)
@@ -113,19 +102,14 @@ def qaqc_unusual_large_jumps(
         ]
         variables = [var for var in check_vars if var in df.columns]
 
-        printf(
+        logger.info(
             "Running {} on {}".format("qaqc_unusual_large_jumps", variables),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
 
         # Loop through test variables
         for var in variables:
-            printf(
+            logger.info(
                 "Running unusual large jumps check on: {}".format(var),
-                log_file=log_file,
-                verbose=verbose,
             )
             new_df = grab_valid_obs(df, var)  # subset for valid obs
 
@@ -151,10 +135,8 @@ def qaqc_unusual_large_jumps(
             if plot:
                 ## Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year", "month"]).groups.keys()
-                printf(
+                logger.info(
                     "Plotting {} year/month cases".format(len(keys)),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 for k in keys:
                     ind = np.logical_and(
@@ -169,10 +151,8 @@ def qaqc_unusual_large_jumps(
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_unusual_large_jumps failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 

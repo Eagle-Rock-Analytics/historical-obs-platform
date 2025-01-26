@@ -18,24 +18,13 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 import scipy.stats as stats
 
+# New logger function
+from log_config import logger
+
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_logic(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
@@ -61,10 +50,8 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
         12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
     """
 
-    printf(
+    logger.info(
         "Running: qaqc_crossvar_logic_tdps_to_tas_supersat",
-        log_file=log_file,
-        verbose=verbose,
     )
 
     try:
@@ -76,10 +63,8 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
         # dew point is not present
         if not all_dew_vars:
-            printf(
+            logger.info(
                 "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
-                log_file=log_file,
-                verbose=verbose,
             )
 
         # dew point is present
@@ -95,12 +80,10 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
                 e
             ),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -128,10 +111,8 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         13,qaqc_crossvar_logic_tdps_to_tas_wetbulb,Cross-variable logic check failure: extended streak of a zero dewpoint depression (indicative of instrument failure)
     """
 
-    printf(
+    logger.info(
         "Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb",
-        log_file=log_file,
-        verbose=verbose,
     )
 
     try:
@@ -144,10 +125,8 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
         # dew point is not present
         if not all_dew_vars:
-            printf(
+            logger.info(
                 "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
-                log_file=log_file,
-                verbose=verbose,
             )
 
         # dew point is present
@@ -176,21 +155,17 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
                 # only print warning flag once
                 if 13 in df_dpt[dew_var + "_eraqc"].unique():
-                    printf(
+                    logger.info(
                         "Flagging extended streak in dewpoint depression",
-                        log_file=log_file,
-                        verbose=verbose,
                     )
 
         return df_dpt
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
                 e
             ),
-            log_file=log_file,
-            flush=True,
         )
         return None
 
@@ -218,7 +193,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
     """
 
-    printf("Running: qaqc_precip_logic_nonegvals", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_precip_logic_nonegvals")
 
     df_neg_pr = df.copy(deep=True)
 
@@ -232,18 +207,14 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    printf(
+    logger.info(
         "Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars),
-        log_file=log_file,
-        verbose=verbose,
     )
 
     try:
         if not pr_vars:  # precipitation variable(s) is not present
-            printf(
+            logger.info(
                 "Station does not report precipitation - bypassing precip logic nonnegvals check",
-                log_file=log_file,
-                verbose=verbose,
             )
         else:
             for item in pr_vars:
@@ -255,10 +226,8 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         return df_valid
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_precip_logic_nonegvals failed with Exception: {0}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -293,9 +262,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
         18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
     """
-    printf(
-        "Running: qaqc_precip_logic_accum_amounts", log_file=log_file, verbose=verbose
-    )
+    logger.info("Running: qaqc_precip_logic_accum_amounts")
 
     # identify which precipitation vars are reported by a station
     vars_to_remove = ["qc", "duration", "method", "depth"]
@@ -311,10 +278,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
     try:
         # if station does not report any precipitation values, or only one, bypass
         if len(pr_vars) == 0 or len(pr_vars) == 1:
-            printf(
+            logger.info(
                 "Station does not report multiple precipitation variables - bypassing precip logic accum check",
-                log_file=log_file,
-                verbose=verbose,
             )
             return df
 
@@ -369,10 +334,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_precip_logic_accum_amounts failed with Exception: {0}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -402,9 +365,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     """
 
     # import pdb; pdb.set_trace()
-    printf(
-        "Running: qaqc_crossvar_logic_calm_wind_dir", log_file=log_file, verbose=verbose
-    )
+    logger.info("Running: qaqc_crossvar_logic_calm_wind_dir")
 
     try:
         # Noting that a wind direction value of 0 is a valid value
@@ -412,17 +373,13 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
 
         # check that wind direction is provided
         if "sfcWind_dir" not in df.columns:
-            printf(
+            logger.info(
                 "Station does not report wind direction - bypassing wind cross-variable logic check",
-                log_file=log_file,
-                verbose=verbose,
             )
             return df
         elif "sfcWind_dir" in df.columns and "sfcWind" not in df.columns:
-            printf(
+            logger.info(
                 "Station does reports wind direction, but not wind speed - bypassing wind cross-variable logic check",
-                log_file=log_file,
-                verbose=verbose,
             )
             return df
 
@@ -449,10 +406,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -484,7 +439,7 @@ def qaqc_pressure_units_fix(df, verbose=False):
     grab_valid_data is not applied here as this is a temporary fix, applied uniformly
     """
 
-    printf("Running: qaqc_pressure_units_fix", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_pressure_units_fix")
 
     try:
         # identify pressure variables to check conversion on
@@ -494,17 +449,13 @@ def qaqc_pressure_units_fix(df, verbose=False):
             if var in df.columns:
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
-                    printf(
+                    logger.info(
                         "Pressure units on {} updated to be Pa".format(var),
-                        log_file=log_file,
-                        verbose=verbose,
                     )
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_pressure_units_fix failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
