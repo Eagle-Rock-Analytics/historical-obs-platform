@@ -4,19 +4,10 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
-import geopandas as gp
 import numpy as np
 import pandas as pd
-import requests
-import urllib
 import datetime
 import math
-import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
-import scipy.stats as stats
 
 # New logger function
 from log_config import logger
@@ -67,7 +58,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     # import pdb; pdb.set_trace()
     logger.info("Running: qaqc_frequent_vals")
 
-    # this check is only done on air temp, dewpoint temp, and pressure
+    # this check is only done on air temp, precip, dewpoint temp, and pressure
     vars_to_remove = [
         "qc",
         "duration",
@@ -98,7 +89,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
     try:
         logger.info(
-            "Running qaqc_frequent_vals on {}".format(vars_to_check),
+            "Running qaqc_frequent_vals on: {}".format(vars_to_check),
         )
 
         for var in vars_to_check:

@@ -37,8 +37,6 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
-
-
 def get_bin_size_by_var(var):
     """Get bin size for a given variable
 
@@ -64,12 +62,12 @@ def get_bin_size_by_var(var):
         "pr_15min": 0.1,  # mm
         "pr_1h": 0.1,  # mm
         "pr_24h": 0.1,  # mm
-        "pr_localmid": 0.1,
+        "pr_localmid": 0.1, # mm
         "rsds": 50,  # W/m2
     }
     return bin_size_by_var[var]
 
-
+# -----------------------------------------------------------------------------
 def create_bins_frequent(df, var, bin_size=None):
     """Create bins from data covering entire data range
     Used in frequent value check and qaqc plot of frequent values
@@ -114,6 +112,18 @@ def create_bins_frequent(df, var, bin_size=None):
     return bins
 
 
+# -----------------------------------------------------------------------------
+def create_bins(data, bin_size=0.25):
+    """Create bins from data covering entire data range"""
+
+    # set up bins
+    b_min = np.floor(np.nanmin(data))
+    b_max = np.ceil(np.nanmax(data)) + bin_size
+    bins = np.arange(b_min, b_max, bin_size)
+
+    return bins
+
+# -----------------------------------------------------------------------------
 def progressbar(it, prefix="", size=60, out=sys.stdout):
     """
     Print a progress bar to console
