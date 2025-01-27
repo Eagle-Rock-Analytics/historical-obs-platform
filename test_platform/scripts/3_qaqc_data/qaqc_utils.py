@@ -90,6 +90,8 @@ def create_bins_frequent(df, var, bin_size=None):
 
     """
 
+    # Get bin size per variable
+    # Default bin size is defined in get_bin_size_by_var function
     if bin_size is None:
         bin_size = get_bin_size_by_var("default")
     else:
@@ -98,17 +100,16 @@ def create_bins_frequent(df, var, bin_size=None):
     # Get data
     data = df[var]
 
-    # radiation handling
-    if var != "rsds":
-        # Compute bins using the min and max of the data
-        b_min = np.floor(np.nanmin(data))
-        b_max = np.ceil(np.nanmax(data))
-        bins = np.arange(b_min, b_max + 1, bin_size)
-
-    else:
-        b_min = 0
-        b_max = int(np.ceil(np.nanmax(data / 100))) * 100  # rounds up to next hundred
-        bins = np.arange(b_min, b_max + 50, bin_size)
+    # Compute bins
+    b_min = np.floor(
+        np.nanmin(data)
+    )  # Get the minimum of the data; get closest integer to min (floor)
+    b_max = np.ceil(
+        np.nanmax(data)
+    )  # Get the maximum of the data; get closest integer to max (ceil)
+    bins = np.arange(
+        b_min, b_max + bin_size, bin_size
+    )  # Arange the bins; largest bin should be maximum + bin size.
 
     return bins
 
