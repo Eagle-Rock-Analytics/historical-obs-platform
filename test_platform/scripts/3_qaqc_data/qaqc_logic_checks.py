@@ -69,7 +69,9 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e)
+            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
+                e
+            )
         )
         return None
 
