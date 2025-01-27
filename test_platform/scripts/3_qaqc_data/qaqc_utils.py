@@ -62,10 +62,11 @@ def get_bin_size_by_var(var):
         "pr_15min": 0.1,  # mm
         "pr_1h": 0.1,  # mm
         "pr_24h": 0.1,  # mm
-        "pr_localmid": 0.1, # mm
+        "pr_localmid": 0.1,  # mm
         "rsds": 50,  # W/m2
     }
     return bin_size_by_var[var]
+
 
 # -----------------------------------------------------------------------------
 def create_bins_frequent(df, var, bin_size=None):
@@ -122,6 +123,7 @@ def create_bins(data, bin_size=0.25):
     bins = np.arange(b_min, b_max, bin_size)
 
     return bins
+
 
 # -----------------------------------------------------------------------------
 def progressbar(it, prefix="", size=60, out=sys.stdout):

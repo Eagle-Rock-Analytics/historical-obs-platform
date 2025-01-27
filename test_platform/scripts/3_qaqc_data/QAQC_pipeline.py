@@ -450,7 +450,9 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    logger.info("Created {0} era_qc variables: {1}".format(len(era_qc_vars), era_qc_vars))
+    logger.info(
+        "Created {0} era_qc variables: {1}".format(len(era_qc_vars), era_qc_vars)
+    )
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
