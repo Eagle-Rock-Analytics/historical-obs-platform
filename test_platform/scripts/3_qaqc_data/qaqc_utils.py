@@ -160,28 +160,6 @@ def get_wecc_poly(terrpath, marpath):
     return t, m, bbox
 
 
-# # -----------------------------------------------------------------------------
-# # Log print auxiliary functions
-# def printf(*args, verbose=True, log_file=None, **kwargs):
-#     import datetime
-
-#     tLog = lambda: datetime.datetime.utcnow().strftime("%m-%d-%Y %H:%M:%S") + " : \t"
-#     args = [str(a) for a in args]
-
-#     if verbose:
-#         if log_file is not None:
-#             print(" ".join([tLog(), *args]), **kwargs) or print(
-#                 " ".join([tLog(), *args]), file=log_file, **kwargs
-#             )
-#         else:
-#             print(" ".join([tLog(), *args]), **kwargs)
-#     else:
-#         if log_file is not None:
-#             print(" ".join([tLog(), *args]), file=log_file, **kwargs)
-#         else:
-#             pass
-
-
 # -----------------------------------------------------------------------------
 def create_bins(data, bin_size=0.25):
     """Create bins from data covering entire data range"""

@@ -266,7 +266,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
             plt.close()
 
         # Useful completion statement
-        logger.info(f"Flag summary plot produced on: {var}")
+        logger.info("Flag summary plot produced on: {}".format(var))
 
         # return
 

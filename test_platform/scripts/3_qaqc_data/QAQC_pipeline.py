@@ -434,7 +434,7 @@ def qaqc_ds_to_df(ds, verbose=False):
         #     )  # raw qc variables, need to keep for comparison, then drop
         #     old_era_qc_vars.append(var)
 
-    logger.info(f"Existing era_qc variables:\n{era_qc_vars}")
+    logger.info("Existing era_qc variables:\n{}".format(era_qc_vars))
     n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
 
     # only in-fill nans for valid variables
@@ -523,7 +523,6 @@ def run_qaqc_pipeline(
     rad_scheme,
     verbose=False,
     local=False,
-    log_file=log_file,
 ):
     """ """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
@@ -1005,7 +1004,6 @@ def whole_station_qaqc(
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
         # Subsetting for a specific set of stations in a single network
         if specific_sample:
-            # logger.info(f"Running on specific stations: {specific_sample}")
             stations_sample = specific_sample
 
         # "all" for no restrictions on sample size
