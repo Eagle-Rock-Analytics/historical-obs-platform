@@ -37,20 +37,20 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
     This test is synergistically applied for air temperature and dew point temperature.
 
-    Input:
+    Input
     -----
         df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
         rad_scheme [str]: radiation handling for frequent occurence of valid zeros
         plots [bool]: if True, produces plots of any flagged data and saved to AWS
 
-    Returns:
+    Returns
     -------
         qaqc success:
             df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
         qaqc failure:
             None
 
-    Flag meaning:
+    Flag meaning
     -------------
         24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
         25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
@@ -204,22 +204,23 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 # -----------------------------------------------------------------------------
 def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     """
-    Approach:
-        - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
-        - each bin compared to the three on either side
-        - if this bin contains more than half the total population of the seven bins combined
-        - and more than 30 observations over the station record (20 for seasonal)
-        - then histogram bin is highlighted for further investigation
-        - minimum number limit imposted to avoid removing true tails of distribution
+    Approach
+    --------
+        1. histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
+        2. each bin compared to the three on either side
+        3. if this bin contains more than half the total population of the seven bins combined
+        4. and more than 30 observations over the station record (20 for seasonal)
+        5. then histogram bin is highlighted for further investigation
+        6. minimum number limit imposted to avoid removing true tails of distribution
 
-    Input:
+    Input
     -----
         df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
         var [str]: variable to run check on
         data_group [str]: annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
         rad_scheme [str]: radiation handling for frequent occurence of valid zeros
 
-    Returns:
+    Returns
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     """
@@ -460,12 +461,12 @@ def synergistic_flag(df, num_temp_vars):
     In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
     Applies appropriate flag in corresponding vars
 
-    Input:
+    Input
     -----
         df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
         num_temp_vars [list]: list of temperature vars
 
-    Returns:
+    Returns
     -------
         df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
     """
@@ -475,6 +476,7 @@ def synergistic_flag(df, num_temp_vars):
     # 25 for all seasons/years check
     flags_to_set = [24, 25]
 
+    # synergistically flag -- if tas is flagged, tdps needs to be flagged, and vice versa
     for flag_to_set in flags_to_set:
         if "tas" in num_temp_vars and "tdps" in num_temp_vars:
             df.loc[df["tas_eraqc"] == flag_to_set, "tdps_eraqc"] = flag_to_set
@@ -489,7 +491,20 @@ def synergistic_flag(df, num_temp_vars):
 
 # -----------------------------------------------------------------------------
 def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh=30):
-    """Returns the specific bins to flag as suspect"""
+    """Returns the specific bins to flag as suspect.
+    
+    Input
+    -----
+        bar_counts [list]: obs frequency per bin
+        bins [list]: bin edges as determined by create_bins_frequent
+        bin_main_thresh [int]: min num. of obs for all obs check to proceed to flagging
+        secondary_bin_main_thresh [int]: min num of obs for annual/seasonal check to proceed to flagging
+
+    Returns
+    --------
+        bins_to_flag [list]: list of bins to flag for frequent values check
+    """
+
     bins_to_flag = []  # list of bins that will be flagged
 
     for i in range(0, len(bar_counts)):
