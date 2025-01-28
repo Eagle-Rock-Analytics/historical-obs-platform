@@ -30,7 +30,7 @@ import warnings
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 # =======================================================================================================
 try:
-    from qaqc_utils import create_bins_frequent
+    from qaqc_utils import create_bins_frequent, create_bins
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
@@ -309,7 +309,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
     """
 
     # plot all valid data within year/season
-    h, _plot = df.plot.hist(column=var, bins=bins, color="k", legend=False, alpha=0.5)
+    _plot = df.plot.hist(column=var, bins=bins, color="k", legend=False, alpha=0.5)
 
     # plot flagged values
     # first identify which values are flagged
@@ -354,16 +354,16 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
             fontsize=8,
         )
 
-    elif var == "pr_15min": # apply for all precipitation variables?
-        # use second most frequent bin to set y-axis limit -- 0s tend to increase this by 2x orders of magnitude
-        h2_count = h.iloc[1] # locates second most frequent bin to determine size
-        maxy = h2_count 
-        plt.annotate(
-            "Lowest bin (0-1mm) has {} values".format(h.iloc[0]),
-            xy=(0.02, 0.85),
-            xycoords="axes fraction",
-            fontsize=8,
-        )
+    # elif var == "pr_15min": # apply for all precipitation variables?
+    #     # use second most frequent bin to set y-axis limit -- 0s tend to increase this by 2x orders of magnitude
+    #     h2_count = h.iloc[1] # locates second most frequent bin to determine size
+    #     maxy = h2_count 
+    #     plt.annotate(
+    #         "Lowest bin (0-1mm) has {} values".format(h.iloc[0]),
+    #         xy=(0.02, 0.85),
+    #         xycoords="axes fraction",
+    #         fontsize=8,
+    #     )
 
     # save figure to AWS
     network = df["station"].unique()[0].split("_")[0]
