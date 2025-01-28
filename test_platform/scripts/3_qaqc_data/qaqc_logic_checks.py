@@ -4,27 +4,15 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
-import geopandas as gp
-import numpy as np
-import pandas as pd
-import requests
-import urllib
 import datetime
-import math
-import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
-import scipy.stats as stats
 
 # New logger function
 from log_config import logger
 
 try:
-    from qaqc_utils import *
+    from qaqc_utils import grab_valid_obs
 except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+    logger.debug(f"Error importing qaqc_utils: {e}")
 
 
 # -----------------------------------------------------------------------------
@@ -83,7 +71,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
         logger.info(
             "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
                 e
-            ),
+            )
         )
         return None
 
@@ -114,15 +102,15 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     logger.info(
         "Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb",
     )
+    df_dpt = df.copy(deep=True)
+
+    # first check that tdps and/or tdps_derived are provided
+    dew_vars = [col for col in df_dpt.columns if "tdps" in col]
+    all_dew_vars = [
+        var for var in dew_vars if "qc" not in var
+    ]  # remove all qc variables so they do not also run through: raw, eraqc
 
     try:
-        df_dpt = df.copy(deep=True)
-        # first check that tdps and/or tdps_derived are provided
-        dew_vars = [col for col in df_dpt.columns if "tdps" in col]
-        all_dew_vars = [
-            var for var in dew_vars if "qc" not in var
-        ]  # remove all qc variables so they do not also run through: raw, eraqc
-
         # dew point is not present
         if not all_dew_vars:
             logger.info(
@@ -165,12 +153,12 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         logger.info(
             "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
                 e
-            ),
+            )
         )
         return None
 
 
-# ----------------------------------------------------------------------
+## ----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df, verbose=False):
     """
@@ -207,9 +195,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    logger.info(
-        "Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars),
-    )
+    logger.info("Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars))
 
     try:
         if not pr_vars:  # precipitation variable(s) is not present
@@ -219,16 +205,18 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
         else:
             for item in pr_vars:
                 df_valid = grab_valid_obs(df_neg_pr, item)  # subset for valid obs
-                df_valid.loc[df_valid[item] < 0, item + "_eraqc"] = (
-                    10  # see era_qaqc_flag_meanings.csv
-                )
+                df_to_flag = df_valid.loc[df_valid[item] < 0]
 
-        return df_valid
+                # flag in original df
+                if len(df_to_flag) != 0:
+                    df_neg_pr.loc[
+                        df_neg_pr.index.isin(df_to_flag.index), item + "_eraqc"
+                    ] = 10  # see era_qaqc_flag_meanings.csv
+
+        return df_neg_pr
 
     except Exception as e:
-        logger.info(
-            "qaqc_precip_logic_nonegvals failed with Exception: {0}".format(e),
-        )
+        logger.info("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e))
         return None
 
 
@@ -335,7 +323,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
 
     except Exception as e:
         logger.info(
-            "qaqc_precip_logic_accum_amounts failed with Exception: {0}".format(e),
+            "qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e),
         )
         return None
 

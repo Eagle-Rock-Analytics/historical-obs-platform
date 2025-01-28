@@ -19,14 +19,14 @@ import pandas as pd
 import xarray as xr
 import boto3
 import s3fs
-from io import BytesIO, StringIO
+from io import StringIO
 import time
 import tempfile
 from mpi4py import MPI
 import logging
 from simplempi import simpleMPI
 
-from simplempi.parfor import parfor, pprint
+# from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -444,8 +444,10 @@ def qaqc_ds_to_df(ds, verbose=False):
 
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
             if qc_var not in era_qc_vars:
+                ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
+                era_qc_vars.append(qc_var)
                 logger.info(
-                    f"nans created for {qc_var}",
+                    "nans created for {}".format(qc_var),
                 )
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
@@ -471,8 +473,7 @@ def qaqc_ds_to_df(ds, verbose=False):
         except:
             logger.info("Filling anemometer_height_m with NaN.")
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
+
     if "thermometer_height_m" not in df.columns:
         try:
             df["thermometer_height_m"] = (
@@ -481,8 +482,6 @@ def qaqc_ds_to_df(ds, verbose=False):
         except:
             logger.info("Filling thermometer_height_m with NaN.")
             df["thermometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
@@ -1001,7 +1000,6 @@ def whole_station_qaqc(
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
         # Subsetting for a specific set of stations in a single network
         if specific_sample:
-            # logger.info(f"Running on specific stations: {specific_sample}")
             stations_sample = specific_sample
 
         # "all" for no restrictions on sample size
@@ -1013,14 +1011,15 @@ def whole_station_qaqc(
             nSample = int(sample)
             files_df = files_df.sample(nSample)
             stations_sample = list(files_df["era-id"])
-            # logger.info(stations_sample)
 
         # DOCUMENTATION NEEDED
         else:
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
                 logger.info(
-                    f"Sample station '{sample}' not in network/stations_df. Please double-check names",
+                    "Sample station '{}' not in network/stations_df. Please double-check names".format(
+                        sample
+                    ),
                 )
                 exit()  # end script
                 stations_sample = list(files_df["era-id"])
@@ -1106,7 +1105,7 @@ def whole_station_qaqc(
                             logger.info(
                                 "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
                                     station
-                                ),
+                                )
                             )
                 elif zarr == True:  # Or, read zarr
                     try:
@@ -1148,7 +1147,7 @@ def whole_station_qaqc(
                     ds = ds.drop_duplicates(dim="time")
 
                 logger.info(
-                    "Done reading. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
+                    f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
                 )
 
                 # CHECK THE ENGINE HERE:
