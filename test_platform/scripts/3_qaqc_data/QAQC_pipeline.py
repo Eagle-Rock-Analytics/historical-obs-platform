@@ -434,7 +434,7 @@ def qaqc_ds_to_df(ds, verbose=False):
         #     )  # raw qc variables, need to keep for comparison, then drop
         #     old_era_qc_vars.append(var)
 
-    logger.info(f"Existing era_qc variables:\n{era_qc_vars}")
+    logger.info("Existing era_qc variables: {}".format(era_qc_vars))
     n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
 
     # only in-fill nans for valid variables
@@ -450,13 +450,9 @@ def qaqc_ds_to_df(ds, verbose=False):
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
 
-    logger.info("Created {} era_qc variables".format(len(era_qc_vars)))
-    logger.info(era_qc_vars)
-    # logger.info(old_era_qc_vars)
-
-    # if len(era_qc_vars) != n_qc:
-    #     logger.info("Difference in eraqc variables, please check: {}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
-    #     exit()
+    logger.info(
+        "Created {0} era_qc variables: {1}".format(len(era_qc_vars), era_qc_vars)
+    )
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
