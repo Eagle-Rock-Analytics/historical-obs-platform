@@ -21,8 +21,6 @@ from qaqc_utils import create_bins_frequent
 
 # New logger function
 from log_config import logger
-
-# plt.switch_backend('Agg')
 import time
 
 # =======================================================================================================
@@ -367,7 +365,6 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     """
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     ps_vars = ["ps", "ps_altimeter", "ps_derived", "psl"]
-    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
 
     bins = create_bins_frequent(df, var)
 
@@ -489,10 +486,100 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
                 )
 
 
+# -----------------------------------------------------------------------------------------
+def frequent_precip_plot(df, var, flag, dpi=None, local=False):
+    """Plot frequent values for precipitation.
+
+    Inputs
+    ------
+        df [pd.DataFrame]: input QA/QC dataframe to produce plot on
+        var [str]: variable name, precipitation vars only
+        flag [int]: qaqc_precip_check flag (31)
+        dpi [int]: resolution of figure
+        local [boolean]: whether to save figure locally in addition to AWS
+
+    Returns
+    -------
+        None
+    """
+    # valid precipitation variables
+
+    logger.info("Creating frequent values precip plot!")
+
+    fig, ax = plt.subplots(figsize=(10, 3))
+
+    # plot all cleaned data
+    df.plot(
+        ax=ax,
+        x="time",
+        y=var,
+        marker=".",
+        ms=4,
+        lw=1,
+        color="k",
+        alpha=0.5,
+        label="Cleaned data",
+    )
+
+    # plot all flagged data
+    flagged_df = df.loc[df[var + "_eraqc"] == flag]
+    flagged_df.plot(
+        ax=ax,
+        x="time",
+        y=var + "_eraqc",
+        marker="o",
+        ms=7,
+        lw=0,
+        mfc="none",
+        color="C3",
+        label="Flagged data",
+    )
+
+    # plot aesthetics
+    plt.legend(loc="best")
+    ylab, units, miny, maxy = _plot_format_helper(var)
+    plt.ylabel("{} [{}]".format(ylab, units))
+    plt.xlabel("")
+    plt.title(
+        "Frequent values -- precipitation: {0} / month: {1}".format(
+            df["station"].unique()[0], month
+        ),
+        fontsize=10,
+    )
+
+    # save figure to AWS
+    bucket_name = "wecc-historical-wx"
+    directory = "3_qaqc_wx"
+    img_data = BytesIO()
+    plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
+    img_data.seek(0)
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    figname = "qaqc_frequent_value_check_{0}_{1}".format(df["station"].unique()[0], var)
+    bucket.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+    )
+
+    # save locally if needed
+    if local:
+        plt.savefig(
+            "qaqc_figs/{}.png".format(figname),
+            format="png",
+            dpi=dpi,
+            bbox_inches="tight",
+        )
+
+    # close figure to save memory
+    plt.close()
+
+    return None
+
+
 # ============================================================================================================
 ## distribution gap plotting functions
-
-
 def dist_gap_part1_plot(
     df, month, var, flagval, iqr_thresh, network, dpi=None, local=False
 ):
