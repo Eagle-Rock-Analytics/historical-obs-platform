@@ -1062,6 +1062,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     # save figure to AWS
     bucket_name = "wecc-historical-wx"
     directory = "3_qaqc_wx"
+    network = station.split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
