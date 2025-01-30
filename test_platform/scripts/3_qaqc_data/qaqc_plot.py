@@ -485,9 +485,10 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
                     rad_scheme=rad_scheme,
                 )
 
+
 # -----------------------------------------------------------------------------------------
 def frequent_precip_plot(df, var, flag, dpi=None, local=False):
-    """Plot frequent values for precipitation. 
+    """Plot frequent values for precipitation.
 
     Inputs
     ------
@@ -505,32 +506,32 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
 
     logger.info("Creating frequent values precip plot!")
 
-    fig, ax = plt.subplots(figsize=(10,3))
+    fig, ax = plt.subplots(figsize=(10, 3))
 
     # plot all cleaned data
     df.plot(
         ax=ax,
-        x='time',
+        x="time",
         y=var,
-        marker='.',
+        marker=".",
         ms=4,
         lw=1,
-        color='k',
+        color="k",
         alpha=0.5,
-        label= "Cleaned data",
+        label="Cleaned data",
     )
 
     # plot all flagged data
-    flagged_df = df.loc[df[var+'_eraqc'] == flag]
+    flagged_df = df.loc[df[var + "_eraqc"] == flag]
     flagged_df.plot(
         ax=ax,
-        x='time,
-        y=var+'_eraqc',
-        marker='o',
+        x="time",
+        y=var + "_eraqc",
+        marker="o",
         ms=7,
         lw=0,
-        mfc='none,
-        color='C3',
+        mfc="none",
+        color="C3",
         label="Flagged data",
     )
 
@@ -575,6 +576,7 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     plt.close()
 
     return None
+
 
 # ============================================================================================================
 ## distribution gap plotting functions
