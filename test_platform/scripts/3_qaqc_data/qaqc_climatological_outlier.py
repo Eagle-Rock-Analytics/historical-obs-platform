@@ -92,12 +92,16 @@ def qaqc_climatological_outlier(
                 new_df, var, kind="drop"
             )  # subset for valid obs, distribution drop yellow flags
 
-            df_valid = df_valid.dropna(subset=var) # Keep only useful columns
+            df_valid = df_valid.dropna(subset=var)  # Keep only useful columns
             df_valid = df_valid[[var, "year", "month", "day", "hour", "time"]]
 
             # Bypass if there are no valid observations remaining
             if df_valid[var].size == 0:
-                logger.info("No valid (unflagged) observations for: {} to proceed through qaqc_climatological_outlier. Bypassing station.".format(var))
+                logger.info(
+                    "No valid (unflagged) observations for: {} to proceed through qaqc_climatological_outlier. Bypassing station.".format(
+                        var
+                    )
+                )
                 continue
 
             # Winsorize data and calculate climatology by month/hour with winsorized data
@@ -177,19 +181,21 @@ def qaqc_climatological_outlier(
         )
         return None
 
-    try: 
+    try:
         # precip focused check
         for var in pr_vars:
             new_df = qaqc_climatological_outlier_precip(new_df, var)
 
     except Exception as e:
-        logger.info("qaqc_climatological_outlier_precip failed with Exception: {}".format(e))
+        logger.info(
+            "qaqc_climatological_outlier_precip failed with Exception: {}".format(e)
+        )
         return None
 
     # Plot flagged values
     if plot:
         for var in vars_to_anom:
-            if 26 in new_df[var+"_eraqc"].unique(): # only plot if flag is present
+            if 26 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 # Extract only flagged values to loop over those months and hours
                 df_plot = df_plot[
                     ["year", "hour", "month", "time", "flag", var]
@@ -211,9 +217,9 @@ def qaqc_climatological_outlier(
                         local=local,
                     )
         for var in pr_vars:
-            if 32 in new_df[var+"_eraqc"].unique(): # only plot if flag is present
+            if 32 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 climatological_precip_plot(new_df, var, flag=32)
-                
+
     return new_df
 
 
@@ -225,11 +231,11 @@ def flag_clim_outliers(series, bin_size=0.25):
     ------
         series [pd.DataFrame]: QAQC dataframe
         bin_size [float]: bin size for distribution
-    
+
     Returns
     -------
-        clim_outliers [pd.DataFrame]: QAQC dataframe with flags [?] 
-    
+        clim_outliers [pd.DataFrame]: QAQC dataframe with flags [?]
+
     """
     # If series is small (less than 5 years) skip to next month/hour
     if len(series) <= 5:
@@ -346,7 +352,7 @@ def fit_normal(series, bin_size=0.25, plot=False):
     except:
         right = len(bins) - 2
 
-    if plot: ## why is this here?
+    if plot:  ## why is this here?
         # Plot the histogram of the series
         fig, ax = plt.subplots()
         ax.hist(series, bins=bins, density=False, alpha=0.35, label="Histogram")
@@ -382,7 +388,7 @@ def gap_search(freq, left, right):
     Returns
     -------
         flag []: [?]
-    
+
     """
     left_freq = freq[0:left]
     left_flag = np.zeros_like(
@@ -414,14 +420,14 @@ def gap_search(freq, left, right):
 
 # ----------------------------------------------------------------------
 def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
-    """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at 
+    """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
     least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
     This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,
     and flagged values are applied to all sub-daily observations within a flagged day.
 
     Inputs
     ------
-        df [pd.DataFrame]: QAQC dataframe 
+        df [pd.DataFrame]: QAQC dataframe
         var [str]: variable name
         verbose [boolean]: whether to provide runtime output to terminal
 
@@ -433,38 +439,58 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
     ------------
         32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
 
-    TODO: 
+    TODO:
         - Incorporate temperature check if temperature is present for station (V2)
     """
 
     logger.info("Running qaqc_climatological_outlier_precip on: {}".format(var))
 
     new_df = df.copy()
-    df_valid = grab_valid_obs(new_df, var) # subset for valid obs
+    df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
 
     # aggregate to daily
     df_sub = new_df[["time", "month", "year", "day", var, var + "_eraqc"]]
-    df_dy = df_sub.resample("1D", on="time").agg({
-        var: 'sum',
-        var+"_eraqc": "first",
-        "month": "first",
-        "year": "first",
-        "day": "first",
-    }).reset_index()
+    df_dy = (
+        df_sub.resample("1D", on="time")
+        .agg(
+            {
+                var: "sum",
+                var + "_eraqc": "first",
+                "month": "first",
+                "year": "first",
+                "day": "first",
+            }
+        )
+        .reset_index()
+    )
 
     # calculate the respective 29-day 95th percentile
     # v1: using the month each day is located in for "29-day"
-    for mon in range(1,13):
+    for mon in range(1, 13):
         df_mon = df_dy.loc[df_dy.month == mon]
         p95 = df_mon[var].quantile(0.95)
-        
+
         # identify where factor x percentile is exceeded and flag
         if p95 != 0:
             flagged_days = df_mon.loc[df_mon[var] > factor * p95]
-            new_df.loc[(new_df.year.isin(flagged_days.year) & new_df.month.isin(flagged_days.month) &  new_df.day.isin(flagged_days.day)), var+"_eraqc"] = 32
-        elif p95 == 0: 
+            new_df.loc[
+                (
+                    new_df.year.isin(flagged_days.year)
+                    & new_df.month.isin(flagged_days.month)
+                    & new_df.day.isin(flagged_days.day)
+                ),
+                var + "_eraqc",
+            ] = 32
+        elif p95 == 0:
             # p95 is zero in this case
             flagged_days = df_mon.loc[df_mon[var] > factor]
-            new_df.loc[(new_df.year.isin(flagged_days.year) & new_df.month.isin(flagged_days.month) &  new_df.day.isin(flagged_days.day)), var+"_eraqc"] = 32
+            new_df.loc[
+                (
+                    new_df.year.isin(flagged_days.year)
+                    & new_df.month.isin(flagged_days.month)
+                    & new_df.day.isin(flagged_days.day)
+                ),
+                var + "_eraqc",
+            ] = 32
 
     return new_df

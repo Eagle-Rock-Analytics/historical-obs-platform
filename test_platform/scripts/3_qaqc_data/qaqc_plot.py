@@ -788,9 +788,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 
 # ============================================================================================================
-def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, dpi=None, local=False
-):
+def clim_outlier_plot(series, month, hour, bin_size=0.1, dpi=None, local=False):
     """
     Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -861,7 +859,8 @@ def clim_outlier_plot(
     # title and useful annotations
     box = dict(facecolor="white", edgecolor="white", alpha=0.85)
     plt.title(
-        "Climatological outlier check, {0}: {1}".format(df["station"].unique()[0], var), fontsize=10
+        "Climatological outlier check, {0}: {1}".format(df["station"].unique()[0], var),
+        fontsize=10,
     )
     plt.annotate(
         "Month: {}".format(month),
@@ -910,6 +909,7 @@ def clim_outlier_plot(
     plt.close(fig)
 
     return
+
 
 # ============================================================================================================
 def climatological_precip_plot(df, var, flag, dpi=None, local=False):
@@ -981,7 +981,9 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
 
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket_name)
-    figname = "qaqc_climatological_outlier_{0}_{1}".format(df["station"].unique()[0], var)
+    figname = "qaqc_climatological_outlier_{0}_{1}".format(
+        df["station"].unique()[0], var
+    )
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
