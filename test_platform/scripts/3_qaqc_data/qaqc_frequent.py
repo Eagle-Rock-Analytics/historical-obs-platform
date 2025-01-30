@@ -28,50 +28,48 @@ except Exception as e:
 # -----------------------------------------------------------------------------
 def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     """
-    Test for unusually frequent values. This check is performed in two phases.
-    Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
+    Test for unusually frequent values, run on temperatures and pressure. This check is performed in two phases.
+    - Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
     compared to +/- 3 surrounding bins, the current bin is highlighted for further check on the year-by-year basis. If the bin persists
     as unusually frequent, the bin is flagged.
-    Phase 2: Check is applied on a seasonal basis, for all observations within that season (mirroring phase 1). If a suspect bin is noted
+    - Phase 2: Check is applied on a seasonal basis, for all observations within that season (mirroring phase 1). If a suspect bin is noted
     in the all observations stage, the check is performed on the year-by-year basis for that season.
+    - This test is synergistically applied for air temperature and dew point temperature.
 
-    This test is synergistically applied for air temperature and dew point temperature.
+    For precipitation, the folloinwg test is performed:
+    - Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
 
-    Input:
+    Input
     -----
         df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
         rad_scheme [str]: radiation handling for frequent occurence of valid zeros
         plots [bool]: if True, produces plots of any flagged data and saved to AWS
 
-    Returns:
+    Returns
     -------
         qaqc success:
             df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
         qaqc failure:
             None
 
-    Flag meaning:
+    Flag meaning
     -------------
         24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
         25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     """
-    # import pdb; pdb.set_trace()
+
     logger.info("Running: qaqc_frequent_vals")
 
-    # this check is only done on air temp, precip, dewpoint temp, and pressure
+    # list of var substrings to remove if present in var
     vars_to_remove = [
         "qc",
         "duration",
         "method",
         "flag",
         "depth",
-    ]  # list of var substrings to remove if present in var
-    vars_to_include = [
-        "pr_5min",
-        "pr_15min",
-        "pr_1h",
-        "pr_24h",
-        "pr_localmid",
+    ]  
+
+    non_pr_vars_to_run = [
         "tas",
         "tdps",
         "ps",
@@ -83,13 +81,26 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     vars_to_check = [
         var
         for var in df.columns
-        if any(True for item in vars_to_include if item in var)
-        and not any(True for item in vars_to_remove if item in var)
+        if any(True for item in non_pr_vars_to_run if item in var)
+        and not any(True for item in non_pr_vars_to_run if item in var)
+    ]
+
+    pr_vars_to_run = [
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+    ]
+    pr_vars_to_check = [
+        var for var in df.columns 
+        if any(True for item in pr_vars_to_run if item in var)
+        and not any(True for item in pr_vars_to_run if item in var)
     ]
 
     try:
         logger.info(
-            "Running qaqc_frequent_vals on: {}".format(vars_to_check),
+            "Running qaqc_frequent_vals on: {}".format(vars_to_check + pr_vars_to_check),
         )
 
         for var in vars_to_check:
@@ -183,6 +194,10 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             # proceed to synergistic check
             df = synergistic_flag(df, num_temp_vars)
 
+        # precip focused check
+        for var in pr_vars_to_check:
+            df = qaqc_frequent_precip(df, var)
+
         # plots item
         if plots:
             for var in vars_to_check:
@@ -191,6 +206,11 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                     or 25 in df[var + "_eraqc"].unique()
                 ):  # only plot a figure if a value is flagged
                     frequent_vals_plot(df, var, rad_scheme, local=local)
+
+            for var in pr_vars_to_run:
+                if 31 in df[var + "_eraqc"].unique():
+                    ## need new plot here --> timeseries with flagged values
+                    print('I AM A PLOT') 
 
         return df
 
@@ -282,7 +302,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                 ] = 100  # highlight for further review flag, either overwritten with real flag or removed in next step
 
     # ============================================================================================================
-
     elif data_group == "annual":
         for yr in df_to_test.year.unique():
             df_yr = df_to_test.loc[df_to_test["year"] == yr]
@@ -338,7 +357,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
                     ] = 100  # highlight for further review flag, either overwritten with real flag or removed in next step
 
     # ============================================================================================================
-
     elif data_group == "seasonal_annual":
         for yr in df_to_test.year.unique():
             for szn in szns:
@@ -525,3 +543,50 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
                 continue
 
     return bins_to_flag  # returns a list of values that are suspicious
+
+# -----------------------------------------------------------------------------
+# precipitation focused precip check
+def qaqc_frequent_precip(df, var, moderate_thresh, day_thresh=5 verbose=False):
+    """Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
+    This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data, 
+    and flagged values are applied to all subhourly observations within a flagged day. 
+
+    Inputs
+    ------
+        df [pd.DataFrame]: QAQC dataframe to run through test
+        var [str]: variable name
+        moderate_thresh [int]: moderate precipitation total to check
+        day_thresh [int]: num. of min consecutive days to flag
+        verbose [boolean]: whether to provide output to local env
+
+    Returns
+    -------
+        df [pd.DataFrame]: QAQC dataframe with test applied
+
+    Flag Meaning
+    ------------
+        31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+    """
+
+    logger.info("Running qaqc_frequent_precip on: {}".format(var))
+
+    new_df = df.copy()
+    df_valid = grab_valid_obs(new_df, var) # subset for valid obs
+
+    # aggregate to daily, subset on time, var, and eraqc var
+    new_df = new_df[['time', var, var+'_eraqc']]
+    df_dy = new_df.resample('1D', on='time').sum().reset_index()
+
+    # identify non-zero precip totals
+    df_nozero = df_dy.loc[df_dy[var] > 0]
+
+    # creates new column to identify consecutive values
+    df_nozero['consecutive'] = df_nozero[var].groupby((df_nozero[var] != df_nozero[var].shift()).cumsum()).transform('size')
+
+    # id days over this threshold
+    flagged_days = df_nozero[df_nozero['consecutive'] >= day_thresh]
+
+    # flag all values within flagged days
+    df.loc[df['time'].isin(flagged_days.time), var+'_eraqc'] = 31
+
+    return df
