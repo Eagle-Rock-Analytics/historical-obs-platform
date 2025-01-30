@@ -34,6 +34,7 @@ except Exception as e:
 
 from IPython.display import display
 
+
 # ============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):
@@ -80,11 +81,11 @@ def _plot_format_helper(var):
         unit = "%"
 
     elif var in pr_vars:
-        ylab = "Precipitation" 
+        ylab = "Precipitation"
         unit = "mm"
 
     elif var in ps_vars:
-        ylab = "Pressure" 
+        ylab = "Pressure"
         unit = "Pa"
 
     elif var == "elevation":
@@ -162,7 +163,7 @@ def _plot_format_helper(var):
 ## flagged timeseries plot helper
 def id_flag(flag_to_id):
     """Identifies flag based on numerical value assigned for plotting.
-    
+
     Input
     -----
         flag_to_id [int]: specific flag to identify
@@ -184,7 +185,7 @@ def id_flag(flag_to_id):
 ## flagged timeseries plot
 def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
     """Produces timeseries of variables that have flags placed.
-    
+
     Input
     -----
         df [pd.DataFrame]: QA/QC dataframe to produce plot on
@@ -288,8 +289,8 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
 # ============================================================================================================
 ## frequent values plotting functions
 def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
-    """Plotting helper with common plotting elements for all 3 versions of this plot. 
-    
+    """Plotting helper with common plotting elements for all 3 versions of this plot.
+
     Inputs
     ------
         df [pd.DataFrame]: QA/QC dataframe to produce plot on
@@ -363,9 +364,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
 
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket_name)
-    figname = "qaqc_frequent_{0}_{1}_{2}".format(
-        df["station"].unique()[0], var, yr
-    )
+    figname = "qaqc_frequent_{0}_{1}_{2}".format(df["station"].unique()[0], var, yr)
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
@@ -392,7 +391,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     """
     Produces a histogram of the diagnostic histogram per variable,
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test
-    is visually flagged. 
+    is visually flagged.
 
     Input
     -----
@@ -791,7 +790,9 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
                 elif x < thresholds[0]:  # left tail
                     bar.set_color("r")
     except:
-        logger.info("dist_gap_part2_plot: PDF boundaries issue -- skipping left and right tails")
+        logger.info(
+            "dist_gap_part2_plot: PDF boundaries issue -- skipping left and right tails"
+        )
 
     # title and useful annotations
     plt.title(
@@ -1086,7 +1087,7 @@ def unusual_streaks_plot(
         flagval [int]: flag value to plot (27, 28, 29 for unusual streaks)
         dpi [int]: resolution for png plots
         local [bool]: if True, saves plot locally, else: only saves plot to AWS
-    
+
     Returns
     -------
         None
@@ -1217,8 +1218,8 @@ def unusual_streaks_plot(
 # ============================================================================================================
 ## V2 research: these should live in qaqc_unusual_gaps.py but running into some circular import issues
 def standardized_median_bounds(df, var, iqr_thresh):
-    """Part 1: Calculates the standardized median. 
-    
+    """Part 1: Calculates the standardized median.
+
     Input
     -----
         df [pd.DataFrame]: QA/QC dataframe to produce plot on
@@ -1246,15 +1247,15 @@ def standardized_median_bounds(df, var, iqr_thresh):
 
 def iqr_range(df, var):
     """Part 1: Calculates the monthly interquartile range.
-    
+
     Input
     -----
         df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name   
+        var [str]: variable name
 
     Returns
     -------
-        range_to_return [float]: interquartile range 
+        range_to_return [float]: interquartile range
     """
     range_to_return = df[var].quantile([0.25, 0.75]).diff().iloc[-1]
     return range_to_return
@@ -1262,11 +1263,11 @@ def iqr_range(df, var):
 
 def standardized_iqr(df, var):
     """Part 2: Standardizes data against the interquartile range.
-    
+
     Input
     -----
         df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name   
+        var [str]: variable name
 
     Returns
     -------

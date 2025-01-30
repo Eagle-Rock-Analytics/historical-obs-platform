@@ -505,7 +505,7 @@ def synergistic_flag(df, num_temp_vars):
 # -----------------------------------------------------------------------------
 def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh=30):
     """Returns the specific bins to flag as suspect.
-    
+
     Input
     -----
         bar_counts [list]: obs frequency per bin
