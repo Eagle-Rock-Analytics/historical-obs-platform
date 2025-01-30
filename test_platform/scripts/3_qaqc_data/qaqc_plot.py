@@ -1053,7 +1053,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     plt.ylabel("{} [{}]".format(ylab, units))
     plt.xlabel("")
     plt.title(
-        "Climatological outliers -- precipitation: {0}: {1}".format(
+        "Climatological outliers -- precipitation: {0}".format(
             df["station"].unique()[0]
         ),
         fontsize=10,
