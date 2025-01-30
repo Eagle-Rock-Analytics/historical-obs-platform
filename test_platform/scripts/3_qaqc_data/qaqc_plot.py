@@ -354,17 +354,6 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=Fa
             fontsize=8,
         )
 
-    # elif var == "pr_15min": # apply for all precipitation variables?
-    #     # use second most frequent bin to set y-axis limit -- 0s tend to increase this by 2x orders of magnitude
-    #     h2_count = h.iloc[1] # locates second most frequent bin to determine size
-    #     maxy = h2_count 
-    #     plt.annotate(
-    #         "Lowest bin (0-1mm) has {} values".format(h.iloc[0]),
-    #         xy=(0.02, 0.85),
-    #         xycoords="axes fraction",
-    #         fontsize=8,
-    #     )
-
     # save figure to AWS
     network = df["station"].unique()[0].split("_")[0]
 
@@ -417,10 +406,6 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     -------
         None
     """
-
-    # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
-    ps_vars = ["ps", "ps_altimeter", "ps_derived", "psl"]
-    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
 
     bins = create_bins_frequent(df, var)
 
@@ -888,7 +873,7 @@ def clim_outlier_plot(
         None
     """
 
-    var = series._name # look into this further
+    var = series._name
 
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
