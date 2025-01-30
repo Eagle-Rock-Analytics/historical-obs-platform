@@ -453,7 +453,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 era_qc_vars.append(qc_var)
 
     logger.info(
-        "Created {0} era_qc variables: {1}".format(len(era_qc_vars), era_qc_vars)
+        "Created {0} era_qc variables: {1}".format(n_qc, era_qc_vars)
     )
 
     # Save attributes to inheret them to the QAQC'ed file

@@ -180,7 +180,7 @@ def qaqc_climatological_outlier(
     try: 
         # precip focused check
         for var in pr_vars:
-            df_plot_pr = qaqc_climatological_outlier_precip(new_df, var)
+            new_df = qaqc_climatological_outlier_precip(new_df, var)
 
     except Exception as e:
         logger.info("qaqc_climatological_outlier_precip failed with Exception: {}".format(e))
@@ -188,32 +188,33 @@ def qaqc_climatological_outlier(
 
     # Plot flagged values
     if plot:
-        # Extrac station name
-        station = df["station"].unique()[0]
+        for var in vars_to_anom:
+            if 26 in new_df[var+"_eraqc"].unique(): # only plot if flag is present
+                # Extract only flagged values to loop over those months and hours
+                df_plot = df_plot[
+                    ["year", "hour", "month", "time", "flag", var]
+                ].set_index(["month", "hour"])
 
-        # Extract only flagged values to loop over those months and hours
-        df_plot = df_plot[
-            ["year", "hour", "month", "time", "flag", var]
-        ].set_index(["month", "hour"])
+                # Loop over flagged months/hours
+                index = df_valid.set_index(["month", "hour"]).index.unique()
 
-        # Loop over flagged months/hours
-        index = df_valid.set_index(["month", "hour"]).index.unique()
+                for i, ind in enumerate(index):
+                    # Extract actual month/hour from index
+                    month, hour = ind
 
-        for i, ind in enumerate(index):
-            # Extract actual month/hour from index
-            month, hour = ind
-
-            # Plot distribution
-            clim_outlier_plot(
-                df_plot.loc[ind][var],
-                month,
-                hour,
-                bin_size=bin_size,
-                station=station,
-                local=local,
-            )
-
-        return new_df
+                    # Plot distribution
+                    clim_outlier_plot(
+                        df_plot.loc[ind][var],
+                        month,
+                        hour,
+                        bin_size=bin_size,
+                        local=local,
+                    )
+        for var in pr_vars:
+            if 32 in new_df[var+"_eraqc"].unique(): # only plot if flag is present
+                climatological_precip_plot(new_df, var, flag=32)
+                
+    return new_df
 
 
 # ----------------------------------------------------------------------
@@ -227,7 +228,7 @@ def flag_clim_outliers(series, bin_size=0.25):
     
     Returns
     -------
-        clim_outliers []: 
+        clim_outliers [pd.DataFrame]: QAQC dataframe with flags [?] 
     
     """
     # If series is small (less than 5 years) skip to next month/hour
@@ -312,11 +313,11 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
     Returns
     -------
-        freq []: frequency
-        bins []: bins for distribution
-        p []: pdf of distribution
-        left []: leftmost bin for distribution
-        right []: rightmost bin for distribution
+        freq [list]: frequency
+        bins [list]: bins for distribution
+        p [list]: pdf of distribution
+        left [int]: leftmost bin for distribution
+        right [int]: rightmost bin for distribution
     """
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
@@ -370,16 +371,17 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
 # ----------------------------------------------------------------------
 def gap_search(freq, left, right):
-    """
+    """DOCUMENTATION NEEDED.
+
     Inputs
     ------
-        freq []:
-        left []:
-        right []:
+        freq [list]: frequency
+        left [int]: leftmost bin for distribution
+        right [int]: rightmost bin for distribution
 
     Returns
     -------
-        flag []:
+        flag []: [?]
     
     """
     left_freq = freq[0:left]

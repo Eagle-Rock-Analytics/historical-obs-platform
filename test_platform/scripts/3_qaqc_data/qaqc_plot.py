@@ -789,7 +789,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 # ============================================================================================================
 def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, station=None, dpi=None, local=False
+    series, month, hour, bin_size=0.1, dpi=None, local=False
 ):
     """
     Produces a histogram of monthly standardized distribution
@@ -861,7 +861,7 @@ def clim_outlier_plot(
     # title and useful annotations
     box = dict(facecolor="white", edgecolor="white", alpha=0.85)
     plt.title(
-        "Climatological outlier check, {0}: {1}".format(station, var), fontsize=10
+        "Climatological outlier check, {0}: {1}".format(df["station"].unique()[0], var), fontsize=10
     )
     plt.annotate(
         "Month: {}".format(month),
@@ -890,7 +890,7 @@ def clim_outlier_plot(
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket_name)
     figname = "qaqc_climatological_outlier_{0}_{1}_{2}_{3}".format(
-        station, var, month, hour
+        df["station"].unique()[0], var, month, hour
     )
     bucket.put_object(
         Body=img_data,
@@ -910,6 +910,97 @@ def clim_outlier_plot(
     plt.close(fig)
 
     return
+
+# ============================================================================================================
+def climatological_precip_plot(df, var, flag, dpi=None, local=False):
+    """Plot frequent values for precipitation.
+
+    Inputs
+    ------
+        df [pd.DataFrame]: input QA/QC dataframe to produce plot on
+        var [str]: variable name, precipitation vars only
+        flag [int]: qaqc_precip_check flag (31)
+        dpi [int]: resolution of figure
+        local [boolean]: whether to save figure locally in addition to AWS
+
+    Returns
+    -------
+        None
+    """
+    # valid precipitation variables
+
+    logger.info("Creating climatological outliers values precip plot!")
+
+    fig, ax = plt.subplots(figsize=(10, 3))
+
+    # plot all cleaned data
+    df.plot(
+        ax=ax,
+        x="time",
+        y=var,
+        marker=".",
+        ms=4,
+        lw=1,
+        color="k",
+        alpha=0.5,
+        label="Cleaned data",
+    )
+
+    # plot all flagged data
+    flagged_df = df.loc[df[var + "_eraqc"] == flag]
+    flagged_df.plot(
+        ax=ax,
+        x="time",
+        y=var + "_eraqc",
+        marker="o",
+        ms=7,
+        lw=0,
+        mfc="none",
+        color="C3",
+        label="Flagged data",
+    )
+
+    # plot aesthetics
+    plt.legend(loc="best")
+    ylab, units, miny, maxy = _plot_format_helper(var)
+    plt.ylabel("{} [{}]".format(ylab, units))
+    plt.xlabel("")
+    plt.title(
+        "Climatological outliers -- precipitation: {0}: {1}".format(
+            df["station"].unique()[0]
+        ),
+        fontsize=10,
+    )
+
+    # save figure to AWS
+    bucket_name = "wecc-historical-wx"
+    directory = "3_qaqc_wx"
+    img_data = BytesIO()
+    plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
+    img_data.seek(0)
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    figname = "qaqc_climatological_outlier_{0}_{1}".format(df["station"].unique()[0], var)
+    bucket.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+    )
+
+    # save locally if needed
+    if local:
+        plt.savefig(
+            "qaqc_figs/{}.png".format(figname),
+            format="png",
+            dpi=dpi,
+            bbox_inches="tight",
+        )
+
+    # close figure to save memory
+    plt.close()
+
+    return None
 
 
 # ============================================================================================================
