@@ -1016,8 +1016,6 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     """
     # valid precipitation variables
 
-    logger.info("Creating climatological outliers values precip plot!")
-
     fig, ax = plt.subplots(figsize=(10, 3))
 
     # plot all cleaned data
@@ -1062,7 +1060,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     # save figure to AWS
     bucket_name = "wecc-historical-wx"
     directory = "3_qaqc_wx"
-    network = station.split("_")[0]
+    network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
