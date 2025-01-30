@@ -525,6 +525,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
     return None
 
+
 # -----------------------------------------------------------------------------------------
 def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     """Plot frequent values for precipitation.
@@ -615,6 +616,7 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     plt.close()
 
     return None
+
 
 # ============================================================================================================
 ## distribution gap plotting functions
