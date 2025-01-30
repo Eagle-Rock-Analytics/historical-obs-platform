@@ -99,10 +99,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     ]
 
     try:
-        logger.info(
-            "Running qaqc_frequent_vals on: {}".format(vars_to_check + pr_vars_to_check),
-        )
-
         for var in vars_to_check:
             logger.info(
                 "Running frequent values check on: {}".format(var),
@@ -209,8 +205,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
             for var in pr_vars_to_run:
                 if 31 in df[var + "_eraqc"].unique():
-                    ## need new plot here --> timeseries with flagged values
-                    print('I AM A PLOT') 
+                    frequent_precip_plot(df, var, flag=31, dpi=300, local=local)
 
         return df
 
@@ -546,7 +541,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 # -----------------------------------------------------------------------------
 # precipitation focused precip check
-def qaqc_frequent_precip(df, var, moderate_thresh, day_thresh=5 verbose=False):
+def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5 verbose=False):
     """Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data, 
     and flagged values are applied to all subhourly observations within a flagged day. 
@@ -555,8 +550,8 @@ def qaqc_frequent_precip(df, var, moderate_thresh, day_thresh=5 verbose=False):
     ------
         df [pd.DataFrame]: QAQC dataframe to run through test
         var [str]: variable name
-        moderate_thresh [int]: moderate precipitation total to check
-        day_thresh [int]: num. of min consecutive days to flag
+        moderate_thresh [int]: moderate precipitation total to check, default 7mm (0.25 inch)
+        day_thresh [int]: num. of min consecutive days to flag, default 5 days
         verbose [boolean]: whether to provide output to local env
 
     Returns
@@ -580,13 +575,10 @@ def qaqc_frequent_precip(df, var, moderate_thresh, day_thresh=5 verbose=False):
     # identify non-zero precip totals
     df_nozero = df_dy.loc[df_dy[var] > 0]
 
-    # creates new column to identify consecutive values
-    df_nozero['consecutive'] = df_nozero[var].groupby((df_nozero[var] != df_nozero[var].shift()).cumsum()).transform('size')
-
-    # id days over this threshold
-    flagged_days = df_nozero[df_nozero['consecutive'] >= day_thresh]
+    # filter to get rows day_thresh min num. of consecutive days and obs above moderate threhsold
+    flagged_days = df_nonzeros[(df_nonzeros['consecutive'] >= day_thresh) & (df_nonzeros[var] > moderate_thresh)]
 
     # flag all values within flagged days
-    df.loc[df['time'].isin(flagged_days.time), var+'_eraqc'] = 31
+    new_df.loc[((new_df['year'].isin(flagged_days) & new_df['month'].isin(flagged_days) & new_df['day'].isin(flagged_days))), var+'_eraqc'] = 31 # see flag meanings
 
     return df
