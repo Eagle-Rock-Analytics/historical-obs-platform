@@ -76,6 +76,7 @@ def qaqc_climatological_outlier(
     vars_to_check = ["tas", "tdps", "tdps_derived"]
     pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
+    pr_vars_to_anom = [v for v in pr_vars if v in df.columns]
 
     try:
         logger.info(
@@ -183,7 +184,7 @@ def qaqc_climatological_outlier(
 
     try:
         # precip focused check
-        for var in pr_vars:
+        for var in pr_vars_to_anom:
             new_df = qaqc_climatological_outlier_precip(new_df, var)
 
     except Exception as e:
@@ -216,7 +217,7 @@ def qaqc_climatological_outlier(
                         bin_size=bin_size,
                         local=local,
                     )
-        for var in pr_vars:
+        for var in pr_vars_to_anom:
             if 32 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 climatological_precip_plot(new_df, var, flag=32)
 
