@@ -61,10 +61,14 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         None
             This function does not return a value
 
-    Flag meaning
-    -------------
-    24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
-    25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+    Notes
+    -----
+    Flag meaning : 24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+    Flag meaning : 25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
     """
 
     logger.info("Running: qaqc_frequent_vals")
@@ -605,9 +609,13 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
     df : pd.DataFrame
         QAQC dataframe with test applied
 
-    Flag Meaning
-    ------------
-    31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+    Notes
+    -----
+    Flag meaning : 31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
     """
 
     logger.info("Running qaqc_frequent_precip on: {}".format(var))
@@ -616,7 +624,7 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
 
     # aggregate to daily, subset on time, var, and eraqc var
-    df_sub = new_df[["time", var, var + "_eraqc"]]
+    df_sub = df_valid[["time", var, var + "_eraqc"]]
     df_dy = df_sub.resample("1D", on="time").sum().reset_index()
 
     # identify non-zero precip totals
@@ -640,12 +648,12 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
         new_df.loc[
             (
                 (
-                    new_df["year"].isin(flagged_days)
-                    & new_df["month"].isin(flagged_days)
-                    & new_df["day"].isin(flagged_days)
+                    new_df["year"].isin(flagged_days.time.dt.year)
+                    & new_df["month"].isin(flagged_days.time.dt.month)
+                    & new_df["day"].isin(flagged_days.time.dt.day)
                 )
             ),
             var + "_eraqc",
         ] = 31  # see flag meanings
 
-    return df
+    return new_df
