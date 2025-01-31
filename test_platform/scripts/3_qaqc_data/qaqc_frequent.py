@@ -241,11 +241,11 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    var : str 
+    var : str
         variable to run check on
-    data_group : str 
+    data_group : str
         annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
-    rad_scheme : str 
+    rad_scheme : str
         radiation handling for frequent occurence of valid zeros
     verbose : bool, optional
         if True, provides runtime output to local terminal
@@ -495,7 +495,7 @@ def synergistic_flag(df, num_temp_vars):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    num_temp_vars : list 
+    num_temp_vars : list
         list of temperature vars
 
     Returns
@@ -528,7 +528,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
     Parameters
     ----------
-    bar_counts : list 
+    bar_counts : list
         obs frequency per bin
     bins : list
         bin edges as determined by create_bins_frequent
@@ -589,13 +589,13 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
 
     Parameters
     ----------
-    df [pd.DataFrame]: 
+    df [pd.DataFrame]:
         QAQC dataframe to run through test
-    var [str]: 
+    var [str]:
         variable name
     moderate_thresh : int, optional
         moderate precipitation total to check, default 7mm (0.25 inch)
-    day_thresh : int, optional 
+    day_thresh : int, optional
         num. of min consecutive days to flag, default 5 days
     verbose : bool, optional
         whether to provide output to local env
