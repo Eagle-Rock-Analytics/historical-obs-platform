@@ -599,7 +599,7 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     flagged_df.plot(
         ax=ax,
         x="time",
-        y=var + "_eraqc",
+        y=var,
         marker="o",
         ms=7,
         lw=0,
