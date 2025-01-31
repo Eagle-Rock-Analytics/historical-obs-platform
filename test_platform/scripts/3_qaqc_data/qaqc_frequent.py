@@ -589,9 +589,9 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
 
     Parameters
     ----------
-    df [pd.DataFrame]:
+    df : pd.DataFrame
         QAQC dataframe to run through test
-    var [str]:
+    var : str
         variable name
     moderate_thresh : int, optional
         moderate precipitation total to check, default 7mm (0.25 inch)
