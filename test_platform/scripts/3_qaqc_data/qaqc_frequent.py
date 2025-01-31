@@ -39,23 +39,32 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     For precipitation, the folloinwg test is performed:
     - Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
 
-    Input
-    -----
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        rad_scheme [str]: radiation handling for frequent occurence of valid zeros
-        plots [bool]: if True, produces plots of any flagged data and saved to AWS
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    rad_scheme : str
+        radiation handling for frequent occurence of valid zeros
+    plots : bool, optional
+        if True, produces plots of any flagged data and saved to AWS
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, saves plots and log files to local directory
 
     Returns
     -------
-        qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        qaqc failure:
-            None
+    qaqc success
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    qaqc failure
+        None
+            This function does not return a value
 
     Flag meaning
     -------------
-        24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
-        25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+    24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
+    25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged.
     """
 
     logger.info("Running: qaqc_frequent_vals")
@@ -226,25 +235,34 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
 # -----------------------------------------------------------------------------
 def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
-    """
-    Approach:
-        - histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
-        - each bin compared to the three on either side
-        - if this bin contains more than half the total population of the seven bins combined
-        - and more than 30 observations over the station record (20 for seasonal)
-        - then histogram bin is highlighted for further investigation
-        - minimum number limit imposted to avoid removing true tails of distribution
+    """Identifies which bins should be flagged via the annual/seasonal frequent test.
 
-    Input:
-    -----
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        var [str]: variable to run check on
-        data_group [str]: annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
-        rad_scheme [str]: radiation handling for frequent occurence of valid zeros
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    var : str
+        variable to run check on
+    data_group : str
+        annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
+    rad_scheme : str
+        radiation handling for frequent occurence of valid zeros
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
 
-    Returns:
+    Returns
     -------
-        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+    df : pd.DataFrame
+        QAQC dataframe with flagged values (see below for flag meaning)
+
+    Notes
+    -----
+    1. histograms created with 0.5 or 1.0 or hpa increments (depending on accuracy of instrument)
+    2. each bin compared to the three on either side
+    3. if this bin contains more than half the total population of the seven bins combined
+    4. and more than 30 observations over the station record (20 for seasonal)
+    5. then histogram bin is highlighted for further investigation
+    6. minimum number limit imposted to avoid removing true tails of distribution
     """
 
     # seasons
@@ -473,14 +491,17 @@ def synergistic_flag(df, num_temp_vars):
     In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
     Applies appropriate flag in corresponding vars
 
-    Input:
-    -----
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        num_temp_vars [list]: list of temperature vars
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    num_temp_vars : list
+        list of temperature vars
 
-    Returns:
+    Returns
     -------
-        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+    df : pd.DataFrame
+        QAQC dataframe with flagged values (see below for flag meaning)
     """
 
     # need to identify which flag is placed
@@ -488,6 +509,7 @@ def synergistic_flag(df, num_temp_vars):
     # 25 for all seasons/years check
     flags_to_set = [24, 25]
 
+    # synergistically flag -- if tas is flagged, tdps needs to be flagged, and vice versa
     for flag_to_set in flags_to_set:
         if "tas" in num_temp_vars and "tdps" in num_temp_vars:
             df.loc[df["tas_eraqc"] == flag_to_set, "tdps_eraqc"] = flag_to_set
@@ -502,7 +524,25 @@ def synergistic_flag(df, num_temp_vars):
 
 # -----------------------------------------------------------------------------
 def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh=30):
-    """Returns the specific bins to flag as suspect"""
+    """Returns the specific bins to flag as suspect.
+
+    Parameters
+    ----------
+    bar_counts : list
+        obs frequency per bin
+    bins : list
+        bin edges as determined by create_bins_frequent
+    bin_main_thresh : int
+        min num. of obs for all obs check to proceed to flagging
+    secondary_bin_main_thresh : int
+        min num of obs for annual/seasonal check to proceed to flagging
+
+    Returns
+    --------
+    bins_to_flag : list of float
+        list of bins to flag for frequent values check
+    """
+
     bins_to_flag = []  # list of bins that will be flagged
 
     for i in range(0, len(bar_counts)):
@@ -547,21 +587,27 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
     and flagged values are applied to all subhourly observations within a flagged day.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: QAQC dataframe to run through test
-        var [str]: variable name
-        moderate_thresh [int]: moderate precipitation total to check, default 7mm (0.25 inch)
-        day_thresh [int]: num. of min consecutive days to flag, default 5 days
-        verbose [boolean]: whether to provide output to local env
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QAQC dataframe to run through test
+    var : str
+        variable name
+    moderate_thresh : int, optional
+        moderate precipitation total to check, default 7mm (0.25 inch)
+    day_thresh : int, optional
+        num. of min consecutive days to flag, default 5 days
+    verbose : bool, optional
+        whether to provide output to local env
 
     Returns
     -------
-        df [pd.DataFrame]: QAQC dataframe with test applied
+    df : pd.DataFrame
+        QAQC dataframe with test applied
 
     Flag Meaning
     ------------
-        31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+    31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
     """
 
     logger.info("Running qaqc_frequent_precip on: {}".format(var))
