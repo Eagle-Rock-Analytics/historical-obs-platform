@@ -509,9 +509,9 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
             flagged_days = df_mon.loc[df_mon[var] > factor * p95]
             new_df.loc[
                 (
-                    new_df.year.isin(flagged_days.year)
-                    & new_df.month.isin(flagged_days.month)
-                    & new_df.day.isin(flagged_days.day)
+                    new_df.year.isin(flagged_days.dt.time.year)
+                    & new_df.month.isin(flagged_days.dt.time.month)
+                    & new_df.day.isin(flagged_days.dt.time.day)
                 ),
                 var + "_eraqc",
             ] = 32
@@ -520,9 +520,9 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
             flagged_days = df_mon.loc[df_mon[var] > factor]
             new_df.loc[
                 (
-                    new_df.year.isin(flagged_days.year)
-                    & new_df.month.isin(flagged_days.month)
-                    & new_df.day.isin(flagged_days.day)
+                    new_df.year.isin(flagged_days.dt.time.year)
+                    & new_df.month.isin(flagged_days.dt.time.month)
+                    & new_df.day.isin(flagged_days.dt.time.day)
                 ),
                 var + "_eraqc",
             ] = 32
