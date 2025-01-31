@@ -62,8 +62,6 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         - iqr_thresh preliminarily set to 5 years, pending revision
     """
 
-    # import pdb; pdb.set_trace()
-
     vars_for_gaps = [
         "tas",
         "tdps",
@@ -74,7 +72,10 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         "ps_derived",
         "rsds",
     ]
+
+    vars_for_pr = ['pr_5min', 'pr_15min', 'pr_1hr', 'pr_localmid']
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
+    vars_to_pr = [var for var in df.columns if var in vars_for_pr] # precip vars
 
     try:
         logger.info(
@@ -103,13 +104,25 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
                 df_part1, vars_to_check, plots, verbose=verbose, local=local
             )
 
-        return df_part2
-
     except Exception as e:
         logger.info(
             "qaqc_unusual_gaps failed with Exception: {}".format(e),
         )
         return None
+    
+    # precip flag
+    try: 
+        if len(vars_to_pr) != 0:
+            logger.info("Running qaqc_unusual_gaps_precip on: {}".format(vars_to_pr))
+            for var in vars_to_pr:
+                df_part3 = qaqc_unusual_gaps_precip(df, var)
+            
+            return df_part3
+    
+    except Exception as e:
+        logger.info("qaqc_unusual_gaps_precip failed with Exception: {}".format(e))
+        return None
+
 
 
 # -----------------------------------------------------------------------------
@@ -218,14 +231,17 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
         - obs beyond gap are flagged
     Goal: identifies individual suspect observations and flags the entire month
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        vars_to_check [list]: list of variables to run test on
+    Parameters
+    ----------
+        df : pd.DataFrame
+            station dataset converted to dataframe through QAQC pipeline
+        vars_to_check : list
+            list of variables to run test on
 
-    Output:
+    Returns
     -------
-        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
 
     Notes:
     ------
@@ -378,3 +394,69 @@ def standardized_anom(df, month, var):
 
 
 # -----------------------------------------------------------------------------
+def qaqc_unusual_gaps_precip(df, var, threshold=200, verbose=False):
+    """Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
+    This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
+    and flagged values are applied to all subhourly observations within a flagged day.
+
+    Parameters
+    ----------
+        df : pd.DataFrame
+            QAQC dataframe to run through test
+        var : str
+            variable name
+        threshold : int, optional 
+            precipitation total to check, default 200 mm
+        verbose : boolean, optional 
+            whether to provide output to local env
+
+    Returns
+    -------
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+
+    Notes
+    ------
+    1. PRELIMINARY: Thresholds/decisions may change with refinement.
+    2. HadISD uses a threshold of 300 mm for global precip, we refined to 200 mm for California-specific but can be modified
+    3. compare all precipitation obs in a single month, all years
+    4. sums observations to daily timestep, then checks each daily sum to every other sum in that month
+    5. flags days on which the sum is 200m more than any other daily observation in that month
+
+    Flag Meaning
+    ------------
+    33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
+        
+    """
+    ### Filter df to precipitation variables and sum daily observations
+
+    logger.info("Running qaqc_unusual_gaps_precip on: {}".format(var))
+    new_df = df.copy()
+    df_valid = grab_valid_obs(new_df, var)
+
+    # aggregate to daily, subset on time, var, and eraqc var
+    df_sub = df_valid[["time", var, var+"_eraqc"]]
+    df_dy = df_sub.resample("1D", on="time").agg({var: "sum",var+"_eraqc": "first", "year": "first", "month": "first", "day": "first"}).reset_index()
+
+    # compare all precipitation obs in a single month, all years
+    for mon in range(1, 13):
+        # Select month data
+        monthly_df = df_dy.loc[df_dy.month == mon]
+
+        # find largest value
+        diff = monthly_df[var].max()
+
+        # first check if any day exceeds threshold, or if diff minus threshold is a neg number
+        if (diff < threshold) or (diff - threshold == 0):
+            continue
+            
+        else: # day does exceed threshold            
+            # find days where value exceeds threshold -- need to flag specific day that exceeds
+            flagged_days = monthly_df.copy()
+            flagged_days['flagged_day'] = flagged_days[var] > (diff - threshold) # returns a boolean array
+
+            logger.info('Flagging all obs in days with precip total greater than: {}'.format(diff - threshold))
+            # identify days larger than threshold and flag
+            new_df.loc[new_df.year.isin(flagged_days.year) & new_df.month.isin(flagged_days.month) & new_df.day.isin(flagged_days.day), var + "_eraqc"] = 33
+
+    return new_df
