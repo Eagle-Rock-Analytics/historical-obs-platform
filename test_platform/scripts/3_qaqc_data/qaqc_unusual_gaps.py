@@ -435,7 +435,7 @@ def qaqc_unusual_gaps_precip(df, var, threshold=200, verbose=False):
     df_valid = grab_valid_obs(new_df, var)
 
     # aggregate to daily, subset on time, var, and eraqc var
-    df_sub = df_valid[["time", var, var+"_eraqc"]]
+    df_sub = df_valid[["time", 'year','month', 'day', var, var+"_eraqc"]]
     df_dy = df_sub.resample("1D", on="time").agg({var: "sum",var+"_eraqc": "first", "year": "first", "month": "first", "day": "first"}).reset_index()
 
     # compare all precipitation obs in a single month, all years
