@@ -48,17 +48,17 @@ def qaqc_climatological_outlier(
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    winsorize : bool 
+    winsorize : bool
         if True, raw observations are winsorized to remove spurious outliers first
-    winz_limits : list of floats 
+    winz_limits : list of floats
         if winsorize is True, values represent the low and high percentiles to standardize to
-    bin_size : float 
+    bin_size : float
         size of distribution bins
-    plot : bool, optional 
+    plot : bool, optional
         if True, produces plots of any flagged data and saved to AWS
     verbose : bool, optional
         if True, provides runtime output to local terminal
-    local : bool, optional 
+    local : bool, optional
         if True, retains local copy of figures
 
     Returns
@@ -245,7 +245,7 @@ def flag_clim_outliers(series, bin_size=0.25):
 
     Returns
     -------
-    clim_outliers : pd.DataFrame 
+    clim_outliers : pd.DataFrame
         QAQC dataframe with flags [?]
     """
     # If series is small (less than 5 years) skip to next month/hour
@@ -326,9 +326,9 @@ def fit_normal(series, bin_size=0.25, plot=False):
     ----------
     series : pd.DataFrame
         QAQC dataframe
-    bin_size : float 
+    bin_size : float
         bin size for distribution
-    plot : bool, optional 
+    plot : bool, optional
         whether to plot the data
 
     Returns
@@ -339,9 +339,9 @@ def fit_normal(series, bin_size=0.25, plot=False):
         bins for distribution
     p : list of floats
         pdf of distribution
-    left : int 
+    left : int
         leftmost bin for distribution
-    right : int 
+    right : int
         rightmost bin for distribution
     """
     bins = create_bins(series, bin_size=bin_size)
@@ -400,16 +400,16 @@ def gap_search(freq, left, right):
 
     Inputs
     ------
-    freq : list of ? 
+    freq : list of ?
         frequency [?]
-    left : int 
+    left : int
         leftmost bin for distribution
     right : int
         rightmost bin for distribution
 
     Returns
     -------
-    flag : int [?] 
+    flag : int [?]
         [?]
 
     """
@@ -450,13 +450,13 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         QAQC dataframe
     var : str
         variable name
     factor : int, optional
         multiplication factor for severity of climatological exceedance, default 9
-    verbose : bool, optional 
+    verbose : bool, optional
         if True, provide runtime output to terminal
 
     Returns

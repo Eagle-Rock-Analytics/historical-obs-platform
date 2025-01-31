@@ -42,18 +42,18 @@ def _plot_format_helper(var):
 
     Parameters
     ----------
-    var : str 
+    var : str
         variable name being plotted
 
     Returns
     -------
-    ylab : str 
+    ylab : str
         variable name for y-axis
-    unit : str 
+    unit : str
         units of variable
-    miny : float 
+    miny : float
         min var value for y axis
-    maxy : float 
+    maxy : float
         max var value for y axis
     """
 
@@ -996,6 +996,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 # ============================================================================================================
 
+
 def clim_outlier_plot(
     series, month, hour, bin_size=0.1, station=None, dpi=None, local=False
 ):
@@ -1146,15 +1147,15 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
 
     Parameters
     -----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         input QA/QC dataframe to produce plot on
     var : str
         variable name, precipitation vars only
-    flag : int 
+    flag : int
         qaqc_precip_check flag (31)
     dpi : int, optional
         resolution of figure
-    local : bool, optional 
+    local : bool, optional
         if True, whether to save figure locally in addition to AWS
 
     Returns
