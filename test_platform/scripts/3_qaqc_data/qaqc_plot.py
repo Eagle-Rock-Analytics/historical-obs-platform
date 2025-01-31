@@ -38,22 +38,22 @@ from IPython.display import display
 # ============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):
-    """Helper function for unusual large jumps plots
+    """Helper function for unusual large jumps plots.
 
     Parameters
     ----------
-    var : str
+    var : str 
         variable name being plotted
 
     Returns
     -------
-    ylab : str
+    ylab : str 
         variable name for y-axis
-    unit : str
+    unit : str 
         units of variable
-    miny : float
+    miny : float 
         min var value for y axis
-    maxy : float
+    maxy : float 
         max var value for y axis
     """
 
@@ -1144,17 +1144,23 @@ def clim_outlier_plot(
 def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     """Plot frequent values for precipitation.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: input QA/QC dataframe to produce plot on
-        var [str]: variable name, precipitation vars only
-        flag [int]: qaqc_precip_check flag (31)
-        dpi [int]: resolution of figure
-        local [boolean]: whether to save figure locally in addition to AWS
+    Parameters
+    -----------
+    df : pd.DataFrame 
+        input QA/QC dataframe to produce plot on
+    var : str
+        variable name, precipitation vars only
+    flag : int 
+        qaqc_precip_check flag (31)
+    dpi : int, optional
+        resolution of figure
+    local : bool, optional 
+        if True, whether to save figure locally in addition to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
     # valid precipitation variables
 
@@ -1178,7 +1184,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     flagged_df.plot(
         ax=ax,
         x="time",
-        y=var + "_eraqc",
+        y=var,
         marker="o",
         ms=7,
         lw=0,
@@ -1405,7 +1411,7 @@ def standardized_median_bounds(df, var, iqr_thresh):
 
     Notes
     -----
-    1. v2 note: for some reason plotting only works if this function is in plot and not unusual gaps
+    1. v2: for some reason plotting only works if this function is in plot and not unusual gaps
     """
 
     std_med = df[var].median()  # climatological median for that month
@@ -1440,7 +1446,7 @@ def standardized_iqr(df, var):
 
     Parameters
     ----------
-    df : pd.DataFrame]:
+    df : pd.DataFrame
         QA/QC dataframe to produce plot on
     var : str
         variable name

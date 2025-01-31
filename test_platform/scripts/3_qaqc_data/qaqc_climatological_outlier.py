@@ -42,34 +42,42 @@ def qaqc_climatological_outlier(
     verbose=False,
     local=False,
 ):
-    """
-    For temperature and dewpoint temperature:
-    - Flags individual gross outliers from climatological distribution.
+    """Flags individual gross outliers from climatological distribution
 
-    For precipitation:
-    - Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at least a certain factor.
-    - Based on HadISD / GHCN daily precipitation check.
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    winsorize : bool 
+        if True, raw observations are winsorized to remove spurious outliers first
+    winz_limits : list of floats 
+        if winsorize is True, values represent the low and high percentiles to standardize to
+    bin_size : float 
+        size of distribution bins
+    plot : bool, optional 
+        if True, produces plots of any flagged data and saved to AWS
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional 
+        if True, retains local copy of figures
 
-    Input:
+    Returns
+    -------
+    qaqc success:
+        new_df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    qaqc failure:
+        None
+            This function does not return a value
+
+    Notes
     ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        winsorize [bool]: if True, raw observations are winsorized to remove spurious outliers first
-        winz_limits [list]: if winsorize is True, values represent the low and high percentiles to standardize to
-        bin_size [float]: size of distribution bins
-        plot [bool]: if True, produces plots of any flagged data and saved to AWS
-        verbose [bool]: if True, provides runtime output to local terminal
-        local [bool]: if True, retains local copy of figures
+    Flag meaning : 26,qaqc_climatological_outlier,Value flagged as a climatological outlier
 
-    Returns:
-    --------
-        qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        qaqc failure:
-            None
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
 
-    Flag meaning:
-    -------------
-        26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     """
     new_df = df.copy()
 
@@ -228,15 +236,17 @@ def qaqc_climatological_outlier(
 def flag_clim_outliers(series, bin_size=0.25):
     """Identifies climatological outliers to flag.
 
-    Inputs
-    ------
-        series [pd.DataFrame]: QAQC dataframe
-        bin_size [float]: bin size for distribution
+    Parameters
+    ----------
+    series : pd.DataFrame
+        QAQC dataframe
+    bin_size : float
+        bin size for distribution
 
     Returns
     -------
-        clim_outliers [pd.DataFrame]: QAQC dataframe with flags [?]
-
+    clim_outliers : pd.DataFrame 
+        QAQC dataframe with flags [?]
     """
     # If series is small (less than 5 years) skip to next month/hour
     if len(series) <= 5:
@@ -312,19 +322,27 @@ def flag_clim_outliers(series, bin_size=0.25):
 def fit_normal(series, bin_size=0.25, plot=False):
     """Fits a guassian distribution to the series.
 
-    Inputs
-    ------
-        series [pd.DataFrame]: QAQC dataframe
-        bin_size [float]: bin size for distribution
-        plot [bool]: whether to plot the data
+    Parameters
+    ----------
+    series : pd.DataFrame
+        QAQC dataframe
+    bin_size : float 
+        bin size for distribution
+    plot : bool, optional 
+        whether to plot the data
 
     Returns
     -------
-        freq [list]: frequency
-        bins [list]: bins for distribution
-        p [list]: pdf of distribution
-        left [int]: leftmost bin for distribution
-        right [int]: rightmost bin for distribution
+    freq : list of ?
+        frequency [?]
+    bins : list of ints/floats ?
+        bins for distribution
+    p : list of floats
+        pdf of distribution
+    left : int 
+        leftmost bin for distribution
+    right : int 
+        rightmost bin for distribution
     """
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
@@ -382,13 +400,17 @@ def gap_search(freq, left, right):
 
     Inputs
     ------
-        freq [list]: frequency
-        left [int]: leftmost bin for distribution
-        right [int]: rightmost bin for distribution
+    freq : list of ? 
+        frequency [?]
+    left : int 
+        leftmost bin for distribution
+    right : int
+        rightmost bin for distribution
 
     Returns
     -------
-        flag []: [?]
+    flag : int [?] 
+        [?]
 
     """
     left_freq = freq[0:left]
@@ -426,22 +448,33 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
     This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,
     and flagged values are applied to all sub-daily observations within a flagged day.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: QAQC dataframe
-        var [str]: variable name
-        verbose [boolean]: whether to provide runtime output to terminal
+    Parameters
+    ----------
+    df : pd.DataFrame 
+        QAQC dataframe
+    var : str
+        variable name
+    factor : int, optional
+        multiplication factor for severity of climatological exceedance, default 9
+    verbose : bool, optional 
+        if True, provide runtime output to terminal
 
     Returns
     -------
-        new_df [pd.DataFrame]: QAQC dataframe
+    new_df : pd.DataFrame
+        QAQC dataframe
 
-    Flag meaning
-    ------------
-        32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
+    Notes
+    -----
+    Flag meaning : 32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
 
-    TODO:
-        - Incorporate temperature check if temperature is present for station (V2)
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+
+    To Do
+    ------
+    1. Incorporate temperature check if temperature is present for station (V2)
     """
 
     logger.info("Running qaqc_climatological_outlier_precip on: {}".format(var))
@@ -450,7 +483,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
 
     # aggregate to daily
-    df_sub = new_df[["time", "month", "year", "day", var, var + "_eraqc"]]
+    df_sub = df_valid[["time", "month", "year", "day", var, var + "_eraqc"]]
     df_dy = (
         df_sub.resample("1D", on="time")
         .agg(
