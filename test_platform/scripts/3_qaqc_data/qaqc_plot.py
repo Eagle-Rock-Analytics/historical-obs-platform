@@ -614,16 +614,14 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     plt.ylabel("{} [{}]".format(ylab, units))
     plt.xlabel("")
     plt.title(
-        "Frequent values -- precipitation: {0}".format(
-            df["station"].unique()[0]
-        ),
+        "Frequent values -- precipitation: {0}".format(df["station"].unique()[0]),
         fontsize=10,
     )
 
     # save figure to AWS
     bucket_name = "wecc-historical-wx"
     directory = "3_qaqc_wx"
-    network = df['station'].unique()[0].split('_')[0]
+    network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
