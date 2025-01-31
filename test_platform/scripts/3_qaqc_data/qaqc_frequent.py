@@ -55,10 +55,11 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     Returns
     -------
     qaqc success
-        pd.DataFrame
+        df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning)
     qaqc failure
         None
+            This function does not return a value
 
     Flag meaning
     -------------
@@ -251,7 +252,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         QAQC dataframe with flagged values (see below for flag meaning)
 
     Notes
@@ -499,7 +500,7 @@ def synergistic_flag(df, num_temp_vars):
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         QAQC dataframe with flagged values (see below for flag meaning)
     """
 
@@ -538,7 +539,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
     Returns
     --------
-    list of float
+    bins_to_flag : list of float
         list of bins to flag for frequent values check
     """
 
@@ -601,7 +602,7 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         QAQC dataframe with test applied
 
     Flag Meaning

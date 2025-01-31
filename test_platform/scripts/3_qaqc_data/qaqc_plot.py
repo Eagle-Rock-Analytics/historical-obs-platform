@@ -38,19 +38,23 @@ from IPython.display import display
 # ============================================================================================================
 # All plots helper plotting function for labeling, units, min, maxes
 def _plot_format_helper(var):
-    """
-    Helper function for unusual large jumps plots
+    """Helper function for unusual large jumps plots
 
-    Input
-    -----
-        var [str] : variable name being plotted
+    Parameters
+    ----------
+    var : str 
+        variable name being plotted
 
     Returns
     -------
-        ylab [str] : variable name for y-axis
-        unit [str] : units of variable
-        miny [float] : min var value for y axis
-        maxy [float] : max var value for y axis
+    ylab : str
+        variable name for y-axis
+    unit : str
+        units of variable
+    miny : float
+        min var value for y axis
+    maxy : float
+        max var value for y axis
     """
 
     pr_vars = ["pr", "pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
@@ -164,13 +168,15 @@ def _plot_format_helper(var):
 def id_flag(flag_to_id):
     """Identifies flag based on numerical value assigned for plotting.
 
-    Input
-    -----
-        flag_to_id [int]: specific flag to identify
+    Parameters
+    ----------
+    flag_to_id : int
+        specific flag to identify
 
     Returns
     -------
-        fn_name [str]: name of QA/QC flag
+    fn_name : str
+        name of QA/QC flag
     """
 
     flag_df = pd.read_csv("era_qaqc_flag_meanings.csv")
@@ -186,17 +192,23 @@ def id_flag(flag_to_id):
 def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
     """Produces timeseries of variables that have flags placed.
 
-    Input
-    -----
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
-        dpi [int]: resolution for png plots
-        local [bool]: if True, saves plot locally, else: only saves plot to AWS
-        savefig [boolean]: if True, produces plot and saves either locally or to AWS
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QA/QC dataframe to produce plot on
+    var : str
+        variable name
+    dpi : int, optional
+        resolution for png plots
+    local : bool, optional
+        if True, saves plot locally, else: only saves plot to AWS
+    savefig : bool, optional
+        if True, produces plot and saves either locally or to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     # first check if var has flags, only produce plots of vars with flags
@@ -291,20 +303,29 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
 def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
     """Plotting helper with common plotting elements for all 3 versions of this plot.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
-        bins [list]: histogram bin limits
-        flag [int]: QA/QC flag to subset
-        yr [int]: year of data subset, annotation
-        rad_scheme [str]: radiation scheme, default is "remove_zeros"
-        dpi [int]: resolution for png plots
-        local [bool]: if True, saves plot locally, else: only saves plot to AWS
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QA/QC dataframe to produce plot on
+    var : str 
+        variable name
+    bins : list 
+        histogram bin limits
+    flag : int 
+        QA/QC flag to subset
+    yr : int 
+        year of data subset, annotation
+    rad_scheme : str 
+        radiation scheme, default is "remove_zeros"
+    dpi : int, optional
+        resolution for png plots
+    local : bool, optional
+        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     # plot all valid data within year/season
@@ -393,15 +414,21 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test
     is visually flagged.
 
-    Input
-    -----
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
-        rad_scheme [str]: radiation scheme, default is "remove_zeros"
-        local [boolean]: whether to produce local plots for review
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QA/QC dataframe to produce plot on
+    var : str 
+        variable name
+    rad_scheme : str 
+        radiation scheme, default is "remove_zeros"
+    local : bool, optional
+        whether to produce local plots for review
+
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     bins = create_bins_frequent(df, var)
@@ -530,17 +557,23 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     """Plot frequent values for precipitation.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: input QA/QC dataframe to produce plot on
-        var [str]: variable name, precipitation vars only
-        flag [int]: qaqc_precip_check flag (31)
-        dpi [int]: resolution of figure
-        local [boolean]: whether to save figure locally in addition to AWS
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QA/QC dataframe to produce plot on
+    var : str
+        variable name, precipitation vars only
+    flag : int 
+        qaqc_precip_check flag (31)
+    dpi : int, optional
+        resolution of figure
+    local : bool, optional 
+        whether to save figure locally in addition to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
     # valid precipitation variables
 
@@ -625,20 +658,29 @@ def dist_gap_part1_plot(
 ):
     """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        month [int]: month to subset
-        var [str]: variable name
-        flagval [int]: QA/QC flag to subset
-        iqr_thresh [int]: min threshold multiplier for IQR to flag
-        network [str]: name of network
-        dpi [int]: resolution for png plots
-        local [boolean]: whether to produce local plots for review
+    Parameters
+    ----------
+    df : pd.DataFrame 
+        QA/QC dataframe to produce plot on
+    month : int
+        month to subset
+    var : str
+        variable name
+    flagval : int 
+        QA/QC flag to subset
+    iqr_thresh : int
+        min threshold multiplier for IQR to flag
+    network : str 
+        name of network
+    dpi : int, optional
+        resolution for png plots
+    local : bool, optional 
+        whether to produce local plots for review
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     # grab data by months
@@ -735,18 +777,25 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
     """Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
 
-    Inputs
-    ------
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        month [int]: month to subset
-        var [str]: variable name
-        network [str]: name of network
-        dpi [int]: resolution for png plots
-        local [boolean]: whether to produce local plots for review
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QA/QC dataframe to produce plot on
+    month : int
+        month to subset
+    var : str
+        variable name
+    network : str 
+        name of network
+    dpi : int, optional
+        resolution for png plots
+    local : bool, optional
+        whether to produce local plots for review
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     # select month
@@ -859,18 +908,23 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
     """Plots unusual large jumps qaqc.
 
-    Input
-    -----
-        df [pd.Dataframe]: station pd.DataFrame from qaqc pipeline
-        var [str]: variable name
-        flagval [int]: flag value to plot (23 for unusual large jumps)
-        dpi [int]: resolution for png plots
-        local [bool]: if True, saves plot locally, else: only saves plot to AWS
-        date [str]: title for zoomed in plots for individual flagged obs
+    Parameters
+    ----------
+    df : pd.Dataframe
+        station pd.DataFrame from qaqc pipeline
+    var : str
+        variable name
+    flagval : int, optional 
+        flag value to plot (23 for unusual large jumps)
+    dpi : int, optional 
+        resolution for png plots
+    local : bool, optional
+        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     fig, ax = plt.subplots(figsize=(10, 3))
@@ -949,19 +1003,27 @@ def clim_outlier_plot(
     Differs from dist_gap_part2_plot for the climatological outlier
     as IQR standardization does not occur within plotting.
 
-    Inputs
-    ------
-        series [pd.Dataframe]: station pd.DataFrame from qaqc pipeline
-        month [int]: month to subset
-        hour [int]: hour to subset
-        bin_size [int]: width of bins
-        station [str]: station name
-        dpi [int]: resolution for png plots
-        local [bool]: if True, saves plot locally, else: only saves plot to AWS
+    Parameters
+    ----------
+    series : pd.Dataframe
+        station pd.DataFrame from qaqc pipeline
+    month : int 
+        month to subset
+    hour : int
+        hour to subset
+    bin_size : int 
+        width of bins
+    station : str
+        station name
+    dpi : int, optional 
+        resolution for png plots
+    local : bool, optional
+        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     var = series._name
@@ -1082,17 +1144,23 @@ def unusual_streaks_plot(
 ):
     """Plots unusual large jumps qaqc result.
 
-    Input
-    -----
-        df [pd.Dataframe]: station pd.DataFrame from qaqc pipeline
-        var [str]: variable name
-        flagval [int]: flag value to plot (27, 28, 29 for unusual streaks)
-        dpi [int]: resolution for png plots
-        local [bool]: if True, saves plot locally, else: only saves plot to AWS
+    Parameters
+    ----------
+    df : pd.Dataframe
+        station data from qaqc pipeline
+    var : str
+        variable name
+    flagval : int, optional 
+        flag value to plot (27, 28, 29 for unusual streaks)
+    dpi : int, optional
+        resolution for png plots
+    local : bool, optional 
+        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
-        None
+    None
+        This function does not return a value
     """
 
     fig, ax = plt.subplots(figsize=(10, 3))
@@ -1222,21 +1290,27 @@ def unusual_streaks_plot(
 def standardized_median_bounds(df, var, iqr_thresh):
     """Part 1: Calculates the standardized median.
 
-    Input
-    -----
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
-        iqr_thresh [int]: min threshold multiplier for IQR to flag
+    Parameters
+    ----------
+    df : pd.DataFrame 
+        QA/QC dataframe to produce plot on
+    var : str 
+        variable name
+    iqr_thresh : int 
+        min threshold multiplier for IQR to flag
 
     Returns
     -------
-        std_med [float]: climatological median of specific month passed by df
-        lower_bnd [float]: lower bound determined by IQR range and std_med
-        upper_bnd [float]: upper bound determined by IQR range and std_med
+    std_med : float
+        climatological median of specific month passed by df
+    lower_bnd : float 
+        lower bound determined by IQR range and std_med
+    upper_bnd : float 
+        upper bound determined by IQR range and std_med
 
     Notes
     -----
-    v2 note: for some reason plotting only works if this function is in plot and not unusual gaps
+    1. v2 note: for some reason plotting only works if this function is in plot and not unusual gaps
     """
 
     std_med = df[var].median()  # climatological median for that month
@@ -1250,14 +1324,17 @@ def standardized_median_bounds(df, var, iqr_thresh):
 def iqr_range(df, var):
     """Part 1: Calculates the monthly interquartile range.
 
-    Input
-    -----
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QA/QC dataframe to produce plot on
+    var : str
+        variable name
 
     Returns
     -------
-        range_to_return [float]: interquartile range
+    range_to_return : float 
+        interquartile range
     """
     range_to_return = df[var].quantile([0.25, 0.75]).diff().iloc[-1]
     return range_to_return
@@ -1266,14 +1343,17 @@ def iqr_range(df, var):
 def standardized_iqr(df, var):
     """Part 2: Standardizes data against the interquartile range.
 
-    Input
-    -----
-        df [pd.DataFrame]: QA/QC dataframe to produce plot on
-        var [str]: variable name
+    Parameters
+    ----------
+    df : pd.DataFrame]: 
+        QA/QC dataframe to produce plot on
+    var : str
+        variable name
 
     Returns
     -------
-        std_data [df]: standardized data based on IQR range
+    std_data : pd.DataFrame 
+        standardized data based on IQR range
     """
     std_data = (df[var].values - df[var].median()) / iqr_range(df, var)
     return std_data
