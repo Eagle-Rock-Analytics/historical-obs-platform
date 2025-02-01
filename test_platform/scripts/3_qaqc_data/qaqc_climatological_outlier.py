@@ -114,9 +114,10 @@ def qaqc_climatological_outlier(
                 continue
 
             # Winsorize data and calculate climatology by month/hour with winsorized data
-            clim = df_valid.groupby(["month", "hour"])[var].transform(
-                lambda row: stats.mstats.winsorize(row, limits=[0.05, 0.05])
-            )
+            if winsorize:
+                clim = df_valid.groupby(["month", "hour"])[var].transform(
+                    lambda row: stats.mstats.winsorize(row, limits=winz_limits)
+                )
             clim = pd.DataFrame(
                 data={var: clim, "hour": df_valid.hour, "month": df_valid.month},
                 index=df_valid.index,
@@ -442,7 +443,7 @@ def gap_search(freq, left, right):
 
 
 # ----------------------------------------------------------------------
-def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
+def qaqc_climatological_outlier_precip(df, var, factor=9):
     """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
     least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
     This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,
@@ -456,8 +457,6 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
         variable name
     factor : int, optional
         multiplication factor for severity of climatological exceedance, default 9
-    verbose : bool, optional
-        if True, provide runtime output to terminal
 
     Returns
     -------
@@ -509,9 +508,9 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
             flagged_days = df_mon.loc[df_mon[var] > factor * p95]
             new_df.loc[
                 (
-                    new_df.year.isin(flagged_days.dt.time.year)
-                    & new_df.month.isin(flagged_days.dt.time.month)
-                    & new_df.day.isin(flagged_days.dt.time.day)
+                    new_df.year.isin(flagged_days.time.dt.year)
+                    & new_df.month.isin(flagged_days.time.dt.month)
+                    & new_df.day.isin(flagged_days.time.dt.day)
                 ),
                 var + "_eraqc",
             ] = 32
@@ -520,9 +519,9 @@ def qaqc_climatological_outlier_precip(df, var, factor=9, verbose=False):
             flagged_days = df_mon.loc[df_mon[var] > factor]
             new_df.loc[
                 (
-                    new_df.year.isin(flagged_days.dt.time.year)
-                    & new_df.month.isin(flagged_days.dt.time.month)
-                    & new_df.day.isin(flagged_days.dt.time.day)
+                    new_df.year.isin(flagged_days.time.dt.year)
+                    & new_df.month.isin(flagged_days.time.dt.month)
+                    & new_df.day.isin(flagged_days.time.dt.day)
                 ),
                 var + "_eraqc",
             ] = 32

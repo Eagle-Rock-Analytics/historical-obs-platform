@@ -995,8 +995,6 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 
 # ============================================================================================================
-
-
 def clim_outlier_plot(
     series, month, hour, bin_size=0.1, station=None, dpi=None, local=False
 ):
