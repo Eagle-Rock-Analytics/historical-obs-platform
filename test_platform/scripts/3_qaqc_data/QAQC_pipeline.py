@@ -61,6 +61,7 @@ bucket_name = "wecc-historical-wx"
 # ============================================================================
 # Define global functions and variables
 
+
 # ----------------------------------------------------------------------------
 def setup_error_handling():
     """Sets-up error handling.
@@ -308,7 +309,7 @@ def process_output_ds(
     errors : dict
         dictionary of error messages
     end_api : datetime
-        time at beginning of data download       
+        time at beginning of data download
     zarr : bool
         if True, input is a .zarr. if False, input is a .nc
     verbose : bool, optional
@@ -461,7 +462,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     var_attrs : list of str
         variable attributes from xr.Dataset
     era_qc_vars : list of str
-        QAQC variables 
+        QAQC variables
     """
 
     ## Add qc_flag variable for all variables, including elevation;
@@ -618,7 +619,7 @@ def run_qaqc_pipeline(
     Returns
     -------
     stn_to_qaqc : pd.DataFrame
-        dataframe of QAQC data 
+        dataframe of QAQC data
     attrs : list of str
         attributes from original xr.Dataset
     var_attrs : list of str
@@ -1079,7 +1080,7 @@ def whole_station_qaqc(
         if True, saves output to local directory
     sample : int, optional
         number of stations to randomly sample from station list to run
-    
+
     Returns
     -------
     None
@@ -1359,5 +1360,5 @@ def whole_station_qaqc(
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
-    
+
     return None
