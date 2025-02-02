@@ -26,8 +26,6 @@ from mpi4py import MPI
 import logging
 from simplempi import simpleMPI
 
-# from simplempi.parfor import parfor, pprint
-
 # Import all qaqc script functions
 try:
     from qaqc_plot import *
@@ -63,10 +61,19 @@ bucket_name = "wecc-historical-wx"
 # ============================================================================
 # Define global functions and variables
 
-
 # ----------------------------------------------------------------------------
 def setup_error_handling():
-    """ """
+    """Sets-up error handling.
+
+    Returns
+    -------
+    errors : dict
+        dictionary of file, timing, and error message
+    end_api : datetime
+        time at beginnging of data download
+    tiemstamp: datetime
+        time at runtime
+    """
     errors = {"File": [], "Time": [], "Error": []}  # Set up error handling
     end_api = datetime.datetime.now().strftime(
         "%Y%m%d%H%M"
@@ -79,7 +86,23 @@ def setup_error_handling():
 def print_qaqc_failed(
     errors, station=None, end_api=None, message=None, test=None, verbose=False
 ):
-    """ """
+    """QAQC failure messaging
+
+    Parameters
+    ----------
+    errors : dict
+        dictionary of file, timing, and error message
+    station : str, optional
+        station name
+    end_api : datetime, optional
+        time at beginning of data download
+    message : str
+        error message
+    test : str
+        QAQC test name to include in error message
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    """
     logger.info(
         "{0} {1}, skipping station".format(station, message),
     )
@@ -96,16 +119,15 @@ def file_on_s3(df, zarr):
 
     Parameters
     ----------
-    df: pd.DataFrame
+    df : pd.DataFrame
         Table with information about each network and station
-    zarr: boolean
+    zarr : bool
         Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
 
     Returns
     -------
-    substring_in_filepath: boolean
+    substring_in_filepath : bool
         True/False: Is the file in the s3 bucket?
-
     """
 
     files = []  # Get files
@@ -137,15 +159,16 @@ def read_network_files(network, zarr):
 
     Parameters
     ----------
-    network: str
+    network : str
         Name of network
-    zarr: boolean
+    zarr : bool
         Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
+
+    Returns
+    -------
+    final_df : pd.DataFrame
+        dataframe of cleaned data
     """
-    # Read csv from local drive
-    # THIS FILE IS NOT CURRENT
-    # csv_filepath_local = "temp_clean_all_station_list.csv"
-    # full_df = pd.read_csv(csv_filepath_local).loc[:,['era-id','network']]
 
     # Read csv from s3
     csv_filepath_s3 = (
@@ -264,7 +287,39 @@ def process_output_ds(
     local=False,
 ):
     """
-    DOCUMENTATION NEEDED
+    Processes the final dataset for export to AWS.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data that has completed QAQC
+    attrs : list of str
+        attributes to be reset on xr.Dataset
+    var_attrs: list of str
+        variable attributes to be reset on xr.Dataset
+    network: str
+        network name
+    timestamp: datetime
+        time at runtime
+    station: str
+        station name
+    qaqcdir : str
+        path to QAQC AWS directory
+    errors : dict
+        dictionary of error messages
+    end_api : datetime
+        time at beginning of data download       
+    zarr : bool
+        if True, input is a .zarr. if False, input is a .nc
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, saves figures to local directory in addition to AWS
+
+    Returns
+    -------
+    None
+        This function does not return a value
     """
     # Convert back to dataset
     with warnings.catch_warnings():
@@ -381,12 +436,34 @@ def process_output_ds(
         ds.close()
         del ds
 
-        return
+        return None
 
 
 # --------------------------------------------------------------------------------
-## xarray ds for a station to pandas df in the format needed for the pipeline
 def qaqc_ds_to_df(ds, verbose=False):
+    """Converts xarray ds for a station to pandas df in the format needed for the pipeline
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        input data from the clean step
+    verbose : bool, optional
+        if True, provides runtime output to the terminal
+
+    Returns
+    -------
+    df : pd.DataFrame
+        converted xr.Dataset into dataframe
+    MultiIndex : pd.Index
+        multi-index of station and time
+    attrs : list of str
+        attributes from xr.Dataset
+    var_attrs : list of str
+        variable attributes from xr.Dataset
+    era_qc_vars : list of str
+        QAQC variables 
+    """
+
     ## Add qc_flag variable for all variables, including elevation;
     ## defaulting to nan for fill value that will be replaced with qc flag
 
@@ -428,11 +505,6 @@ def qaqc_ds_to_df(ds, verbose=False):
             raw_qc_vars.append(
                 var
             )  # raw qc variables, need to keep for comparison, then drop
-        # if "_eraqc" in var:
-        #     era_qc_vars.append(
-        #         var
-        #     )  # raw qc variables, need to keep for comparison, then drop
-        #     old_era_qc_vars.append(var)
 
     logger.info("Existing era_qc variables: {}".format(era_qc_vars))
     n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
@@ -520,7 +592,49 @@ def run_qaqc_pipeline(
     verbose=False,
     local=False,
 ):
-    """ """
+    """Runs all QAQC functions.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        input data
+    network : str
+        network name
+    file_name : str
+        path to file on AWS
+    errors : dict
+        errors dictionary
+    station : str
+        station name
+    end_api : datetime
+        time at beginnging of data download
+    rad_scheme : str
+        radiation handling scheme for qaqc_frequent
+    verbose : bool, optional
+        if True, provides runtime output to the terminal
+    local : bool, optional
+        if True, saves output to local directory in addition to AWS
+
+    Returns
+    -------
+    stn_to_qaqc : pd.DataFrame
+        dataframe of QAQC data 
+    attrs : list of str
+        attributes from original xr.Dataset
+    var_attrs : list of str
+        variable attributes from original xr.Dataset
+    era_qc_vars : list of str
+        QAQC variables
+
+    Notes
+    -----
+    1. Order of operations
+    - Data converted to pd.DataFrame for processing
+    - Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
+    - Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
+    - Part 2: Logic checks
+    - Part 3: Distribution & time series checks
+    """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 
@@ -528,15 +642,9 @@ def run_qaqc_pipeline(
     ds.close()
     del ds
 
-    ##########################################################
-    ## QAQC Functions
-    # Order of operations
-    # Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
-    # Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-    # Part 2: Logic checks
-    # Part 3: Distribution & time series checks
-
     # =========================================================
+    ## START QA/QC ASSESSMENT
+    # ---------------------------------------------------------
     ## Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
 
     t0 = time.time()
@@ -558,9 +666,6 @@ def run_qaqc_pipeline(
     else:
         stn_to_qaqc = new_df
         logger.info("pass qaqc_missing_vals")
-
-    # ### DEBUG - REMOVE
-    # return stn_to_qaqc
 
     # ---------------------------------------------------------
     ## Lat-lon -- does not proceed through qaqc if failure
@@ -671,9 +776,9 @@ def run_qaqc_pipeline(
     logger.info(
         "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
     )
+
     # =========================================================
     ## Part 2: Variable logic checks
-
     t0 = time.time()
     logger.info("QA/QC logic checks")
     # ---------------------------------------------------------
@@ -747,7 +852,6 @@ def run_qaqc_pipeline(
         logger.info(
             "pass qaqc_precip_logic_accum_amounts",
         )
-
     # ---------------------------------------------------------
     ## wind direction should be 0 when wind speed is also 0
     new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
@@ -771,13 +875,6 @@ def run_qaqc_pipeline(
     )
     # =========================================================
     ## Part 3: Distribution and timeseries checks - order matters!
-    # buoy check
-    # frequent values check
-    # distributional check (unusual gaps)
-    # climatological outliers check
-    # unusual streaks check
-    # unusual large jumps check (spike)
-
     # ---------------------------------------------------------
     ## Buoys with known issues with specific qaqc flags
     ## NDBC and MARITIME only
@@ -930,11 +1027,9 @@ def run_qaqc_pipeline(
             time.time() - t0
         ),
     )
-
     ## END QA/QC ASSESSMENT
     # =========================================================
     # Re-index to original time/station values
-
     # Calculate flag coverage per variable
     logger.info(
         "Summary of QA/QC flags set per variable",
@@ -954,7 +1049,6 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
 def whole_station_qaqc(
     network,
     cleandir,
@@ -965,10 +1059,35 @@ def whole_station_qaqc(
     local=False,
     sample=None,
 ):
-    """
-    -----------------------------------
-    for station in stations: # full run
-    -----------------------------------
+    """Conducts whole station qaqc checks (lat-lon, within WECC, elevation)
+
+    Parameters
+    ----------
+    network : str
+        name of network
+    cleandir : str
+        path to cleaned data directory
+    qaqcdir : str
+        path to qaqc data directory
+    rad_scheme : str
+        radiation handling scheme for qaqc_frequent
+    zarr : bool
+        if False = .nc; if True = .zarr
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, saves output to local directory
+    sample : int, optional
+        number of stations to randomly sample from station list to run
+    
+    Returns
+    -------
+    None
+        This function does not return a value
+
+    Notes
+    -----
+    1. For full run, command is: "for station in stations: " ## unsure if necessary now
     """
     smpi = simpleMPI()
 
@@ -993,9 +1112,6 @@ def whole_station_qaqc(
                 message="Error in whole network:",
                 test=e,
             )
-        # import pdb; pdb.set_trace()
-        # # DEBUG -- REMOVE
-        # files_df_new = files_df.copy()
 
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
         # Subsetting for a specific set of stations in a single network
@@ -1118,7 +1234,6 @@ def whole_station_qaqc(
                         )
             # Testing speed-up re-order in case file is locally found
             # =====================================================================================
-
             try:
                 # TODO:
                 # Same issue than in the pipeline:
@@ -1207,7 +1322,6 @@ def whole_station_qaqc(
             )
         # Write errors to csv
         finally:
-            # pass
             errors = pd.DataFrame(errors)
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
@@ -1245,4 +1359,5 @@ def whole_station_qaqc(
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
+    
     return None
