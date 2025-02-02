@@ -1087,7 +1087,7 @@ def clim_outlier_plot(
     # title and useful annotations
     box = dict(facecolor="white", edgecolor="white", alpha=0.85)
     plt.title(
-        "Climatological outlier check, {0}: {1}".format(df["station"].unique()[0], var),
+        "Climatological outlier check, {0}: {1}".format(station, var),
         fontsize=10,
     )
     plt.annotate(
@@ -1117,7 +1117,7 @@ def clim_outlier_plot(
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket_name)
     figname = "qaqc_climatological_outlier_{0}_{1}_{2}_{3}".format(
-        df["station"].unique()[0], var, month, hour
+        station, var, month, hour
     )
     bucket.put_object(
         Body=img_data,
