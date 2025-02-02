@@ -254,7 +254,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
     Returns
     -------
     if QAQC success:
-        df : pd.DataFrame 
+        df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning)
     if failure:
         None
@@ -364,7 +364,7 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     Returns
     -------
     if QAQC success:
-        df : pd.DataFrame 
+        df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning)
     if failure:
         None
@@ -442,7 +442,7 @@ def qaqc_pressure_units_fix(df, verbose=False):
     Returns
     -------
     if QAQC success:
-        df : pd.DataFrame 
+        df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning)
     if failure:
         None

@@ -20,6 +20,7 @@ qaqc_wx = "3_qaqc_wx/"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
+
 # ----------------------------------------------------------------------
 def get_station_list(network):
     """Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
@@ -29,7 +30,7 @@ def get_station_list(network):
     ----------
     network : str
         name of network
-    
+
     Returns
     -------
     station_list : pd.DataFrame
@@ -48,14 +49,14 @@ def get_station_list(network):
 
 # ----------------------------------------------------------------------
 def get_qaqc_stations(network):
-    """Given a network name, return a pandas dataframe of all stations that pass QA/QC in 
+    """Given a network name, return a pandas dataframe of all stations that pass QA/QC in
     the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
 
     Parameters
     ----------
     network : str
         name of network
-    
+
     Returns
     -------
     pd.DataFrame
@@ -82,7 +83,7 @@ def get_qaqc_stations(network):
 # ----------------------------------------------------------------------
 def parse_error_csv(network):
     """Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
-    
+
     Parameters
     ----------
     network : str
@@ -113,10 +114,11 @@ def parse_error_csv(network):
         ]  # Drop any whole network errors
         return errordf
 
+
 # ----------------------------------------------------------------------
 def qaqc_qa(network):
     """Update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
-    
+
     Parameters
     ----------
     network : str

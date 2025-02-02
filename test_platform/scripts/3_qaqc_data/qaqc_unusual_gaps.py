@@ -26,7 +26,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     iqr_thresh : int, optional
         interquartile range year threshold, default set to 5
@@ -40,7 +40,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     Returns
     -------
     if QAQC success:
-        df_part2 : pd.DataFrame 
+        df_part2 : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning)
     if failure:
         None
@@ -110,7 +110,7 @@ def qaqc_dist_gap_part1(
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    vars_to_check : list of str 
+    vars_to_check : list of str
         list of variables to run test on
     iqr_thresh : int
         interquartile range year threshold, default set to 5
@@ -208,7 +208,7 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    vars_to_check : list of str 
+    vars_to_check : list of str
         list of variables to run test on
     plot : bool, optional
         if True, produces figures
@@ -334,12 +334,12 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 # -----------------------------------------------------------------------------
 def monthly_med(df):
     """Part 1: Calculates the monthly median.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
-    
+
     Returns
     -------
     pd.DataFrame
@@ -351,14 +351,14 @@ def monthly_med(df):
 # #-----------------------------------------------------------------------------
 def iqr_range(df, var):
     """Part 1: Calculates the monthly interquartile range
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
     var : str
         variable name
-    
+
     Returns
     -------
     pd.DataFrame
@@ -370,14 +370,14 @@ def iqr_range(df, var):
 # -----------------------------------------------------------------------------
 def standardized_iqr(df, var):
     """Part 2: Standardizes data against the interquartile range
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
     var : str
         variable name
-    
+
     Returns
     -------
     pd.DataFrame
@@ -389,14 +389,14 @@ def standardized_iqr(df, var):
 # -----------------------------------------------------------------------------
 def median_clim(df, var):
     """Part 2: Calculate climatological median for a specific month and variable
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
     var : str
         variable name
-    
+
     Returns
     -------
     clim : pd.DataFrame

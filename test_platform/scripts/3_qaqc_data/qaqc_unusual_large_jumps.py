@@ -36,7 +36,7 @@ def qaqc_unusual_large_jumps(
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    iqr_thresh : int 
+    iqr_thresh : int
         critical value (iqr_thresh*IQR) for spike detection (default=6)
     min_datapoints : int, optional
         minimum data points in each month to be valid for testing (default=50)
@@ -48,7 +48,7 @@ def qaqc_unusual_large_jumps(
     Returns
     -------
     if qaqc success
-        df : pd.DataFrame 
+        df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning).
     if qaqc failure
         None
@@ -148,18 +148,18 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
 
     Parameters
     ----------
-    potential_spike : pandas series 
+    potential_spike : pandas series
         bool pd.Series with True on potential spike location
-    diff : pandas series 
+    diff : pandas series
         float pd.Series with differences in the test variable
-    crit : pandas series 
+    crit : pandas series
         float pd.Series with the critical value for the differences in the test variable
     crit : pandas series
         float pd.Series with the hour differences between data points in the test variable
 
     Returns
     -------
-    spikes : pd.DataFrame 
+    spikes : pd.DataFrame
         input df with added `var`_spike column True where data matches the spike conditions
 
     Notes
@@ -250,7 +250,7 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
 
     Notes
     -----
-    1. Find potential unusual large jumps or ''spikes'' by comparing the differences in `var` to each 
+    1. Find potential unusual large jumps or ''spikes'' by comparing the differences in `var` to each
     month's critical value (crit = iqr_thresh * IQR)
     2. `potential_spike_check` checks for neccessary conditions for a potential spike to be an actual spike
     """

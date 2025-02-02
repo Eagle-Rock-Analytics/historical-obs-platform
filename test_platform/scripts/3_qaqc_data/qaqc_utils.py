@@ -30,6 +30,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## 1. QA/QC statistical helper functions (e.g., histogram bins)
 ## 2. QA/QC runtime functions (e.g., progress bar)
 
+
 ## QA/QC statistical helper functions
 # -----------------------------------------------------------------------------
 # fns to return histogram bins
@@ -111,7 +112,7 @@ def create_bins_frequent(df, var, bin_size=None):
 # -----------------------------------------------------------------------------
 def create_bins(data, bin_size=0.25):
     """Create bins from data covering entire data range.
-    
+
     Parameters
     ----------
     data : pd.DataFrame (I think -- could be a series)
@@ -140,18 +141,18 @@ def create_bins(data, bin_size=0.25):
 # -----------------------------------------------------------------------------
 def pdf_bounds(df, mu, sigma, bins):
     """Calculate pdf distribution, return pdf and threshold bounds.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
-    mu : 
+    mu :
         mean
-    sigma : 
+    sigma :
         standard deviation
     bins : list of floats
         histogram bins
-        
+
     Returns
     -------
     y : [?]
@@ -201,16 +202,16 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    vars_to_check : list of str 
+    vars_to_check : list of str
         list of variables to run whole station bypass check on
     min_num_months : int, optional
         minimum number of months required to pass check, default is 5
 
     Returns
     -------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         QAQC dataframe with flagged values (see below for flag meaning)
     stn_length : [?]
         [?]
@@ -291,7 +292,7 @@ def qaqc_var_length_bypass_check(df, var):
         input QAQC dataframe
     var : str
         variable name
-    
+
     Returns
     -------
     df : pd.DataFrame
@@ -359,7 +360,6 @@ def grab_valid_obs(df, var, var2=None, kind="keep"):
     return df_valid
 
 
-
 ## QA/QC other helper functions
 # -----------------------------------------------------------------------------
 def progressbar(it, prefix="", size=60, out=sys.stdout):
@@ -411,12 +411,12 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
 # -----------------------------------------------------------------------------
 def get_file_paths(network):
     """Returns AWS filepaths for historical data platform bucket.
-    
+
     Parameters
     ----------
     network : str
         name of network to find paths for
-    
+
     Returns
     -------
     rawdir : str

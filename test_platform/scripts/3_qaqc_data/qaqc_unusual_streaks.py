@@ -7,6 +7,7 @@ for the Historical Observations Platform.
 import boto3
 import numpy as np
 import pandas as pd
+
 # import datetime
 
 # New logger function
@@ -101,6 +102,7 @@ day_repeat_criteria["sfcWind"] = day_repeat_criteria["tas"]
 # More analysis needs to be done to ensure what is a good threshold for calm wind conditions for this test
 WIND_MIN_VALUE = {1: 1.0, 0.5: 0.5, 0.1: 0.5}
 
+
 # ----------------------------------------------------------------------
 def infere_freq(df):
     """DOCUMENTATION UPDATE REQUIRED.
@@ -140,7 +142,7 @@ def infere_res_var(df, var):
         input QAQC dataframe to check
     var : str
         variable name
-    
+
     Returns
     -------
     mode : float
@@ -194,7 +196,7 @@ def infere_res(df, verbose=False):
         input QAQC dataframe to check
     verbose : bool, optional
         if True, returns runtime output to local terminal
-    
+
     Returns
     -------
     resolutions : [?]
@@ -257,7 +259,7 @@ def consecutive_months(series):
 
 # ---------------------------------------------------------------------------------------------------
 def qaqc_unusual_repeated_streaks(
-    df, min_sequence_length=10, plot=True, local=False, verbose=False 
+    df, min_sequence_length=10, plot=True, local=False, verbose=False
 ):
     """Test for repeated streaks/unusual spell frequency.
 
@@ -269,18 +271,18 @@ def qaqc_unusual_repeated_streaks(
         [?]
     local : bool, optional
         if True, saves the plot to local directory
-    plot : bool, optional 
+    plot : bool, optional
         if True, produces plot and uploads it to AWS
 
     Returns
     -------
     if qaqc success
-        new_df : pd.DataFrame 
+        new_df : pd.DataFrame
             QAQC dataframe with flagged values (see below for flag meaning).
     if qaqc failure
         None
             This function does not return a value
-    
+
     Notes
     -----
     1. Three tests are conducted here:
@@ -423,7 +425,7 @@ def qaqc_unusual_repeated_streaks(
                 ),
             )
             # ------------------------------------------------------------------------------------------------
-            
+
             bad_keys = np.concatenate(
                 [
                     len(bad_hourly) * [27],
@@ -464,13 +466,13 @@ def qaqc_unusual_repeated_streaks(
 # ---------------------------------------------------------------------------------------------------
 def find_date_clusters(dates, threshold):
     """DOCUMENTATION UPDATE REQUIRED.
-    
+
     Parameters
     ----------
     dates : pd.Series
         [?]
     threshold : [?]
-    
+
     Returns
     -------
     if success
@@ -562,7 +564,7 @@ def consecutive_repeats(
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    var : str 
+    var : str
         variable name
     threshold : int
         comes from straight_repeat_criteria[var][res]
@@ -651,7 +653,7 @@ def full_day_compare(series0, series1):
         [?]
     series1 : [?]
         [?]
-    
+
     Returns
     -------
     np.array(groups) : [?]
@@ -692,7 +694,7 @@ def consecutive_fullDay_repeats(df, var, threshold):
 
     Returns
     -------
-    bad : np.array 
+    bad : np.array
         dates that mark the flagged values (from df.index)
     """
 

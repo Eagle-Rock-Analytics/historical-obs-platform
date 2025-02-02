@@ -30,6 +30,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
+
 # ----------------------------------------------------------------------
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df, verbose=False):
@@ -39,7 +40,7 @@ def qaqc_missing_vals(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -120,7 +121,7 @@ def qaqc_missing_latlon(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -159,7 +160,7 @@ def qaqc_within_wecc(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -195,7 +196,7 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
     ----------
     lats_to_check : list of float
         list of latitude values to input for DEM elevation retrieval
-    lons_to_check : list of float 
+    lons_to_check : list of float
         list of longitude values to input for DEM elevation retrieval
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -233,7 +234,7 @@ def qaqc_elev_infill(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -365,7 +366,7 @@ def qaqc_elev_range(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -413,6 +414,7 @@ def qaqc_elev_range(df, verbose=False):
 ## Part 1b functions (whole station/network)
 ## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
 
+
 # ----------------------------------------------------------------------
 ## sensor height - air temperature
 def qaqc_sensor_height_t(df, verbose=False):
@@ -422,7 +424,7 @@ def qaqc_sensor_height_t(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -486,7 +488,7 @@ def qaqc_sensor_height_w(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -552,7 +554,7 @@ def qaqc_world_record(df, verbose=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
@@ -683,7 +685,7 @@ def flag_summary(df, verbose=False, local=False):
 
     Parameters
     ----------
-    df : pd.DataFrame 
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     verbose : bool, optional
         if True, returns runtime output to terminal
