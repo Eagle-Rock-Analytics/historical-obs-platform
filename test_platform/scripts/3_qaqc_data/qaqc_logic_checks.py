@@ -22,20 +22,26 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Output:
+
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Flag meaning:
-    -------------
-        12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
+    Notes
+    -----
+    Flag meaning : 12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
     """
 
     logger.info(
@@ -83,20 +89,25 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     Extended period is defined as a 24-hour period
     If fails, only dewpoint temperature is flagged.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Flag meaning:
-    -------------
-        13,qaqc_crossvar_logic_tdps_to_tas_wetbulb,Cross-variable logic check failure: extended streak of a zero dewpoint depression (indicative of instrument failure)
+    Notes
+    -----
+    Flag meaning : 13,qaqc_crossvar_logic_tdps_to_tas_wetbulb,Cross-variable logic check failure: extended streak of a zero dewpoint depression (indicative of instrument failure)
     """
 
     logger.info(
@@ -165,20 +176,25 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    -----------
+    df : pd.DataFrame
+         station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Flag meaning:
-    -------------
-        10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
+    Notes
+    -----
+    Flag meaning : 10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
     """
 
     logger.info("Running: qaqc_precip_logic_nonegvals")
@@ -228,27 +244,30 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
     Only needs to be applied when 2 or more precipitation duration specific variables are present (pr_5min, pr_1h, pr_24h)
     For example: pr_5min should not be larger than pr_1h
 
-    Rules:
-    ------
-        1) pr_5min < pr_1h < pr_24h
-        2) pr_localmid should never exceed pr_24h
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame 
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Flag meaning:
-    -------------
-        16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
-        17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
-        18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
+    Notes
+    -----
+    Rules:
+    1. pr_5min < pr_1h < pr_24h
+    2. pr_localmid should never exceed pr_24h
+    Flag meaning : 16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
+    Flag meaning : 17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
+    Flag meaning : 18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight
     """
     logger.info("Running: qaqc_precip_logic_accum_amounts")
 
@@ -335,21 +354,26 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     Checks that wind direction is zero when wind speed is also zero.
     If fails, wind direction is flagged.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame 
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Flag meaning:
-    -------------
-        14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
-        15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
+    Notes
+    -----
+    Flag meaning : 14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+    Flag meaning : 15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
 
     # import pdb; pdb.set_trace()
@@ -408,23 +432,27 @@ def qaqc_pressure_units_fix(df, verbose=False):
     Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations,
     where the pressure unit conversion did not take.
 
-    This is a temporary fix; in the next cleaning update, unit conversions will be applied and checked.
-    No flag is placed in this fix, if variable fails it will be caught by the world records check.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, provides runtime output to local temrinal
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    if QAQC success:
+        df : pd.DataFrame 
+            QAQC dataframe with flagged values (see below for flag meaning)
+    if failure:
+        None
+            This function does not return a value
 
-    Notes:
-    ------
-    grab_valid_data is not applied here as this is a temporary fix, applied uniformly
+    Notes
+    -----
+    1. This is a temporary fix; in the next cleaning update, unit conversions will be applied and checked.
+    2. No flag is placed in this fix, if variable fails it will be caught by the world records check.
+    3. grab_valid_data is not applied here as this is a temporary fix, applied uniformly
     """
 
     logger.info("Running: qaqc_pressure_units_fix")

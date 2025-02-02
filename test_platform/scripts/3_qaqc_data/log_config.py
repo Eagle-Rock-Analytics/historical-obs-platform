@@ -1,3 +1,8 @@
+"""
+This is a script setting up Stage 3: QA/QC runtime logging for error tracing and timing. 
+For use within the PIR-19-006 Historical Obsevations Platform.
+"""
+
 import logging
 from mpi4py import MPI
 import os
@@ -9,14 +14,14 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
 
     Parameters
     ----------
-    log_file: str
+    log_file : str
         Path to QAQC log file
-    verbose: boolean, optional
+    verbose : boolean, optional
         Prints script progress to local terminal. Default is False.
 
     Returns
     -------
-    logger:
+    logger : [?]
         Information to be sent to logger / log file
     """
 
@@ -24,8 +29,7 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
     logger = logging.getLogger("sharedLogger")
     logger.setLevel(logging.DEBUG)
 
-    # # Check if the logger already has handlers to avoid duplication
-    # if logger.hasHandlers():
+    ## Check if the logger already has handlers to avoid duplication
 
     # Create a file handler that logs to a file
     file_handler = logging.FileHandler(log_file)
@@ -66,16 +70,17 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
 def remove_file_handler_by_filename(logger, filename):
     """Remove a specific FileHandler from the logger by matching the filename.
 
-    Inputs
-    ------
-    logger:
+    Parameters
+    ----------
+    logger : [?]
         Input logger handler
-    filename: str
+    filename s: str
         Filename of logger handler
 
     Returns
     -------
     None
+        This function does not return a value
 
     """
     ## NEEDS DOCUMENTATION IMPROVEMENT
