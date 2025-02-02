@@ -5,17 +5,9 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 
 ## Import Libraries
 import boto3
-import geopandas as gp
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import datetime
-import math
-import shapely
-import xarray as xr
 import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
 import scipy.stats as stats
 import scipy.signal as signal
 
@@ -50,43 +42,49 @@ def qaqc_climatological_outlier(
     verbose=False,
     local=False,
 ):
-    """
-    Flags individual gross outliers from climatological distribution.
-    Only applied to air temperature and dew point temperature
+    """Flags individual gross outliers from climatological distribution
 
-    Input:
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    winsorize : bool
+        if True, raw observations are winsorized to remove spurious outliers first
+    winz_limits : list of floats
+        if winsorize is True, values represent the low and high percentiles to standardize to
+    bin_size : float
+        size of distribution bins
+    plot : bool, optional
+        if True, produces plots of any flagged data and saved to AWS
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, retains local copy of figures
+
+    Returns
+    -------
+    qaqc success:
+        new_df : pd.DataFrame
+            QAQC dataframe with flagged values (see below for flag meaning)
+    qaqc failure:
+        None
+            This function does not return a value
+
+    Notes
     ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        plots [bool]: if True, produces plots of any flagged data and saved to AWS
-        winsorize [bool]: if True, raw observations are winsorized to remove spurious outliers first
-        winz_limits [list]: if winsorize is True, values represent the low and high percentiles to standardize to
+    Flag meaning : 26,qaqc_climatological_outlier,Value flagged as a climatological outlier
 
-    Returns:
-    --------
-        qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        qaqc failure:
-            None
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
 
-    Flag meaning:
-    -------------
-        26,qaqc_climatological_outlier,Value flagged as a climatological outlier
     """
-    # import pdb; pdb.set_trace()
     new_df = df.copy()
 
-    vars_to_check = [
-        "pr_5min",
-        "pr_15min",
-        "pr_1h",
-        "pr_24h",
-        "pr_localmid",
-        "tas",
-        "tdps",
-        "tdps_derived",
-    ]
+    vars_to_check = ["tas", "tdps", "tdps_derived"]
     pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
+    pr_vars_to_anom = [v for v in pr_vars if v in df.columns]
 
     try:
         logger.info(
@@ -95,7 +93,6 @@ def qaqc_climatological_outlier(
 
         # whole station bypass check first
         # df is already flagged by gaps function (careful if the order is modified)
-        # df,stn_length = qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=iqr_thresh)
 
         for var in vars_to_anom:
             # only work with non-flagged values
@@ -103,19 +100,24 @@ def qaqc_climatological_outlier(
             df_valid = grab_valid_obs(
                 new_df, var, kind="drop"
             )  # subset for valid obs, distribution drop yellow flags
-            df_valid = df_valid.dropna(subset=var)
-            # Keep only useful columns
+
+            df_valid = df_valid.dropna(subset=var)  # Keep only useful columns
             df_valid = df_valid[[var, "year", "month", "day", "hour", "time"]]
 
-            # Bypass if there are not valid observations
+            # Bypass if there are no valid observations remaining
             if df_valid[var].size == 0:
-                logger.info("Not valid observations for: {}".format(var))
+                logger.info(
+                    "No valid (unflagged) observations for: {} to proceed through qaqc_climatological_outlier. Bypassing station.".format(
+                        var
+                    )
+                )
                 continue
 
             # Winsorize data and calculate climatology by month/hour with winsorized data
-            clim = df_valid.groupby(["month", "hour"])[var].transform(
-                lambda row: stats.mstats.winsorize(row, limits=[0.05, 0.05])
-            )
+            if winsorize:
+                clim = df_valid.groupby(["month", "hour"])[var].transform(
+                    lambda row: stats.mstats.winsorize(row, limits=winz_limits)
+                )
             clim = pd.DataFrame(
                 data={var: clim, "hour": df_valid.hour, "month": df_valid.month},
                 index=df_valid.index,
@@ -160,20 +162,15 @@ def qaqc_climatological_outlier(
             )  # In Hz
             sos = signal.butter(1, cut_freq, "lp", output="sos", fs=data_freq)
             filtered = signal.sosfilt(sos, std[var].interpolate(method="linear"))
-            # data = std[var].interpolate(method="linear")-filtered
             df_valid["raw_" + var] = df_valid[var]
             df_valid[var] = filtered
 
             # Flag outliers
-            if var in pr_vars:  # testing on bin size for VW
-                bin_size = 0.1
-            else:
-                bin_size = bin_size
             df_valid["flag"] = df_valid.groupby(["month", "hour"])[var].transform(
                 lambda row: flag_clim_outliers(row, bin_size=bin_size)
             )
 
-            # Save original for plotting
+            # Save original df for plotting
             df_plot = df_valid.copy()
 
             # Drop all non-flagged values
@@ -188,11 +185,28 @@ def qaqc_climatological_outlier(
                 "flag"
             ]
 
-            # Plot flagged values
-            if plot:
-                # Extrac station name
-                station = df["station"].unique()[0]
+    except Exception as e:
+        logger.info(
+            "qaqc_climatological_outlier failed with Exception: {}".format(e),
+        )
+        return None
 
+    try:
+        # precip focused check
+        for var in pr_vars_to_anom:
+            new_df = qaqc_climatological_outlier_precip(new_df, var)
+
+    except Exception as e:
+        logger.info(
+            "qaqc_climatological_outlier_precip failed with Exception: {}".format(e)
+        )
+        return None
+
+    # Plot flagged values
+    if plot:
+        station = df["station"].unique()[0]
+        for var in vars_to_anom:
+            if 26 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 # Extract only flagged values to loop over those months and hours
                 df_plot = df_plot[
                     ["year", "hour", "month", "time", "flag", var]
@@ -200,6 +214,7 @@ def qaqc_climatological_outlier(
 
                 # Loop over flagged months/hours
                 index = df_valid.set_index(["month", "hour"]).index.unique()
+
                 for i, ind in enumerate(index):
                     # Extract actual month/hour from index
                     month, hour = ind
@@ -213,19 +228,29 @@ def qaqc_climatological_outlier(
                         station=station,
                         local=local,
                     )
+        for var in pr_vars_to_anom:
+            if 32 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
+                climatological_precip_plot(new_df, var, flag=32)
 
-        return new_df
-
-    except Exception as e:
-        logger.info(
-            "qaqc_climatological_outlier failed with Exception: {}".format(e),
-        )
-        return None
+    return new_df
 
 
 # ----------------------------------------------------------------------
 def flag_clim_outliers(series, bin_size=0.25):
-    """ """
+    """Identifies climatological outliers to flag.
+
+    Parameters
+    ----------
+    series : pd.DataFrame
+        QAQC dataframe
+    bin_size : float
+        bin size for distribution
+
+    Returns
+    -------
+    clim_outliers : pd.DataFrame
+        QAQC dataframe with flags [?]
+    """
     # If series is small (less than 5 years) skip to next month/hour
     if len(series) <= 5:
         return np.ones_like(series) * np.nan
@@ -242,7 +267,7 @@ def flag_clim_outliers(series, bin_size=0.25):
     # Flag series given the distribution thresholds (left and right)
     flag = gap_search(freq, left, right)
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # -------------------------------------------------------------------
     # Red left side of the distribution
     left_bad_bins = freq_bins[np.logical_and(flag == -1, freq_bins < 0)]
     if len(left_bad_bins) > 0:
@@ -260,7 +285,7 @@ def flag_clim_outliers(series, bin_size=0.25):
     # Red flags
     red = np.logical_or(red_left, red_right)
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # ----------------------------------------------------------------------
     # Yellow left side of the distribution
     left_probable_bins = freq_bins[np.logical_and(flag == 0, freq_bins < 0)]
     if len(left_probable_bins) > 0:
@@ -298,7 +323,30 @@ def flag_clim_outliers(series, bin_size=0.25):
 
 # ----------------------------------------------------------------------
 def fit_normal(series, bin_size=0.25, plot=False):
-    """ """
+    """Fits a guassian distribution to the series.
+
+    Parameters
+    ----------
+    series : pd.DataFrame
+        QAQC dataframe
+    bin_size : float
+        bin size for distribution
+    plot : bool, optional
+        whether to plot the data
+
+    Returns
+    -------
+    freq : list of ?
+        frequency [?]
+    bins : list of ints/floats ?
+        bins for distribution
+    p : list of floats
+        pdf of distribution
+    left : int
+        leftmost bin for distribution
+    right : int
+        rightmost bin for distribution
+    """
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
     bins = np.arange(-max_bin - bin_size, max_bin + 2 * bin_size, bin_size)
@@ -326,7 +374,7 @@ def fit_normal(series, bin_size=0.25, plot=False):
     except:
         right = len(bins) - 2
 
-    if plot:
+    if plot:  ## why is this here?
         # Plot the histogram of the series
         fig, ax = plt.subplots()
         ax.hist(series, bins=bins, density=False, alpha=0.35, label="Histogram")
@@ -337,7 +385,6 @@ def fit_normal(series, bin_size=0.25, plot=False):
         ymin = min(0.08, freq[freq > 0].min())
         ymax = np.ceil(freq.max() / 100) * 100
         ax.set_ylim(ymin, ymax)
-        # ax.set_xlim(xmin, xmax)
         ax.set_title("Histogram with Gaussian Fit")
         ax.set_xlabel("Value")
         ax.set_ylabel("Frequency")
@@ -346,13 +393,29 @@ def fit_normal(series, bin_size=0.25, plot=False):
         ax.axvline(bins[left], c="k", ls="--")
         ax.axvline(bins[right], c="k", ls="--")
         ax.axhline(0.1, c="k", ls=":")
-        plt.show()
+
     return freq, bins, p, left, right
 
 
 # ----------------------------------------------------------------------
 def gap_search(freq, left, right):
-    """ """
+    """DOCUMENTATION NEEDED.
+
+    Inputs
+    ------
+    freq : list of ?
+        frequency [?]
+    left : int
+        leftmost bin for distribution
+    right : int
+        rightmost bin for distribution
+
+    Returns
+    -------
+    flag : int [?]
+        [?]
+
+    """
     left_freq = freq[0:left]
     left_flag = np.zeros_like(
         left_freq
@@ -379,3 +442,90 @@ def gap_search(freq, left, right):
     flag = np.ones(len(freq) - len(left_freq) - len(right_freq))
     flag = np.concatenate((left_flag, flag, right_flag))
     return flag
+
+
+# ----------------------------------------------------------------------
+def qaqc_climatological_outlier_precip(df, var, factor=9):
+    """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
+    least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
+    This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,
+    and flagged values are applied to all sub-daily observations within a flagged day.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QAQC dataframe
+    var : str
+        variable name
+    factor : int, optional
+        multiplication factor for severity of climatological exceedance, default 9
+
+    Returns
+    -------
+    new_df : pd.DataFrame
+        QAQC dataframe
+
+    Notes
+    -----
+    Flag meaning : 32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
+
+    References
+    ----------
+    [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+
+    To Do
+    ------
+    1. Incorporate temperature check if temperature is present for station (V2)
+    """
+
+    logger.info("Running qaqc_climatological_outlier_precip on: {}".format(var))
+
+    new_df = df.copy()
+    df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
+
+    # aggregate to daily
+    df_sub = df_valid[["time", "month", "year", "day", var, var + "_eraqc"]]
+    df_dy = (
+        df_sub.resample("1D", on="time")
+        .agg(
+            {
+                var: "sum",
+                var + "_eraqc": "first",
+                "month": "first",
+                "year": "first",
+                "day": "first",
+            }
+        )
+        .reset_index()
+    )
+
+    # calculate the respective 29-day 95th percentile
+    # v1: using the month each day is located in for "29-day"
+    for mon in range(1, 13):
+        df_mon = df_dy.loc[df_dy.month == mon]
+        p95 = df_mon[var].quantile(0.95)
+
+        # identify where factor x percentile is exceeded and flag
+        if p95 != 0:
+            flagged_days = df_mon.loc[df_mon[var] > factor * p95]
+            new_df.loc[
+                (
+                    new_df.year.isin(flagged_days.time.dt.year)
+                    & new_df.month.isin(flagged_days.time.dt.month)
+                    & new_df.day.isin(flagged_days.time.dt.day)
+                ),
+                var + "_eraqc",
+            ] = 32
+        elif p95 == 0:
+            # p95 is zero in this case
+            flagged_days = df_mon.loc[df_mon[var] > factor]
+            new_df.loc[
+                (
+                    new_df.year.isin(flagged_days.time.dt.year)
+                    & new_df.month.isin(flagged_days.time.dt.month)
+                    & new_df.day.isin(flagged_days.time.dt.day)
+                ),
+                var + "_eraqc",
+            ] = 32
+
+    return new_df
