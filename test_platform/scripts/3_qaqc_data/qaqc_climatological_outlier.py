@@ -204,7 +204,7 @@ def qaqc_climatological_outlier(
 
     # Plot flagged values
     if plot:
-        station = df['station'].unique()[0]
+        station = df["station"].unique()[0]
         for var in vars_to_anom:
             if 26 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 # Extract only flagged values to loop over those months and hours
