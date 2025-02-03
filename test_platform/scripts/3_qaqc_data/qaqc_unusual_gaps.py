@@ -39,12 +39,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
     Returns
     -------
-    if QAQC success:
-        df_part2 : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     ------

@@ -276,12 +276,8 @@ def qaqc_unusual_repeated_streaks(
 
     Returns
     -------
-    if qaqc success
-        new_df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning).
-    if qaqc failure
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -475,12 +471,8 @@ def find_date_clusters(dates, threshold):
 
     Returns
     -------
-    if success
-        cluster_list : [?]
-            [?]
-    if failure
-        np.nan
-            [?]
+    If success, returns cluster_list [?]
+    If failure, returns np.nan [?]
     """
     # Ensure the dates are sorted
     dates = pd.Series(dates).sort_values().reset_index(drop=True)

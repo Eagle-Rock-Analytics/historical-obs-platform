@@ -47,16 +47,11 @@ def qaqc_unusual_large_jumps(
 
     Returns
     -------
-    if qaqc success
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning).
-    if qaqc failure
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
-    1. This test is done for ["tas", "tdps", "ps", "psl", "ps_altimeter"]
     Flag meaning : 23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 
     """

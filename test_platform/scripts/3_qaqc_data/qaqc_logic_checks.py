@@ -32,12 +32,8 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -98,12 +94,8 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -185,12 +177,8 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -253,12 +241,8 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -363,12 +347,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -441,12 +421,8 @@ def qaqc_pressure_units_fix(df, verbose=False):
 
     Returns
     -------
-    if QAQC success:
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    if failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----

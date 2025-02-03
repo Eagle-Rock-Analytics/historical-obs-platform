@@ -97,9 +97,9 @@ def print_qaqc_failed(
         station name
     end_api : datetime, optional
         time at beginning of data download
-    message : str
+    message : str, optional
         error message
-    test : str
+    test : str, optional
         QAQC test name to include in error message
     verbose : bool, optional
         if True, provides runtime output to local terminal

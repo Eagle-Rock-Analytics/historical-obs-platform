@@ -74,7 +74,7 @@ def remove_file_handler_by_filename(logger, filename):
     ----------
     logger : [?]
         Input logger handler
-    filename s: str
+    filename : str
         Filename of logger handler
 
     Returns

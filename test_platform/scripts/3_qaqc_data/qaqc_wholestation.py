@@ -47,12 +47,8 @@ def qaqc_missing_vals(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
 
     logger.info("Running: qaqc_missing_vals")
@@ -128,12 +124,8 @@ def qaqc_missing_latlon(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
     logger.info("Running: qaqc_missing_latlon")
 
@@ -167,12 +159,8 @@ def qaqc_within_wecc(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
     logger.info("Running: qaqc_within_wecc")
 
@@ -241,12 +229,8 @@ def qaqc_elev_infill(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -373,12 +357,8 @@ def qaqc_elev_range(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
 
     Notes
     -----
@@ -431,12 +411,8 @@ def qaqc_sensor_height_t(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     ------
@@ -495,12 +471,8 @@ def qaqc_sensor_height_w(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     ------
@@ -561,12 +533,8 @@ def qaqc_world_record(df, verbose=False):
 
     Returns
     -------
-    if qaqc success:
-        df : pd.DataFrame
-            QAQC dataframe with missing values replaced
-    if qaqc failure:
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     ------
