@@ -244,15 +244,16 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
 
     Returns
     -------
-    None
-        This function does not return a value
+    pd.DataFrame or None
+        If successfully parsed, return pd.DataFrame
+        If raw file is empty, does not report data within v1 period, or has a mismatched metadata header, return None
     """
 
     ### TEMPORARY MISMATCH METADATA FIX
     if (
         len(file) > 24
     ):  # identifies files whose name is longer than 24 characters; for CWOP standard is 23 chars, update pull files are 32
-        return  # skips any file whose name is longer than 24 characters --> targets the CWOP_STID-20YY-MM-DD files
+        return  None # skips any file whose name is longer than 24 characters --> targets the CWOP_STID-20YY-MM-DD files
     ###
 
     # Read in CSV, removing header.
@@ -329,7 +330,7 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
                 file
             )
         )
-        return  # exits the function
+        return  None # exits the function
 
     # Remove any non-essential columns.
     coltokeep = [

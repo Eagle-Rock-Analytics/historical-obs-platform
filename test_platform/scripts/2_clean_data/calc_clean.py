@@ -399,9 +399,9 @@ def _calc_windmag(u10, v10):
     Parameters
     ----------
     u10 : float
-        u-direction wind
+        u-direction wind, m/s
     v10 : float
-        v-direction wind
+        v-direction wind, m/s
 
     Returns
     -------
@@ -425,9 +425,9 @@ def _calc_winddir(u10, v10):
     Parameters
     ----------
     u10 : float
-        u-direction wind
+        u-direction wind, m/s
     v10 : float
-        v-direction wind
+        v-direction wind, m/s
 
     Returns
     -------
@@ -478,7 +478,7 @@ def _calc_ps_alt(alt, elev):
     Parameters
     ----------
     alt : float
-        altimeter setting, PA
+        altimeter setting, Pa
     elev : float
         elevation, m
 
@@ -487,9 +487,9 @@ def _calc_ps_alt(alt, elev):
     ps : float
         air pressure, Pa
 
-    Notes
-    -----
-    This calculation uses the following formula: https://www.weather.gov/media/epz/wxcalc/stationPressure.pdf
+    References
+    ----------
+    [1] This calculation uses the following formula: https://www.weather.gov/media/epz/wxcalc/stationPressure.pdf
     """
     alt = alt / 3386.39  # Convert altimeter from Pa to inHg for use in formula
     ps = alt * ((288 - 0.0065 * elev) / 288) ** 5.2561
