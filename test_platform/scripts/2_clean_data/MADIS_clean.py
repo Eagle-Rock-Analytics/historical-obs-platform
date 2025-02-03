@@ -33,9 +33,7 @@ from io import BytesIO, StringIO
 import smart_open
 import traceback
 import botocore
-from random import sample
 from cleaning_helpers import get_file_paths
-
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -56,13 +54,7 @@ except:
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-# Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set up directory to save files temporarily, if it doesn't already exist.
 try:
@@ -72,17 +64,30 @@ try:
 except:
     pass
 
-# Get units
-unitstocheck = ["Pascals", "%", "m/s", "Celsius", "QC_type", "Degrees", "Millimeters"]
 
-
-## FUNCTION: Get MADIS QA/QC flag data and parse into csv.
-# Input: API url for QAQC metadata.
-# Output: parsed table of QAQC codes and flag values, saved as csv.
-# Note: this function does not need to be run daily, just occasionally.
 def get_qaqc_flags(token, bucket_name, qaqcdir, network):
+    """Get MADIS QA/QC raw flag data and parse into a csv for reference.
+    Parameters
+    ----------
+    token : str
+        API url for QAQC metadata
+    bucket_name : str
+        s3 bucket 
+    qaqcdir : str
+        path to AWS qaqc bucket
+    network : str
+        name of network
+
+    Returns
+    -------
+    ids : list of str
+        qaqc flags from MADIS networks
+
+    Notes
+    -----
+    1. We are no longer retrieving MADIS data from Synoptic. Will need a reconfig.
+    """
     url = "https://api.synopticdata.com/v2/qctypes?token={}".format(token)
-    # print(url)
     request = requests.get(url).json()
     ids = []
     for each in request["QCTYPES"]:
@@ -92,7 +97,6 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
     )  # Sort by start date (note some stations return 'None' here)
 
     # Save to AWS bucket.
-    # print(ids)
     print("Saving QAQC flags to csv file.")
 
     csv_buffer = StringIO()
@@ -106,20 +110,23 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
     return ids
 
 
-## FUNCTION: Clean MADIS data.
-# Input:
-# bucket_name: name of AWS bucket.
-# rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
-# Some stations have more than one csv file, with the second file named 2_[STID].csv, and so on.
-# cleandir: path to where cleaned files should be saved.
-# Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-# Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
-
-
-# Function: parse the headers of the MADIS CSV file.
 def parse_madis_headers(file):
+    """Parsing the header of MADIS csv files. 
+    Parameters
+    ----------
+    file : str
+        file name
+
+    Returns
+    -------
+    headers : dict of str
+        dictionary of relevant station attributes for metadata from MADIS raw data header
+    """
+
     url = "s3://{}/{}".format(bucket_name, file)
     index = 0
+    unitstocheck = ["Pascals", "%", "m/s", "Celsius", "QC_type", "Degrees", "Millimeters"]
+
     # If no data available for station, both of these variables will remain as NaN
     units = np.nan
     first_row = np.nan
@@ -209,12 +216,29 @@ def parse_madis_headers(file):
         "dup": dup,
         "dup_col": dup_col,
     }
-    # print(first_row)
     return headers
 
 
-# Function: take heads, read csv into pandas db and clean.
 def parse_madis_to_pandas(file, headers, errors, removedvars):
+    """Take csv headers and clean MADIS data. 
+
+    Parameters
+    ----------
+    file : str
+        file path from rawdir
+    headers : dict of str
+        dictionary of relevant station attributes for metadata from MADIS raw data header
+    errors : dict of str
+        errors dictionary for tracking
+    removedvars : list of str
+        non-essential variables available in the raw data that are removed
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
+
     ### TEMPORARY MISMATCH METADATA FIX
     if (
         len(file) > 24
@@ -237,11 +261,11 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
                 file
             )
         )
-        return
+        return None
 
     if len(df.index) == 0:
         print("Raw data file for {} is empty, station not cleaned.".format(file))
-        return
+        return None
 
     # Handling for timeout errors
     # If a timeout occurs, the last line of valid data is repeated in the next file and is skipped, but if that is the only line of data, script breaks
@@ -342,13 +366,33 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
         columns=[col for col in df if col not in coltokeep]
     )  # Drop all columns not in coltokeep list.
 
-    # # Manually convert "None" to np.nan
+    # Manually convert "None" to np.nan
     df.replace(to_replace="None", value=np.nan, inplace=True)
 
     return df
 
 
 def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
+    """Cleans MADIS data for a variety of networks.
+
+    Paramters
+    ---------
+    bucket_name : str
+        s3 bucket 
+    rawdir : str
+        path to raw data bucket
+    cleandir :
+        path to cleaned data bucket
+    network : str
+        name of network
+    cwop_letter : str, optional
+        option to subset CWOP stations by start letter, recommended!!
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
     # Ensuring that non-CWOP networks do not accidentally subset
     if network != "CWOP":
         cwop_letter = None
@@ -1756,15 +1800,6 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
 
                 ds = ds.drop("Station_ID")  # Drop repeated Station_ID column.
 
-                # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                # for var in ds.variables:
-                #     try:
-                #         print([var, float(ds[var].min()), float(ds[var].max())])
-                #     except:
-                #         next
-                # #Note: here we have tdps and hurs values of 0. This is what causes the "dividing by 0" errors, likely.
-                # Address in QA/QC stage (and recalc tdps if needed).
-
                 # Quality control: if any variable is completely empty, drop it.
                 for key in ds.keys():
                     try:
@@ -1916,8 +1951,10 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
             Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
         )
 
+    return None
 
-# # Run functions
+
+## Run functions
 if __name__ == "__main__":
     network = "CWOP"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
@@ -1936,51 +1973,3 @@ if __name__ == "__main__":
 # 'RAWS', 'SGXWFO', 'SHASAVAL', 'VCAPCD', 'HADS'
 
 # Note: CWOP, RAWS, and HADS will take a long time to run to complete full network clean
-
-# ---------------------------------------------------------------------------------------------------------
-### Testing
-# import random # To get random subsample
-# import s3fs # To read in .nc files
-
-# # # ## Import file.
-# files = []
-# for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#     file = str(item.key)
-#     files += [file]
-
-# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# files = [file for file in files if "error" not in file] # Remove error handling files.
-# files = [file for file in files if "station" not in file] # Remove error handling files.
-# files = random.sample(files, 4)
-
-# # File 1:
-# fs = s3fs.S3FileSystem()
-# aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-
-# with fs.open(aws_urls[0]) as fileObj:
-#     test = xr.open_dataset(fileObj)
-#     print(test)
-#     for var in test.keys():
-#         print(var)
-#         print(test[var])
-#     test.close()
-
-# # File 2:
-# # Test: multi-year merges work as expected.
-# with fs.open(aws_urls[1]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     print(str(test['time'].min())) # Get start time
-#     print(str(test['time'].max())) # Get end time
-#     test.close()
-
-
-# # File 3:
-# # Test: Inspect vars and attributes
-# with fs.open(aws_urls[2]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     for var in test.variables:
-#         try:
-#             print([var, float(test[var].min()), float(test[var].max())])
-#         except:
-#             continue
-#     test.close()
