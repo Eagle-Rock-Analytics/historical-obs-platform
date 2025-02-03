@@ -26,6 +26,7 @@ import requests
 from bs4 import BeautifulSoup
 import zipfile
 from cleaning_helpers import get_file_paths
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 ## Import cleaning stage calc functions for conversions
@@ -53,7 +54,7 @@ except:
 
 def get_elevs(url):
     """Generate list of station and instrument elevations.
-    Generates a dataframe of station elevations and instrument elevations from 
+    Generates a dataframe of station elevations and instrument elevations from
     the NDBC website, as this data is frequently missing from the data source.
 
     Parameters
@@ -138,7 +139,7 @@ def get_elevs(url):
 
 
 def clean_buoys(rawdir, cleandir, network):
-    """Clean MARITIME and NDBC buoy data. 
+    """Clean MARITIME and NDBC buoy data.
 
     Parameters
     ----------
@@ -152,8 +153,8 @@ def clean_buoys(rawdir, cleandir, network):
     Returns
     -------
     None
-        This function does not return a value 
-    
+        This function does not return a value
+
     Notes
     -----
     1. Handling for both US-based and Canadian-based buoys.
@@ -161,7 +162,7 @@ def clean_buoys(rawdir, cleandir, network):
     References
     ----------
     [1] https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
-    [2] https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html 
+    [2] https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html
     """
     try:
         files = []  # Get files

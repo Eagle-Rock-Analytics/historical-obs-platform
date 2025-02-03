@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 import re
 import numpy as np
 import warnings
+
 warnings.filterwarnings(
     action="ignore", category=FutureWarning
 )  # Optional: Silence pandas' future warnings about regex (not relevant here)
@@ -34,6 +35,7 @@ import boto3
 from io import BytesIO, StringIO
 import zipfile
 from cleaning_helpers import var_to_unique_list, get_file_paths
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -741,8 +743,9 @@ def clean_cimis(rawdir, cleandir):
             Body=content,
             Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
         )
-    
+
     return None
+
 
 ## Run functions
 if __name__ == "__main__":

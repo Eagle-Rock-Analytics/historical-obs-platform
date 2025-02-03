@@ -34,6 +34,7 @@ import smart_open
 import traceback
 import botocore
 from cleaning_helpers import get_file_paths
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
@@ -72,7 +73,7 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
     token : str
         API url for QAQC metadata
     bucket_name : str
-        s3 bucket 
+        s3 bucket
     qaqcdir : str
         path to AWS qaqc bucket
     network : str
@@ -111,7 +112,7 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
 
 
 def parse_madis_headers(file):
-    """Parsing the header of MADIS csv files. 
+    """Parsing the header of MADIS csv files.
     Parameters
     ----------
     file : str
@@ -125,7 +126,15 @@ def parse_madis_headers(file):
 
     url = "s3://{}/{}".format(bucket_name, file)
     index = 0
-    unitstocheck = ["Pascals", "%", "m/s", "Celsius", "QC_type", "Degrees", "Millimeters"]
+    unitstocheck = [
+        "Pascals",
+        "%",
+        "m/s",
+        "Celsius",
+        "QC_type",
+        "Degrees",
+        "Millimeters",
+    ]
 
     # If no data available for station, both of these variables will remain as NaN
     units = np.nan
@@ -220,7 +229,7 @@ def parse_madis_headers(file):
 
 
 def parse_madis_to_pandas(file, headers, errors, removedvars):
-    """Take csv headers and clean MADIS data. 
+    """Take csv headers and clean MADIS data.
 
     Parameters
     ----------
@@ -378,7 +387,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
     Paramters
     ---------
     bucket_name : str
-        s3 bucket 
+        s3 bucket
     rawdir : str
         path to raw data bucket
     cleandir :

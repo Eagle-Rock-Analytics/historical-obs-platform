@@ -25,6 +25,7 @@ from datetime import datetime, date
 import re
 import numpy as np
 import warnings
+
 warnings.filterwarnings(
     action="ignore", category=FutureWarning
 )  # Optional: Silence pandas' future warnings about regex (not relevant here)
@@ -38,6 +39,7 @@ from ftplib import FTP
 from cleaning_helpers import var_to_unique_list, get_file_paths
 import gzip
 import traceback
+
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 try:
@@ -66,6 +68,7 @@ try:
 except:
     pass
 
+
 # -------------------------------------------------------------------------
 def merge_station_lists(key_asosawos, key_isd, cleandir):
     """Merges the ASOS/AWOS and ISD station lists.
@@ -78,7 +81,7 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
         path to ISD station file
     cleandir : str
         path to cleaned data directory
-    
+
     Returns
     -------
     stationlist_join : pd.DataFrame
@@ -88,7 +91,9 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
     # first process ASOSAWOS stations
     # asosawos = s3_cl.get_object(Bucket=bucket_name, Key=key_asosawos)
     # asosawos_list = pd.read_csv(BytesIO(asosawos["Body"].read()))
-    asosawos_list = pd.read_csv("s3://wecc-historical-wx/1_raw_wx/stationlist_ASOSAWOS.csv")
+    asosawos_list = pd.read_csv(
+        "s3://wecc-historical-wx/1_raw_wx/stationlist_ASOSAWOS.csv"
+    )
 
     # ASOSAWOS list has one duplicated station, one row which has start/stop data and one which does not.
     # Drop the less complete row.
@@ -100,7 +105,9 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
     # next process ISD stations
     # isd = s3_cl.get_object(Bucket=bucket_name, Key=key_isd)
     # isd_list = pd.read_csv(BytesIO(isd["Body"].read()))
-    isd_list = pd.read_csv("s3://wecc-historical-wx/1_raw_wx/stationlist_ISD_ASOSAWOS.csv")
+    isd_list = pd.read_csv(
+        "s3://wecc-historical-wx/1_raw_wx/stationlist_ISD_ASOSAWOS.csv"
+    )
 
     # Round asosawos down to 3 decimal points of accuracy
     asosawos_round = asosawos_list.round({"LAT": 3, "LON": 3})

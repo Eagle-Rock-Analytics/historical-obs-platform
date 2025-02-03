@@ -36,7 +36,7 @@ def get_station_list(network):
     ----------
     network : str
         network name
-    
+
     Returns
     -------
     station_list : pd.DataFrame
@@ -63,7 +63,7 @@ def get_station_list(network):
 
 
 def get_cleaned_stations(network):
-    """Adds a new column to station list with bool "Y" or "N" status upon cleaning 
+    """Adds a new column to station list with bool "Y" or "N" status upon cleaning
 
     Parameters
     ----------
@@ -105,7 +105,7 @@ def parse_error_csv(network):
     ----------
     network : str
         network name
-    
+
     Returns
     -------
     errordf : pd.DataFrame
@@ -139,7 +139,7 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
 
     Parameters
     ----------
-    network : str 
+    network : str
         network name
     clean_var_add : bool, optional
         adds variable observation count columns to staiton list, default is False
@@ -153,7 +153,7 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
 
     Notes
     -----
-    1. clean_var_add will open every cleaned station file, check which variables are present, and flag in station list. 
+    1. clean_var_add will open every cleaned station file, check which variables are present, and flag in station list.
     It is a highly time intensive process, so recommendation is to only run clean_var_add=True after a full clean, or a partial clean update (new data added).
     """
 
@@ -210,7 +210,7 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
         "SGXWFO",
         "SHASAVAL",
         "VCAPCD",
-    ]: # MADIS networks
+    ]:  # MADIS networks
         stations["ERA-ID"] = network + "_" + stations["STID"]
     elif network in ["MARITIME", "NDBC"]:
         stations["ERA-ID"] = network + "_" + stations["STATION_ID"]
@@ -572,7 +572,7 @@ def cwop_stnlist_merge(network):
     ----------
     network : str
         network name
-    
+
     Returns
     -------
     None

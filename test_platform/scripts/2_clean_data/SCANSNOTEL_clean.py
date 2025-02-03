@@ -60,7 +60,7 @@ except:
 
 
 def clean_scansnotel(rawdir, cleandir):
-    """Clean SCAN and SNOTEL data. 
+    """Clean SCAN and SNOTEL data.
 
     Parameters
     ----------
@@ -815,6 +815,7 @@ def clean_scansnotel(rawdir, cleandir):
         )
 
     return None
+
 
 # # Run functions
 if __name__ == "__main__":
