@@ -10,7 +10,7 @@ Approach:
 (6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
 Inputs: Raw data for the network's stations, with each csv file representing a station.
 Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
+
 
 Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
@@ -49,10 +49,6 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set up directory to save files temporarily, if it doesn't already exist.
 try:
@@ -63,17 +59,25 @@ except:
     pass
 
 
-## FUNCTION: Clean SCAN and SNOTEL data.
-## Input:
-## bucket_name: name of AWS bucket.
-## rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
-## cleandir: path to where cleaned files should be saved.
-## Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-## Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
-
-
-## Function: take heads, read csv into pandas db and clean.
 def clean_scansnotel(rawdir, cleandir):
+    """Clean SCAN and SNOTEL data. 
+
+    Parameters
+    ----------
+    rawdir : str
+        path to raw data bucket
+    cleandir : str
+        path to cleaned data bucket
+
+    Returns
+    -------
+    None
+        This function does not return a value
+
+    References
+    ----------
+    [1] https://www.nrcs.usda.gov/wps/portal/wcc/home/dataAccessHelp/webService/webServiceReference
+    """
     # Set up error handling.
     errors = {"File": [], "Time": [], "Error": []}  # Set up error handling.
     end_api = datetime.now().strftime(
@@ -424,8 +428,6 @@ def clean_scansnotel(rawdir, cleandir):
 
                 # Update variable attributes and do unit conversions
 
-                # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-
                 # tas: air surface temperature (K)
                 if "TOBS_value" in ds.keys():
                     ds["tas"] = calc_clean._unit_degF_to_K(ds["TOBS_value"])
@@ -447,7 +449,6 @@ def clean_scansnotel(rawdir, cleandir):
                     ds["tas"].attrs["comment"] = "Converted from Fahrenheit to Kelvin."
 
                 # ps: surface air pressure (Pa)
-
                 # Here we only have barometric pressure (sea-level).
                 if "PRES_value" in ds.keys():  # If barometric pressure available
                     # Convert from inHg to PA
@@ -645,7 +646,6 @@ def clean_scansnotel(rawdir, cleandir):
                     ] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
 
                 # Other variables: rename to match format
-
                 # Partial vapor pressure (kPa -> Pa) ## No CMIP standard name for this var, just CF.
                 if "PVPV_value" in ds.keys():
                     ds["pvp"] = calc_clean._unit_pres_kpa_to_pa(ds["PVPV_value"])
@@ -684,13 +684,6 @@ def clean_scansnotel(rawdir, cleandir):
                         ] = "svp_qc"  # List other variables associated with variable (QA/QC)
 
                     ds["svp"].attrs["comment"] = "Converted from kPa to Pa."
-
-                # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                # for var in ds.variables:
-                # try:
-                #     print([var, float(ds[var].min()), float(ds[var].max())])
-                # except:
-                #     next
 
                 # Quality control: if any variable is completely empty, drop it.
                 # drop any column that does not have any valid (non-nan) data
@@ -807,7 +800,6 @@ def clean_scansnotel(rawdir, cleandir):
                     continue
 
     # The list of removed variables is manually saved to AWS, as it includes many variables not initially downloaded.
-    # Obtained from: https://www.nrcs.usda.gov/wps/portal/wcc/home/dataAccessHelp/webService/webServiceReference
 
     # Write errors.csv
     finally:  # Always execute this.
@@ -822,6 +814,7 @@ def clean_scansnotel(rawdir, cleandir):
             Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
         )
 
+    return None
 
 # # Run functions
 if __name__ == "__main__":
@@ -829,51 +822,3 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)
-
-# ----------------------------------------------------------------------------------------
-## Testing:
-# import random # To get random subsample
-# import s3fs # To read in .nc files
-
-# # # ## Import file.
-# files = []
-# for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#     file = str(item.key)
-#     files += [file]
-
-# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# files = [file for file in files if "error" not in file] # Remove error handling files.
-# files = [file for file in files if "station" not in file] # Remove error handling files.
-# files = random.sample(files, 4)
-
-# # File 1:
-# fs = s3fs.S3FileSystem()
-# aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-
-# with fs.open(aws_urls[0]) as fileObj:
-#     test = xr.open_dataset(fileObj)
-#     print(test)
-#     for var in test.keys():
-#         print(var)
-#         print(test[var])
-#     test.close()
-
-# # File 2:
-# # Test: multi-year merges work as expected.
-# with fs.open(aws_urls[1]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     print(str(test['time'].min())) # Get start time
-#     print(str(test['time'].max())) # Get end time
-#     test.close()
-
-
-# # File 3:
-# # Test: Inspect vars and attributes
-# with fs.open(aws_urls[2]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     for var in test.variables:
-#         try:
-#             print([var, float(test[var].min()), float(test[var].max())])
-#         except:
-#             continue
-#     test.close()
