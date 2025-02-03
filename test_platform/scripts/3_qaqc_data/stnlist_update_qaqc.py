@@ -5,11 +5,6 @@ with relevant errors added to the corresponding stations if station files do not
 
 Note that because errors.csv are parsed, very old errors.csv may want to be removed manually from AWS or thresholded below
 (removing those produced during code testing)
-
-As of 01/23, current networks are as follows:
-ASOSAWOS, CAHYDRO, CDEC, CIMIS, CNRFC, CRN, CW3E, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO, MAP,
-MARITIME, MTRWFO, NCAWOS, NDBC, NOS-NWLON, NOS-PORTS, OtherISD, RAWS, SCAN, SGXWFO, SHASAVAL,
-SNOTEL, VCAPCD
 """
 
 import boto3
@@ -26,9 +21,25 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 
-# Function: Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
-# Intentionally grabbing the cleaned version of the stationlist to retain information about whether a station was cleaned going into QA/QC process.
+# ----------------------------------------------------------------------
 def get_station_list(network):
+    """Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
+    Intentionally grabbing the cleaned version of the stationlist to retain information about whether a station was cleaned going into QA/QC process.
+
+    Parameters
+    ----------
+    network : str
+        name of network
+
+    Returns
+    -------
+    station_list : pd.DataFrame
+        station list of all stations within a network
+
+    Notes
+    -----
+    Can be updated to read directly from AWS
+    """
     network_prefix = clean_wx + network + "/"
     station_list = f"stationlist_{network}_cleaned.csv"
     obj = s3_cl.get_object(Bucket=bucket_name, Key=network_prefix + station_list)
@@ -36,8 +47,20 @@ def get_station_list(network):
     return station_list
 
 
-# Function: Given a network name, return a pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
+# ----------------------------------------------------------------------
 def get_qaqc_stations(network):
+    """Given a network name, return a pandas dataframe of all stations that pass QA/QC in
+    the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
+
+    Parameters
+    ----------
+    network : str
+        name of network
+
+    Returns
+    -------
+    pd.DataFrame
+    """
     df = {"ID": [], "Time_QAQC": []}
     network_prefix = qaqc_wx + network + "/"
     for item in s3.Bucket(bucket_name).objects.filter(
@@ -57,8 +80,20 @@ def get_qaqc_stations(network):
     return pd.DataFrame(df)
 
 
-# Function: Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
+# ----------------------------------------------------------------------
 def parse_error_csv(network):
+    """Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
+
+    Parameters
+    ----------
+    network : str
+        name of network
+
+    Returns
+    -------
+    errordf : pd.Dataframe
+        dataframe of all errors produced during QAQC
+    """
     errordf = []
     errors_prefix = qaqc_wx + network + "/" + "errors"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
@@ -80,8 +115,20 @@ def parse_error_csv(network):
         return errordf
 
 
-# Function: update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
+# ----------------------------------------------------------------------
 def qaqc_qa(network):
+    """Update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
+
+    Parameters
+    ----------
+    network : str
+        name of network
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
     if "otherisd" in network:  # Fixing capitalization issues
         network = "OtherISD"
     else:
@@ -194,7 +241,6 @@ def qaqc_qa(network):
             )
 
     # Save station file to cleaned bucket
-    print(stations)  # For testing
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
@@ -212,7 +258,7 @@ if __name__ == "__main__":
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
     # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-    # NDBC, SCAN, SNOTEL
+    # NDBC, SCAN, SNOTEL, VALLEYWATER
 
     # Note: OtherISD only runs as "otherisd"
     # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
