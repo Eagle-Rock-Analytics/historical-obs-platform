@@ -26,9 +26,7 @@ import requests
 from bs4 import BeautifulSoup
 import zipfile
 from cleaning_helpers import get_file_paths
-
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
-
 
 ## Import cleaning stage calc functions for conversions
 try:
@@ -43,10 +41,6 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 ## Set up directory to save files temporarily, if it doesn't already exist.
 try:
@@ -57,12 +51,21 @@ except:
     pass
 
 
-## FUNCTION: Generate list of station and instrument elevations
-# Input: url to tables on NDBC website
-# Output: returns dataframe of stations and elevations. Called internally in clean_buoys() function
-# This function generates a dataframe of station elevations and instrument elevations from the NDBC website, as this data is frequently missing from the data source
-# This is joined by station to the xarray dataframes in the clean_buoys() function
 def get_elevs(url):
+    """Generate list of station and instrument elevations.
+    Generates a dataframe of station elevations and instrument elevations from 
+    the NDBC website, as this data is frequently missing from the data source.
+
+    Parameters
+    ----------
+    url : str
+        url to tables on NDBC website
+
+    Returns
+    -------
+    df : pd.DataFrame
+        station elevation and instrument heights
+    """
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     tables = soup.find_all("pre")
@@ -134,14 +137,32 @@ def get_elevs(url):
     return df
 
 
-## FUNCTION: Clean MARITIME and NDBC data
-# Input:
-# bucket_name: name of AWS bucket
-# rawdir: path to where the raw data is saved as .txt.gz files, with each file either representing a full year of data, or monthly for current year
-# cleadir: path to where the cleaned data should be saved
-# network: network to be cleaned
-# Output: Cleaned data for an individual network, priority variables, all times. Organized by staiton as .nc file
 def clean_buoys(rawdir, cleandir, network):
+    """Clean MARITIME and NDBC buoy data. 
+
+    Parameters
+    ----------
+    rawdir : str
+        path to raw data bucket
+    cleandir : str
+        path to cleaned data bucket
+    network : str
+        network name
+
+    Returns
+    -------
+    None
+        This function does not return a value 
+    
+    Notes
+    -----
+    1. Handling for both US-based and Canadian-based buoys.
+
+    References
+    ----------
+    [1] https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
+    [2] https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html 
+    """
     try:
         files = []  # Get files
         for item in s3.Bucket(bucket_name).objects.filter(Prefix=rawdir):
@@ -202,7 +223,6 @@ def clean_buoys(rawdir, cleandir, network):
                             with gzip.GzipFile(
                                 fileobj=obj.get()["Body"]
                             ) as file_to_parse:
-                                # modified from: https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
                                 df = pd.read_csv(
                                     file_to_parse,
                                     sep="\s+",
@@ -348,7 +368,6 @@ def clean_buoys(rawdir, cleandir, network):
                                             df = pd.read_csv(
                                                 zipf.open(subfile), low_memory=False
                                             )
-                                            # https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html
 
                                             # convert date to datetime
                                             df["time"] = pd.to_datetime(
@@ -807,6 +826,8 @@ def clean_buoys(rawdir, cleandir, network):
             Body=content,
             Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
         )  # Make sure error files save to correct directory
+
+    return None
 
 
 # Run functions
