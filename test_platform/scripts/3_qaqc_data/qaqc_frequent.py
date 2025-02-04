@@ -209,8 +209,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
     try:
         # precip focused check
-        for var in pr_vars_to_check:
-            df = qaqc_frequent_precip(df, var)
+        for v in pr_vars_to_check:
+            df = qaqc_frequent_precip(df, v)
 
     except Exception as e:
         logger.info(
@@ -226,9 +226,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             ):  # only plot a figure if a value is flagged
                 frequent_vals_plot(df, var, rad_scheme, local=local)
 
-        for var in pr_vars_to_check:
-            if 31 in df[var + "_eraqc"].unique():
-                frequent_precip_plot(df, var, flag=31, dpi=300, local=local)
+        for v in pr_vars_to_check:
+            if 31 in df[v + "_eraqc"].unique():
+                frequent_precip_plot(df, v, flag=31, dpi=300, local=local)
 
     return df
 
@@ -464,7 +464,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
 
                     if len(flagged_bins) != 0:
                         logger.info(
-                            "Flagging bins: {0}".format(flagged_bins),
+                            "Flagging frequent bins in: {0}".format(flagged_bins),
                         )
 
                         for sus_bin in flagged_bins:
@@ -651,5 +651,10 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
             ),
             var + "_eraqc",
         ] = 31  # see flag meanings
+        logger.info(
+            "Flagging {} days for frequent value precip check for {}".format(
+                len(flagged_days), var
+            )
+        )
 
     return new_df

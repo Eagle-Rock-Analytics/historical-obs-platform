@@ -88,7 +88,9 @@ def qaqc_climatological_outlier(
 
     try:
         logger.info(
-            "Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom)
+            "Running {} on {}".format(
+                "qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom
+            )
         )
 
         # whole station bypass check first
@@ -170,14 +172,13 @@ def qaqc_climatological_outlier(
                 lambda row: flag_clim_outliers(row, bin_size=bin_size)
             )
 
-            # Save original df for plotting
-            df_plot = df_valid.copy()
-
             # Drop all non-flagged values
             df_valid = df_valid.dropna(subset=["flag"])
             if len(df_valid) != 0:
                 logger.info(
-                    "Outliers flagged in {0}".format(var)
+                    "Flagging outliers in climatological outlier check for {0}".format(
+                        var
+                    )
                 )  # only print statement if flags are set
 
             # Flag original data
@@ -204,30 +205,39 @@ def qaqc_climatological_outlier(
 
     # Plot flagged values
     if plot:
-        station = df["station"].unique()[0]
-        for var in vars_to_anom:
-            if 26 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
-                # Extract only flagged values to loop over those months and hours
-                df_plot = df_plot[
-                    ["year", "hour", "month", "time", "flag", var]
-                ].set_index(["month", "hour"])
 
-                # Loop over flagged months/hours
-                index = df_valid.set_index(["month", "hour"]).index.unique()
+        ## CURRENT PLOT IS FAILING -- NEED TO RE-EVALUATE
+        ## CAN USE FLAGGED_TIMESERIES_PLOT FOR THE TIME BEING
 
-                for i, ind in enumerate(index):
-                    # Extract actual month/hour from index
-                    month, hour = ind
+        # # Save original df for plotting
+        # df_plot = new_df.copy()
 
-                    # Plot distribution
-                    clim_outlier_plot(
-                        df_plot.loc[ind][var],
-                        month,
-                        hour,
-                        bin_size=bin_size,
-                        station=station,
-                        local=local,
-                    )
+        # station = df["station"].unique()[0]
+        # for var in vars_to_anom:
+        #     print(var)
+        #     if 26 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
+        #         # Extract only flagged values to loop over those months and hours
+        #         df_plot = df_plot[
+        #             ["year", "hour", "month", "time", var+"_eraqc", var]
+        #         ].set_index(["month", "hour"])
+        #         print(df_plot.columns)
+
+        #         # Loop over flagged months/hours
+        #         index = df_valid.set_index(["month", "hour"]).index.unique()
+        #         print(index)
+        #     for i, ind in enumerate(index):
+        #         # Extract actual month/hour from index
+        #         month, hour = ind
+
+        #         # Plot distribution
+        #         clim_outlier_plot(
+        #             df_plot.loc[ind][var],
+        #             month,
+        #             hour,
+        #             bin_size=bin_size,
+        #             station=station,
+        #             local=local,
+        #         )
         for var in pr_vars_to_anom:
             if 32 in new_df[var + "_eraqc"].unique():  # only plot if flag is present
                 climatological_precip_plot(new_df, var, flag=32)
@@ -478,7 +488,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
     1. Incorporate temperature check if temperature is present for station (V2)
     """
 
-    logger.info("Running qaqc_climatological_outlier_precip on: {}".format(var))
+    logger.info("Checking for climatological outliers in: {}".format(var))
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
@@ -516,6 +526,13 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
                 ),
                 var + "_eraqc",
             ] = 32
+            if len(flagged_days) != 0:
+                logger.info(
+                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                        len(flagged_days), mon, var
+                    )
+                )
+
         elif p95 == 0:
             # p95 is zero in this case
             flagged_days = df_mon.loc[df_mon[var] > factor]
@@ -527,5 +544,11 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
                 ),
                 var + "_eraqc",
             ] = 32
+            if len(flagged_days) != 0:
+                logger.info(
+                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                        len(flagged_days), mon, var
+                    )
+                )
 
     return new_df
