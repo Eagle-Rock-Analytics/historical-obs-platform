@@ -115,7 +115,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         if len(vars_to_pr) != 0:
             logger.info("Running qaqc_unusual_gaps_precip on: {}".format(vars_to_pr))
             for var in vars_to_pr:
-                df_part3 = qaqc_unusual_gaps_precip(df, var)
+                df_part3 = qaqc_unusual_gaps_precip(df, var, threshold=200)
             
             return df_part3
     
@@ -414,7 +414,7 @@ def check_differences(series, threshold=200):
 
 # -----------------------------------------------------------------------------
 
-def qaqc_unusual_gaps_precip(df, var, threshold=200, verbose=False):
+def qaqc_unusual_gaps_precip(df, var, threshold, plot=True, verbose=False):
     """
     Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
@@ -468,5 +468,11 @@ def qaqc_unusual_gaps_precip(df, var, threshold=200, verbose=False):
 
     # backflag all observations in the input dataframe
     new_df[var+'_eraqc'] = new_df['time'].dt.date.map(flagged_str)
+
+    # if plot:
+    #             if (
+    #                 33 in df[var + "_eraqc"].values
+    #             ):  # don't plot a figure if nothing is flagged
+    #                 output.astype("int").plot()
     
     return new_df
