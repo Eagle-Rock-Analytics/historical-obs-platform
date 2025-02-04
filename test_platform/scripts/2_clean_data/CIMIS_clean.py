@@ -21,7 +21,7 @@ Source: https://cimis.water.ca.gov/Content/PDF/FormerFlags2.pdf (Pre 1995)
 # Import libraries
 import os
 import xarray as xr
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 import re
 import numpy as np
 import warnings
@@ -29,19 +29,16 @@ import warnings
 warnings.filterwarnings(
     action="ignore", category=FutureWarning
 )  # Optional: Silence pandas' future warnings about regex (not relevant here)
+
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
-import random
 import zipfile
-import openpyxl
-from ftplib import FTP
 from cleaning_helpers import var_to_unique_list, get_file_paths
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
 
-# Import calc_clean.py.
 try:
     import calc_clean
 except:
@@ -52,12 +49,6 @@ except:
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
-# Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set up directory to save files temporarily, if it doesn't already exist.
 try:
@@ -68,17 +59,22 @@ except:
     pass
 
 
-# ## FUNCTION: Clean CIMIS data.
-# # Input:
-# # bucket_name: name of AWS bucket.
-# # rawdir: path to where raw data is saved as .csv files, with each file representing a station's records from download start date to present (by default 01-01-1980).
-# # cleandir: path to where cleaned files should be saved.
-# # Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-# # Note: files are already filtered by bbox in the pull step, so additional geospatial filtering is not required here.
-
-
-# # Function: take heads, read csv into pandas db and clean.
 def clean_cimis(rawdir, cleandir):
+    """Clean CIMIS data
+
+    Parameters
+    ----------
+    rawdir : str
+        path to raw data AWS bucket
+    cleandir : str
+        path to cleaned data AWS bucket
+
+    Returns
+    -------
+    None
+        this function does not return a value
+    """
+
     network = "CIMIS"
 
     # Set up error handling.
@@ -377,11 +373,9 @@ def clean_cimis(rawdir, cleandir):
 
                 # If any observation is missing lat or lon coordinates, drop these observations.
                 if np.count_nonzero(np.isnan(ds["lat"])) != 0:
-                    # print("Dropping missing lat values") # For testing.
                     ds = ds.where(~np.isnan(ds["lat"]))
 
                 if np.count_nonzero(np.isnan(ds["lon"])) != 0:
-                    # print("Dropping missing lon values") # For testing.
                     ds = ds.where(~np.isnan(ds["lon"]))
 
                 # Add variable: elevation (in feet)
@@ -429,7 +423,6 @@ def clean_cimis(rawdir, cleandir):
                 ds["elevation"].attrs["comment"] = "Converted from feet to meters."
 
                 # Update variable attributes and do unit conversions
-
                 # tas: air surface temperature (K)
                 if "Air Temperature (°C)" in ds.keys():
                     ds["tas"] = calc_clean._unit_degC_to_K(ds["Air Temperature (°C)"])
@@ -530,7 +523,6 @@ def clean_cimis(rawdir, cleandir):
                         ] = "hurs_qc"  # List other variables associated with variable (QA/QC)
 
                 # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
-
                 if (
                     "Solar Radiation (W/m²)" in ds.keys()
                 ):  # Already in w/m2, no need to convert units.
@@ -634,13 +626,6 @@ def clean_cimis(rawdir, cleandir):
                         "comment"
                     ] = "Derived by CIMIS from relative humidity and air temperature measurements. Converted from kPa to Pa."
 
-                # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                # for var in ds.variables:
-                #     try:
-                #         print([var, float(ds[var].min()), float(ds[var].max())])
-                #     except:
-                #         next
-
                 # Quality control: if any variable is completely empty, drop it.
                 # drop any column that does not have any valid (non-nan) data
                 # need to keep elevation separate, as it does have "valid" nan value, only drop if all other variables are also nans
@@ -738,7 +723,7 @@ def clean_cimis(rawdir, cleandir):
                     )
                     continue
 
-        # # Save the list of removed variables to AWS
+        # Save the list of removed variables to AWS
         removedvars = pd.DataFrame(removecols, columns=["Variable"])
         csv_buffer = StringIO()
         removedvars.to_csv(csv_buffer)
@@ -749,7 +734,6 @@ def clean_cimis(rawdir, cleandir):
 
     # Write errors.csv
     finally:  # Always execute this.
-        # print(errors)
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
@@ -760,58 +744,11 @@ def clean_cimis(rawdir, cleandir):
             Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
         )
 
+    return None
 
-# # Run functions
+
+## Run functions
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CIMIS")
     print(rawdir, cleandir, qaqcdir)
     clean_cimis(rawdir, cleandir)
-
-
-# ----------------------------------------------------------------------------------------------
-# # Testing:
-# import random # To get random subsample
-# import s3fs # To read in .nc files
-
-# # # ## Import file.
-# files = []
-# for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#     file = str(item.key)
-#     files += [file]
-
-# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# files = [file for file in files if "error" not in file] # Remove error handling files.
-# files = [file for file in files if "station" not in file] # Remove error handling files.
-# files = random.sample(files, 4)
-
-# # File 1:
-# fs = s3fs.S3FileSystem()
-# aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-
-# with fs.open(aws_urls[0]) as fileObj:
-#     test = xr.open_dataset(fileObj)
-#     print(test)
-#     for var in test.keys():
-#         print(var)
-#         print(test[var])
-#     test.close()
-
-# # File 2:
-# # Test: multi-year merges work as expected.
-# with fs.open(aws_urls[1]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     print(str(test['time'].min())) # Get start time
-#     print(str(test['time'].max())) # Get end time
-#     test.close()
-
-
-# # File 3:
-# # Test: Inspect vars and attributes
-# with fs.open(aws_urls[2]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     for var in test.variables:
-#         try:
-#             print([var, float(test[var].min()), float(test[var].max())])
-#         except:
-#             continue
-#     test.close()

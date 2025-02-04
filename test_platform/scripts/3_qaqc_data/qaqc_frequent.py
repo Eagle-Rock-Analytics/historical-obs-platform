@@ -54,12 +54,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
     Returns
     -------
-    qaqc success
-        df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    qaqc failure
-        None
-            This function does not return a value
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
     Notes
     -----

@@ -15,8 +15,6 @@ python ALLNETWORKS_qaqc.py -n="VALLEYWATER"
 
 """
 
-import os
-import tempfile
 import argparse
 
 # Import all qaqc script functions
