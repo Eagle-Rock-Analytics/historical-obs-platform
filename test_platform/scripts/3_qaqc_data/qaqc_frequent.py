@@ -651,6 +651,10 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
             ),
             var + "_eraqc",
         ] = 31  # see flag meanings
-        logger.info("Flagging {} days for frequent value precip check for {}".format(len(flagged_days), var))
+        logger.info(
+            "Flagging {} days for frequent value precip check for {}".format(
+                len(flagged_days), var
+            )
+        )
 
     return new_df

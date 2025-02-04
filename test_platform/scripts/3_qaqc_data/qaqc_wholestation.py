@@ -22,7 +22,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
-try: 
+try:
     from qaqc_plot import flagged_timeseries_plot
 except Exception as e:
     logger.debug("Error importing flagged_timeseries_plot: {}".format(e))

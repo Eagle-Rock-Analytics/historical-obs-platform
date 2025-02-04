@@ -88,7 +88,9 @@ def qaqc_climatological_outlier(
 
     try:
         logger.info(
-            "Running {} on {}".format("qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom)
+            "Running {} on {}".format(
+                "qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom
+            )
         )
 
         # whole station bypass check first
@@ -174,7 +176,9 @@ def qaqc_climatological_outlier(
             df_valid = df_valid.dropna(subset=["flag"])
             if len(df_valid) != 0:
                 logger.info(
-                    "Flagging outliers in climatological outlier check for {0}".format(var)
+                    "Flagging outliers in climatological outlier check for {0}".format(
+                        var
+                    )
                 )  # only print statement if flags are set
 
             # Flag original data
@@ -523,7 +527,11 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
                 var + "_eraqc",
             ] = 32
             if len(flagged_days) != 0:
-                logger.info("Flagging {} days in month {} for climatological outlier precip check for {}".format(len(flagged_days), mon, var))
+                logger.info(
+                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                        len(flagged_days), mon, var
+                    )
+                )
 
         elif p95 == 0:
             # p95 is zero in this case
@@ -537,6 +545,10 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
                 var + "_eraqc",
             ] = 32
             if len(flagged_days) != 0:
-                logger.info("Flagging {} days in month {} for climatological outlier precip check for {}".format(len(flagged_days), mon, var))
-    
+                logger.info(
+                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                        len(flagged_days), mon, var
+                    )
+                )
+
     return new_df

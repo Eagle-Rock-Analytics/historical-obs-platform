@@ -17,7 +17,7 @@ try:
 except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
-try: 
+try:
     from qaqc_plot import standardized_median_bounds
 except Exception as e:
     logger.debug("Error importing standardized_median_bounds: {}".format(e))
@@ -64,9 +64,9 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         "rsds",
     ]
 
-    vars_for_pr = ['pr_5min', 'pr_15min', 'pr_1h', 'pr_24h', 'pr_localmid']
+    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
-    vars_to_pr = [var for var in df.columns if var in vars_for_pr] # precip vars
+    vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 
     try:
         logger.info(
@@ -100,18 +100,17 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
             "qaqc_unusual_gaps failed with Exception: {}".format(e),
         )
         return None
-    
+
     # precip flag
-    try: 
+    try:
         if len(vars_to_pr) != 0:
             for var in vars_to_pr:
                 df_to_run = qaqc_unusual_gaps_precip(df_to_run, var, threshold=200)
         return df_to_run
-    
+
     except Exception as e:
         logger.info("qaqc_unusual_gaps_precip failed with Exception: {}".format(e))
         return None
-
 
 
 # -----------------------------------------------------------------------------
@@ -450,7 +449,9 @@ def standardized_anom(df, month, var):
 
     return arr_std_anom
 
+
 # -----------------------------------------------------------------------------
+
 
 def check_differences(series, threshold):
     """Computes pairwise absolute differences between each day and all other days in series
@@ -461,7 +462,7 @@ def check_differences(series, threshold):
         input data per month
     threshold : int
         value to identify unusual gap
-    
+
     Returns
     -------
     pd.Series
@@ -469,18 +470,21 @@ def check_differences(series, threshold):
 
     # for all values in the column
     diff_matrix = np.abs(series.values[:, None] - series.values)
-    
+
     # Check for values exceeding threshold
-    exceeds_threshold = diff_matrix > threshold 
- 
-    # Exclude self-comparison    
-    np.fill_diagonal(exceeds_threshold, False)    
-    
+    exceeds_threshold = diff_matrix > threshold
+
+    # Exclude self-comparison
+    np.fill_diagonal(exceeds_threshold, False)
+
     # Identify Rows with Any Exceeding Differences
     rows_with_exceeding_diff = exceeds_threshold.all(axis=1)
 
     # row_has_diffs_above_threshold = pd.Series(
-    return pd.Series(rows_with_exceeding_diff, name="exceeds_threshold", index=series.index)
+    return pd.Series(
+        rows_with_exceeding_diff, name="exceeds_threshold", index=series.index
+    )
+
 
 # -----------------------------------------------------------------------------
 def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
@@ -497,7 +501,7 @@ def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
         variable name
     threshold : int
         precipitation total to check, default 200 mm
-    verbose : boolean, optional 
+    verbose : boolean, optional
         whether to provide output to local env
 
     Returns
@@ -521,17 +525,31 @@ def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
     df_valid = grab_valid_obs(new_df, var)
 
     # aggregate to daily, subset on time, var, and eraqc var
-    df_sub = df_valid[["time", "year", "month", "day", var, var+"_eraqc"]]
-    df_dy = df_sub.resample("1D", on="time").agg({var: "sum", var+"_eraqc": "first", "year": "first", "month": "first", "day": "first"}).reset_index()
+    df_sub = df_valid[["time", "year", "month", "day", var, var + "_eraqc"]]
+    df_dy = (
+        df_sub.resample("1D", on="time")
+        .agg(
+            {
+                var: "sum",
+                var + "_eraqc": "first",
+                "year": "first",
+                "month": "first",
+                "day": "first",
+            }
+        )
+        .reset_index()
+    )
 
     # returns a flag column with True or False
-    output = df_dy.groupby("month")[var].transform(check_differences, threshold=threshold)
+    output = df_dy.groupby("month")[var].transform(
+        check_differences, threshold=threshold
+    )
 
     # filter the boolean series with itself and set True entries to flag value "33"
     flagged = output.loc[output == True]
-    flagged_str = flagged.map({True: '33'})
+    flagged_str = flagged.map({True: "33"})
 
     # backflag all observations in the input dataframe
-    new_df[var+'_eraqc'] = new_df['time'].dt.date.map(flagged_str)
+    new_df[var + "_eraqc"] = new_df["time"].dt.date.map(flagged_str)
 
     return new_df
