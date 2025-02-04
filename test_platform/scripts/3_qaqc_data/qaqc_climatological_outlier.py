@@ -513,6 +513,11 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
     # v1: using the month each day is located in for "29-day"
     for mon in range(1, 13):
         df_mon = df_dy.loc[df_dy.month == mon]
+
+        # subset for days with >0mm rain
+        df_mon = df_mon.loc[df_mon[var] > 0]
+
+        # calculate percentile
         p95 = df_mon[var].quantile(0.95)
 
         # identify where factor x percentile is exceeded and flag
@@ -546,7 +551,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
             ] = 32
             if len(flagged_days) != 0:
                 logger.info(
-                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                    "ZERO -- Flagging {} days in month {} for climatological outlier precip check for {}".format(
                         len(flagged_days), mon, var
                     )
                 )

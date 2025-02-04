@@ -267,7 +267,6 @@ def qaqc_elev_infill(df, verbose=False):
                     len(nan_lons) == 1
                 ):  # single lat-lon pair for missing elevs
                     try:
-                        print(list(nan_lats), list(nan_lons))
                         dem_elev_value = _grab_dem_elev_m(
                             list(nan_lats), list(nan_lons)
                         )

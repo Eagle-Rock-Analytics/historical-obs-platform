@@ -228,7 +228,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
         for v in pr_vars_to_check:
             if 31 in df[v + "_eraqc"].unique():
-                frequent_precip_plot(df, v, flag=31, dpi=300, local=local)
+                frequent_precip_plot(df, v, flag=31, local=local)
 
     return df
 
@@ -582,7 +582,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 # -----------------------------------------------------------------------------
 # precipitation focused precip check
-def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False):
+def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5, verbose=False):
     """Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
     and flagged values are applied to all subhourly observations within a flagged day.
@@ -594,7 +594,7 @@ def qaqc_frequent_precip(df, var, moderate_thresh=7, day_thresh=5, verbose=False
     var : str
         variable name
     moderate_thresh : int, optional
-        moderate precipitation total to check, default 7mm (0.25 inch)
+        moderate precipitation total to check, default 18mm (~0.7 inch for Santa Clara County, may be different for other regions)
     day_thresh : int, optional
         num. of min consecutive days to flag, default 5 days
     verbose : bool, optional
