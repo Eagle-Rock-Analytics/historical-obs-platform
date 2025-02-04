@@ -577,8 +577,6 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
     """
     # valid precipitation variables
 
-    logger.info("Creating frequent values precip plot!")
-
     fig, ax = plt.subplots()
 
     # plot all cleaned data
