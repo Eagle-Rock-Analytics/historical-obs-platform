@@ -6,18 +6,26 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 ## Import Libraries
 import boto3
 import geopandas as gp
+import shapely
 import numpy as np
 import pandas as pd
 import shapely
 import scipy.stats as stats
+import urllib
+import requests
+
+# New logger function
+from log_config import logger
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
-# New logger function
-from log_config import logger
+try: 
+    from qaqc_plot import flagged_timeseries_plot
+except Exception as e:
+    logger.debug("Error importing flagged_timeseries_plot: {}".format(e))
 
 # if __name__ == "__main__":
 wecc_terr = (
@@ -206,7 +214,6 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
     for i, lat, lon in zip(range(len(lats_to_check)), lats_to_check, lons_to_check):
         # define rest query params
         params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
-
         # format query string and return value
         result = requests.get((url + urllib.parse.urlencode(params)))
         dem_elev_long = float(result.json()["value"])
@@ -260,6 +267,7 @@ def qaqc_elev_infill(df, verbose=False):
                     len(nan_lons) == 1
                 ):  # single lat-lon pair for missing elevs
                     try:
+                        print(list(nan_lats), list(nan_lons))
                         dem_elev_value = _grab_dem_elev_m(
                             list(nan_lats), list(nan_lons)
                         )

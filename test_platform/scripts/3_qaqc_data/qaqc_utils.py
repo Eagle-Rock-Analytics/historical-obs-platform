@@ -87,10 +87,10 @@ def create_bins_frequent(df, var, bin_size=None):
 
     # Get bin size per variable
     # Default bin size is defined in get_bin_size_by_var function
-    if bin_size is None:
-        bin_size = get_bin_size_by_var("default")
-    else:
+    try: 
         bin_size = get_bin_size_by_var(var)
+    except:
+        bin_size = get_bin_size_by_var("default")
 
     # Get data
     data = df[var]
