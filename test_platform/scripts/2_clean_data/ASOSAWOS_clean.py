@@ -21,8 +21,7 @@ The QA/QC flag dictionary has been manually formatted and uploaded to the QAQC f
 # Step 0: Environment set-up
 # Import libraries
 import os
-import xarray as xr
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import re
 import numpy as np
 import warnings
@@ -30,22 +29,19 @@ import warnings
 warnings.filterwarnings(
     action="ignore", category=FutureWarning
 )  # Optional: Silence pandas' future warnings about regex (not relevant here)
+
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 import random
 import zipfile
-import openpyxl
 from ftplib import FTP
 from cleaning_helpers import var_to_unique_list, get_file_paths
 import gzip
-import math
-import csv
 import traceback
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
 
-# Import calc_clean.py.
 try:
     import calc_clean
 except:
@@ -64,9 +60,6 @@ wecc_terr = (
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-key_asosawos = "1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
-key_isd = "1_raw_wx/ASOSAWOS/stationlist_ISD_ASOSAWOS.csv"
-
 # Set up directory to save files, if it doesn't already exist.
 try:
     os.mkdir(
@@ -76,14 +69,31 @@ except:
     pass
 
 
-## Function: Merge station lists.
-# Inputs:
-# Path to asosawos station file
-# Path to ISD station file
-# Path to cleaned directory
+# -------------------------------------------------------------------------
 def merge_station_lists(key_asosawos, key_isd, cleandir):
-    asosawos = s3_cl.get_object(Bucket=bucket_name, Key=key_asosawos)
-    asosawos_list = pd.read_csv(BytesIO(asosawos["Body"].read()))
+    """Merges the ASOS/AWOS and ISD station lists.
+
+    Parameters
+    ----------
+    key_asosawos : str
+        path to ASOSAWOS station file
+    key_isd : str
+        path to ISD station file
+    cleandir : str
+        path to cleaned data directory
+
+    Returns
+    -------
+    stationlist_join : pd.DataFrame
+        station list of ASOSAWOS and ISD stations
+    """
+
+    # first process ASOSAWOS stations
+    # asosawos = s3_cl.get_object(Bucket=bucket_name, Key=key_asosawos)
+    # asosawos_list = pd.read_csv(BytesIO(asosawos["Body"].read()))
+    asosawos_list = pd.read_csv(
+        "s3://wecc-historical-wx/1_raw_wx/stationlist_ASOSAWOS.csv"
+    )
 
     # ASOSAWOS list has one duplicated station, one row which has start/stop data and one which does not.
     # Drop the less complete row.
@@ -92,8 +102,12 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
     ].index
     asosawos_list = asosawos_list.drop(index)
 
-    isd = s3_cl.get_object(Bucket=bucket_name, Key=key_isd)
-    isd_list = pd.read_csv(BytesIO(isd["Body"].read()))
+    # next process ISD stations
+    # isd = s3_cl.get_object(Bucket=bucket_name, Key=key_isd)
+    # isd_list = pd.read_csv(BytesIO(isd["Body"].read()))
+    isd_list = pd.read_csv(
+        "s3://wecc-historical-wx/1_raw_wx/stationlist_ISD_ASOSAWOS.csv"
+    )
 
     # Round asosawos down to 3 decimal points of accuracy
     asosawos_round = asosawos_list.round({"LAT": 3, "LON": 3})
@@ -118,7 +132,6 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
     ), stationlist_join.pop(
         "Time_Checked"
     )  # Write to AWS
-    # print(stationlist_join) # For testing
 
     # Write to AWS
     csv_buffer = StringIO()
@@ -130,16 +143,25 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
         Key=cleandir + "stationlist_ASOSAWOS_merge.csv",
     )
 
-
-## FUNCTION: Clean ASOS and AWOS data.
-# Input:
-# homedir: path to git repository.
-# workdir: path to where raw data is saved as .gz files, with each file representing a station's records for 1 year.
-# savedir: path to where cleaned files should be saved.
-# Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
+    return stationlist_join
 
 
+# -------------------------------------------------------------------------
 def clean_asosawos(rawdir, cleandir):
+    """Clean ASOS/AWOS data.
+
+    Parameters
+    ----------
+    rawdir : str
+        path to raw data directory
+    cleandir : str
+        path to cleaned data directory
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
     network = "ASOSAWOS"
 
     # Set up error handling.
@@ -168,10 +190,12 @@ def clean_asosawos(rawdir, cleandir):
             latmin, latmax = 30.142739, 60.003861
 
         # Get station file and read in metadata.
-        obj = s3_cl.get_object(
-            Bucket=bucket_name, Key=cleandir + "stationlist_ASOSAWOS_merge.csv"
-        )
-        station_file = pd.read_csv(BytesIO(obj["Body"].read()))
+        # obj = s3_cl.get_object(
+        #     Bucket=bucket_name, Key=cleandir + "stationlist_ASOSAWOS_merge.csv"
+        # )
+        # station_file = pd.read_csv(BytesIO(obj["Body"].read()))
+        # station_file = pd.read_csv("s3://wecc-historical-wx/2_clean_wx/stationlist_ASOSAWOS_merge.csv")
+        station_file = merge_station_lists(key_asosawos, key_isd, cleandir)
         stations = station_file["ISD-ID"].dropna().astype(str)
 
         # Remove error, station files
@@ -1045,13 +1069,6 @@ def clean_asosawos(rawdir, cleandir):
                     new_index = desired_order + rest_of_vars
                     ds = ds[new_index]
 
-                    # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                    # for var in ds.variables:
-                    #     try:
-                    #         print([var, float(ds[var].min()), float(ds[var].max())])
-                    #     except:
-                    #         next
-
                 except Exception as e:  # If error in xarray reorganization
                     # print(file, e)
                     traceback.print_exc()
@@ -1113,54 +1130,4 @@ def clean_asosawos(rawdir, cleandir):
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("ASOSAWOS")
     print(rawdir, cleandir, qaqcdir)
-    merge_station_lists(key_asosawos, key_isd, cleandir)
     clean_asosawos(rawdir, cleandir)
-
-
-# ----------------------------------------------------------------------------------------------------
-## Testing:
-# import random # To get random subsample
-# import s3fs # To read in .nc files
-
-# # # ## Import file.
-# files = []
-# for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#     file = str(item.key)
-#     files += [file]
-
-# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# files = [file for file in files if "error" not in file] # Remove error handling files.
-# files = [file for file in files if "station" not in file] # Remove station files.
-# files = random.sample(files, 4)
-
-# # File 1:
-# fs = s3fs.S3FileSystem()
-# aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-
-# with fs.open(aws_urls[0]) as fileObj:
-#     test = xr.open_dataset(fileObj)
-#     print(test)
-#     for var in test.keys():
-#         print(var)
-#         print(test[var])
-#     test.close()
-
-# # File 2:
-# # Test: multi-year merges work as expected.
-# with fs.open(aws_urls[1]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     print(str(test['time'].min())) # Get start time
-#     print(str(test['time'].max())) # Get end time
-#     test.close()
-
-
-# # File 3:
-# # Test: Inspect vars and attributes
-# with fs.open(aws_urls[2]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     for var in test.variables:
-#         try:
-#             print([var, float(test[var].min()), float(test[var].max())])
-#         except:
-#             continue
-#     test.close()

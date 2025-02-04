@@ -8,11 +8,24 @@ from cleaning_helpers import get_file_paths
 s3 = boto3.resource("s3")
 
 
-# function to batch delete files from AWS
 def delete_files_from_AWS(network, which_to_delete):
     """
     This function should be used CAREFULLY as it will PERMANENTLY batch delete files from AWS!!!
 
+    Parameters
+    ----------
+    network : str
+        name of network
+    which_to_delete : str
+        batch delete files from AWS options: "empty", "update_pull", "monthly", "no_wx_data" (see notes)
+
+    Returns
+    -------
+    None
+        this function does not return a value
+
+    Notes
+    -----
     Options of which files to delete:
     which_to_delete = "empty"
         When grabbing data for an updated pull from Synoptic/MADIS networks for end of 2022 data,
@@ -41,9 +54,11 @@ def delete_files_from_AWS(network, which_to_delete):
         Could be set-up to delete raw files that do not contain any meteorological info, i.e., buoys
         Not continuing for now.
 
-    Note: if which_to_delete is not provided an option, nothing will delete.
+    If which_to_delete is not provided an option, nothing will delete.
 
-    Modified from: https://stackoverflow.com/questions/32501995/boto3-s3-renaming-an-object-using-copy-object
+    References
+    ----------
+    [1] Modified from: https://stackoverflow.com/questions/32501995/boto3-s3-renaming-an-object-using-copy-object
     """
 
     bucket_name = "wecc-historical-wx"
@@ -241,49 +256,10 @@ def delete_files_from_AWS(network, which_to_delete):
             else:  # any other character thrown in, do not delete
                 print("Invalid response. Exiting function.")
 
+    return None
+
 
 if __name__ == "__main__":
     network = "MTRWFO"
     delete_files_from_AWS(network, which_to_delete="empty")
     # intentionally going to have user do this network by network, as we should be careful as to what we delete for now
-
-
-# -----------------------------------------------------------------------------------------------------------------------------
-
-## Old code
-## function can be renamed to be "delete files from AWS" in future
-
-# def rename_MARITIME(bucket_name, cleandir):
-#     """
-#     Ancilliary one-time help to rename MARITIME cleaned files which was previously saved with lowercase station names.
-#     Will be fixed in future cleaning update for MARITIME network.
-
-#     *** NOTE ***
-#     Function moved into cleaning_helpers.py as may be helpful in future for automation/delete empty files from Synoptic update
-#     in a modified format (eg the delete line, and constructed to look for small file sizes).
-#     """
-
-#     # source: https://stackoverflow.com/questions/32501995/boto3-s3-renaming-an-object-using-copy-object
-
-#     files = [] # Get files in MARITIME
-#     for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#         file = str(item.key)
-#         files += [file]
-
-#     files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of cleaned file names
-
-#     for file in files:
-
-#         # example old file name: 2_clean_wx/MARITIME/MARITIME_wptw1.nc
-#         file_parts = file.split("/")
-#         stn_name = file_parts[-1]
-#         stn_name = stn_name.split(".")[0] # remove file extension
-
-#         # example new file name: 2_clean_wx/MARITIME/MARITIME_WPTW1.nc
-#         file_upper = cleandir + stn_name.upper() + ".nc"
-
-#         s3.Object(bucket_name, file_upper).copy_from(CopySource=bucket_name+'/'+file) # rename to upper case
-#         print('{0} renamed to {1}'.format(file, file_upper))
-
-#         s3.Object(bucket_name, file).delete() # delete lowercase name files
-#         print('Old file {} deleted from AWS'.format(file))

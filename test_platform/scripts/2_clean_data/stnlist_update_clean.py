@@ -29,8 +29,20 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 
-# Function: Given a network name, return a pandas dataframe containing the network's station list from the raw bucket.
 def get_station_list(network):
+    """Retrieves network station list
+
+    Parameters
+    ----------
+    network : str
+        network name
+
+    Returns
+    -------
+    station_list : pd.DataFrame
+        station list for a specified network
+    """
+
     network_prefix = raw_wx + network + "/"
 
     # If station list is CIMIS, extension is .xlsx
@@ -50,8 +62,20 @@ def get_station_list(network):
     return station_list
 
 
-# Function: Given a network name, return a pandas dataframe of all cleaned stations in the 2_clean_wx AWS bucket, with the date the file was last modified.
 def get_cleaned_stations(network):
+    """Adds a new column to station list with bool "Y" or "N" status upon cleaning
+
+    Parameters
+    ----------
+    network : str
+        network name
+
+    Returns
+    -------
+    pd.DataFrame
+        station list with new flag of whether data was successfully cleaned
+    """
+
     df = {"ID": [], "Time_Cleaned": []}
     network_prefix = clean_wx + network + "/"
     for item in s3.Bucket(bucket_name).objects.filter(
@@ -75,6 +99,19 @@ def get_cleaned_stations(network):
 
 # Function: Given a network name, return a pandas dataframe containing all errors reported for the network in the cleaning stage.
 def parse_error_csv(network):
+    """Retrieves error csv file for a network
+
+    Parameters
+    ----------
+    network : str
+        network name
+
+    Returns
+    -------
+    errordf : pd.DataFrame
+        errors data per station
+    """
+
     errordf = []
     errors_prefix = clean_wx + network + "/" + "errors"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
@@ -97,11 +134,29 @@ def parse_error_csv(network):
         return errordf
 
 
-# Function: update station list and save to AWS, adding cleaned status, time of clean and any relevant errors
-# Optional: clean_var_add will open every cleaned station file, check which variables are present, and flag in the station list
-# Default is False, time intensive
-# Recommendation: run clean_var_add=True only after a full clean or partial clean update
 def clean_qa(network, clean_var_add=False, cwop_letter=None):
+    """Updates station list and saves to AWS, adding cleaned status, time of clean, and relevant errors
+
+    Parameters
+    ----------
+    network : str
+        network name
+    clean_var_add : bool, optional
+        adds variable observation count columns to staiton list, default is False
+    cwop_letter : str, optional
+        CWOP subsetting letter, default is None
+
+    Returns
+    -------
+    None
+        This function does not return a value
+
+    Notes
+    -----
+    1. clean_var_add will open every cleaned station file, check which variables are present, and flag in station list.
+    It is a highly time intensive process, so recommendation is to only run clean_var_add=True after a full clean, or a partial clean update (new data added).
+    """
+
     if "otherisd" in network:  # Fixing capitalization issues
         network = "OtherISD"
     else:
@@ -145,7 +200,7 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
         "HNXWFO",
         "HOLFUY",
         "HPWREN",
-        "LOXWFO",  # MADIS networks
+        "LOXWFO",
         "MAP",
         "MTRWFO",
         "NCAWOS",
@@ -155,7 +210,7 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
         "SGXWFO",
         "SHASAVAL",
         "VCAPCD",
-    ]:
+    ]:  # MADIS networks
         stations["ERA-ID"] = network + "_" + stations["STID"]
     elif network in ["MARITIME", "NDBC"]:
         stations["ERA-ID"] = network + "_" + stations["STATION_ID"]
@@ -480,7 +535,6 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
         )
 
     # Save station file to cleaned bucket
-    print(stations)  # For testing
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
@@ -509,9 +563,22 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
                 Key=clean_wx + network + "/stationlist_{}_cleaned.csv".format(network),
             )
 
+    return None
 
-# Merge CWOP stationlists together, overwrites full stationlist file
+
 def cwop_stnlist_merge(network):
+    """Merges CWOP stationlists together, overwrites full stationlist file for CWOP
+    Parameters
+    ----------
+    network : str
+        network name
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
+
     # Check network is CWOP
     if network != "CWOP":
         print(
@@ -555,6 +622,8 @@ def cwop_stnlist_merge(network):
         Body=content,
         Key=clean_wx + network + "/stationlist_{}_cleaned.csv".format(network),
     )
+
+    return None
 
 
 if __name__ == "__main__":

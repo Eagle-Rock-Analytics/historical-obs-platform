@@ -57,10 +57,6 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Set up directory to save files, if it doesn't already exist.
 try:
@@ -70,15 +66,22 @@ try:
 except:
     pass
 
-## FUNCTION: Clean 'OtherISD' data.
-# Input:
-# homedir: path to git repository.
-# workdir: path to where raw data is saved as .gz files, with each file representing a station's records for 1 year.
-# savedir: path to where cleaned files should be saved.
-# Output: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-
 
 def clean_otherisd(rawdir, cleandir):
+    """Clean non-ASOSAWOS ISD stations.
+
+    Parameters
+    ----------
+    rawdir : str
+        path to raw data bucket
+    cleandir : str
+        path to cleaned data bucket
+
+    Returns
+    -------
+    None
+        This function does not return a value
+    """
     network = "OtherISD"
 
     # Set up error handling.
@@ -972,13 +975,6 @@ def clean_otherisd(rawdir, cleandir):
                     new_index = desired_order + rest_of_vars
                     ds = ds[new_index]
 
-                    # Testing: Manually check values to see that they seem correctly scaled, no unexpected NAs.
-                    # for var in ds.variables:
-                    #     try:
-                    #         print([var, float(ds[var].min()), float(ds[var].max())])
-                    #     except:
-                    #         next
-
                 except Exception as e:  # If error in xarray reorganization
                     print(file, e)
                     traceback.print_exc()
@@ -1040,57 +1036,11 @@ def clean_otherisd(rawdir, cleandir):
             Key=cleandir + "errors_otherisd_{}.csv".format(end_api),
         )
 
+    return None
+
 
 # Run function
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("OtherISD")
     print(rawdir, cleandir, qaqcdir)
     clean_otherisd(rawdir, cleandir)
-
-# -----------------------------------------------------------------------------------------------------
-## Testing:
-# import random # To get random subsample
-# import s3fs # To read in .nc files
-
-# # # ## Import file.
-# files = []
-# for item in s3.Bucket(bucket_name).objects.filter(Prefix = cleandir):
-#     file = str(item.key)
-#     files += [file]
-
-# files = list(filter(lambda f: f.endswith(".nc"), files)) # Get list of file names
-# files = [file for file in files if "error" not in file] # Remove error handling files.
-# files = [file for file in files if "station" not in file] # Remove station files.
-# files = random.sample(files, 4)
-
-# # File 1:
-# fs = s3fs.S3FileSystem()
-# aws_urls = ["s3://wecc-historical-wx/"+file for file in files]
-
-# with fs.open(aws_urls[0]) as fileObj:
-#     test = xr.open_dataset(fileObj)
-#     print(test)
-#     for var in test.keys():
-#         print(var)
-#         print(test[var])
-#     test.close()
-
-# # File 2:
-# # Test: multi-year merges work as expected.
-# with fs.open(aws_urls[1]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     print(str(test['time'].min())) # Get start time
-#     print(str(test['time'].max())) # Get end time
-#     test.close()
-
-
-# # File 3:
-# # Test: Inspect vars and attributes
-# with fs.open(aws_urls[2]) as fileObj:
-#     test = xr.open_dataset(fileObj, engine='h5netcdf')
-#     for var in test.variables:
-#         try:
-#             print([var, float(test[var].min()), float(test[var].max())])
-#         except:
-#             continue
-#     test.close()
