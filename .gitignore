@@ -1,5 +1,6 @@
 # Mac environment stuffs
 .DS_Store
+__pycache__/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -10,3 +11,14 @@
 .local/
 .virtual_environments/
 
+# Data 
+*.nc 
+*/*.nc
+
+# Logging
+*/qaqc_logs
+*/qaqc_figs
+*/timing
+*/temp
+*/local_qaqced_files
+default_qaqc_log.log
