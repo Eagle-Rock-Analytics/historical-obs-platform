@@ -311,7 +311,7 @@ def process_output_ds(
     end_api : datetime
         time at beginning of data download
     zarr : bool
-        if True, input is a .zarr. if False, input is a .nc
+        if True, output is a .zarr. if False, output is a .nc
     verbose : bool, optional
         if True, provides runtime output to local terminal
     local : bool, optional
@@ -368,17 +368,18 @@ def process_output_ds(
 
     # --------------------------------------------------------
 
-    # Write station file to netcdf format
+    # Write station file
     try:
         if zarr == False:
-            filename = station + ".nc"  # Make file name
+            filename_nc = station + ".nc"  # Make file name
         elif zarr == True:
             filename = station + ".zarr"
         filepath = qaqcdir + filename  # Writes file path
 
-        tmpFile = tempfile.NamedTemporaryFile(
-            dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
-        )
+        if local == True:
+            tmpFile = tempfile.NamedTemporaryFile(
+                dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
+            )
 
         # Push file to AWS with correct file name
         t0 = time.time()
@@ -419,8 +420,6 @@ def process_output_ds(
                     time.time() - t0
                 ),
             )
-        else:
-            os.system("rm {}".format(tmpFile.name))
 
     except Exception as e:
         logger.info(
@@ -430,7 +429,7 @@ def process_output_ds(
             errors,
             filename,
             end_api,
-            message="Error saving ds as .nc file to AWS bucket: {}".format(e),
+            message="Error saving dataset to AWS bucket: {}".format(e),
             test="process_output_ds",
             verbose=verbose,
         )
@@ -1296,7 +1295,7 @@ def whole_station_qaqc(
                         qaqcdir,
                         errors,
                         end_api,
-                        zarr,
+                        zarr=True,  # Default to always write to zarr
                         verbose=verbose,
                         local=local,
                     )
