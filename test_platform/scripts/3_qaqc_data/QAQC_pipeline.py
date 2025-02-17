@@ -376,16 +376,16 @@ def process_output_ds(
             filename = station + ".zarr"
         filepath = qaqcdir + filename  # Writes file path
 
-        if local == True:
+        if local == True or zarr == False:
             tmpFile = tempfile.NamedTemporaryFile(
                 dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
             )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
+                ds.to_netcdf(tmpFile.name)  # Save station file.
 
         # Push file to AWS with correct file name
         t0 = time.time()
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            ds.to_netcdf(tmpFile.name)  # Save station file.
         logger.info(
             "Saving/pushing {0} with dims {1} to {2}".format(
                 filename, ds.dims, bucket_name + "/" + qaqcdir
