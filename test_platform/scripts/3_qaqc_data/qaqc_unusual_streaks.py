@@ -7,17 +7,22 @@ for the Historical Observations Platform.
 import boto3
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import xarray as xr
-import datetime
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
+
+# import datetime
+
+# New logger function
+from log_config import logger
 
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
+
+try:
+    from qaqc_utils import *
+except Exception as e:
+    logger.debug("Error importing qaqc_utils: {}".format(e))
+
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -29,121 +34,7 @@ wecc_terr = (
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-try:
-    from qaqc_utils import *
-except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_streaks(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
-
-
-# ----------------------------------------------------------------------
-def infere_freq(df):
-    """ """
-    # Calculate time differences in data
-    time_diff = pd.Series(df["time"]).diff()
-
-    # Count resolution occurences and use only those that occure in 5% of series or more
-    frequencies = time_diff.value_counts()
-    frequencies = frequencies[frequencies > len(df) // 5]
-
-    # Create resolutions dictionary
-    frequencies = {
-        np.round(n / len(df), decimals=5): float(f / 1e9)
-        for n, f in zip(frequencies.values, frequencies.index.values)
-    }
-    return frequencies
-
-
-# ----------------------------------------------------------------------
-def infere_res_var(df, var):
-    """ """
-    # If var is tdps_derived, use temp measurements
-    # if var == "tdps_derived":
-    #     var = "tas"
-
-    # Extract var data
-    data = df.copy()[var]
-
-    # TODO: use function from calc_clean.py
-    # Convert from Pa to hPa -- only to determine mode and resolution of data, data not returned in hPa
-    if data.mean() > 10000 and (
-        var == "ps" or var == "psl" or var == "ps_altimeter" or var == "ps_derived"
-    ):
-        data = data / 100
-
-    data_diff = data.sort_values().diff().clip(lower=0.01, upper=1).dropna()
-    if len(data_diff) <= 10:
-        return 0.5
-    else:
-        # Calculate modified mode from avg mode and median
-        # mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
-        # mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
-        mode0 = data.sort_values().diff().mode().values[0]
-        mode1 = data.sort_values().diff().median()
-        mode = (mode0 + mode1) / 2
-
-        # Round to the nearest 0.5
-        multiplied = round(mode * 2)
-        rounded_to_whole = multiplied / 2
-
-        # If mode is 0.25 or less, round to 0.1
-        if rounded_to_whole <= 0.25:
-            mode = 0.1
-        else:
-            mode = rounded_to_whole
-
-        if mode <= 1:
-            return mode
-        else:
-            return 1.0
-
-
-# ----------------------------------------------------------------------
-def infere_res(df, verbose=False):
-    """ """
-    check_vars = [
-        "pr_5min",
-        "pr_15min",
-        "pr_1h",
-        "pr_24h",
-        "pr_localmid",
-        "tas",
-        "tdps",
-        "tdps_derived",
-        "ps",
-        "psl",
-        "ps_derived",
-        "ps_altimeter",
-        "sfcWind",
-    ]
-    variables = [var for var in check_vars if var in df.columns]
-    # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
-    # printf(variables, log_file=log_file, verbose=verbose)
-
-    resolutions = {}
-    for var in variables:
-        # if var in df.columns:
-        if df[var].isnull().all() or len(np.where(df[var].isnull())[0]) < 100:
-            resolutions[var] = 0.1
-        else:
-            resolutions[var] = infere_res_var(df, var)
-
-    return resolutions
-
-
+# CONSTANTS
 # ----------------------------------------------------------------------
 # Straight repeat streak criteria
 straight_repeat_criteria = {
@@ -212,9 +103,150 @@ day_repeat_criteria["sfcWind"] = day_repeat_criteria["tas"]
 WIND_MIN_VALUE = {1: 1.0, 0.5: 0.5, 0.1: 0.5}
 
 
+# ----------------------------------------------------------------------
+def infere_freq(df):
+    """DOCUMENTATION UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe to check
+
+    Returns
+    -------
+    frequencies : [?]
+        [?]
+    """
+    # Calculate time differences in data
+    time_diff = pd.Series(df["time"]).diff()
+
+    # Count resolution occurences and use only those that occure in 5% of series or more
+    frequencies = time_diff.value_counts()
+    frequencies = frequencies[frequencies > len(df) // 5]
+
+    # Create resolutions dictionary
+    frequencies = {
+        np.round(n / len(df), decimals=5): float(f / 1e9)
+        for n, f in zip(frequencies.values, frequencies.index.values)
+    }
+    return frequencies
+
+
+# ----------------------------------------------------------------------
+def infere_res_var(df, var):
+    """DOCUMENTATION UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe to check
+    var : str
+        variable name
+
+    Returns
+    -------
+    mode : float
+        [?]
+    """
+
+    # Extract var data
+    data = df.copy()[var]
+
+    # TODO: use function from calc_clean.py
+    # Convert from Pa to hPa -- only to determine mode and resolution of data, data not returned in hPa
+    if data.mean() > 10000 and (
+        var == "ps" or var == "psl" or var == "ps_altimeter" or var == "ps_derived"
+    ):
+        data = data / 100
+
+    data_diff = data.sort_values().diff().clip(lower=0.01, upper=1).dropna()
+    if len(data_diff) <= 10:
+        return 0.5
+    else:
+        # Calculate modified mode from avg mode and median
+        # mode0 = data.sort_values().diff().replace(0, pd.NaT).mode().values[0]
+        # mode1 = data.sort_values().diff().replace(0, pd.NaT).median()
+        mode0 = data.sort_values().diff().mode().values[0]
+        mode1 = data.sort_values().diff().median()
+        mode = (mode0 + mode1) / 2
+
+        # Round to the nearest 0.5
+        multiplied = round(mode * 2)
+        rounded_to_whole = multiplied / 2
+
+        # If mode is 0.25 or less, round to 0.1
+        if rounded_to_whole <= 0.25:
+            mode = 0.1
+        else:
+            mode = rounded_to_whole
+
+        if mode <= 1:
+            return mode
+        else:
+            return 1.0
+
+
+# ----------------------------------------------------------------------
+def infere_res(df, verbose=False):
+    """DOCUMENTATION UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe to check
+    verbose : bool, optional
+        if True, returns runtime output to local terminal
+
+    Returns
+    -------
+    resolutions : [?]
+        [?]
+    """
+    check_vars = [
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+        "tas",
+        "tdps",
+        "tdps_derived",
+        "ps",
+        "psl",
+        "ps_derived",
+        "ps_altimeter",
+        "sfcWind",
+    ]
+    variables = [var for var in check_vars if var in df.columns]
+    # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
+    # logger.info(variables)
+
+    resolutions = {}
+    for var in variables:
+        # if var in df.columns:
+        if df[var].isnull().all() or len(np.where(df[var].isnull())[0]) < 100:
+            resolutions[var] = 0.1
+        else:
+            resolutions[var] = infere_res_var(df, var)
+
+    return resolutions
+
+
 # ---------------------------------------------------------------------------------------------------
 # Function to create a new column for consecutive months
 def consecutive_months(series):
+    """DOCUMENTATION UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    series : pd.Series
+        [?]
+
+    Returns
+    -------
+    pd.Series
+        [?]
+    """
     indices = np.where(np.diff(series.values) > 1)[0] + 1
     clusters = np.split(series.values, indices)
     isin = [series.isin(c) for c in clusters]
@@ -227,51 +259,47 @@ def consecutive_months(series):
 
 # ---------------------------------------------------------------------------------------------------
 def qaqc_unusual_repeated_streaks(
-    df, plot=True, local=False, verbose=False, min_sequence_length=10
+    df, min_sequence_length=10, plot=True, local=False, verbose=False
 ):
-    """
-    Test for repeated streaks/unusual spell frequenc.
-    Three test are conducted here:
-       - Consecutive observation replication
-       - Same hour observation replication over a number of days
-         (either using a threshold of a certain number of observations,
-          or for sparser records, a number of days during which all the
-          observations have the same value)
-       - Whole day replication for a streak of days
+    """Test for repeated streaks/unusual spell frequency.
 
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter" "sfcWind"]
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    min_sequence_length : int, optional
+        [?]
+    local : bool, optional
+        if True, saves the plot to local directory
+    plot : bool, optional
+        if True, produces plot and uploads it to AWS
 
-    Input:
+    Returns
+    -------
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
+
+    Notes
     -----
-        df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
-        local [bool] : if True, saves the plot to local directory
-        plot [bool] : if True, produces plot and uploads it to AWS
-    Output:
-    ------
-        if qaqc succeded:
-            df [pandas dataframe] : QAQC dataframe with flagged values (see below for flag meaning).
-        else if qaqc failed:
-            None
-    Flag meaninig:
-    -------------
-        27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days
-        28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
-        29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
+    1. Three tests are conducted here:
+        - Consecutive observation replication
+        - Same hour observation replication over a number of days (either using a threshold of a certain number of observations,
+          or for sparser records, a number of days during which all the observations have the same value)
+        - Whole day replication for a streak of days
+    Flag meaning: 27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days
+    Flag meaning: 28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+    Flag meaning: 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
 
-    NOTES:
-    Threshold for different variables/resolutions are noted on:
-    https://doi.org/10.5194/cp-8-1649-2012 : Table 4
-
-    TODO:
-    min_sequence_length can be tweaked, althought HadISD uses 10
+    References
+    ----------
+    [1] https://doi.org/10.5194/cp-8-1649-2012 : Table 4
     """
-    printf("Running: qaqc_unusual_repeated_streaks", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_unusual_repeated_streaks")
 
     station = df["station"].dropna().unique()[0]
 
-    # import pdb; pdb.set_trace()
     try:
-        # Infere resolution from data
+        # Infer resolution from data
         resolutions = infere_res(df)
 
         # Save original df multiindex and create station column
@@ -289,20 +317,14 @@ def qaqc_unusual_repeated_streaks(
             "sfcWind",
         ]
         variables = [var for var in check_vars if var in new_df.columns]
-        printf(
+        logger.info(
             "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
 
         # Loop through test variables
         for var in variables:
-            printf(
+            logger.info(
                 "Running unusual streaks check on: {}".format(var),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
@@ -312,13 +334,10 @@ def qaqc_unusual_repeated_streaks(
 
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:
-                printf(
+                logger.info(
                     "All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(
                         var
                     ),
-                    verbose=verbose,
-                    log_file=log_file,
-                    flush=True,
                 )
                 continue  # bypass to next variable if all obs are nans
 
@@ -341,11 +360,8 @@ def qaqc_unusual_repeated_streaks(
             ##########################################################################################
             # ------------------------------------------------------------------------------------------------
             # Hour repeat streak criteria
-            printf(
+            logger.info(
                 "Running hourly repeats on {}".format(var),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             tt00 = time.time()
             threshold = hour_repeat_criteria[var][res]
@@ -355,21 +371,15 @@ def qaqc_unusual_repeated_streaks(
             new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
                 27  # Flag _eraqc variable
             )
-            printf(
+            logger.info(
                 "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
                 ),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             # ------------------------------------------------------------------------------------------------
             # Straight repeat streak criteria
-            printf(
+            logger.info(
                 "Running straight repeats on {}".format(var),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             tt00 = time.time()
             threshold = straight_repeat_criteria[var][res]
@@ -387,21 +397,15 @@ def qaqc_unusual_repeated_streaks(
             new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
                 28  # Flag _eraqc variable
             )
-            printf(
+            logger.info(
                 "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
                 ),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             # ------------------------------------------------------------------------------------------------
             # Whole day replication for a streak of days
-            printf(
+            logger.info(
                 "Running whole day repeats on {}".format(var),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             tt00 = time.time()
             threshold = day_repeat_criteria[var][res]
@@ -411,16 +415,13 @@ def qaqc_unusual_repeated_streaks(
             new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
                 29  # Flag _eraqc variable
             )
-            printf(
+            logger.info(
                 "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
                     var, time.time() - tt00
                 ),
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
             )
             # ------------------------------------------------------------------------------------------------
-            #
+
             bad_keys = np.concatenate(
                 [
                     len(bad_hourly) * [27],
@@ -435,14 +436,6 @@ def qaqc_unusual_repeated_streaks(
             bad["year"] = bad.time.dt.year
             bad["month"] = bad.time.dt.month
 
-            # # Groups for zoom plots
-            # bad_times = df.groupby([pd.Grouper(key="time", freq='W')])['time'].min() # start of week
-            # bad_counts = df.groupby([pd.Grouper(key="time", freq='W')])[var + '_eraqc'].count() # how many non-flagged counts
-
-            # # trim out any 0 counts for only flagged weeks
-            # bad = pd.DataFrame({"dt":bad_times, "count":bad_counts})
-            # bad_to_run = bad.loc[(bad['count']!=0)]
-
             # --------------------------------------------------------
             if plot:
                 ## Plotting by month/year will reduce the number of plots
@@ -452,29 +445,35 @@ def qaqc_unusual_repeated_streaks(
                         new_df["year"] == k[0], new_df["month"] == k[1]
                     )
                     unusual_streaks_plot(new_df[ind], var, station="test", local=local)
-                printf(
+                logger.info(
                     "{} subset plots produced for flagged obs in {}".format(
                         len(keys), var
                     ),
-                    verbose=verbose,
-                    log_file=log_file,
-                    flush=True,
                 )
 
         return new_df
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_unusual_repeated_streaks failed with Exception: {}".format(e),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
         return None
 
 
 # ---------------------------------------------------------------------------------------------------
 def find_date_clusters(dates, threshold):
-    """ """
+    """DOCUMENTATION UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    dates : pd.Series
+        [?]
+    threshold : [?]
+
+    Returns
+    -------
+    If success, returns cluster_list [?]
+    If failure, returns np.nan [?]
+    """
     # Ensure the dates are sorted
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
 
@@ -501,7 +500,22 @@ def find_date_clusters(dates, threshold):
 
 # ---------------------------------------------------------------------------------------------------
 def hourly_repeats(df, var, threshold):
-    """ """
+    """DOCUMENTAITON UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QAQC dataframe to check
+    var : str
+        variable name
+    threshold : [?]
+        [?]
+
+    Returns
+    -------
+    pd.Series
+        [?]
+    """
     ##########################################################################################
     ## NOTE for V2:
     ## when selectin original data for a specific hour, it is possible that that series
@@ -535,24 +549,26 @@ def hourly_repeats(df, var, threshold):
 def consecutive_repeats(
     df, var, threshold, wind_min_value=None, min_sequence_length=10
 ):
-    """
-    Consecutive observation replication
-         (either using a threshold of a certain number of observations,
-          or for sparser records, a number of days during which all the
-          observations have the same value)
+    """Consecutive observation replication (either using a threshold of a certain number of observations,
+    or for sparser records, a number of days during which all the observations have the same value)
 
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    var : str
+        variable name
+    threshold : int
+        comes from straight_repeat_criteria[var][res]
+    wind_min_value : [?], optional
+        [?]
+    min_sequence_length : [?], optional
+        [?]
 
-    Input:
-    -----
-        df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
-        var [str] : variable to test
-        threshold (int,int) : comes from straight_repeat_criteria[var][res]
-    Output:
-    ------
-        bad [numpy array] : dates that mark the flagged values (from df.index)
-
-    NOTES (TODO:)
+    Returns
+    -------
+    bad : np.array
+        dates that mark the flagged values (from df.index)
     """
 
     da = df.copy()[[var, "time"]]
@@ -621,6 +637,20 @@ def consecutive_repeats(
 
 # ---------------------------------------------------------------------------------------------------
 def full_day_compare(series0, series1):
+    """DOCUMENTAITON UPDATE REQUIRED.
+
+    Parameters
+    ----------
+    series0 : [?]
+        [?]
+    series1 : [?]
+        [?]
+
+    Returns
+    -------
+    np.array(groups) : [?]
+        [?]
+    """
     ind = []
     groups = []
     g = 0
@@ -642,24 +672,22 @@ def full_day_compare(series0, series1):
 
 # ---------------------------------------------------------------------------------------------------
 def consecutive_fullDay_repeats(df, var, threshold):
-    """
-    Consecutive observation replication
-         (either using a threshold of a certain number of observations,
-          or for sparser records, a number of days during which all the
-          observations have the same value)
+    """Consecutive observation replication (either using a threshold of a certain number of observations,
+    or for sparser records, a number of days during which all the observations have the same value)
 
-    This test is done for ["tas", "tdps", "tdps_derived", "ps", "psl", "ps_derived", "ps_altimeter", "sfcWind"]
+    Paramters
+    ---------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    var : str
+        variable to test
+    threshold : int
+        comes from straight_repeat_criteria[var][res]
 
-    Input:
-    -----
-        df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
-        var [str] : variable to test
-        threshold (int,int) : comes from straight_repeat_criteria[var][res]
-    Output:
-    ------
-        bad [numpy array] : dates that mark the flagged values (from df.index)
-                  (A==B).all()
-    NOTES (TODO:)
+    Returns
+    -------
+    bad : np.array
+        dates that mark the flagged values (from df.index)
     """
 
     # Temporary dataframe to work with
@@ -725,4 +753,3 @@ def consecutive_fullDay_repeats(df, var, threshold):
         return pd.Series(bad["time"].values, index=bad[var]).sort_values()
     else:
         return pd.Series([], dtype="datetime64[ns]")
-    # return bad[['time', 'month', 'year']]

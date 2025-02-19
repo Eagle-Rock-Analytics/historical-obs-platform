@@ -19,14 +19,12 @@ import pandas as pd
 import xarray as xr
 import boto3
 import s3fs
-from io import BytesIO, StringIO
+from io import StringIO
 import time
 import tempfile
 from mpi4py import MPI
-
+import logging
 from simplempi import simpleMPI
-
-from simplempi.parfor import parfor, pprint
 
 # Import all qaqc script functions
 try:
@@ -49,15 +47,9 @@ for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
 
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# verbose=True
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+from log_config import setup_logger
 
+os.environ["HDF5_USE_FILE_LOCKING"] = "TRUE"
 # ----------------------------------------------------------------------------
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -72,7 +64,17 @@ bucket_name = "wecc-historical-wx"
 
 # ----------------------------------------------------------------------------
 def setup_error_handling():
-    """ """
+    """Sets-up error handling.
+
+    Returns
+    -------
+    errors : dict
+        dictionary of file, timing, and error message
+    end_api : datetime
+        time at beginnging of data download
+    tiemstamp: datetime
+        time at runtime
+    """
     errors = {"File": [], "Time": [], "Error": []}  # Set up error handling
     end_api = datetime.datetime.now().strftime(
         "%Y%m%d%H%M"
@@ -85,12 +87,25 @@ def setup_error_handling():
 def print_qaqc_failed(
     errors, station=None, end_api=None, message=None, test=None, verbose=False
 ):
-    """ """
-    printf(
+    """QAQC failure messaging
+
+    Parameters
+    ----------
+    errors : dict
+        dictionary of file, timing, and error message
+    station : str, optional
+        station name
+    end_api : datetime, optional
+        time at beginning of data download
+    message : str, optional
+        error message
+    test : str, optional
+        QAQC test name to include in error message
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    """
+    logger.info(
         "{0} {1}, skipping station".format(station, message),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     errors["File"].append(station)
     errors["Time"].append(end_api)
@@ -105,16 +120,15 @@ def file_on_s3(df, zarr):
 
     Parameters
     ----------
-    df: pd.DataFrame
+    df : pd.DataFrame
         Table with information about each network and station
-    zarr: boolean
+    zarr : bool
         Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
 
     Returns
     -------
-    substring_in_filepath: boolean
+    substring_in_filepath : bool
         True/False: Is the file in the s3 bucket?
-
     """
 
     files = []  # Get files
@@ -146,15 +160,16 @@ def read_network_files(network, zarr):
 
     Parameters
     ----------
-    network: str
+    network : str
         Name of network
-    zarr: boolean
+    zarr : bool
         Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
+
+    Returns
+    -------
+    final_df : pd.DataFrame
+        dataframe of cleaned data
     """
-    # Read csv from local drive
-    # THIS FILE IS NOT CURRENT
-    # csv_filepath_local = "temp_clean_all_station_list.csv"
-    # full_df = pd.read_csv(csv_filepath_local).loc[:,['era-id','network']]
 
     # Read csv from s3
     csv_filepath_s3 = (
@@ -189,7 +204,7 @@ def read_network_files(network, zarr):
 
     # Setting up the QAQC training station list to match temp_clean_all_station_list
     if network == "TRAINING":
-        print("Using training station list!")
+        logger.info("Using training station list!")
         df = pd.read_csv("qaqc_training_station_list.csv")
         df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
         df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
@@ -273,7 +288,39 @@ def process_output_ds(
     local=False,
 ):
     """
-    DOCUMENTATION NEEDED
+    Processes the final dataset for export to AWS.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data that has completed QAQC
+    attrs : list of str
+        attributes to be reset on xr.Dataset
+    var_attrs: list of str
+        variable attributes to be reset on xr.Dataset
+    network: str
+        network name
+    timestamp: datetime
+        time at runtime
+    station: str
+        station name
+    qaqcdir : str
+        path to QAQC AWS directory
+    errors : dict
+        dictionary of error messages
+    end_api : datetime
+        time at beginning of data download
+    zarr : bool
+        if True, input is a .zarr. if False, input is a .nc
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, saves figures to local directory in addition to AWS
+
+    Returns
+    -------
+    None
+        This function does not return a value
     """
     # Convert back to dataset
     with warnings.catch_warnings():
@@ -338,13 +385,10 @@ def process_output_ds(
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             ds.to_netcdf(tmpFile.name)  # Save station file.
-        printf(
+        logger.info(
             "Saving/pushing {0} with dims {1} to {2}".format(
                 filename, ds.dims, bucket_name + "/" + qaqcdir
             ),
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
         if zarr == False:  # Upload as netcdf
             s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
@@ -355,44 +399,32 @@ def process_output_ds(
                 consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
                 mode="w",  # Write & overwrite if file with same name exists already
             )
-        printf(
+        logger.info(
             "Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(
                 time.time() - t0
             ),
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
         ds.close()
         del ds
 
         if local:
             t0 = time.time()
-            printf(
+            logger.info(
                 "Saving local file temp/{}.nc".format(station),
-                log_file=log_file,
-                verbose=verbose,
-                flush=True,
             )
             # Write locally
             os.system("mv {} local_qaqced_files/{}.nc".format(tmpFile.name, station))
-            printf(
+            logger.info(
                 "Done saving local file. Ellapsed time: {:.2f} s.".format(
                     time.time() - t0
                 ),
-                log_file=log_file,
-                verbose=verbose,
-                flush=True,
             )
         else:
             os.system("rm {}".format(tmpFile.name))
 
     except Exception as e:
-        printf(
+        logger.info(
             "netCDF writing failed for {} with Error: {}".format(filename, e),
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
         errors = print_qaqc_failed(
             errors,
@@ -405,12 +437,34 @@ def process_output_ds(
         ds.close()
         del ds
 
-        return
+        return None
 
 
 # --------------------------------------------------------------------------------
-## xarray ds for a station to pandas df in the format needed for the pipeline
 def qaqc_ds_to_df(ds, verbose=False):
+    """Converts xarray ds for a station to pandas df in the format needed for the pipeline
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        input data from the clean step
+    verbose : bool, optional
+        if True, provides runtime output to the terminal
+
+    Returns
+    -------
+    df : pd.DataFrame
+        converted xr.Dataset into dataframe
+    MultiIndex : pd.Index
+        multi-index of station and time
+    attrs : list of str
+        attributes from xr.Dataset
+    var_attrs : list of str
+        variable attributes from xr.Dataset
+    era_qc_vars : list of str
+        QAQC variables
+    """
+
     ## Add qc_flag variable for all variables, including elevation;
     ## defaulting to nan for fill value that will be replaced with qc flag
 
@@ -441,7 +495,7 @@ def qaqc_ds_to_df(ds, verbose=False):
 
     raw_qc_vars = []  # qc_variable for each data variable, will vary station to station
     era_qc_vars = []  # our ERA qc variable
-    old_era_qc_vars = []  # our ERA qc variable
+    # old_era_qc_vars = []  # our ERA qc variable
 
     for var in ds.data_vars:
         if "q_code" in var:
@@ -452,28 +506,25 @@ def qaqc_ds_to_df(ds, verbose=False):
             raw_qc_vars.append(
                 var
             )  # raw qc variables, need to keep for comparison, then drop
-        if "_eraqc" in var:
-            era_qc_vars.append(
-                var
-            )  # raw qc variables, need to keep for comparison, then drop
-            old_era_qc_vars.append(var)
 
-    print(f"era_qc existing variables:\n{era_qc_vars}")
-    n_qc = len(era_qc_vars)
+    logger.info("Existing era_qc variables: {}".format(era_qc_vars))
 
+    # only in-fill nans for valid variables
     for var in ds.data_vars:
         if var not in exclude_qaqc and var not in raw_qc_vars and "_eraqc" not in var:
             qc_var = var + "_eraqc"  # variable/column label
 
             # if qaqc var does not exist, adds new variable in shape of original variable with designated nan fill value
             if qc_var not in era_qc_vars:
-                print(f"nans created for {qc_var}")
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
+                logger.info(
+                    "nans created for {}".format(qc_var),
+                )
+                ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
 
-    print("{} created era_qc variables".format(len(era_qc_vars) - len(old_era_qc_vars)))
-    if len(era_qc_vars) != n_qc:
-        print("{}".format(np.setdiff1d(old_era_qc_vars, era_qc_vars)))
+    n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
+    logger.info("Created {0} era_qc variables: {1}".format(n_qc, era_qc_vars))
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -490,20 +541,17 @@ def qaqc_ds_to_df(ds, verbose=False):
                 np.ones(ds["time"].shape) * ds.anemometer_height_m
             )
         except:
-            print("Filling anemometer_height_m with NaN.", flush=True)
+            logger.info("Filling anemometer_height_m with NaN.")
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
+
     if "thermometer_height_m" not in df.columns:
         try:
             df["thermometer_height_m"] = (
                 np.ones(ds["time"].shape) * ds.thermometer_height_m
             )
         except:
-            print("Filling thermometer_height_m with NaN.", flush=True)
+            logger.info("Filling thermometer_height_m with NaN.")
             df["thermometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
 
     # De-duplicate time axis
     df = df[~df.index.duplicated()].sort_index()
@@ -541,25 +589,64 @@ def run_qaqc_pipeline(
     rad_scheme,
     verbose=False,
     local=False,
-    log_file=None,
 ):
-    """ """
+    """Runs all QAQC functions.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        input data
+    network : str
+        network name
+    file_name : str
+        path to file on AWS
+    errors : dict
+        errors dictionary
+    station : str
+        station name
+    end_api : datetime
+        time at beginnging of data download
+    rad_scheme : str
+        radiation handling scheme for qaqc_frequent
+    verbose : bool, optional
+        if True, provides runtime output to the terminal
+    local : bool, optional
+        if True, saves output to local directory in addition to AWS
+
+    Returns
+    -------
+    stn_to_qaqc : pd.DataFrame
+        dataframe of QAQC data
+    attrs : list of str
+        attributes from original xr.Dataset
+    var_attrs : list of str
+        variable attributes from original xr.Dataset
+    era_qc_vars : list of str
+        QAQC variables
+
+    Notes
+    -----
+    1. Order of operations
+    - Data converted to pd.DataFrame for processing
+    - Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
+    - Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
+    - Part 2: Logic checks
+    - Part 3: Distribution & time series checks
+    """
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 
-    ##########################################################
-    ## QAQC Functions
-    # Order of operations
-    # Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
-    # Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
-    # Part 2: Logic checks
-    # Part 3: Distribution & time series checks
+    # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
+    ds.close()
+    del ds
 
     # =========================================================
+    ## START QA/QC ASSESSMENT
+    # ---------------------------------------------------------
     ## Part 1a: Whole station checks - if failure, entire station does not proceed through QA/QC
 
     t0 = time.time()
-    printf("QA/QC whole station tests", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("QA/QC whole station tests")
     # ---------------------------------------------------------
     ## Missing values -- does not proceed through qaqc if failure
     stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case
@@ -576,7 +663,7 @@ def run_qaqc_pipeline(
         return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_missing_vals", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_missing_vals")
 
     # ---------------------------------------------------------
     ## Lat-lon -- does not proceed through qaqc if failure
@@ -593,9 +680,7 @@ def run_qaqc_pipeline(
         return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
-        printf(
-            "pass qaqc_missing_latlon", log_file=log_file, verbose=verbose, flush=True
-        )
+        logger.info("pass qaqc_missing_latlon")
 
     # ---------------------------------------------------------
     ## Within WECC -- does not proceed through qaqc if failure
@@ -612,7 +697,7 @@ def run_qaqc_pipeline(
         return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_within_wecc", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_within_wecc")
 
     # ---------------------------------------------------------
     ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
@@ -631,7 +716,7 @@ def run_qaqc_pipeline(
         return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_elev_infill", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_elev_infill")
 
     # ---------------------------------------------------------
     ## Elevation -- range within WECC
@@ -648,7 +733,7 @@ def run_qaqc_pipeline(
         return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_elev_range", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_elev_range")
 
     # =========================================================
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
@@ -666,11 +751,8 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_pressure_units_fix",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
     # ---------------------------------------------------------
@@ -687,19 +769,16 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_world_record", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_world_record")
 
-    printf(
+    logger.info(
         "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
+
     # =========================================================
     ## Part 2: Variable logic checks
-
     t0 = time.time()
-    printf("QA/QC logic checks", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("QA/QC logic checks")
     # ---------------------------------------------------------
     ## dew point temp cannot exceed air temperature
     new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
@@ -714,11 +793,8 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_crossvar_logic_tdps_to_tas_supersat",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
     # ---------------------------------------------------------
@@ -735,11 +811,8 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_crossvar_logic_tdps_to_tas_wetbulb",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
     # ---------------------------------------------------------
@@ -756,11 +829,8 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_precip_logic_nonegvals",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
     # ---------------------------------------------------------
@@ -777,13 +847,9 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_precip_logic_accum_amounts",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
-
     # ---------------------------------------------------------
     ## wind direction should be 0 when wind speed is also 0
     new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
@@ -798,34 +864,21 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_crossvar_logic_calm_wind_dir",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
-    printf(
+    logger.info(
         "Done logic checks, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     # =========================================================
     ## Part 3: Distribution and timeseries checks - order matters!
-    # buoy check
-    # frequent values check
-    # distributional check (unusual gaps)
-    # climatological outliers check
-    # unusual streaks check
-    # unusual large jumps check (spike)
-    ####
     # ---------------------------------------------------------
     ## Buoys with known issues with specific qaqc flags
     ## NDBC and MARITIME only
     if network == "MARITIME" or network == "NDBC":
         t0 = time.time()
-        printf("QA/QC bouy check", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("QA/QC bouy check")
 
         new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
         if new_df is None:
@@ -839,25 +892,19 @@ def run_qaqc_pipeline(
             )
         else:
             stn_to_qaqc = new_df
-            printf(
+            logger.info(
                 "pass spurious_buoy_check",
-                log_file=log_file,
-                verbose=verbose,
-                flush=True,
             )
 
-        printf(
+        logger.info(
             "Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(
                 time.time() - t0
             ),
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
     # ---------------------------------------------------------
     # frequent values
     t0 = time.time()
-    printf("QA/QC frequent values", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("QA/QC frequent values")
 
     new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
     if new_df is None:
@@ -871,22 +918,17 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
-            "pass qaqc_frequent_vals", log_file=log_file, verbose=verbose, flush=True
-        )
+        logger.info("pass qaqc_frequent_vals")
 
-    printf(
+    logger.info(
         "Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
         ),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     # ---------------------------------------------------------
     # distribution / unusual gaps
     t0 = time.time()
-    printf("QA/QC unusual gaps", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("QA/QC unusual gaps")
 
     new_df = qaqc_unusual_gaps(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
@@ -900,20 +942,15 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf("pass qaqc_unusual_gaps", log_file=log_file, verbose=verbose, flush=True)
+        logger.info("pass qaqc_unusual_gaps")
 
-    printf(
+    logger.info(
         "Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     # ---------------------------------------------------------
     # climatological outliers
     t0 = time.time()
-    printf(
-        "QA/QC climatological outliers", log_file=log_file, verbose=verbose, flush=True
-    )
+    logger.info("QA/QC climatological outliers")
 
     new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
     if new_df is None:
@@ -927,27 +964,19 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_climatological_outlier",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
-    printf(
+    logger.info(
         "Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
         ),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     # ---------------------------------------------------------
     # unusual streaks (repeated values)
     t0 = time.time()
-    printf(
-        "QA/QC unsual repeated streaks", log_file=log_file, verbose=verbose, flush=True
-    )
+    logger.info("QA/QC unsual repeated streaks")
 
     new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
@@ -961,25 +990,19 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_unusual_repeated_streaks",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
-    printf(
+    logger.info(
         "Done QA/QC unsual repeated streaks, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
         ),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     # ---------------------------------------------------------
     # unusual large jumps (spikes)
     t0 = time.time()
-    printf("QA/QC unsual large jumps", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("QA/QC unsual large jumps")
 
     new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
     if new_df is None:
@@ -993,32 +1016,21 @@ def run_qaqc_pipeline(
         )
     else:
         stn_to_qaqc = new_df
-        printf(
+        logger.info(
             "pass qaqc_unusual_large_jumps",
-            log_file=log_file,
-            verbose=verbose,
-            flush=True,
         )
 
-    printf(
+    logger.info(
         "Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(
             time.time() - t0
         ),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
-
     ## END QA/QC ASSESSMENT
     # =========================================================
     # Re-index to original time/station values
-
     # Calculate flag coverage per variable
-    printf(
+    logger.info(
         "Summary of QA/QC flags set per variable",
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
     )
     flag_summary(stn_to_qaqc, verbose=verbose, local=local)
 
@@ -1035,7 +1047,6 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-## Function: Conducts whole station qa/qc checks (lat-lon, within WECC, elevation)
 def whole_station_qaqc(
     network,
     cleandir,
@@ -1046,10 +1057,35 @@ def whole_station_qaqc(
     local=False,
     sample=None,
 ):
-    """
-    -----------------------------------
-    for station in stations: # full run
-    -----------------------------------
+    """Conducts whole station qaqc checks (lat-lon, within WECC, elevation)
+
+    Parameters
+    ----------
+    network : str
+        name of network
+    cleandir : str
+        path to cleaned data directory
+    qaqcdir : str
+        path to qaqc data directory
+    rad_scheme : str
+        radiation handling scheme for qaqc_frequent
+    zarr : bool
+        if False = .nc; if True = .zarr
+    verbose : bool, optional
+        if True, provides runtime output to local terminal
+    local : bool, optional
+        if True, saves output to local directory
+    sample : int, optional
+        number of stations to randomly sample from station list to run
+
+    Returns
+    -------
+    None
+        This function does not return a value
+
+    Notes
+    -----
+    1. For full run, command is: "for station in stations: " ## unsure if necessary now
     """
     smpi = simpleMPI()
 
@@ -1062,6 +1098,7 @@ def whole_station_qaqc(
     # ------------------------------------------
 
     # Read in network files
+    # This needs to be done only in rank 0, otherwise it gets run by every thread and will overwrite results
     if smpi.rank == 0:
         try:
             files_df = read_network_files(network, zarr)
@@ -1077,7 +1114,6 @@ def whole_station_qaqc(
         # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
         # Subsetting for a specific set of stations in a single network
         if specific_sample:
-            print(f"Running on specific stations: {specific_sample}")
             stations_sample = specific_sample
 
         # "all" for no restrictions on sample size
@@ -1089,21 +1125,22 @@ def whole_station_qaqc(
             nSample = int(sample)
             files_df = files_df.sample(nSample)
             stations_sample = list(files_df["era-id"])
-            print(stations_sample)
 
         # DOCUMENTATION NEEDED
         else:
             files_df = files_df[files_df["era-id"] == sample]
             if len(files_df) == 0:
-                smpi.pprint(
-                    f"Sample station '{sample}' not in network/stations_df. Please double-check names"
+                logger.info(
+                    "Sample station '{}' not in network/stations_df. Please double-check names".format(
+                        sample
+                    ),
                 )
-                exit()
+                exit()  # end script
                 stations_sample = list(files_df["era-id"])
             stations_sample = [sample]
 
-        smpi.pprint(
-            "Running {} files on {} network and these stations {}".format(
+        print(
+            "Running a sample of {} files on {} network \n Stations: {}".format(
                 len(stations_sample), network, stations_sample
             ),
             flush=True,
@@ -1112,15 +1149,13 @@ def whole_station_qaqc(
         stations_sample = None
         files_df = None
 
+    # DOCUMENTATION NEEDED
     files_df = smpi.comm.bcast(files_df, root=0)
     stations_sample = smpi.comm.bcast(stations_sample, root=0)
-
-    # if smpi.rank==0:
     stations_sample_scatter = smpi.scatterList(stations_sample)
 
     # Loop over stations
-    for station in stations_sample:
-        # for station in parfor(stations_sample):
+    for station in stations_sample_scatter:
         try:
             # ----------------------------------------------------------------------------
             # Set up error handling
@@ -1128,18 +1163,16 @@ def whole_station_qaqc(
 
             # ----------------------------------------------------------------------------
             # Set log file
-            global log_file
+            # DOCUMENTATION NEEDED
             ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
+            # for station in stations_sample:
+            #     log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
+            #     # Initialize the logger with the specific log file name
+            #     logger = setup_logger(log_file=log_fname, verbose=verbose)
+
             log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
-            log_file = open(log_fname, "w")
-            open_log_file_wholestation(log_file)
-            open_log_file_buoy(log_file)
-            open_log_file_logic(log_file)
-            open_log_file_spikes(log_file)
-            open_log_file_streaks(log_file)
-            open_log_file_gaps(log_file)
-            open_log_file_frequent(log_file)
-            open_log_file_clim(log_file)
+            # Initialize the logger with the specific log file name
+            logger = setup_logger(log_file=log_fname, verbose=verbose)
 
             # ----------------------------------------------------------------------------
             file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
@@ -1151,7 +1184,7 @@ def whole_station_qaqc(
             ###################################################################################################
             ## The file_df dataframe must have already checked if file exist in clean directory
             # if file_name not in files: # dont run qa/qc on a station that isn't cleaned
-            #     printf("{} was not cleaned - skipping qa/qc".format(station), log_file=log_file, verbose=verbose, flush=True)
+            #     logger.info("{} was not cleaned - skipping qa/qc".format(station))
             #     message = "No cleaned data for this station, does not proceed to qa/qc: see cleaned station list for reason"
             #     errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api,
             #                                message=message, test="whole_station_qaqc")
@@ -1160,14 +1193,13 @@ def whole_station_qaqc(
             ## The file_df dataframe must have already checked if file exist in clean directory
             ###################################################################################################
             T0 = time.time()
-            # printf('Running QA/QC on: {}\n'.format(station), log_file=log_file, verbose=verbose, flush=True) # testing
+            # logger.info('Running QA/QC on: {}\n'.format(station)) # testing
 
             # =====================================================================================
             # Testing speed-up re-order in case file is locally found
             # TODO: DELETE LOCAL READING FOR FINAL VERSION
             fs = s3fs.S3FileSystem()
             aws_url = "s3://wecc-historical-wx/" + file_name
-            printf(aws_url, log_file=log_file, verbose=verbose, flush=True)
             t0 = time.time()
             try:
                 with warnings.catch_warnings():
@@ -1177,41 +1209,29 @@ def whole_station_qaqc(
                 if zarr == False:  # Read netcdf file
                     with fs.open(aws_url) as fileObj:
                         try:
-                            printf(
-                                "Reading {}".format(aws_url),
-                                log_file=log_file,
-                                verbose=verbose,
-                                flush=True,
-                            )
+                            logger.info("Reading {}".format(aws_url))
                             with warnings.catch_warnings():
                                 warnings.filterwarnings(
                                     "ignore", category=RuntimeWarning
                                 )
                                 ds = xr.open_dataset(fileObj).load()
                         except Exception as e:
-                            printf(
+                            logger.info(
                                 "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
                                     station
-                                ),
-                                log_file=log_file,
-                                verbose=verbose,
-                                flush=True,
+                                )
                             )
                 elif zarr == True:  # Or, read zarr
                     try:
                         ds = xr.open_zarr(aws_url)
                     except Exception as e:
-                        printf(
+                        logger.info(
                             "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
                                 station
                             ),
-                            log_file=log_file,
-                            verbose=verbose,
-                            flush=True,
                         )
             # Testing speed-up re-order in case file is locally found
             # =====================================================================================
-
             try:
                 # TODO:
                 # Same issue than in the pipeline:
@@ -1239,22 +1259,16 @@ def whole_station_qaqc(
                 else:
                     ds = ds.drop_duplicates(dim="time")
 
-                printf(
-                    "Done reading. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
+                logger.info(
+                    f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
                 )
 
                 # CHECK THE ENGINE HERE:
                 # setting to default which operates on best with dependencies, previously 'h5netcdf'
 
                 # Run full QA/QC pipeline
-                printf(
+                logger.info(
                     "Running QA/QC on: {}\n".format(station),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
                 )
                 df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
                     ds,
@@ -1271,12 +1285,6 @@ def whole_station_qaqc(
                 ## Assign ds attributes and save .nc file
                 if df is not None:
                     t0 = time.time()
-                    printf(
-                        "Writing {}".format(aws_url),
-                        log_file=log_file,
-                        verbose=verbose,
-                        flush=True,
-                    )
 
                     process_output_ds(
                         df,
@@ -1292,80 +1300,62 @@ def whole_station_qaqc(
                         verbose=verbose,
                         local=local,
                     )
-                    printf(
-                        "Done writing. Ellapsed time: {:.2f} s.\n".format(
-                            time.time() - t0
-                        ),
-                        log_file=log_file,
-                        verbose=verbose,
-                        flush=True,
-                    )
 
             except Exception as e:
-                printf(
+                logger.info(
                     "run_qaqc_pipeline failed with error: {}".format(e),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
                 )
                 errors = print_qaqc_failed(
                     errors,
                     station,
                     end_api,
-                    message="Cannot read files in from AWS: {0}".format(e),
+                    message="run_qaqc_pipeline failed with error: {}".format(e),
                     test="run_qaqc_pipeline",
                     verbose=verbose,
                 )
 
-                # Print error file location
-                printf(
-                    "errors_{0}_{1}.csv saved to {2}\n".format(
-                        network_ds, end_api, bucket_name + "/" + qaqcdir
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-
-                # Close an save log file
-                # log_path = qaqcdir + "qaqc_logs/{}".format(qaqcdir, log_fname)
-                # s3_cl.put_object(Bucket=bucket_name, Body=content, Key=qaqcdir+log_fname)
-                log_object = "{}/{}".format(os.getcwd(), log_fname)
-                log_path = "{}/{}".format(qaqcdir, log_fname).replace("//", "/")
-                s3.Bucket(bucket_name).upload_file(log_object, log_path)
-                # printf('{} saved to {}\n'.format(log_fname, log_path), log_file=log_file, verbose=verbose, flush=True)
-
-                # Done with station qaqc
-                printf(
-                    "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                        station, time.time() - T0
-                    ),
-                    log_file=log_file,
-                    verbose=verbose,
-                    flush=True,
-                )
-                log_file.close()
         except Exception as e:
-            printf(
+            logger.info(
                 "QAQC failed\n\n{}\n{}\n\n".format(station, e),
-                log_file=log_file,
-                verbose=verbose,
-                flush=True,
             )
         # Write errors to csv
         finally:
-            # pass
             errors = pd.DataFrame(errors)
             csv_buffer = StringIO()
             errors.to_csv(csv_buffer)
             content = csv_buffer.getvalue()
 
+            # Done with station qaqc
+            logger.info(
+                "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
+                    station, time.time() - T0
+                ),
+            )
+
             # Make sure error files save to correct directory
             s3_cl.put_object(
                 Bucket=bucket_name,
                 Body=content,
-                Key=qaqcdir + "errors_{}_{}.csv".format(station, end_api),
+                Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
             )
-    MPI.Finalize()
+            # Print error file location
+            logger.info(
+                "errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
+                    network_ds, end_api, bucket_name + "/" + qaqcdir
+                ),
+            )
 
-    return
+            # Save log file to s3 bucket
+            logger.info(
+                "Saving log file to s3://{0}/{1}{2}\n".format(
+                    bucket_name, qaqcdir, log_fname
+                ),
+            )
+            s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
+
+            # Close logging handlers manually
+            for handler in logger.handlers:
+                handler.close()
+                logger.removeHandler(handler)
+
+    return None

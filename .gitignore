@@ -15,3 +15,10 @@ __pycache__/
 *.nc 
 */*.nc
 
+# Logging
+*/qaqc_logs
+*/qaqc_figs
+*/timing
+*/temp
+*/local_qaqced_files
+default_qaqc_log.log

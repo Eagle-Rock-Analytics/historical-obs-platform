@@ -25,6 +25,7 @@ Modification History:
     - Missing timesteps are filled with NaN instead of 0. 
     - Time conversion removed because the new data contains a time column in UTC timezone  
     - Data read in using pd.read_csv() instead of tempfile method 
+- 01/20/2025: Add check for station in API json file csv due to VW sending data that didn't exist in the API and error being raised in script (station ID 6053)
 
 Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
@@ -83,9 +84,10 @@ def main():
     # Lat, lon, name, and watershed :)
     # This info was manually retrieved from the API
     # See scrape_json_file.ipynb for more info (in the valley water repo)
-    station_info_df = pd.read_csv(
+    station_info_csv_filepath = (
         "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/VALLEYWATER_station_info.csv"
     )
+    station_info_df = pd.read_csv(station_info_csv_filepath)
 
     # Loop through each file, clean/reformat, and upload to s3
     # Print a pretty progress bar to console :)
@@ -93,7 +95,6 @@ def main():
         filename = filenames[i]
 
         # Read in file
-        filename = "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/Precip_Increm.Final@6001.EntireRecord.csv"
         df = pd.read_csv(
             filename, header=14
         )  # Remove header from each file so it can be read in as a dataframe
@@ -149,6 +150,16 @@ def main():
         station_info_i = station_info_df[
             station_info_df["station_id"] == int(station_id)
         ]
+
+        # Check if that station is in the csv! If not, print a warning, skip the station, and move to next loop iteration
+        # Implementing this check due to station ID #6053 not found in API
+        if len(station_info_i) < 1:
+            print(
+                "WARNING: no information found in csv file {0} for station ID {1}. Skipping and moving to next station".format(
+                    station_info_csv_filepath, station_id
+                )
+            )
+            continue  # End this loop iteration completely, continue to next station
 
         # Remove date strings from filename
         # Convert to uppercase characters to match existing filename formatting conventions

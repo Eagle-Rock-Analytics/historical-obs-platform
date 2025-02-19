@@ -3,7 +3,7 @@
 2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
 3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
 4,qaqc_elev_infill,Elevation infilled from station
-5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM (check if not buoy)
+5,qaqc_elev_infill,Elevation manually infilled to be 0.0 m; occurs for buoy out-of-range of DEM or DEM response fails (check if not buoy)
 6,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height missing
 7,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height not 2 meters
 8,qaqc_sensor_height_w,INACTIVE FLAG: Anemometer height missing
@@ -28,4 +28,7 @@
 27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of values
 28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
-30,nan,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeries.
+30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeries
+31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
+33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check

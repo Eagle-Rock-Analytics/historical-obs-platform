@@ -4,48 +4,23 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
-import geopandas as gp
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import datetime
-import time
-import math
-import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-import matplotlib
-from io import BytesIO, StringIO
 import scipy.stats as stats
 
-plt.switch_backend("Agg")
+# New logger function
+from log_config import logger
 
 ## Import plotting functions
 try:
     from qaqc_plot import *
 except:
-    print("Error importing qaqc_plot.py")
+    logger.debug("Error importing qaqc_plot.py")
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
-
-
-def open_log_file_spikes(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
@@ -54,40 +29,34 @@ def qaqc_unusual_large_jumps(
     df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=False
 ):
     """
-    Test for unusual large jumps or ''spikes'', given the statistics of the series. Analysis for each individual month in
+    Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
     time series to account for seasonal cycles in different regions.
 
-    This test is done for ["tas", "tdps", "ps", "psl", "ps_altimeter"]
-    Should it be done for more vars?
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    iqr_thresh : int
+        critical value (iqr_thresh*IQR) for spike detection (default=6)
+    min_datapoints : int, optional
+        minimum data points in each month to be valid for testing (default=50)
+    local : bool, optional
+        if True, saves the plot to local directory
+    plot : bool, optional
+        if True, produces plot and uploads it to AWS
 
-    Input:
+    Returns
+    -------
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
+
+    Notes
     -----
-        df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
-        iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
-        min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
-        local [bool] : if True, saves the plot to local directory
-        plot [bool] : if True, produces plot and uploads it to AWS
+    Flag meaning : 23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
 
-    Output:
-    ------
-        if qaqc succeded:
-            df [pandas dataframe] : QAQC dataframe with flagged values (see below for flag meaning).
-        else if qaqc failed:
-            None
-
-    Flag meaninig:
-    -------------
-        23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
-
-    Notes:
-    ------
-    To Do:
-    - iqr_thresh is something can be modified of tweaked down the line (6 is what HadISD uses)
-    - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
-    - HadISD uses 100, this can be modified and tweaked in future development
     """
 
-    printf("Running: qaqc_unusual_large_jumps", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_unusual_large_jumps")
     INDEX = df.index
     df = df.copy(deep=True)
     df.set_index(df["time"], inplace=True)
@@ -113,19 +82,14 @@ def qaqc_unusual_large_jumps(
         ]
         variables = [var for var in check_vars if var in df.columns]
 
-        printf(
+        logger.info(
             "Running {} on {}".format("qaqc_unusual_large_jumps", variables),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
 
         # Loop through test variables
         for var in variables:
-            printf(
+            logger.info(
                 "Running unusual large jumps check on: {}".format(var),
-                log_file=log_file,
-                verbose=verbose,
             )
             new_df = grab_valid_obs(df, var)  # subset for valid obs
 
@@ -151,10 +115,8 @@ def qaqc_unusual_large_jumps(
             if plot:
                 ## Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year", "month"]).groups.keys()
-                printf(
+                logger.info(
                     "Plotting {} year/month cases".format(len(keys)),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 for k in keys:
                     ind = np.logical_and(
@@ -169,35 +131,40 @@ def qaqc_unusual_large_jumps(
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_unusual_large_jumps failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
 
 # -----------------------------------------------------------------------------
 def potential_spike_check(potential_spike, diff, crit, hours_diff):
-    """
-    Checks for neccessary conditions for a potential spike to be an actual spike:
-     - Spikes are considered 1-value spike up to 3-values spike
-     - Difference right before the spike should be lower than half the critical value
-     - Difference at the actual spike must be higher than the critical value
-     - Differences within the multi-value spike must lower than half the critical value
-     - Difference right after (spike exit) the spike should be higher than the critical value and
-       of opposite sign of the actual spike
+    """Checks for neccessary conditions for a potential spike to be an actual spike.
 
-    Input:
+    Parameters
+    ----------
+    potential_spike : pandas series
+        bool pd.Series with True on potential spike location
+    diff : pandas series
+        float pd.Series with differences in the test variable
+    crit : pandas series
+        float pd.Series with the critical value for the differences in the test variable
+    crit : pandas series
+        float pd.Series with the hour differences between data points in the test variable
+
+    Returns
+    -------
+    spikes : pd.DataFrame
+        input df with added `var`_spike column True where data matches the spike conditions
+
+    Notes
     -----
-        potential_spike [pandas series] : bool pd.Series with True on potential spike location
-        diff [pandas series] : float pd.Series with differences in the test variable
-        crit [pandas series] : float pd.Series with the critical value for the differences in the test variable
-        crit [pandas series] : float pd.Series with the hour differences between data points in the test variable
-
-    Output:
-    ------
-        df [pandas dataframe] : input df with added `var`_spike column True where data matches the spike conditions
+    1. Spikes are considered 1-value spike up to 3-values spike
+    2. Difference right before the spike should be lower than half the critical value
+    3. Difference at the actual spike must be higher than the critical value
+    4. Differences within the multi-value spike must lower than half the critical value
+    5. Difference right after (spike exit) the spike should be higher than the critical value and
+       of opposite sign of the actual spike
     """
 
     potential_spike = potential_spike.copy(deep=True)
@@ -258,32 +225,29 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
 # -----------------------------------------------------------------------------
 def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
     """
-    Detect  unusual large jumps or ''spikes'' in the time series for `var`:
-      1- Find potential unusual large jumps or ''spikes'' by comparing the differences in `var` to each
-         month's critical value (crit = iqr_thresh * IQR)
-      2- `potential_spike_check` checks for neccessary conditions for a potential spike to be an actual
-          spike
+    Detect  unusual large jumps or ''spikes'' in the time series for `var`.
 
-    This test is done for ["tas", "tdps", "tdps_derived", 'ps', 'psl', 'ps_altimeter', 'ps_derived']
-    Should it be done for more vars?
-
-    Input:
-    -----
-        df [pandas dataframe] : station dataset converted to dataframe through QAQC pipeline
-        var [str] : variable to test
-        iqr_thresh [int] : critical value (iqr_thresh*IQR) for spike detection (default=6)
-        min_datapoints [int] : minimum data points in each month to be valid for testing (default=50)
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    var : str
+        variable to test
+    iqr_thresh : int, optional
+        critical value (iqr_thresh*IQR) for spike detection (default=6)
+    min_datapoints : int, optional
+        minimum data points in each month to be valid for testing (default=50)
 
     Output:
     ------
-        df [pandas dataframe] : input df with added columns for spike check
+    df : pd.DataFrame
+        input df with added columns for spike check
 
-    Notes:
-    ------
-    To Do:
-    - iqr_thresh is something can me modified of tweaked down the line (6 is what HadISD uses)
-    - min_datapoints is the minimum data points in a group for threshold calculation (month/hours between data points)
-    - HadISD uses 100, this can be modified and twaked in future development
+    Notes
+    -----
+    1. Find potential unusual large jumps or ''spikes'' by comparing the differences in `var` to each
+    month's critical value (crit = iqr_thresh * IQR)
+    2. `potential_spike_check` checks for neccessary conditions for a potential spike to be an actual spike
     """
 
     # Make a copy of the original dataframe

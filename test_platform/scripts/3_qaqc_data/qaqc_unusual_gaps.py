@@ -4,44 +4,23 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
-import geopandas as gp
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import datetime
-import math
-import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
 import scipy.stats as stats
+
+# New logger function
+from log_config import logger
 
 ## Import plotting functions
 try:
-    from qaqc_plot import *
-except:
-    print("Error importing qaqc_plot.py")
-
-try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
-
-def open_log_file_gaps(file):
-    global log_file
-    log_file = file
-
-
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
+try:
+    from qaqc_plot import standardized_median_bounds
+except Exception as e:
+    logger.debug("Error importing standardized_median_bounds: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
@@ -50,30 +29,29 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     """
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        iqr_thresh [int]: interquartile range year threshold, default set to 5
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    iqr_thresh : int, optional
+        interquartile range year threshold, default set to 5
+    plots : bool, optional
+        if True, produces figures
+    verbose : bool, optional
+        if True, provides runtime output to the local terminal
+    local : bool, optional
+        if True, saves plots to local directory
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
-    Flag meaning:
-    -------------
-        21,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
-        22,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
-
-    Notes:
+    Notes
     ------
-    PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
-        - iqr_thresh preliminarily set to 5 years, pending revision
+    Flag meaning : 21,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
+    Flag meaning : 22,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
     """
-
-    # import pdb; pdb.set_trace()
 
     vars_for_gaps = [
         "tas",
@@ -85,14 +63,14 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         "ps_derived",
         "rsds",
     ]
+
+    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
+    vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 
     try:
-        printf(
+        logger.info(
             "Running {} on {}".format("qaqc_unusual_gaps", vars_to_check),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )
 
         # whole station bypass check first
@@ -110,21 +88,28 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         ).all():  # If all variables have less than 5 years, bypass whole station
             return df
         else:
-            df_part1 = qaqc_dist_gap_part1(
+            df_to_run = qaqc_dist_gap_part1(
                 df, vars_to_check, iqr_thresh, plots, verbose=verbose, local=local
             )
-            df_part2 = qaqc_dist_gap_part2(
-                df_part1, vars_to_check, plots, verbose=verbose, local=local
+            df_to_run = qaqc_dist_gap_part2(
+                df_to_run, vars_to_check, plots, verbose=verbose, local=local
             )
 
-        return df_part2
+    except Exception as e:
+        logger.info(
+            "qaqc_unusual_gaps failed with Exception: {}".format(e),
+        )
+        return None
+
+    # precip flag
+    try:
+        if len(vars_to_pr) != 0:
+            for var in vars_to_pr:
+                df_to_run = qaqc_unusual_gaps_precip(df_to_run, var, threshold=200)
+        return df_to_run
 
     except Exception as e:
-        printf(
-            "qaqc_unusual_gaps failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
-        )
+        logger.info("qaqc_unusual_gaps_precip failed with Exception: {}".format(e))
         return None
 
 
@@ -132,37 +117,41 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 def qaqc_dist_gap_part1(
     df, vars_to_check, iqr_thresh, plot=True, verbose=False, local=False
 ):
-    """
+    """Identifies suspect months and flags all obs within month
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    vars_to_check : list of str
+        list of variables to run test on
+    iqr_thresh : int
+        interquartile range year threshold, default set to 5
+    plot : bool, optional
+        if True, produces figures
+    verbose : bool, optional
+        if True, provides runtime output to the local terminal
+    local : bool, optional
+        if True, saves plots to local directory
+
+    Returns
+    -------
+    df : pd.DataFrame
+        QAQC dataframe with flagged values (see below for flag meaning)
+
+    Notes
+    -----
     Part 1 / monthly check
         - compare anomalies of monthly median values
         - standardize against interquartile range
         - compare stepwise from the middle of the distribution outwards
         - asymmetries are identified and flagged if severe
-    Goal: identifies suspect months and flags all obs within month
-
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        vars_to_check [list]: list of variables to run test on
-        iqr_thresh [int]: interquartile range year threshold, default set to 5
-
-    Output:
-    -------
-        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-
-    Notes:
-    ------
-    PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
-        - iqr_thresh preliminarily set to 5 years, pending revision
     """
-    # import pdb; pdb.set_trace()
     network = df["station"].unique()[0].split("_")[0]
 
     for var in vars_to_check:
-        printf(
+        logger.info(
             "Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var),
-            log_file=log_file,
-            verbose=verbose,
         )
         for month in range(1, 13):
             monthly_df = df.loc[df["month"] == month]
@@ -175,12 +164,10 @@ def qaqc_dist_gap_part1(
                 df, var, kind="drop"
             )  # drops data flagged with 20
             if len(df_valid) == 0 or df_valid[var].isnull().all():
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue  # variable has no valid data
 
@@ -199,12 +186,10 @@ def qaqc_dist_gap_part1(
             years_to_flag = df_month[index_to_flag].index
 
             for year in years_to_flag:
-                printf(
+                logger.info(
                     "Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month".format(
                         var, month, int(year), iqr_thresh
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
 
             # flag all obs in that month
@@ -230,7 +215,28 @@ def qaqc_dist_gap_part1(
 
 # -----------------------------------------------------------------------------
 def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False):
-    """
+    """Identifies individual suspect observations and flags the entire month
+
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    vars_to_check : list of str
+        list of variables to run test on
+    plot : bool, optional
+        if True, produces figures
+    verbose : bool, optional
+        if True, provides runtime output to the local terminal
+    local : bool, optional
+        if True, saves plots to local directory
+
+    Returns
+    -------
+    df : pd.DataFrame
+        QAQC dataframe with flagged values (see below for flag meaning)
+
+    Notes
+    -----
     Part 2 / monthly check
         - compare all obs in a single month, all years
         - histogram created from all obs and gaussian distribution fitted
@@ -238,28 +244,11 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
         - rounds outwards to next integer plus one
         - going outwards from center, distribution is scanned for gaps which occur outside threshold
         - obs beyond gap are flagged
-    Goal: identifies individual suspect observations and flags the entire month
-
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
-        vars_to_check [list]: list of variables to run test on
-
-    Output:
-    -------
-        df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-
-    Notes:
-    ------
-    PRELIMINARY: This function has not been fully evaluated or finalized in full qaqc process. Thresholds/decisions may change with refinement.
-        - iqr_thresh preliminarily set to 5 years, pending revision
     """
 
     for var in vars_to_check:
-        printf(
+        logger.info(
             "Running unusual gaps check on: {}, qaqc_dist_gap_part2".format(var),
-            log_file=log_file,
-            verbose=verbose,
         )
         for month in range(1, 13):
             # Sel month data
@@ -272,12 +261,10 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                 monthly_df, var, kind="drop"
             )  # drops data flagged with 20
             if len(df_valid) == 0 or df_valid[var].isnull().all() == True:
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue  # variable has no valid data
 
@@ -287,12 +274,10 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
             # Bug due to repeated values giving iqr=0 and failing to calculate bins below
             if iqr_range(df_valid, var) == 0:
-                printf(
+                logger.info(
                     "No valid data present for {} in month {} -- skipping to next month".format(
                         var, month
                     ),
-                    log_file=log_file,
-                    verbose=verbose,
                 )
                 continue
 
@@ -361,25 +346,75 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
 
 # -----------------------------------------------------------------------------
 def monthly_med(df):
-    """Part 1: Calculates the monthly median"""
+    """Part 1: Calculates the monthly median.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe
+
+    Returns
+    -------
+    pd.DataFrame
+        resampled dataframe of monthly medians
+    """
     return df.resample("M", on="time").median(numeric_only=True)
 
 
 # #-----------------------------------------------------------------------------
 def iqr_range(df, var):
-    """Part 1: Calculates the monthly interquartile range"""
+    """Part 1: Calculates the monthly interquartile range
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe
+    var : str
+        variable name
+
+    Returns
+    -------
+    pd.DataFrame
+        interquartile range
+    """
     return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
 
 
 # -----------------------------------------------------------------------------
 def standardized_iqr(df, var):
-    """Part 2: Standardizes data against the interquartile range"""
+    """Part 2: Standardizes data against the interquartile range
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe
+    var : str
+        variable name
+
+    Returns
+    -------
+    pd.DataFrame
+        standardized interquartile range
+    """
     return (df[var].values - df[var].median()) / iqr_range(df, var)
 
 
 # -----------------------------------------------------------------------------
 def median_clim(df, var):
-    """Part 2: Calculate climatological median for a specific month and variable"""
+    """Part 2: Calculate climatological median for a specific month and variable
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe
+    var : str
+        variable name
+
+    Returns
+    -------
+    clim : pd.DataFrame
+        climatological median
+    """
     clim = df[var].median(numeric_only=True)
     return clim
 
@@ -389,9 +424,19 @@ def standardized_anom(df, month, var):
     """
     Part 1: Calculates the monthly anomalies standardized by IQR range
 
-    Output:
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input QAQC dataframe
+    month : int
+        month
+    var : str
+        variable name
+
+    Returns
     -------
-        arr_std_anom: array of monthly standardized anomalies for var
+    arr_std_anom : np.array
+        array of monthly standardized anomalies for var
     """
 
     df_monthly_med = monthly_med(df)
@@ -406,3 +451,105 @@ def standardized_anom(df, month, var):
 
 
 # -----------------------------------------------------------------------------
+
+
+def check_differences(series, threshold):
+    """Computes pairwise absolute differences between each day and all other days in series
+
+    Parameters
+    ----------
+    series : pd.Series
+        input data per month
+    threshold : int
+        value to identify unusual gap
+
+    Returns
+    -------
+    pd.Series
+    """
+
+    # for all values in the column
+    diff_matrix = np.abs(series.values[:, None] - series.values)
+
+    # Check for values exceeding threshold
+    exceeds_threshold = diff_matrix > threshold
+
+    # Exclude self-comparison
+    np.fill_diagonal(exceeds_threshold, False)
+
+    # Identify Rows with Any Exceeding Differences
+    rows_with_exceeding_diff = exceeds_threshold.all(axis=1)
+
+    # row_has_diffs_above_threshold = pd.Series(
+    return pd.Series(
+        rows_with_exceeding_diff, name="exceeds_threshold", index=series.index
+    )
+
+
+# -----------------------------------------------------------------------------
+def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
+    """
+    Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
+    This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
+    and flagged values are applied to all subhourly observations within a flagged day.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        QAQC dataframe to run through test
+    var : str
+        variable name
+    threshold : int
+        precipitation total to check, default 200 mm
+    verbose : boolean, optional
+        whether to provide output to local env
+
+    Returns
+    -------
+    new_df : pd.DataFrame
+        QAQC dataframe with flagged values (see below for flag meaning)
+
+    Notes
+    ------
+    1. PRELIMINARY: Thresholds/decisions may change with refinement.
+    2. HadISD uses a threshold of 300 mm for global precip, we refined to 200 mm for California-specific but can be modified
+    3. compare all precipitation obs in a single month, all years
+    4. sums observations to daily timestep, then checks each daily sum to every other sum in that month
+    5. flags days on which the sum is 200m more than any other daily observation in that month
+    Flag Meaning : 33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
+    """
+    ### Filter df to precipitation variables and sum daily observations
+
+    logger.info("Running qaqc_unusual_gaps_precip on: {}".format(var))
+    new_df = df.copy()
+    df_valid = grab_valid_obs(new_df, var)
+
+    # aggregate to daily, subset on time, var, and eraqc var
+    df_sub = df_valid[["time", "year", "month", "day", var, var + "_eraqc"]]
+    df_dy = (
+        df_sub.resample("1D", on="time")
+        .agg(
+            {
+                var: "sum",
+                var + "_eraqc": "first",
+                "year": "first",
+                "month": "first",
+                "day": "first",
+            }
+        )
+        .reset_index()
+    )
+
+    # returns a flag column with True or False
+    output = df_dy.groupby("month")[var].transform(
+        check_differences, threshold=threshold
+    )
+
+    # filter the boolean series with itself and set True entries to flag value "33"
+    flagged = output.loc[output == True]
+    flagged_str = flagged.map({True: "33"})
+
+    # backflag all observations in the input dataframe
+    new_df[var + "_eraqc"] = new_df["time"].dt.date.map(flagged_str)
+
+    return new_df

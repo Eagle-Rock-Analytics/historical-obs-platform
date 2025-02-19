@@ -6,27 +6,26 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 ## Import Libraries
 import boto3
 import geopandas as gp
+import shapely
 import numpy as np
 import pandas as pd
-import requests
-import urllib
-import datetime
-import math
 import shapely
-import xarray as xr
-import matplotlib.pyplot as plt
-from io import BytesIO, StringIO
 import scipy.stats as stats
+import urllib
+import requests
+
+# New logger function
+from log_config import logger
 
 try:
     from qaqc_utils import *
 except Exception as e:
-    print("Error importing qaqc_utils: {}".format(e))
+    logger.debug("Error importing qaqc_utils: {}".format(e))
 
 try:
-    from qaqc_plot import *
+    from qaqc_plot import flagged_timeseries_plot
 except Exception as e:
-    print("Error importing qaqc_plot: {}".format(e))
+    logger.debug("Error importing flagged_timeseries_plot: {}".format(e))
 
 # if __name__ == "__main__":
 wecc_terr = (
@@ -34,23 +33,10 @@ wecc_terr = (
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-# #####################################
-# #FOR DEBUG
-# #UNCOMMENT FOR NOTEBOOK DEBUGGING
-# verbose=True
-# global log_file
-# log_file = open("logtest.log","w")
-# verbose=True
-# #####################################
 
 # ======================================================================
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
-
-
-def open_log_file_wholestation(file):
-    global log_file
-    log_file = file
 
 
 # ----------------------------------------------------------------------
@@ -60,19 +46,20 @@ def qaqc_missing_vals(df, verbose=False):
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
     Searches for missing values in 3_qaqc_data/missing_data_flags.csv.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with missing values replaced
-        if qaqc failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
 
-    printf("Running: qaqc_missing_vals", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_missing_vals")
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
 
@@ -118,16 +105,14 @@ def qaqc_missing_vals(df, verbose=False):
                 df[item],
             )
 
-            printf(
+            logger.info(
                 "Updating missing values for: {}".format(item),
-                log_file=log_file,
-                verbose=verbose,
             )
-    except Exception as e:
-        printf(e, log_file=log_file, verbose=verbose)
-        return None
+            return df
 
-    return df
+    except Exception as e:
+        logger.info(e)
+        return None
 
 
 # ----------------------------------------------------------------------
@@ -138,18 +123,19 @@ def qaqc_missing_latlon(df, verbose=False):
     Checks if latitude and longitude is missing for a station.
     If missing, station is flagged to not proceed through QA/QC.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with missing values replaced
-        if qaqc failure:
-            None: station does not proceed through QA/QC
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
-    printf("Running: qaqc_missing_latlon", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_missing_latlon")
 
     # latitude or longitude
     variables = list(df.columns)
@@ -172,18 +158,19 @@ def qaqc_within_wecc(df, verbose=False):
     Test for whether station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if qaqc success:
-            df [pd.DataFrame]: QAQC dataframe with missing values replaced
-        if qaqc failure:
-            None: station does not proceed through QA/QC
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
     """
-    printf("Running: qaqc_within_wecc", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_within_wecc")
 
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
     m = gp.read_file(wecc_mar).iloc[0].geometry  ## Read in marine WECC shapefile.
@@ -201,18 +188,23 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
     If elevation is missing, retrieves elevation value from the USGS Elevation Point Query Service,
     lat lon must be in decimal degrees (which it is after cleaning).
 
-    Input:
-    ------
-        lats_to_check [list]: list of latitude values to input for DEM elevation retrieval
-        lons_to_check [list]: list of longitude values to input for DEM elevation retrieval
+    Parameters
+    ----------
+    lats_to_check : list of float
+        list of latitude values to input for DEM elevation retrieval
+    lons_to_check : list of float
+        list of longitude values to input for DEM elevation retrieval
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        dem_elev_short [float]: elevation infill value
+    dem_elev_short : float
+        elevation infill value
 
-    References:
-    -----------
-    Modified from: https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
+    References
+    ----------
+    [1] Modified from: https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
     """
 
     url = r"https://epqs.nationalmap.gov/v1/json?"
@@ -222,7 +214,6 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
     for i, lat, lon in zip(range(len(lats_to_check)), lats_to_check, lons_to_check):
         # define rest query params
         params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
-
         # format query string and return value
         result = requests.get((url + urllib.parse.urlencode(params)))
         dem_elev_long = float(result.json()["value"])
@@ -234,36 +225,33 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
 
 # ----------------------------------------------------------------------
 def qaqc_elev_infill(df, verbose=False):
-    """
-    Test if elevation is NA/missing.
-    Three in-fill scenarios:
-        1 - If all values are nan, in-fill from DEM
-        2 - If some values are missing, in-fill from station for consistency (e.g., OtherISD, ASOSAWOS)
-        3 - If all values are nan, and DEM fails to retrieve (over ocean), set to 0 (e.g., NDBC, MARITIME)
+    """Test if elevation is NA/missing.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None: station does not proceed through QA/QC
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
-    Flag meaning:
-    -------------
-        3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
-        4,qaqc_elev_infill,Elevation infilled from station
-        5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM
-
-    Note:
+    Notes
     -----
-        Elevation qa/qc flags: observations with these flags should continue through QA/QC
+    1. Three in-filling scenarios
+        - If all values are nan, in-fill from DEM
+        - If some values are missing, in-fill from station for consistency (e.g., OtherISD, ASOSAWOS)
+        - If all values are nan, and DEM fails to retrieve (over ocean), set to 0 (e.g., NDBC, MARITIME)
+    2. Elevation qa/qc flags: observations with these flags should continue through QA/QC
+    Flag meaning : 3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
+    Flag meaning : 4,qaqc_elev_infill,Elevation infilled from station
+    Flag meaning : 5,qaqc_elev_infill,Elevation manually infilled for buoy out-of-range of DEM
     """
 
-    printf("Running: qaqc_elev_infill", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_elev_infill")
 
     # first check to see if any elev value is missing
     if df["elevation"].isnull().any() == True:
@@ -310,9 +298,7 @@ def qaqc_elev_infill(df, verbose=False):
                             ] = float(dem_elev_value)
 
             except:  # elevation cannot be obtained from DEM
-                printf(
-                    "Elevation cannot be in-filled", log_file=log_file, verbose=verbose
-                )
+                logger.info("Elevation cannot be in-filled")
                 return None
 
         # some stations have a single/few nan reported, in-fill from station for consistency
@@ -358,9 +344,7 @@ def qaqc_elev_infill(df, verbose=False):
 
             # elevation cannot be in-filled
             except:
-                printf(
-                    "Elevation cannot be in-filled", log_file=log_file, verbose=verbose
-                )
+                logger.info("Elevation cannot be in-filled")
                 return None
     return df
 
@@ -371,44 +355,43 @@ def qaqc_elev_range(df, verbose=False):
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC fails, returns None
+
+    Notes
+    -----
+    1. Death Valley is 282 (85.9 m) below sea level
+    2. Denali is ~6190 m above sea level
+    3. Opting to build in a 10 m buffer for range check
     """
 
-    # death valley is 282 feet (85.9 m) below sea level
-    # denali is ~6190 m
-    # add a 10 m buffer
-
-    printf("Running: qaqc_elev_range", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_elev_range")
 
     # If value is present but outside of reasonable value range
     if (df["elevation"].values.any() < -95.0) or (
         df["elevation"].values.any() > 6210.0
     ):
-        printf(
-            "Station out of range for WECC -- station does not proceed through QAQC",
-            log_file=log_file,
-            verbose=verbose,
+        logger.info(
+            "Station out of range for WECC -- station does not proceed through QAQC"
         )
         return None
 
     # Elevation value is present and within reasonable value range
     else:
         df = df
-        printf(
+        logger.info(
             "Elevation values post-infilling/correcting: {}".format(
                 df["elevation"].unique()
-            ),
-            log_file=log_file,
-            verbose=verbose,
+            )
         )
 
     return df
@@ -421,32 +404,31 @@ def qaqc_elev_range(df, verbose=False):
 
 # ----------------------------------------------------------------------
 ## sensor height - air temperature
-## NOTE: qaqc_sensor_height_t function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_t(df, verbose=False):
     """
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
-    Flag meaning:
-    -------------
-        6,qaqc_sensor_height_t,Thermometer height missing
-        7,qaqc_sensor_height_t,Thermometer height not 2 meters
+    Notes
+    ------
+    1. qaqc_sensor_height_t function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
+    Flag meaning : 6,qaqc_sensor_height_t,Thermometer height missing
+    Flag meaning : 7,qaqc_sensor_height_t,Thermometer height not 2 meters
     """
 
-    # TODO: Add red vs. yellow flagging in, v2
-
-    printf("Running: qaqc_sensor_height_t", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_sensor_height_t")
 
     try:
         # Check if thermometer height is missing
@@ -454,10 +436,8 @@ def qaqc_sensor_height_t(df, verbose=False):
 
         if isHeightMissing:
             df["tas_eraqc"] = 6  # see era_qaqc_flag_meanings.csv
-            printf(
+            logger.info(
                 "Thermometer height is missing -- air temperature will be excluded from all QA/QC checks",
-                log_file=log_file,
-                verbose=verbose,
             )
         else:
             isHeightWithin = np.logical_and(
@@ -469,18 +449,14 @@ def qaqc_sensor_height_t(df, verbose=False):
             if not isHeightWithin.all():
                 # df.loc[:, 'tas_eraqc'] = 7 # see era_qaqc_flag_meanings.csv
                 df["tas_eraqc"] = 7  # see era_qaqc_flag_meanings.csv
-                printf(
+                logger.info(
                     "Thermometer height is not 2 m -- air temperature will be excluded from all QA/QC checks",
-                    log_file=log_file,
-                    verbose=verbose,
                 )
 
         return df
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_sensor_height_t failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -493,25 +469,26 @@ def qaqc_sensor_height_w(df, verbose=False):
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
-    Flag meaning:
-    -------------
-        8,qaqc_sensor_height_w,Anemometer height missing
-        9,qaqc_sensor_height_w,Anemometer height not 10 meters
+    Notes
+    ------
+    1. qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
+    Flag meaning : 8,qaqc_sensor_height_w,Anemometer height missing
+    Flag meaning : 9,qaqc_sensor_height_w,Anemometer height not 10 meters
     """
-    # TODO: Add red vs. yellow flagging in, v2
 
-    printf("Running: qaqc_sensor_height_w", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_sensor_height_w")
 
     try:
         # Check if anemometer height is missing
@@ -522,10 +499,8 @@ def qaqc_sensor_height_w(df, verbose=False):
             # df.loc[:,'sfcWind_dir_eraqc'] = 8
             df["sfcWind_eraqc"] = 8  # see era_qaqc_flag_meanings.csv
             df["sfcWind_dir_eraqc"] = 8
-            printf(
+            logger.info(
                 "Anemometer height is missing -- wind speed and direction will be excluded from all QA/QC checks",
-                log_file=log_file,
-                verbose=verbose,
             )
 
         else:  # sensor height present
@@ -537,18 +512,14 @@ def qaqc_sensor_height_w(df, verbose=False):
             if not isHeightWithin.all():
                 df["sfcWind_eraqc"] = 9  # see era_qaqc_flag_meanings.csv
                 df["sfcWind_dir_eraqc"] = 9
-                printf(
+                logger.info(
                     "Anemometer height is not 10 m -- wind speed and direction will be excluded from all QA/QC checks",
-                    log_file=log_file,
-                    verbose=verbose,
                 )
         return df
 
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_sensor_height_w failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -560,29 +531,30 @@ def qaqc_world_record(df, verbose=False):
     Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
     If outside minimum or maximum records, flags values.
 
-    Input:
-    ------
-        df [pd.DataFrame]: station dataset converted to dataframe through QAQC pipeline
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
 
-    Output:
+    Returns
     -------
-        if QAQC success:
-            df [pd.DataFrame]: QAQC dataframe with flagged values (see below for flag meaning)
-        if failure:
-            None
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
 
-    References:
-    -----------
-        1. World records from HadISD protocol, cross-checked with WMO database
-        2. https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
-        3. Solar radiation specific: Rupp et al. 2022, Slater 2016
+    Notes
+    ------
+    Flag meaning : 11,qaqc_world_record,Value outside of world record range
 
-    Flag meaning:
-    -------------
-        11,qaqc_world_record,Value outside of world record range
+    References
+    ----------
+    [1] World records from HadISD protocol, cross-checked with WMO database
+    [2] https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
+    [3] Solar radiation specific: Rupp et al. 2022, Slater 2016
     """
 
-    printf("Running: qaqc_world_record", log_file=log_file, verbose=verbose)
+    logger.info("Running: qaqc_world_record")
 
     try:
         T_X = {"North_America": 329.92}  # K
@@ -670,10 +642,8 @@ def qaqc_world_record(df, verbose=False):
                     )
         return df
     except Exception as e:
-        printf(
+        logger.info(
             "qaqc_world_record failed with Exception: {}".format(e),
-            log_file=log_file,
-            verbose=verbose,
         )
         return None
 
@@ -681,45 +651,51 @@ def qaqc_world_record(df, verbose=False):
 # ----------------------------------------------------------------------
 ## final summary stats of flagged variables and percentage of coverage
 def flag_summary(df, verbose=False, local=False):
-    """
+    """Generates summary of flags set on all QAQC tests.
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
     Information is included in log_file.
 
     Also produces figures of full timeseries
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
+    local : bool, optional
+        if True, saves plots to local folder in addition to AWS
+
+    Returns
+    -------
+    None
+        This function does not return a value
     """
 
-    printf("Running: flag_summary", log_file=log_file, verbose=verbose)
+    logger.info("Running: flag_summary")
 
     # identify _eraqc variables
     eraqc_vars = [var for var in df.columns if "_eraqc" in var]
     obs_vars = [item.split("_e")[0] for item in eraqc_vars]
 
     for var in eraqc_vars:
-        printf(
+        logger.info(
             "Flags set on {}: {}".format(var, df[var].unique()),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
         )  # unique flag values
-        printf(
+        logger.info(
             "Coverage of {} obs flagged: {}% of obs".format(
                 var,
                 round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 2),
-            ),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
+            )
         )  # % of coverage flagged
 
     for var in obs_vars:
         try:
             flagged_timeseries_plot(df, var)
         except Exception as e:
-            printf(
+            logger.info(
                 "flagged_timeseries_plot failed for {} with Exception: {}".format(
                     var, e
-                ),
-                log_file=log_file,
-                verbose=verbose,
+                )
             )
