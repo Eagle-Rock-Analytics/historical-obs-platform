@@ -222,17 +222,11 @@ def run_merge_pipeline(
         Staiton identifier
     end_api: str
         Script end time, for error handling csv
-    verbose: boolean
-        Flag as to whether to print runtime statements to terminal. Default is False. Set in ALLNETWORKS_merge.py run.
-    local: boolean
-        Flag as to whehter to save station file, log file, figures to local directory. Default is False. Set in ALLNETWORKS_merge.py run.
-    log_file: str 
-        Path to the log file location -- CHECK
 
     Returns
     -------
-    None (?)
-        Theoretically the merged file will save to AWS and nothing else gets returned locally. 
+    None 
+        This function does not return a value
     """
 
     # Convert to working dataframe
@@ -265,7 +259,7 @@ def run_merge_pipeline(
 
     # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
-    new_df = hourly_standardization(df, verbose=verbose, log_file=log_file)
+    new_df = hourly_standardization(df)
     if new_df is None:
         errors = print_merge_failed(
             errors, 
@@ -273,12 +267,11 @@ def run_merge_pipeline(
             end_api,
             message="hourly standardization failed",
             test="hourly_standardization",
-            verbose=verbose,
         )
         return [None]
     else:
         stn_to_merge = new_df
-        printf("pass hourly_standardization", log_file=log_file, verbose=verbose, flush=True)
+        printf("pass hourly_standardization", flush=True)
 
     # ----------------------------------------------------------
     # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
@@ -304,12 +297,10 @@ def run_merge_pipeline(
     # Not started
 
     # ----------------------------------------------------------
-    # Part 7: Exports final station file as a .nc file (or .zarr)
-    # TODO: Decision as to final format that is publically available
+    # Part 7: Exports final station file as a .zarr file (or .nc)
     # AE preference would be zarrs
-    # local user preference may be .nc or .csv ?
     # Not started
-    # Assign ds attributes and save .nc file
+    # Assign ds attributes and save .zarr
     # process output ds
     # Close and save log file
     # Write errors to csv
