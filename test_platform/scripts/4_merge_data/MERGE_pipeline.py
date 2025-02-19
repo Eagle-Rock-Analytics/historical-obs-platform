@@ -225,7 +225,7 @@ def run_merge_pipeline(
 
     Returns
     -------
-    None 
+    None
         This function does not return a value
     """
 
@@ -235,7 +235,7 @@ def run_merge_pipeline(
     # Set up timing and logging for script runtime
     t0 = time.time()
     printf("Merge tests", log_file=log_file, verbose=verbose, flush=True)
-    
+
     # Set up final dataframe, in case
     stn_to_merge = df.copy()
 
@@ -253,8 +253,8 @@ def run_merge_pipeline(
     # Part 1: Derive any missing variables
     # TODO: Do this only for variables which the station has no sensor for (do not mix observed & calculated values)
     # Will require meteorological formulae -- some in calc_clean.py, some in climakitae?
-        # dew point temperature
-        # relative humidity
+    # dew point temperature
+    # relative humidity
     # Not started
 
     # ----------------------------------------------------------
@@ -262,7 +262,7 @@ def run_merge_pipeline(
     new_df = hourly_standardization(df)
     if new_df is None:
         errors = print_merge_failed(
-            errors, 
+            errors,
             station,
             end_api,
             message="hourly standardization failed",
@@ -305,7 +305,6 @@ def run_merge_pipeline(
     # Close and save log file
     # Write errors to csv
     # Make sure error files save to correct directory
-
 
     # for testing!
     return stn_to_merge.head(3)
