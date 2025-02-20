@@ -202,17 +202,34 @@ def hourly_standardization(df, verbose=verbose):
             return df
         else:
             # Performing hourly aggregation
-            constant_result = constant_df.resample("1h", on="time").first()
-            instant_result = instant_df.resample("1h", on="time").first()
-            sum_result = sum_df.resample("1h", on="time").apply(
-                lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
-            )
-            qaqc_result = qaqc_df.resample("1h", on="time").apply(
-                lambda x: ",".join(x.unique())
-            )  # adding unique flags
+            if len(constant_df.columns) == 0:
+                pass
+            else:
+                constant_result = constant_df.resample("1h", on="time").first()
+
+            if len(instant_df.columns) == 0:
+                pass
+            else:
+                instant_result = instant_df.resample("1h", on="time").first()
+            if len(sum_df.columns) == 0:
+                pass
+            else:
+                sum_result = sum_df.resample("1h", on="time").apply(
+                    lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
+                )
+            if len(qaqc_df.columns) == 0:
+                pass
+            else:
+                qaqc_result = qaqc_df.resample("1h", on="time").apply(
+                    lambda x: ",".join(x.unique())
+                )  # adding unique flags
 
             # Aggregating and outputting reduced dataframe
+
+            # now list only dataframes that are not empty
+
             result_list = [sum_result, instant_result, constant_result, qaqc_result]
+
             result = reduce(
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
