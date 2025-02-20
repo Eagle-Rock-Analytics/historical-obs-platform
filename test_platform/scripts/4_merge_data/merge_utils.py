@@ -75,7 +75,7 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def hourly_standardization(df,verbose=verbose):
+def hourly_standardization(df, verbose=verbose):
     """
 
     Resamples meteorological variables to hourly timestep according to standard conventions.
@@ -120,15 +120,24 @@ def hourly_standardization(df,verbose=verbose):
         "station",
         "lat",
         "lon",
-        "elevation", 
-        "anemometer_height_m", 
+        "elevation",
+        "anemometer_height_m",
         "thermometer_height_m",
         "sfcWind_method",
         "pr_duration",
     ]
 
     # Aggregation across hour variables, standard meteorological convention: precipitation and solar radiation
-    sum_vars = ["time", 'pr_15min', "pr", "pr_localmid", "pr_24h", "pr_5min", "pr_1h", "rsds"]
+    sum_vars = [
+        "time",
+        "pr_15min",
+        "pr",
+        "pr_localmid",
+        "pr_24h",
+        "pr_5min",
+        "pr_1h",
+        "rsds",
+    ]
 
     # Top of the hour variables, standard meteorological convention: temperature, dewpoint temperature, pressure, humidity, winds
     instant_vars = [
@@ -146,13 +155,13 @@ def hourly_standardization(df,verbose=verbose):
     ]
 
     # QAQC flags, which remain constants within each hour
-    # NOTE: Unlike the lists above, this list does not contain 'time', which is added in the next step. 
+    # NOTE: Unlike the lists above, this list does not contain 'time', which is added in the next step.
     qaqc_vars = [
-        'elevation_eraqc', 
+        "elevation_eraqc",
         "tas_qc",
         "tas_eraqc",
         "pr_5min_eraqc",
-        'pr_15min_eraqc', 
+        "pr_15min_eraqc",
         "pr_1h_eraqc",
         "pr_5min_qc",
         "pr_eraqc",
@@ -165,14 +174,13 @@ def hourly_standardization(df,verbose=verbose):
         "psl_eraqc",
         "tdps_qc",
         "tdps_eraqc",
-        'raw_qc', 
+        "raw_qc",
         "sfcWind_qc",
         "sfcWind_dir_qc",
         "sfcWind_eraqc",
         "sfcWind_dir_eraqc",
         "qaqc_process",
     ]
-
 
     # All variables, necessary for producing columns with hourly counts for each variable
     # all_vars = constant_vars + sum_vars + instant_vars + qaqc_vars
@@ -206,38 +214,38 @@ def hourly_standardization(df,verbose=verbose):
             # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
             ## This is to account for input dataframes that do not contain all subsets of variables defined above.
             if len(constant_df.columns) <= 1:
-                print('')
-                
+                print("")
+
             else:
                 constant_result = constant_df.resample("1h", on="time").first()
                 result_list.append(constant_result)
-                print('appended constant result')
+                print("appended constant result")
 
             if len(instant_df.columns) <= 1:
-                print('')
+                print("")
             else:
                 instant_result = instant_df.resample("1h", on="time").first()
                 result_list.append(instant_result)
 
             if len(sum_df.columns) <= 1:
-                print('')
-                
+                print("")
+
             else:
                 sum_result = sum_df.resample("1h", on="time").apply(
                     lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
                 )
                 result_list.append(sum_result)
-                print('appended sum result')
+                print("appended sum result")
 
             if len(qaqc_df.columns) <= 1:
-                print('')
-                
+                print("")
+
             else:
                 qaqc_result = qaqc_df.resample("1h", on="time").apply(
                     lambda x: ",".join(x.unique())
                 )  # adding unique flags
                 result_list.append(qaqc_result)
-                print('appended qaqc result')
+                print("appended qaqc result")
 
             # Aggregating and outputting reduced dataframe
             result = reduce(
