@@ -17,7 +17,6 @@ Outputs: Merged data for an individual network, priority variables, all times. O
 # Import libraries
 import os
 import datetime
-import pandas as pd
 import xarray as xr
 import boto3
 import s3fs
@@ -25,12 +24,13 @@ from io import BytesIO, StringIO
 import time
 import tempfile
 from mpi4py import MPI
+from merge_log_config import logger
 
 # Import all merge script functions
 try:
-    from merge_utils import *
+    from merge_utils import merge_hourly_standardization
 except Exception as e:
-    print(f"Error importing merge script: {e}")
+    logger.debug("Error importing merge script: ".format(e))
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
 # TODO: Decide if we also merge all log files into a single one too
@@ -48,7 +48,6 @@ bucket_name = "wecc-historical-wx"
 
 # ----------------------------------------------------------------------------
 # Global functions and variables
-
 
 # POTENTIALLY MOVE INTO UTILS
 def setup_error_handling():
@@ -69,12 +68,7 @@ def print_merge_failed(
     errors, station=None, end_api=None, message=None, test=None, verbose=False
 ):
     """DOCUMETNATION NEEDED"""
-    printf(
-        "{0} {1}, skipping station".format(station, message),
-        log_file=log_file,
-        verbose=verbose,
-        flush=True,
-    )
+    logger.info("{0} {1}, skipping station".format(station, message))
     errors["File"].append(station)
     errors["Time"].append(end_api)
     errors["Error"].append("Failure on {}".format(test))
@@ -123,7 +117,6 @@ def file_on_s3(df, zarr):
 
 # ----------------------------------------------------------------------------
 ## COULD BE PUT IN UTILS
-#
 def merge_ds_to_df(ds, verbose=verbose):
     """Converts xarray ds for a station to pandas df in the format needed for processing.
 
@@ -161,7 +154,7 @@ def merge_ds_to_df(ds, verbose=verbose):
                 np.ones(ds["time"].shape) * ds.anemometer_height_m
             )
         except:
-            print("Filling anemometer_height_m with NaN.", flush=True)
+            logger.info("Filling anemometer_height_m with NaN.")
             df["anemometer_height_m"] = np.ones(len(df)) * np.nan
         finally:
             pass
@@ -171,7 +164,7 @@ def merge_ds_to_df(ds, verbose=verbose):
                 np.ones(ds["time"].shape) * ds.thermometer_height_m
             )
         except:
-            print("Filling thermometer_height_m with NaN.", flush=True)
+            logger.info("Filling thermometer_height_m with NaN.")
             df["thermometer_height_m"] = np.ones(len(df)) * np.nan
         finally:
             pass
@@ -203,7 +196,6 @@ def run_merge_pipeline(
     station,
     end_api,
     verbose=verbose,
-    local=local,
     log_file=None,
 ):
     """Runs all final merge standardization functions, and exports final station file.
@@ -232,9 +224,14 @@ def run_merge_pipeline(
     # Convert to working dataframe
     df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds, verbose=verbose)
 
+    # Close ds file, netCDF, HDF5 unclosed files can cause issues during mpi4py run
+    ds.close()
+    del ds
+
+    # =========================================================
     # Set up timing and logging for script runtime
     t0 = time.time()
-    printf("Merge tests", log_file=log_file, verbose=verbose, flush=True)
+    logger.info("Beginning final merge step...")
 
     # Set up final dataframe, in case
     stn_to_merge = df.copy()
@@ -243,7 +240,7 @@ def run_merge_pipeline(
     ## Merge Functions: Order of operations
     # Part 1: Derive any missing variables
     # Part 2: Standardize sub-hourly observations to hourly
-    # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
+    # Part 3: Homogenize ASOSAWOS, VALLEYWATER, NDBC stations where there are historical jumps
     # Part 4: Remove duplicate stations
     # Part 5: Re-orders variables into final preferred order
     # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
@@ -259,31 +256,43 @@ def run_merge_pipeline(
 
     # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
-    new_df = hourly_standardization(df)
+    new_df = merge_hourly_standardization(df, verbose=verbose)
     if new_df is None:
         errors = print_merge_failed(
             errors,
             station,
             end_api,
             message="hourly standardization failed",
-            test="hourly_standardization",
+            test="merge_hourly_standardization",
         )
         return [None]
     else:
         stn_to_merge = new_df
-        printf("pass hourly_standardization", flush=True)
+        logger.info("pass merge_hourly_standardization")
 
     # ----------------------------------------------------------
     # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
-    # TODO: Homogenize/concatenate ASOS/AWOS stations where there are historical jumps
-    # Not started
+    # In progress -- need to read in csv file of suspect stations
+    new_df = merge_concat_jump_stns(df, verbose=verbose)
+    if new_df is None:
+        errors = print_merge_failed(
+            errors,
+            station,
+            end_api,
+            message="station concatenation failed",
+            test="merge_concat_jump_stns",
+        )
+        return [None]
+    else:
+        stn_to_merge = new_df
+        logger.info("pass merge_concat_jump_stns")
+    
 
     # ----------------------------------------------------------
     # Part 4: Remove duplicate stations
     # TODO:
     # name string matching
     # stations within a certain distance (vs. lat-lon matching)
-    # some buoys will get flagged here!
     # Not started
 
     # ----------------------------------------------------------
@@ -302,9 +311,10 @@ def run_merge_pipeline(
     # Not started
     # Assign ds attributes and save .zarr
     # process output ds
+    # ensure that each variable is the right datatype!!
     # Close and save log file
     # Write errors to csv
     # Make sure error files save to correct directory
 
     # for testing!
-    return stn_to_merge.head(3)
+    return None
