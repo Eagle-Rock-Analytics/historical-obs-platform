@@ -75,44 +75,36 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def hourly_standardization(df, verbose=verbose):
+def hourly_standardization(df, verbose=verbose, log_file=log_file):
     """
 
     Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Rules
     ------
-        1.) top of the hour: take the first value in each hour
-            - standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
-        2.) summation across hour: sum observations within each hour
-            - standard convention for precipitation and solar radiation
-        3.) constant across the hour: take the first value in each hour
-            - this applies to variables, like station name and location, that do not change within each hour
+
 
     Parameters
     ------
-        df: pd.DataFrame
-            station dataset converted to dataframe through QAQC pipeline
-        verbose: boolean
-            input for printf() to print to log file - set in script initialization
+    df: pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose: boolean
+        input for printf() to print to log file - set in script initialization
 
     Returns
     -------
-        if success:
-            df [pd.DataFrame]
-                QAQC dataframe with all columns resampled to one hour (column name retained)
-        if failure:
-            None
+    if success:
+        df [pd.DataFrame]
+            QAQC dataframe with all columns resampled to one hour (column name retained)
+    if failure:
+        None
+
+    Notes
+    -----
+    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
+    2. Summation across hour: sum observations within each hour. Standard convention for precipitation and solar radiation
+    3. Constant across the hour: take the first value in each hour. This applies to variables, like station name and location, that do not change within each hour
     """
-
-    printf(
-        "Running: hourly_standardization",
-        verbose=verbose,
-        log_file=log_file,
-        flush=True,
-    )
-
-    ##### define the variables for each sub-dataframe #####
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -255,10 +247,11 @@ def hourly_standardization(df, verbose=verbose):
             return result
 
     except Exception as e:
-        printf(
-            "hourly_standardization failed with Exception: {0}".format(e),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
-        )
+        # printf(
+        #     "hourly_standardization failed with Exception: {0}".format(e),
+        #     verbose=verbose,
+        #     log_file=log_file,
+        #     flush=True,
+        # )
+        # conver to logger version
         return None
