@@ -43,36 +43,34 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df, verbose=verbose):
-    """
-
-    Resamples meteorological variables to hourly timestep according to standard conventions.
-
-    Rules
-    ------
-
+def merge_hourly_standardization(df):
+    """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
-    ------
-    df: pd.DataFrame
+    -----------
+    df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose: boolean
-        input for printf() to print to log file - set in script initialization
 
     Returns
     -------
-    if success:
-        df [pd.DataFrame]
-            QAQC dataframe with all columns resampled to one hour (column name retained)
-    if failure:
-        None
+    If standardization is successful, returns a dataframe with all columns resampled to one hour (column name retained)
+    If standardization fails, returns None
 
     Notes
     -----
-    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure
-    2. Summation across hour: sum observations within each hour. Standard convention for precipitation and solar radiation
-    3. Constant across the hour: take the first value in each hour. This applies to variables, like station name and location, that do not change within each hour
+    Rules:
+    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
+    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
+    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
+
+    printf(
+        "Running: hourly_standardization",
+        verbose=verbose,
+        log_file=log_file,
+        flush=True,
+    )
+    # convert to logger version
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -83,17 +81,19 @@ def merge_hourly_standardization(df, verbose=verbose):
         "elevation",
         "anemometer_height_m",
         "thermometer_height_m",
-        "sfcWind_method",
-        "pr_duration",
-        "hour",
-        "day",
-        "month",
-        "year",
-        "date",
     ]
 
     # Aggregation across hour variables, standard meteorological convention: precipitation and solar radiation
-    sum_vars = ["time", "pr", "pr_localmid", "pr_24h", "pr_5min", "pr_1h", "rsds"]
+    sum_vars = [
+        "time",
+        "pr",
+        "pr_localmid",
+        "pr_24h",
+        "pr_1h",
+        "pr_15min",
+        "pr_5min",
+        "rsds",
+    ]
 
     # Top of the hour variables, standard meteorological convention: temperature, dewpoint temperature, pressure, humidity, winds
     instant_vars = [
@@ -111,34 +111,17 @@ def merge_hourly_standardization(df, verbose=verbose):
     ]
 
     # QAQC flags, which remain constants within each hour
+    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
     qaqc_vars = [
-        "tas_qc",
-        "tas_eraqc",
-        "pr_5min_eraqc",
-        "pr_1h_eraqc",
-        "pr_5min_qc",
-        "pr_eraqc",
-        "pr_depth_qc",
-        "ps_qc",
-        "ps_altimeter_qc",
-        "ps_eraqc",
-        "ps_altimeter_eraqc",
-        "psl_qc",
-        "psl_eraqc",
-        "tdps_qc",
-        "tdps_eraqc",
-        "sfcWind_qc",
-        "sfcWind_dir_qc",
-        "sfcWind_eraqc",
-        "sfcWind_dir_eraqc",
-        "elevation_eraqc",
-        "qaqc_process",
+        var
+        for var in df.columns
+        if not any(True for item in vars_to_remove if item in var)
     ]
 
     # All variables, necessary for producing columns with hourly counts for each variable
-    all_vars = constant_vars + sum_vars + instant_vars + qaqc_vars
+    # all_vars = constant_vars + sum_vars + instant_vars + qaqc_vars
 
-    ##### Subset the dataframe according to rules
+    # Subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
 
     qaqc_df = df[[col for col in qaqc_vars if col in df.columns if col != "time"]]
@@ -149,10 +132,8 @@ def merge_hourly_standardization(df, verbose=verbose):
 
     instant_df = df[[col for col in instant_vars if col in df.columns]]
 
-    #####
-
     try:
-        # if station does not report any variable, bypass
+        # If station does not report any variable, bypass
         if len(df.columns) == 0:
             printf(
                 "Empty dataset - bypassing hourly aggregation",
@@ -162,18 +143,31 @@ def merge_hourly_standardization(df, verbose=verbose):
             )
             return df
         else:
-            # Performing hourly aggregation
-            constant_result = constant_df.resample("1h", on="time").first()
-            instant_result = instant_df.resample("1h", on="time").first()
-            sum_result = sum_df.resample("1h", on="time").apply(
-                lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
-            )
-            qaqc_result = qaqc_df.resample("1h", on="time").apply(
-                lambda x: ",".join(x.unique())
-            )  # adding unique flags
+            result_list = []
+
+            # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
+            # This is to account for input dataframes that do not contain all subsets of variables defined above.
+            if len(constant_df.columns) > 1:
+                constant_result = constant_df.resample("1h", on="time").first()
+                result_list.append(constant_result)
+
+            if len(instant_df.columns) > 1:
+                instant_result = instant_df.resample("1h", on="time").first()
+                result_list.append(instant_result)
+
+            if len(sum_df.columns) > 1:
+                sum_result = sum_df.resample("1h", on="time").apply(
+                    lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
+                )
+                result_list.append(sum_result)
+
+            if len(qaqc_df.columns) > 1:
+                qaqc_result = qaqc_df.resample("1h", on="time").apply(
+                    lambda x: ",".join(x.unique())
+                )  # adding unique flags
+                result_list.append(qaqc_result)
 
             # Aggregating and outputting reduced dataframe
-            result_list = [sum_result, instant_result, constant_result, qaqc_result]
             result = reduce(
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
@@ -181,11 +175,11 @@ def merge_hourly_standardization(df, verbose=verbose):
             return result
 
     except Exception as e:
-        # printf(
-        #     "hourly_standardization failed with Exception: {0}".format(e),
-        #     verbose=verbose,
-        #     log_file=log_file,
-        #     flush=True,
-        # )
+        printf(
+            "hourly_standardization failed with Exception: {0}".format(e),
+            verbose=verbose,
+            log_file=log_file,
+            flush=True,
+        )
         # conver to logger version
         return None
