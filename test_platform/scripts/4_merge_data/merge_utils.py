@@ -17,7 +17,6 @@ import shapely
 import xarray as xr
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
-import scipy.stats as stats
 
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -25,10 +24,6 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 
 ## QA/QC helper functions
@@ -41,41 +36,14 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir, mergedir
 
 
-# -----------------------------------------------------------------------------
-def open_log_file_merge(file):
-    global log_file
-    log_file = file
-
-
+## Standardization hlper functions
 # -----------------------------------------------------------------------------
 def custom_sum(df):
     return df.apply(lambda x: np.nan if x.isna().all() else x.sum())
 
 
 # -----------------------------------------------------------------------------
-# Log print auxiliary functions
-def printf(*args, verbose=True, log_file=None, **kwargs):
-    import datetime
-
-    tLog = lambda: datetime.datetime.utcnow().strftime("%m-%d-%Y %H:%M:%S") + " : \t"
-    args = [str(a) for a in args]
-
-    if verbose:
-        if log_file is not None:
-            print(" ".join([tLog(), *args]), **kwargs) or print(
-                " ".join([tLog(), *args]), file=log_file, **kwargs
-            )
-        else:
-            print(" ".join([tLog(), *args]), **kwargs)
-    else:
-        if log_file is not None:
-            print(" ".join([tLog(), *args]), file=log_file, **kwargs)
-        else:
-            pass
-
-
-# -----------------------------------------------------------------------------
-def hourly_standardization(df):
+def merge_hourly_standardization(df):
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters

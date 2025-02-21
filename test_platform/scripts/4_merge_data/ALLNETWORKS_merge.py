@@ -3,21 +3,25 @@ This script is a template structure for data merging across all available data s
 ingestion into the Historical Observations Platform.
 Approach:
 (1) Reads in all qa/qc processed data files
-(2) Merges data into a single .nc file
+(2) Merges data into a single station file
 (3) Writes necessary information regarding data product, focusing on flexible usage
 Inputs: All QA/QC-processed data for each network
-Outputs: Final data product as .nc file (or .zarr?)
+Outputs: Final data product as .zarr (or.nc file)
 
-Example how to run in the command line: 
-python ALLNETWORKS_merge.py -n="ASOSAWOS"
-
+Example how to run entire network in the command line: 
+python3 ALLNETWORKS_merge.py -n="ASOSAWOS"
+Example how to run a sample of a network in the command line with verbose print statements:
+python3 ALLNETWORKS_merge.py -n="ASOSAWOS" -s 4 -v True
 """
 
-# Environment set-up
 # Import libraries
-import os
-import tempfile
 import argparse
+
+# Import merge pipeline
+try:
+    from MERGE_pipeline import *
+except Exception as e:
+    print("Error importing MERGE_pipeline.py: {}".format(e))
 
 # =================================================================================================
 # Main Function
@@ -43,13 +47,6 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
-        "-l",
-        "--local",
-        default=False,
-        help="Save files and plots locally (default to False).",
-        type=bool,
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         default=False,
@@ -70,10 +67,9 @@ if __name__ == "__main__":
     if network.lower() == "training":
         network = "TRAINING"
     verbose = args.verbose
-    local = args.local
     sample = args.sample
 
-    # Set zarr argument
+    # Set zarr argument -- this may no longer be true as a part of QAQC
     zarrified_networks = ["VALLEYWATER"]  # Any networks with zarrified data
     if network in zarrified_networks:
         zarr = True
@@ -90,7 +86,6 @@ if __name__ == "__main__":
         qaqcdir,
         mergedir,
         verbose=verbose,
-        local=local,
         sample=sample,
         zarr=zarr,
     )
