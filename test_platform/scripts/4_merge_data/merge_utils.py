@@ -73,6 +73,7 @@ def printf(*args, verbose=True, log_file=None, **kwargs):
         else:
             pass
 
+
 # -----------------------------------------------------------------------------
 def hourly_standardization(df):
     """Resamples meteorological variables to hourly timestep according to standard conventions.
@@ -89,10 +90,10 @@ def hourly_standardization(df):
 
     Notes
     -----
-    Rules: 
+    Rules:
     1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
-    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation. 
-    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change. 
+    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
+    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
 
     printf(
@@ -143,7 +144,11 @@ def hourly_standardization(df):
 
     # QAQC flags, which remain constants within each hour
     vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
-    qaqc_vars = [var for var in df.columns if not any(True for item in vars_to_remove if item in var)]
+    qaqc_vars = [
+        var
+        for var in df.columns
+        if not any(True for item in vars_to_remove if item in var)
+    ]
 
     # All variables, necessary for producing columns with hourly counts for each variable
     # all_vars = constant_vars + sum_vars + instant_vars + qaqc_vars
@@ -174,7 +179,7 @@ def hourly_standardization(df):
 
             # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
             # This is to account for input dataframes that do not contain all subsets of variables defined above.
-            if len(constant_df.columns) > 1: 
+            if len(constant_df.columns) > 1:
                 constant_result = constant_df.resample("1h", on="time").first()
                 result_list.append(constant_result)
 
