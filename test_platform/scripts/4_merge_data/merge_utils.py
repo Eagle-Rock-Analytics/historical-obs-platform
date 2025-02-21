@@ -25,6 +25,7 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
 
+
 ## QA/QC helper functions
 # -----------------------------------------------------------------------------
 def get_file_paths(network):
@@ -33,6 +34,7 @@ def get_file_paths(network):
     qaqcdir = "3_qaqc_wx/{}/".format(network)
     mergedir = "4_merge_wx/{}/".format(network)
     return rawdir, cleandir, qaqcdir, mergedir
+
 
 ## Standardization hlper functions
 # -----------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-
 """
 This is a script setting up Stage 4: Merge runtime logging for error tracing and timing. 
 For use within the PIR-19-006 Historical Obsevations Platform.

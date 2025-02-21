@@ -49,6 +49,7 @@ bucket_name = "wecc-historical-wx"
 # ----------------------------------------------------------------------------
 # Global functions and variables
 
+
 # POTENTIALLY MOVE INTO UTILS
 def setup_error_handling():
     """DOCUMETNATION NEEDED"""
@@ -286,7 +287,6 @@ def run_merge_pipeline(
     else:
         stn_to_merge = new_df
         logger.info("pass merge_concat_jump_stns")
-    
 
     # ----------------------------------------------------------
     # Part 4: Remove duplicate stations
