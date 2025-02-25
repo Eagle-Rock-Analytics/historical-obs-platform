@@ -26,14 +26,8 @@ ERROR_FILE="${HOME}/%x_%j_error.txt"
 # Load required modules (OpenMPI and Conda)
 module load openmpi
 
-# Activate Conda environment (full path to environment)
-conda activate /shared/miniconda3/envs/hist-obs   # Ensure no extra "/envs" is added
-
 # Define the path to your Python script
 PYSCRIPT="${HOME}/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py"
 
 # Run the Python script using Conda environment with MPI plugin version 5 
 srun --mpi=pmix_v5 conda run -n hist-obs python3 ${PYSCRIPT} network="CAHYDRO"
-
-# Deactivate Conda environment after job completion
-conda deactivate
