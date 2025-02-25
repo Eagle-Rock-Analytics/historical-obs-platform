@@ -444,7 +444,7 @@ def qaqc_unusual_repeated_streaks(
                     ind = np.logical_and(
                         new_df["year"] == k[0], new_df["month"] == k[1]
                     )
-                    unusual_streaks_plot(new_df[ind], var, station="test", local=local)
+                    unusual_streaks_plot(new_df[ind], var, station=station, local=local)
                 logger.info(
                     "{} subset plots produced for flagged obs in {}".format(
                         len(keys), var
