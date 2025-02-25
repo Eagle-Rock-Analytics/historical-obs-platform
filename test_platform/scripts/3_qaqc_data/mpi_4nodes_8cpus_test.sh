@@ -21,7 +21,7 @@
 module load openmpi
 
 # Initialize Conda
-source $HOME/miniconda3/etc/profile.d/conda.sh 
+source /shared/miniconda3/etc/profile.d/conda.sh
 
 # Activate Conda environment (specify full path to the env)
 conda activate /shared/miniconda3/envs/hist-obs
