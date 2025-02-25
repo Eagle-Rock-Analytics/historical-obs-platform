@@ -29,11 +29,14 @@ module load openmpi
 # Define the path to your Python script
 PYSCRIPT="${HOME}/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py"
 
+# Load Conda initialization (if needed)
+source /shared/miniconda3/etc/profile.d/conda.sh
+
 # Activate the Conda environment (only once)
 conda activate /shared/miniconda3/envs/hist-obs
 
 # Run the Python script directly using Python from the activated environment
-srun --mpi=pmix_v3 python3 ${PYSCRIPT} network="CAHYDRO"
+srun --mpi=pmix_v5 python3 ${PYSCRIPT} network="CAHYDRO"
 
 # Deactivate Conda environment after job completion
 conda deactivate
