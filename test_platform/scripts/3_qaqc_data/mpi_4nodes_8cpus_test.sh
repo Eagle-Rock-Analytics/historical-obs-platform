@@ -33,7 +33,6 @@ PYSCRIPT="${HOME}/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLN
 echo "Current working directory: $(pwd)"
 
 # Check if the Python script exists
-PYSCRIPT=/home/nicole/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
 echo "Checking if Python script exists: $PYSCRIPT"
 if [ ! -f "$PYSCRIPT" ]; then
   echo "Error: Python script not found!"
