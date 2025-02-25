@@ -20,11 +20,8 @@
 # Load required modules (OpenMPI and Conda)
 module load openmpi
 
-# Initialize Conda
-source /shared/miniconda3/etc/profile.d/conda.sh
-
 # Activate Conda environment (specify full path to the env)
-conda activate /shared/miniconda3/envs/hist-obs
+conda activate hist-obs
 
 # Define the path to your Python script
 PYSCRIPT=$HOME/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
