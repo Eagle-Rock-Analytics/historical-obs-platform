@@ -14,8 +14,8 @@
 #SBATCH --ntasks-per-node=2          # Number of MPI processes per node (2 processes per node)
 #SBATCH --time=5:00:00               # Maximum runtime (adjust as necessary)
 #SBATCH --partition=test             # Queue/partition (adjust as necessary)
-#SBATCH --output=%x_%j_output.txt    # Standard output file with job name and job ID
-#SBATCH --error=%x_%j_error.txt      # Standard error file with job name and job ID
+#SBATCH --output=mpi_job_output2.txt    # Standard output file with job name and job ID
+#SBATCH --error=mpi_job_error2.txt      # Standard error file with job name and job ID
 
 # Load required modules (OpenMPI and Conda)
 module load openmpi
