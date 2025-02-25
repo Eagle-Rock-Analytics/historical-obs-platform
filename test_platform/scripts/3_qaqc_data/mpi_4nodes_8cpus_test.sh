@@ -26,9 +26,6 @@ ERROR_FILE="${HOME}/%x_%j_error.txt"
 # Load required modules (OpenMPI and Conda)
 module load openmpi
 
-# Initialize Conda
-source /shared/miniconda3/etc/profile.d/conda.sh   # Correct path to Conda initialization
-
 # Activate Conda environment (full path to environment)
 conda activate /shared/miniconda3/envs/hist-obs   # Ensure no extra "/envs" is added
 
