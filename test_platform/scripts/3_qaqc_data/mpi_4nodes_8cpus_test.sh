@@ -14,8 +14,8 @@
 #SBATCH --ntasks-per-node=2          # Number of MPI processes per node (2 processes per node)
 #SBATCH --time=5:00:00               # Maximum runtime (adjust as necessary)
 #SBATCH --partition=test             # Queue/partition (adjust as necessary)
-#SBATCH --output=mpi_job_output.txt  # Standard output file
-#SBATCH --error=mpi_job_error.txt    # Standard error file
+#SBATCH --output=%x_%j_output.txt    # Standard output file with job name and job ID
+#SBATCH --error=%x_%j_error.txt      # Standard error file with job name and job ID
 
 # Load required modules (OpenMPI and Conda)
 module load openmpi
@@ -28,8 +28,8 @@ conda activate hist-obs
 # You can find your home directory with the command echo $HOME
 PYSCRIPT=$HOME/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
 
-# Run the Python script using Conda environment
-srun --mpi=pmix_v3 conda run -n hist-obs python3 ${PYSCRIPT} network="CAHYDRO"
+# Run the Python script using Conda environment using MPI plugin version 5 
+srun --mpi=pmix_v5 conda run -n hist-obs python3 ${PYSCRIPT} network="CAHYDRO" sample=1
 
 # Deactivate Conda environment after job completion
 conda deactivate
