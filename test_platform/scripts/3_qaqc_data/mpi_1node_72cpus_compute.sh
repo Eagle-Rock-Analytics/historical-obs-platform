@@ -5,7 +5,7 @@
 # Description: This script runs an MPI-optimized job using Conda environment "hist-obs" on a single node with 72 CPUs.
 # Partition: compute (for 1 node, 72 CPUs)
 # Time Limit: 5 hours
-# Python Script: /shared/nicole/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
+# Python Script: ALLNETWORKS_qaqc.py
 # Arguments: network="CAHYDRO"
 
 #SBATCH --job-name=hist-obs            # Name of the job
@@ -14,22 +14,44 @@
 #SBATCH --ntasks-per-node=72           # Number of MPI processes per node (72 processes per node)
 #SBATCH --time=5:00:00                 # Maximum runtime (adjust as necessary)
 #SBATCH --partition=compute            # Queue/partition (adjust as necessary)
-#SBATCH --output=mpi_job_output.txt    # Standard output file
-#SBATCH --error=mpi_job_error.txt      # Standard error file
+#SBATCH --output=%x_%j_output.txt      # Standard output file with job name and job ID
+#SBATCH --error=%x_%j_error.txt        # Standard error file with job name and job ID
 
-# Load required modules (OpenMPI and Conda)
+# AWS secret info 
+export AWS_ACCESS_KEY_ID="put-your-key-id-here"
+export AWS_SECRET_ACCESS_KEY="put-your-key-here"
+export AWS_DEFAULT_REGION="us-west-2"
+
+# Load OpenMPI
 module load openmpi
 
-# Activate conda env 
-conda activate hist-obs
-
 # Define the path to your Python script
-# Make sure this is in relation to your home directory 
-# You can find your home directory with the command echo $HOME
-PYSCRIPT=$HOME/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
+PYSCRIPT="ALLNETWORKS_qaqc.py"
 
-# Run the Python script using Conda environment
-srun --mpi=pmix_v3 conda run -n hist-obs python3 ${PYSCRIPT} network="CAHYDRO"
+# Check if the Python script exists
+if [ ! -f "$PYSCRIPT" ]; then
+  echo "Error: Python script not found!"
+  exit 1
+fi
+
+# Load Conda initialization 
+source /shared/miniconda3/etc/profile.d/conda.sh
+
+# Activate the Conda environment
+conda activate /shared/miniconda3/envs/hist-obs
+
+# Start time
+start_time=$(date +%s)
+
+# Run the Python script directly using Python from the activated environment
+srun --mpi=pmi2 python3 ${PYSCRIPT} --network="CAHYDRO" 
+
+# End time (right after the job finishes)
+end_time=$(date +%s)
+
+# Calculate elapsed time
+elapsed_time=$((end_time - start_time))
+echo "Job completed in $elapsed_time seconds."
 
 # Deactivate Conda environment after job completion
 conda deactivate

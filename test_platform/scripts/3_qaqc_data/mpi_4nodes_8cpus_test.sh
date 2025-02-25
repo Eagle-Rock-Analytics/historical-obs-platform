@@ -1,13 +1,11 @@
 #!/bin/bash -l
 
-#!/bin/bash -l
-
 # Job Information:
 # Name: hist-obs MPI Job
 # Description: This script runs an MPI-optimized job using Conda environment "hist-obs" on a cluster with 4 nodes and 8 CPUs.
 # Partition: test (for 4 nodes, 8 CPUs)
 # Time Limit: 5 hours
-# Python Script: /shared/nicole/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
+# Python Script: ALLNETWORKS_qaqc.py
 # Arguments: network="CAHYDRO"
 
 #SBATCH --job-name=hist-obs          # Name of the job
@@ -24,7 +22,7 @@ export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
 export AWS_DEFAULT_REGION="us-west-2"
 
-# Load required modules (OpenMPI and Conda)
+# Load OpenMPI
 module load openmpi
 
 # Define the path to your Python script
@@ -36,14 +34,24 @@ if [ ! -f "$PYSCRIPT" ]; then
   exit 1
 fi
 
-# Load Conda initialization (if needed)
+# Load Conda initialization 
 source /shared/miniconda3/etc/profile.d/conda.sh
 
-# Activate the Conda environment (only once)
+# Activate the Conda environment
 conda activate /shared/miniconda3/envs/hist-obs
 
+# Start time
+start_time=$(date +%s)
+
 # Run the Python script directly using Python from the activated environment
-srun --mpi=pmi2 python3 ${PYSCRIPT} --network="CAHYDRO" --sample=1
+srun --mpi=pmi2 python3 ${PYSCRIPT} --network="CAHYDRO" 
+
+# End time (right after the job finishes)
+end_time=$(date +%s)
+
+# Calculate elapsed time
+elapsed_time=$((end_time - start_time))
+echo "Job completed in $elapsed_time seconds."
 
 # Deactivate Conda environment after job completion
 conda deactivate
