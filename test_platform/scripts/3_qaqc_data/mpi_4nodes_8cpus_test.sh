@@ -29,6 +29,17 @@ module load openmpi
 # Define the path to your Python script
 PYSCRIPT="${HOME}/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py"
 
+# Check the current working directory
+echo "Current working directory: $(pwd)"
+
+# Check if the Python script exists
+PYSCRIPT=/home/nicole/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
+echo "Checking if Python script exists: $PYSCRIPT"
+if [ ! -f "$PYSCRIPT" ]; then
+  echo "Error: Python script not found!"
+  exit 1
+fi
+
 # Load Conda initialization (if needed)
 source /shared/miniconda3/etc/profile.d/conda.sh
 
