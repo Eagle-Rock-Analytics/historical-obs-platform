@@ -24,7 +24,9 @@ module load openmpi
 conda activate hist-obs
 
 # Define the path to your Python script
-PYSCRIPT=/shared/nicole/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
+# Make sure this is in relation to your home directory 
+# You can find your home directory with the command echo $HOME
+PYSCRIPT=$HOME/historical-obs-platform/test_platform/scripts/3_qaqc_data/ALLNETWORKS_qaqc.py
 
 # Run the Python script using Conda environment
 srun --mpi=pmix_v3 conda run -n hist-obs python3 ${PYSCRIPT} network="CAHYDRO"
