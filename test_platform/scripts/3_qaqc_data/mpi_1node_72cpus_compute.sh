@@ -27,24 +27,29 @@ export AWS_DEFAULT_REGION="us-west-2"
 # Load OpenMPI
 module load openmpi
 
-# Print SBATCH job settings for debugging
-echo "====================================="
-echo "Job Name: $SLURM_JOB_NAME"
-echo "Job ID: $SLURM_JOB_ID"
-echo "Partition: $SLURM_JOB_PARTITION"
-echo "Number of Nodes: $SLURM_JOB_NUM_NODES"
-echo "Tasks Per Node: $SLURM_NTASKS_PER_NODE"
-echo "Total Tasks: $SLURM_NTASKS"
-echo "CPUs Per Task: $SLURM_CPUS_PER_TASK"
-echo "Job Start Time: $(date)"
-echo "====================================="
+# Create a log file based on job name and ID
+log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_output.txt"
+
+# Print SBATCH job settings for debugging to the log file
+{
+  echo "====================================="
+  echo "Job Name: $SLURM_JOB_NAME"
+  echo "Job ID: $SLURM_JOB_ID"
+  echo "Partition: $SLURM_JOB_PARTITION"
+  echo "Number of Nodes: $SLURM_JOB_NUM_NODES"
+  echo "Tasks Per Node: $SLURM_NTASKS_PER_NODE"
+  echo "Total Tasks: $SLURM_NTASKS"
+  echo "CPUs Per Task: $SLURM_CPUS_PER_TASK"
+  echo "Job Start Time: $(date)"
+  echo "====================================="
+} >> "$log_file"
 
 # Define the path to your Python script
 PYSCRIPT="ALLNETWORKS_qaqc.py"
 
 # Check if the Python script exists
 if [ ! -f "$PYSCRIPT" ]; then
-  echo "Error: Python script not found!"
+  echo "Error: Python script not found!" >> "$log_file"
   exit 1
 fi
 
@@ -63,12 +68,14 @@ srun --mpi=pmi2 python3 ${PYSCRIPT} --network="CAHYDRO"
 # End time tracking
 end_time=$(date +%s)
 
-# Calculate and print elapsed time
+# Calculate and print elapsed time to the log file
 elapsed_time=$((end_time - start_time))
-echo "====================================="
-echo "Job completed in $elapsed_time seconds."
-echo "Job End Time: $(date)"
-echo "====================================="
+{
+  echo "====================================="
+  echo "Job completed in $elapsed_time seconds."
+  echo "Job End Time: $(date)"
+  echo "====================================="
+} >> "$log_file"
 
 # Deactivate Conda environment after job completion
 conda deactivate
