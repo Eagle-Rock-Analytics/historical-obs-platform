@@ -522,21 +522,44 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
 
         # identify where factor x percentile is exceeded and flag
         if p95 != 0:
-            flagged_days = df_mon.loc[df_mon[var] > factor * p95]
-            new_df.loc[
-                (
-                    new_df.year.isin(flagged_days.time.dt.year)
-                    & new_df.month.isin(flagged_days.time.dt.month)
-                    & new_df.day.isin(flagged_days.time.dt.day)
-                ),
-                var + "_eraqc",
-            ] = 32
-            if len(flagged_days) != 0:
-                logger.info(
-                    "Flagging {} days in month {} for climatological outlier precip check for {}".format(
-                        len(flagged_days), mon, var
+
+            # handling for months with low number of non-zero precip days
+            # some unusual spikes not being caught by other tests
+            if p95 > 442.0:
+                # largest recorded 1-day rainfall was 17.6 inches (442 mm) Feb 17 1986
+                # https://cepsym.org/Sympro1994/Goodridge.pdf
+                flagged_days = df.mon.loc[df_mon[var] > 442.0]
+                new_df.loc[
+                    (
+                        new_df.year.isin(flagged_days.time.dt.year)
+                        & new_df.month.isin(flagged_days.time.dt.month)
+                        & new_df.day.isin(flagged_days.time.dt.day)
+                    ),
+                    var + "_eraqc",
+                ] = 32
+                if len(flagged_days) != 0:
+                    logger.info(
+                        "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                            len(flagged_days), mon, var
+                        )
                     )
-                )
+
+            else:
+                flagged_days = df_mon.loc[df_mon[var] > factor * p95]
+                new_df.loc[
+                    (
+                        new_df.year.isin(flagged_days.time.dt.year)
+                        & new_df.month.isin(flagged_days.time.dt.month)
+                        & new_df.day.isin(flagged_days.time.dt.day)
+                    ),
+                    var + "_eraqc",
+                ] = 32
+                if len(flagged_days) != 0:
+                    logger.info(
+                        "Flagging {} days in month {} for climatological outlier precip check for {}".format(
+                            len(flagged_days), mon, var
+                        )
+                    )
 
         elif p95 == 0:
             # p95 is zero in this case
