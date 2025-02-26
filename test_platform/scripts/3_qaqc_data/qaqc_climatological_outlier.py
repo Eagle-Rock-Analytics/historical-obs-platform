@@ -454,7 +454,6 @@ def gap_search(freq, left, right):
     return flag
 
 
-
 # ----------------------------------------------------------------------
 def qaqc_climatological_outlier_precip(df, var, factor=9):
     """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
