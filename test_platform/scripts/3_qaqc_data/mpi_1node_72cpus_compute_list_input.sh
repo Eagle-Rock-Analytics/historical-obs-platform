@@ -20,9 +20,9 @@
 #SBATCH --error=err/%x_%A_%a.err       # Standard error file per array task
 
 # AWS secret info 
-export AWS_ACCESS_KEY_ID="put-your-key-id-here"  # AWS access key
-export AWS_SECRET_ACCESS_KEY="put-your-key-here"  # AWS secret key
-export AWS_DEFAULT_REGION="us-west-2"  # AWS region
+export AWS_ACCESS_KEY_ID="put-your-key-id-here"
+export AWS_SECRET_ACCESS_KEY="put-your-key-here"
+export AWS_DEFAULT_REGION="us-west-2" 
 
 # Load OpenMPI for parallel processing
 module load openmpi
