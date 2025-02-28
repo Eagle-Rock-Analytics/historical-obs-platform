@@ -62,7 +62,7 @@ conda activate /shared/miniconda3/envs/hist-obs
 start_time=$(date +%s)
 
 # Run the Python script using srun with MPI support
-srun --mpi=pmi2 python3 ${PYSCRIPT} --network=${NETWORK}
+srun --mpi=pmi2 python3 ${PYSCRIPT} --network="$NETWORK"
 
 # End time tracking
 end_time=$(date +%s)
