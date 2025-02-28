@@ -19,6 +19,9 @@
 #SBATCH --output=%x_%j_output.txt      # Standard output file with job name and job ID
 #SBATCH --error=%x_%j_error.txt        # Standard error file with job name and job ID
 
+# Set the Network 
+NETWORK="CAHYDRO"
+
 # AWS secret info 
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
@@ -33,6 +36,7 @@ log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_output.txt"
 # Print SBATCH job settings for debugging to the log file
 {
   echo "====================================="
+  echo "Network: $NETWORK"
   echo "Job Name: $SLURM_JOB_NAME"
   echo "Job ID: $SLURM_JOB_ID"
   echo "Partition: $SLURM_JOB_PARTITION"
@@ -63,7 +67,7 @@ conda activate /shared/miniconda3/envs/hist-obs
 start_time=$(date +%s)
 
 # Run the Python script directly using Python from the activated environment
-srun --mpi=pmi2 python3 ${PYSCRIPT} --network="CAHYDRO" 
+srun --mpi=pmi2 python3 ${PYSCRIPT} --network=${NETWORK}
 
 # End time tracking
 end_time=$(date +%s)
