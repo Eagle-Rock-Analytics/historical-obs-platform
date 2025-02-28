@@ -6,48 +6,49 @@
 # Partition: compute (for 1 node, 72 CPUs)
 # Time Limit: 5 hours
 # Python Script: ALLNETWORKS_qaqc.py
-# Arguments: Each network from networks-input.dat is processed in a separate job array task.
-#
+# Arguments: network="CAHYDRO"
+# 
 # NOTE: This script must be run from the directory containing ALLNETWORKS_qaqc.py.
 
 #SBATCH --job-name=hist-obs            # Name of the job
-#SBATCH --array=1-$(wc -l < networks-input.dat)  # Create a job array for each network
-#SBATCH --ntasks=1                     # Each array job runs a single task
-#SBATCH --cpus-per-task=72             # Number of CPUs per task
+#SBATCH --ntasks=72                    # Total number of MPI processes (1 per CPU)
+#SBATCH --nodes=1                      # Number of nodes (1 node with 72 CPUs)
+#SBATCH --ntasks-per-node=72           # Number of MPI processes per node (72 processes per node)
 #SBATCH --time=5:00:00                 # Maximum runtime (adjust as necessary)
 #SBATCH --partition=compute            # Queue/partition (adjust as necessary)
-#SBATCH --output=stdout/%x_%A_%a.out   # Standard output file per array task
-#SBATCH --error=err/%x_%A_%a.err       # Standard error file per array task
+#SBATCH --output=%x_%j_output.txt      # Standard output file with job name and job ID
+#SBATCH --error=%x_%j_error.txt        # Standard error file with job name and job ID
 
 # AWS secret info 
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
-export AWS_DEFAULT_REGION="us-west-2" 
+export AWS_DEFAULT_REGION="us-west-2"
 
-# Load OpenMPI for parallel processing
+# Load OpenMPI
 module load openmpi
 
-# Define the path to your Python script
-PYSCRIPT="ALLNETWORKS_qaqc.py"
-
-# Get the network name for this array task
-NETWORK=$(sed -n "${SLURM_ARRAY_TASK_ID}p" networks-input.dat)
-
-# Create a log file based on job name, job ID, and task ID
-log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
+# Create a log file based on job name and ID
+log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_output.txt"
 
 # Print SBATCH job settings for debugging to the log file
 {
   echo "====================================="
   echo "Job Name: $SLURM_JOB_NAME"
   echo "Job ID: $SLURM_JOB_ID"
-  echo "Array Task ID: $SLURM_ARRAY_TASK_ID"
-  echo "Processing Network: $NETWORK"
   echo "Partition: $SLURM_JOB_PARTITION"
+  echo "Number of Nodes: $SLURM_JOB_NUM_NODES"
+  echo "Tasks Per Node: $SLURM_NTASKS_PER_NODE"
+  echo "Total Tasks: $SLURM_NTASKS"
   echo "CPUs Per Task: $SLURM_CPUS_PER_TASK"
   echo "Job Start Time: $(date)"
   echo "====================================="
 } >> "$log_file"
+
+# Define the path to your Python script
+PYSCRIPT="ALLNETWORKS_qaqc.py"
+
+# Get the network name for this array task
+NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
 
 # Check if the Python script exists
 if [ ! -f "$PYSCRIPT" ]; then
