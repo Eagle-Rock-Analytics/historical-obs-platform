@@ -571,7 +571,7 @@ def qaqc_world_record(df, verbose=False):
         # for other non-record variables (wind direction, precipitation)
         N_X = {"North_America": 360}  # degrees
         N_N = {"North_America": 0}  # degrees
-        P_X = {"North_America": 1000}  # mm, arbitrarily set
+        P_X = {"North_America": 305}  # mm, assumes 1-hr rainfall
         P_N = {"North_America": 0}  # mm
         H_X = {"North_America": 100}  # humidity max
         H_N = {"North_America": 0}  # humidity min
@@ -623,9 +623,9 @@ def qaqc_world_record(df, verbose=False):
             "tdps_derived",
             "tdps",
             "sfcWind",
-            "psl",
             "rsds",
             "ps",
+            "psl",
             "ps_altimeter",
             "ps_derived",
         ]
