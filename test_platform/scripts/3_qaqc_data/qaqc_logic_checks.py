@@ -432,17 +432,15 @@ def qaqc_pressure_units_fix(df, verbose=False):
     """
 
     try:
-
         # identify pressure variables to check conversion on
         ps_vars = ["ps", "psl", "ps_altimeter", "ps_derived"]
 
         for var in ps_vars:
             if var in df.columns:
-                logger.info("Running qaqc_pressure_units_fix on: {}".format(var))
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
                     logger.info(
-                        "Pressure units on {} updated to be Pa".format(var),
+                        "Running qaqc_pressure_units_fix... Pressure units on {} updated to be Pa".format(var),
                     )
         return df
 
