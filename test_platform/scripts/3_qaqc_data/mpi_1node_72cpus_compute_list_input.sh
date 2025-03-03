@@ -6,11 +6,12 @@
 # Partition: compute (for 1 node, 72 CPUs)
 # Time Limit: 5 hours
 # Python Script: ALLNETWORKS_qaqc.py
-# Arguments: network="CAHYDRO"
+# Arguments: network=[row from networks-input.dat]
 # 
 # NOTE: This script must be run from the directory containing ALLNETWORKS_qaqc.py.
 
 #SBATCH --job-name=hist-obs            # Name of the job
+#SBATCH --array=1-23                   # Number of lines in networks-input.dat
 #SBATCH --ntasks=72                    # Total number of MPI processes (1 per CPU)
 #SBATCH --nodes=1                      # Number of nodes (1 node with 72 CPUs)
 #SBATCH --ntasks-per-node=72           # Number of MPI processes per node (72 processes per node)
@@ -18,9 +19,6 @@
 #SBATCH --partition=compute            # Queue/partition (adjust as necessary)
 #SBATCH --output=%x_%j_output.txt      # Standard output file with job name and job ID
 #SBATCH --error=%x_%j_error.txt        # Standard error file with job name and job ID
-
-# Set the Network 
-NETWORK="CAHYDRO"
 
 # AWS secret info 
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
@@ -31,14 +29,15 @@ export AWS_DEFAULT_REGION="us-west-2"
 module load openmpi
 
 # Create a log file based on job name and ID
-log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_output.txt"
+log_file="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
 
 # Print SBATCH job settings for debugging to the log file
 {
   echo "====================================="
   echo "Network: $NETWORK"
   echo "Job Name: $SLURM_JOB_NAME"
-  echo "Job ID: $SLURM_JOB_ID"
+  echo "Job ID: $SLURM_ARRAY_JOB_ID"
+  echo "Task ID: $SLURM_ARRAY_TASK_ID"
   echo "Partition: $SLURM_JOB_PARTITION"
   echo "Number of Nodes: $SLURM_JOB_NUM_NODES"
   echo "Tasks Per Node: $SLURM_NTASKS_PER_NODE"
@@ -50,6 +49,9 @@ log_file="${SLURM_JOB_NAME}_${SLURM_JOB_ID}_output.txt"
 
 # Define the path to your Python script
 PYSCRIPT="ALLNETWORKS_qaqc.py"
+
+# Get the network name for this array task
+NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
 
 # Check if the Python script exists
 if [ ! -f "$PYSCRIPT" ]; then
@@ -66,7 +68,7 @@ conda activate /shared/miniconda3/envs/hist-obs
 # Start time tracking
 start_time=$(date +%s)
 
-# Run the Python script directly using Python from the activated environment
+# Run the Python script with the selected network
 srun --mpi=pmi2 python3 ${PYSCRIPT} --network="$NETWORK"
 
 # End time tracking
