@@ -20,6 +20,9 @@
 #SBATCH --output=%x_%A_%a_output.txt   # Standard output file with job name and job ID
 #SBATCH --error=%x_%A_%a_error.txt     # Standard error file with job name and job ID
 
+# Get the network name for this array task
+NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
+
 # AWS secret info 
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
@@ -49,9 +52,6 @@ log_file="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.
 
 # Define the path to your Python script
 PYSCRIPT="ALLNETWORKS_qaqc.py"
-
-# Get the network name for this array task
-NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
 
 # Check if the Python script exists
 if [ ! -f "$PYSCRIPT" ]; then
