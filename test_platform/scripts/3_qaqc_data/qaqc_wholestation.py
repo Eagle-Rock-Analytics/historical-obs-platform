@@ -528,7 +528,7 @@ def qaqc_sensor_height_w(df, verbose=False):
 ## flag values outside world records for North America
 def qaqc_world_record(df, verbose=False):
     """
-    Checks if temperature, dewpoint, windspeed, or sea level pressure are outside North American world records
+    Checks if variables are outside North American world records.
     If outside minimum or maximum records, flags values.
 
     Parameters
@@ -557,26 +557,29 @@ def qaqc_world_record(df, verbose=False):
     logger.info("Running: qaqc_world_record")
 
     try:
-        T_X = {"North_America": 329.92}  # K
-        T_N = {"North_America": 210.15}  # K
-        D_X = {"North_America": 329.85}  # K
-        D_N = {"North_America": 173.15}  # K
-        W_X = {"North_America": 113.2}  # m/s
-        W_N = {"North_America": 0.0}  # m/s
-        S_X = {"North_America": 108330}  # Pa
-        S_N = {"North_America": 87000}  # Pa
-        R_X = {"North_America": 1500}  # W/m2
-        R_N = {"North_America": -5}  # W/m2
+        T_X = {"North_America": 329.92}  # temperature, K
+        T_N = {"North_America": 210.15}  # temperature, K
+        D_X = {"North_America": 329.85}  # dewpoint temperature, K
+        D_N = {"North_America": 173.15}  # dewpoint temperature, K
+        W_X = {"North_America": 113.2}  # wind speed, m/s
+        W_N = {"North_America": 0.0}  # wind speed, m/s
+        R_X = {"North_America": 1500}  # solar radiation, W/m2
+        R_N = {"North_America": -5}  # solar radiation, W/m2
+        P_X = {"North_America": 305}  # precipitation, mm, assumes 1-hr rainfall
+        P_N = {"North_America": 0}  # precipitaiton, mm
 
         # for other non-record variables (wind direction, precipitation)
-        N_X = {"North_America": 360}  # degrees
-        N_N = {"North_America": 0}  # degrees
-        P_X = {"North_America": 305}  # mm, assumes 1-hr rainfall
-        P_N = {"North_America": 0}  # mm
-        H_X = {"North_America": 100}  # humidity max
-        H_N = {"North_America": 0}  # humidity min
-        E_X = {"North_America": 6210.0}  # m
-        E_N = {"North_America": -100}  # m
+        N_X = {"North_America": 360}  # wind direction, degrees
+        N_N = {"North_America": 0}  # wind direction, degrees
+        H_X = {"North_America": 100}  # humidity, max
+        H_N = {"North_America": 0}  # humidity, min
+        E_X = {"North_America": 6210.0}  # elevation, m
+        E_N = {"North_America": -100}  # elevation, m
+
+        # pressure, with elevation options
+        S_X = {"North_America": 108330}  # pressure, Pa
+        S_N = {"North_America": 87000}  # sea level pressure only, Pa
+        SALT_N = {"North_America": 45960} # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
 
         maxes = {
             "tas": T_X,
@@ -584,10 +587,10 @@ def qaqc_world_record(df, verbose=False):
             "tdps_derived": D_X,
             "sfcWind": W_X,
             "sfcWind_dir": N_X,
-            "ps": S_X,
             "psl": S_X,
-            "ps_altimeter": S_X,
+            "ps": S_X,
             "ps_derived": S_X,
+            "ps_altimeter": S_X,
             "rsds": R_X,
             "pr": P_X,
             "pr_5min": P_X,
@@ -603,10 +606,10 @@ def qaqc_world_record(df, verbose=False):
             "tdps_derived": D_N,
             "sfcWind": W_N,
             "sfcWind_dir": N_N,
-            "ps": S_N,
             "psl": S_N,
-            "ps_altimeter": S_N,
-            "ps_derived": S_N,
+            "ps": SALT_N,
+            "ps_derived": SALT_N,
+            "ps_altimeter": SALT_N,
             "rsds": R_N,
             "pr": P_N,
             "pr_5min": P_N,
@@ -620,14 +623,22 @@ def qaqc_world_record(df, verbose=False):
         # variable names to check against world record limits
         wr_vars = [
             "tas",
-            "tdps_derived",
             "tdps",
+            "tdps_derived",
             "sfcWind",
-            "rsds",
+            "sfcWind_dir",
             "ps",
             "psl",
             "ps_altimeter",
             "ps_derived",
+            "rsds",
+            "pr",
+            "pr_5min",
+            "pr_1h",
+            "pr_24h",
+            "pr_24h",
+            "hurs",
+            "elevation",
         ]
         for var in wr_vars:
             if var in list(df.columns):
