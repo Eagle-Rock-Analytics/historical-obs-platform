@@ -512,7 +512,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
     # calculate the respective 29-day 95th percentile
     # v1: using the month each day is located in for "29-day"
     for mon in range(1, 13):
-        df_mon = df_dy.loc[df_dy['month'] == mon]
+        df_mon = df_dy.loc[df_dy["month"] == mon]
 
         # subset for days with >0mm rain
         df_mon = df_mon.loc[df_mon[var] > 0]
