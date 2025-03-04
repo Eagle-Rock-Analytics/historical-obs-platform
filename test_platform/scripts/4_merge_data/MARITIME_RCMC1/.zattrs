@@ -1,0 +1,15 @@
+{
+    "anemometer_height_m": 7.2,
+    "barometer_elevation_m": 4.5,
+    "citation": "",
+    "comment": "Final v1 data product. This data has been subjected to cleaning, QA/QC, and standardization.",
+    "disclaimer": "This document was prepared as a result of work sponsored by the California Energy Commission (PIR-19-006). It does not necessarily represent the views of the Energy Commission, its employees, or the State of California. Neither the Commission, the State of California, nor the Commission's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by the Commission, nor has the Commission passed upon the accuracy of the information in this document.",
+    "history": "MARITIME_clean.py script run on 05-19-2023, 18:27:09 UTC \nVALLEYWATER_merge.ipynb run on 03-04-2025, 22:44:29 UTC",
+    "institution": "Eagle Rock Analytics / Cal Adapt",
+    "license": "",
+    "raw_files_merged": 27,
+    "source": "",
+    "station_name": "9414863 - RICHMOND, CA",
+    "thermometer_height_m": 6.5,
+    "title": "MARITIME cleaned"
+}
