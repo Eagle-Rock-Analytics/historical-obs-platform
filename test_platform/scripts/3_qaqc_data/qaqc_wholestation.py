@@ -579,7 +579,9 @@ def qaqc_world_record(df, verbose=False):
         # pressure, with elevation options
         S_X = {"North_America": 108330}  # pressure, Pa
         S_N = {"North_America": 87000}  # sea level pressure only, Pa
-        SALT_N = {"North_America": 45960} # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
+        SALT_N = {
+            "North_America": 45960
+        }  # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
 
         maxes = {
             "tas": T_X,
