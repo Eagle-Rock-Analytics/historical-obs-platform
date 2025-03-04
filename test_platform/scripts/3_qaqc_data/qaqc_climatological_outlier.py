@@ -512,7 +512,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
     # calculate the respective 29-day 95th percentile
     # v1: using the month each day is located in for "29-day"
     for mon in range(1, 13):
-        df_mon = df_dy.loc[df_dy.month == mon]
+        df_mon = df_dy.loc[df_dy['month'] == mon]
 
         # subset for days with >0mm rain
         df_mon = df_mon.loc[df_mon[var] > 0]
@@ -528,7 +528,7 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
             if p95 > 442.0:
                 # largest recorded 1-day rainfall was 17.6 inches (442 mm) Feb 17 1986
                 # https://cepsym.org/Sympro1994/Goodridge.pdf
-                flagged_days = df.mon.loc[df_mon[var] > 442.0]
+                flagged_days = df_mon.loc[df_mon[var] > 442.0]
                 new_df.loc[
                     (
                         new_df.year.isin(flagged_days.time.dt.year)
