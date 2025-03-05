@@ -4,7 +4,7 @@
 # Name: hist-obs MPI Job
 # Description: This script runs an MPI-optimized job using Conda environment "hist-obs" on a single node with 72 CPUs.
 # Partition: compute (for 1 node, 72 CPUs)
-# Time Limit: 5 hours
+# Time Limit: 72 hours
 # Python Script: ALLNETWORKS_qaqc.py
 # Arguments: network=[row from networks-input.dat]
 # 
@@ -15,10 +15,13 @@
 #SBATCH --ntasks=72                    # Total number of MPI processes (1 per CPU)
 #SBATCH --nodes=1                      # Number of nodes (1 node with 72 CPUs)
 #SBATCH --ntasks-per-node=72           # Number of MPI processes per node (72 processes per node)
-#SBATCH --time=5:00:00                 # Maximum runtime (adjust as necessary)
+#SBATCH --time=72:00:00                # Maximum runtime (adjust as necessary)
 #SBATCH --partition=compute            # Queue/partition (adjust as necessary)
-#SBATCH --output=%x_%j_output.txt      # Standard output file with job name and job ID
-#SBATCH --error=%x_%j_error.txt        # Standard error file with job name and job ID
+#SBATCH --output=%x_%A_%a_output.txt   # Standard output file with job name and job ID
+#SBATCH --error=%x_%A_%a_error.txt     # Standard error file with job name and job ID
+
+# Get the network name for this array task
+NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
 
 # AWS secret info 
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
@@ -49,9 +52,6 @@ log_file="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.
 
 # Define the path to your Python script
 PYSCRIPT="ALLNETWORKS_qaqc.py"
-
-# Get the network name for this array task
-NETWORK=$(cat networks-input.dat | awk "NR==$SLURM_ARRAY_TASK_ID")
 
 # Check if the Python script exists
 if [ ! -f "$PYSCRIPT" ]; then
