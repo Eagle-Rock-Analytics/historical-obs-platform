@@ -640,6 +640,7 @@ def qaqc_world_record(df, verbose=False):
                     df.loc[isOffRecord, var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
+                logger.info("World record exceeded by: {}, flagging.".format(var))
         return df
     except Exception as e:
         logger.info(
