@@ -431,8 +431,7 @@ def qaqc_pressure_units_fix(df, verbose=False):
     3. grab_valid_data is not applied here as this is a temporary fix, applied uniformly
     """
 
-    logger.info("Running: qaqc_pressure_units_fix")
-
+    logger.info("Running qaqc_pressure_units_fix")
     try:
         # identify pressure variables to check conversion on
         ps_vars = ["ps", "psl", "ps_altimeter", "ps_derived"]

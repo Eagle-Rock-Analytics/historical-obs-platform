@@ -18,9 +18,10 @@ except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
 try:
-    from qaqc_plot import standardized_median_bounds
+    # from qaqc_plot import standardized_median_bounds, dist_gap_part1_plot, dist_gap_part2_plot
+    from qaqc_plot import *
 except Exception as e:
-    logger.debug("Error importing standardized_median_bounds: {}".format(e))
+    logger.debug("Error importing qaqc_plot: {}".format(e))
 
 
 # -----------------------------------------------------------------------------
