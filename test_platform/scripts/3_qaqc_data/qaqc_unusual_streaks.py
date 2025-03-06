@@ -8,8 +8,6 @@ import boto3
 import numpy as np
 import pandas as pd
 
-# import datetime
-
 # New logger function
 from log_config import logger
 
@@ -368,14 +366,15 @@ def qaqc_unusual_repeated_streaks(
             bad_hourly = hourly_repeats(
                 test_df, var=var, threshold=threshold
             )  # Bad hourly returns a pd.Series of time stamps
-            new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
-                27  # Flag _eraqc variable
-            )
-            logger.info(
-                "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                    var, time.time() - tt00
-                ),
-            )
+            if len(bad_hourly) > 0:
+                new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
+                    27  # Flag _eraqc variable
+                )
+                logger.info(
+                    "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
+                        var, time.time() - tt00
+                    ),
+                )
             # ------------------------------------------------------------------------------------------------
             # Straight repeat streak criteria
             logger.info(
@@ -394,14 +393,15 @@ def qaqc_unusual_repeated_streaks(
                 wind_min_value,
                 min_sequence_length=min_sequence_length,
             )  # Bad straight returns a pd.Series of time stamps
-            new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
-                28  # Flag _eraqc variable
-            )
-            logger.info(
-                "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                    var, time.time() - tt00
-                ),
-            )
+            if len(bad_straight) > 0:
+                new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
+                    28  # Flag _eraqc variable
+                )
+                logger.info(
+                    "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
+                        var, time.time() - tt00
+                    ),
+                )
             # ------------------------------------------------------------------------------------------------
             # Whole day replication for a streak of days
             logger.info(
@@ -412,14 +412,15 @@ def qaqc_unusual_repeated_streaks(
             bad_whole = consecutive_fullDay_repeats(
                 test_df, var, threshold
             )  # Bad whole returns a pd.Series of time stamps
-            new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
-                29  # Flag _eraqc variable
-            )
-            logger.info(
-                "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                    var, time.time() - tt00
-                ),
-            )
+            if len(bad_whole) > 0:
+                new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
+                    29  # Flag _eraqc variable
+                )
+                logger.info(
+                    "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
+                        var, time.time() - tt00
+                    ),
+                )
             # ------------------------------------------------------------------------------------------------
 
             bad_keys = np.concatenate(
