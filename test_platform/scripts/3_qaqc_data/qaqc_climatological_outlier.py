@@ -107,7 +107,7 @@ def qaqc_climatological_outlier(
             df_valid = df_valid[[var, "year", "month", "day", "hour", "time"]]
 
             # Bypass if there are no valid observations remaining
-            if df_valid[var].size == 0:
+            if len(df_valid[var]) == 0:
                 logger.info(
                     "No valid (unflagged) observations for: {} to proceed through qaqc_climatological_outlier. Bypassing station.".format(
                         var
@@ -492,6 +492,11 @@ def qaqc_climatological_outlier_precip(df, var, factor=9):
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
+
+    # add check in case valid_obs is now length 0
+    if len(df_valid) == 0:
+        logger.info("{} has 0 observations, moving to next variable".format(var))
+        return new_df
 
     # aggregate to daily
     df_sub = df_valid[["time", "month", "year", "day", var, var + "_eraqc"]]

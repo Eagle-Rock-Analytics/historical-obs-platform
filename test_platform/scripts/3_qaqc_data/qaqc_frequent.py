@@ -615,7 +615,7 @@ def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5, verbose=Fals
 
     # add check in case valid_obs is now length 0
     if len(df_valid) == 0:
-        logger.info("{} has 0 observations, moving to next variable.".format(var))
+        logger.info("{} has 0 observations, moving to next variable".format(var))
         return new_df
 
     # aggregate to daily, subset on time, var, and eraqc var
