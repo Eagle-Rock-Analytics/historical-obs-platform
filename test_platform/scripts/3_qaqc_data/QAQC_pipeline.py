@@ -38,6 +38,7 @@ try:
     from qaqc_unusual_large_jumps import *
     from qaqc_climatological_outlier import *
     from qaqc_unusual_streaks import *
+    from qaqc_deaccumulate import *
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
@@ -756,7 +757,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Precipitation de-accumulation
-    new_df = qaqc_deaccumulate_precip(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_deaccumulate_precip(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
