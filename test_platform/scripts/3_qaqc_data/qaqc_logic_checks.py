@@ -331,7 +331,6 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         return None
 
 
-
 # ----------------------------------------------------------------------
 ## logic check: wind direction must be 0 if wind speed is 0
 def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):

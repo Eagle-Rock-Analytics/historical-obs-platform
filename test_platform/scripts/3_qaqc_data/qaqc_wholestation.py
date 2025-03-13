@@ -553,7 +553,7 @@ def qaqc_world_record(df, verbose=False):
     [2] https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
     [3] Solar radiation specific: Rupp et al. 2022, Slater 2016
     [4] https://www.ncei.noaa.gov/access/monitoring/scec/records
-    [5] https://www.weather.gov/media/owp/oh/hdsc/docs/TP2.pdf 
+    [5] https://www.weather.gov/media/owp/oh/hdsc/docs/TP2.pdf
     """
 
     logger.info("Running: qaqc_world_record")
@@ -585,8 +585,8 @@ def qaqc_world_record(df, verbose=False):
 
         # precipitation, with variations depending on reporting interval
         P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
-        PALT5_X = {"North_America": 31.8} # precipitation, mm, 5-min rainfall
-        PALT15_X = {"North_Ameria": 25.4} # precipitation, mm, 15-min rainfall
+        PALT5_X = {"North_America": 31.8}  # precipitation, mm, 5-min rainfall
+        PALT15_X = {"North_Ameria": 25.4}  # precipitation, mm, 15-min rainfall
         P_N = {"North_America": 0}  # precipitaiton, mm
 
         maxes = {
@@ -662,7 +662,11 @@ def qaqc_world_record(df, verbose=False):
                     df.loc[isOffRecord, var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
-                    logger.info("Flagging {} observations exceeding world/regional records: {}".format(len(isOffRecord), var))
+                    logger.info(
+                        "Flagging {} observations exceeding world/regional records: {}".format(
+                            len(isOffRecord), var
+                        )
+                    )
 
         return df
     except Exception as e:
