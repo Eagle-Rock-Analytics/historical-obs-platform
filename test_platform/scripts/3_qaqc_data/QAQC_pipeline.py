@@ -755,6 +755,26 @@ def run_qaqc_pipeline(
         )
 
     # ---------------------------------------------------------
+    ## Precipitation de-accumulation
+    new_df = qaqc_deaccumulate_precip(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message="Flagging problem with precip deaccumulation",
+            test="qaqc_deaccumulate_precip",
+            verbose=verbose,
+        )
+    else:
+        stn_to_qaqc = new_df
+        logger.info("pass qaqc_deaccumulate_precip")
+
+    logger.info(
+        "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
+    )
+
+    # ---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
     new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
     if new_df is None:
