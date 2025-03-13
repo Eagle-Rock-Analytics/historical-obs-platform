@@ -525,7 +525,7 @@ def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)
-    
+
     # add check in case valid_obs is now length 0
     if len(df_valid) == 0:
         logger.info("{} has 0 observations, moving to next variable".format(var))
