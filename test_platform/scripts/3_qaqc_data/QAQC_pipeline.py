@@ -179,9 +179,7 @@ def read_network_files(network, zarr):
     full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
     # Read csv from s3 for VW
-    csv_filepath_s3 = (
-        "s3://wecc-historical-wx/2_clean_wx/VALLEYWATER/stationlist_VALLEYWATER_cleaned.csv"
-    )
+    csv_filepath_s3 = "s3://wecc-historical-wx/2_clean_wx/VALLEYWATER/stationlist_VALLEYWATER_cleaned.csv"
     vw_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
     # Concat HDP and VW dfs
