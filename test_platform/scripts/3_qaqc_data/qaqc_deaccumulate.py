@@ -38,17 +38,17 @@ def is_precip_accumulated(pr):
     Returns
     -------
     bool
-        `True` if the mean autocorrelation of the filtered series is greater than 0.9, indicating 
+        `True` if the mean autocorrelation of the filtered series is greater than 0.9, indicating
         that the precipitation data is likely accumulated.
         `False` otherwise.
 
     Notes
     -----
     - The function filters out non-positive and missing values from `pr` before computing autocorrelation.
-    - The Pearson autocorrelation is computed using `pandas.Series.autocorr()`, which measures the 
+    - The Pearson autocorrelation is computed using `pandas.Series.autocorr()`, which measures the
       correlation of the series with a lag of 1.
     - If the mean autocorrelation exceeds 0.9, the function assumes that the data is accumulated precipitation.
-    - Missing values (`NaN`) in the autocorrelation calculation are handled using `np.nanmean()` 
+    - Missing values (`NaN`) in the autocorrelation calculation are handled using `np.nanmean()`
       to avoid bias in the decision.
 
     Examples
@@ -65,7 +65,8 @@ def is_precip_accumulated(pr):
         return True
     else:
         return False
-        
+
+
 # -----------------------------------------------------------------------------
 #
 def flag_ringing(series, window=3, threshold=None):
@@ -106,6 +107,7 @@ def flag_ringing(series, window=3, threshold=None):
     )  # Flag only if oscillations are significant
 
     return ringing_flags
+
 
 # -----------------------------------------------------------------------------
 #
@@ -223,9 +225,10 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     diff_series = original_series.copy().diff() * np.nan
     diff_series.loc[flags.dropna().index] = clean_diff_series
 
-    final_flags = (diff_series*0).astype(bool)
+    final_flags = (diff_series * 0).astype(bool)
     final_flags.loc[flags.dropna().index] = flags
     return diff_series, final_flags
+
 
 # -----------------------------------------------------------------------------
 #
@@ -286,9 +289,9 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
     vars_to_check = [var for var in df.columns if var in vars_for_deacummulation]
 
     df = df.copy()
-    
+
     try:
-    # if True:
+        # if True:
         logger.info(
             "Running {} on {}".format("qaqc_deaccumulate_precip", vars_to_check),
         )
@@ -328,10 +331,11 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
             return df
 
     except Exception as e:
-    # else:
+        # else:
         logger.info(
             "qaqc_deaccumulate_precip failed with Exception: {}".format(e),
         )
         return None
+
 
 # -----------------------------------------------------------------------------
