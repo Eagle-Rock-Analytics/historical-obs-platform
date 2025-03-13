@@ -552,6 +552,8 @@ def qaqc_world_record(df, verbose=False):
     [1] World records from HadISD protocol, cross-checked with WMO database
     [2] https://wmo.asu.edu/content/world-meteorological-organization-global-weather-climate-extremes-archive
     [3] Solar radiation specific: Rupp et al. 2022, Slater 2016
+    [4] https://www.ncei.noaa.gov/access/monitoring/scec/records
+    [5] https://www.weather.gov/media/owp/oh/hdsc/docs/TP2.pdf
     """
 
     logger.info("Running: qaqc_world_record")
@@ -565,10 +567,8 @@ def qaqc_world_record(df, verbose=False):
         W_N = {"North_America": 0.0}  # wind speed, m/s
         R_X = {"North_America": 1500}  # solar radiation, W/m2
         R_N = {"North_America": -5}  # solar radiation, W/m2
-        P_X = {"North_America": 305}  # precipitation, mm, assumes 1-hr rainfall
-        P_N = {"North_America": 0}  # precipitaiton, mm
 
-        # for other non-record variables (wind direction, precipitation)
+        # for other non-record variables (wind direction, humidity)
         N_X = {"North_America": 360}  # wind direction, degrees
         N_N = {"North_America": 0}  # wind direction, degrees
         H_X = {"North_America": 100}  # humidity, max
@@ -583,6 +583,16 @@ def qaqc_world_record(df, verbose=False):
             "North_America": 45960
         }  # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
 
+        # precipitation, with variations depending on reporting interval
+        P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
+        PALT5_X = {
+            "North_America": 31.8
+        }  # precipitation, mm, 5-min rainfall, WECC-wide
+        PALT15_X = {
+            "North_America": 25.4
+        }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
+        P_N = {"North_America": 0}  # precipitaiton, mm
+
         maxes = {
             "tas": T_X,
             "tdps": D_X,
@@ -595,7 +605,8 @@ def qaqc_world_record(df, verbose=False):
             "ps_altimeter": S_X,
             "rsds": R_X,
             "pr": P_X,
-            "pr_5min": P_X,
+            "pr_5min": PALT5_X,
+            "pr_15min": PALT15_X,
             "pr_1h": P_X,
             "pr_24h": P_X,
             "pr_localmid": P_X,
@@ -615,6 +626,7 @@ def qaqc_world_record(df, verbose=False):
             "rsds": R_N,
             "pr": P_N,
             "pr_5min": P_N,
+            "pr_15min": P_N,
             "pr_1h": P_N,
             "pr_24h": P_N,
             "pr_localmid": P_N,
@@ -636,6 +648,7 @@ def qaqc_world_record(df, verbose=False):
             "rsds",
             "pr",
             "pr_5min",
+            "pr_15min",
             "pr_1h",
             "pr_24h",
             "pr_24h",
@@ -653,7 +666,11 @@ def qaqc_world_record(df, verbose=False):
                     df.loc[isOffRecord, var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
-                    logger.info("Flagging world records exceedance by: {}".format(var))
+                    logger.info(
+                        "Flagging {} observations exceeding world/regional records: {}".format(
+                            sum(isOffRecord), var
+                        )
+                    )
 
         return df
     except Exception as e:

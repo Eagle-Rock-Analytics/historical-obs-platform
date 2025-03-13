@@ -65,7 +65,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         "rsds",
     ]
 
-    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid", "pr"]
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
     vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 
@@ -522,8 +522,14 @@ def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
     ### Filter df to precipitation variables and sum daily observations
 
     logger.info("Running qaqc_unusual_gaps_precip on: {}".format(var))
+
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)
+
+    # add check in case valid_obs is now length 0
+    if len(df_valid) == 0:
+        logger.info("{} has 0 observations, moving to next variable".format(var))
+        return new_df
 
     # aggregate to daily, subset on time, var, and eraqc var
     df_sub = df_valid[["time", "year", "month", "day", var, var + "_eraqc"]]

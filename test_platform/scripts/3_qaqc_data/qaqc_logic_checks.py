@@ -356,7 +356,6 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     Flag meaning : 15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
     """
 
-    # import pdb; pdb.set_trace()
     logger.info("Running: qaqc_crossvar_logic_calm_wind_dir")
 
     try:
