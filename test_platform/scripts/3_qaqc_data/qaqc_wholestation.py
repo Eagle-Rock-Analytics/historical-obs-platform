@@ -586,7 +586,7 @@ def qaqc_world_record(df, verbose=False):
         # precipitation, with variations depending on reporting interval
         P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
         PALT5_X = {"North_America": 31.8}  # precipitation, mm, 5-min rainfall
-        PALT15_X = {"North_Ameria": 25.4}  # precipitation, mm, 15-min rainfall
+        PALT15_X = {"North_America": 25.4}  # precipitation, mm, 15-min rainfall
         P_N = {"North_America": 0}  # precipitaiton, mm
 
         maxes = {
