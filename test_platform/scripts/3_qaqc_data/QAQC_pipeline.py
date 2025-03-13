@@ -178,6 +178,15 @@ def read_network_files(network, zarr):
     )
     full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
+    # Read csv from s3 for VW
+    csv_filepath_s3 = (
+        "s3://wecc-historical-wx/2_clean_wx/VALLEYWATER/stationlist_VALLEYWATER_cleaned.csv"
+    )
+    vw_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
+
+    # Concat HDP and VW dfs
+    full_df = pd.concat([full_df, vw_df], axis=0, ignore_index=True)
+
     # Add path info as new columns
     full_df["rawdir"] = full_df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
     full_df["cleandir"] = full_df["network"].apply(
