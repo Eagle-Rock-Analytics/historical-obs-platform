@@ -95,7 +95,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         "pr_24h",
         "pr_localmid",
         "pr",
-    ]    
+    ]
     pr_vars_to_check = [
         var
         for var in df.columns
