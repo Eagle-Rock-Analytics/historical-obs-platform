@@ -88,7 +88,14 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         and not any(True for item in vars_to_remove if item in var)
     ]
 
-    pr_vars_to_run = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid", "pr"]
+    pr_vars_to_run = [
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+        "pr",
+    ]    
     pr_vars_to_check = [
         var
         for var in df.columns
