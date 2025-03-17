@@ -34,6 +34,7 @@
 33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
 34,qaqc_deaccumulate_precip,Value flagged has a ringing in the accumulated precipitation: cannot determine which value (higher or lower) is the real one (it has been also converted to nan in the deaccumulated series)
 
-35,qaqc_deaccumulate_precip,precip has been deaccumulated
+35,qaqc_deaccumulate_precip,Original precipitation data, deaccumulation process has been applied
+
 
 
