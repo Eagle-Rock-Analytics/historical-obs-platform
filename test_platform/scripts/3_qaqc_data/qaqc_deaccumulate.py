@@ -66,7 +66,6 @@ def is_precip_accumulated(pr):
     else:
         return False
 
-
 # -----------------------------------------------------------------------------
 #
 def flag_ringing(series, window=3, threshold=None):
