@@ -65,7 +65,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         "rsds",
     ]
 
-    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+    vars_for_pr = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid", "pr"]
     vars_to_check = [var for var in df.columns if var in vars_for_gaps]
     vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 

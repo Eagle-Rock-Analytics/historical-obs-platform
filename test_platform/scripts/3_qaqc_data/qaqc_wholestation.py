@@ -81,6 +81,7 @@ def qaqc_missing_vals(df, verbose=False):
             "station",
             "anemometer_height_m",
             "thermometer_height_m",
+            "accum",
         ]
     ]
     obs_vars = [
@@ -167,7 +168,8 @@ def qaqc_within_wecc(df, verbose=False):
 
     Returns
     -------
-    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC is successful, returns a dataframe with flagged valueACH1370maninof
+
     If QAQC fails, returns None
     """
     logger.info("Running: qaqc_within_wecc")

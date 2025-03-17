@@ -313,6 +313,7 @@ def qaqc_unusual_repeated_streaks(
             "ps_derived",
             "ps_altimeter",
             "sfcWind",
+            "pr",
         ]
         variables = [var for var in check_vars if var in new_df.columns]
         logger.info(

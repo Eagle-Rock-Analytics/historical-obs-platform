@@ -82,7 +82,7 @@ def qaqc_climatological_outlier(
     new_df = df.copy()
 
     vars_to_check = ["tas", "tdps", "tdps_derived"]
-    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+    pr_vars = ["pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid", "pr"]
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
     pr_vars_to_anom = [v for v in pr_vars if v in df.columns]
 

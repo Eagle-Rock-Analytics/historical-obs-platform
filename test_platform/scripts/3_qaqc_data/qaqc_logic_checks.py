@@ -190,7 +190,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     df_neg_pr = df.copy(deep=True)
 
     # identify which precipitation vars are reported by a station
-    vars_to_remove = ["qc", "duration", "method", "depth"]
+    vars_to_remove = ["qc", "duration", "method", "depth", "accum"]
     all_pr_vars = [
         var for var in df_neg_pr.columns if "pr" in var
     ]  # can be variable length depending if there is a raw qc var

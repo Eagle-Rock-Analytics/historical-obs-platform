@@ -67,6 +67,7 @@ def qaqc_unusual_large_jumps(
     try:
         # Define test variables and check if they are in the dataframe
         check_vars = [
+            "pr",
             "pr_5min",
             "pr_15min",
             "pr_1h",
