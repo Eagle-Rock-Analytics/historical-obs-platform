@@ -312,8 +312,6 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
 
             # Flag the new accum_pr to acknowledge that precip was de-accumulated
             df.loc[:, "accum_" + var + "_eraqc"] = 35  # see era_qaqc_flag_meanings.csv
-
-            logger.info("qaqc_deaccumulate_precip bypassed: Precip is not accumulated")
             logger.info(
                 "{} on {} done".format("qaqc_deaccumulate_precip", vars_to_check),
             )
