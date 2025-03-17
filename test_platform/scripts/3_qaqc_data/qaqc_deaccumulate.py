@@ -303,12 +303,6 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
             diff_series, flags = de_accumulate(
                 df[var], reset_threshold=50, window=3, threshold=10
             )
-
-            # display(diff_series)
-            # diff_series.dropna().plot()
-
-            # print(len(df))
-            # print(len(flags))
             df.loc[flags, var + "_eraqc"] = 34  # see era_qaqc_flag_meanings.csv
 
             # Save original accumulated precip into new variable, and de-accumulated into original pr
