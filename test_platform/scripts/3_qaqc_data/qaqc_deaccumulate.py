@@ -273,6 +273,8 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
         - Flags `accum_var + "_eraqc"` with flag 35 to indicate de-accumulation.
     - If `var` is **not** accumulated, the function **bypasses processing** and returns `df` unchanged.
     - If an error occurs, it logs the exception and returns `None`.
+    Flag meaning : 34, qaqc_deaccumulate_precip, Value flagged has a period of oscillating values (probably sensor malfunction, ringing-like data) in the accumulated precipitation (that would result on incorrect/false de-accumulated values that look correct): cannot determine which value (higher or lower) is the real one (it has been also converted to nan in the deaccumulated series)
+    Flag meaning : 35, qaqc_deaccumulate_precip, Original precipitation data, deaccumulation process has been applied
 
     Examples
     --------
