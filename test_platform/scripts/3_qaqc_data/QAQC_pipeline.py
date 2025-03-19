@@ -757,7 +757,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Precipitation de-accumulation
-    new_df = qaqc_deaccumulate_precip(stn_to_qaqc)
+    new_df = qaqc_deaccumulate_precip(stn_to_qaqc, local=local)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,

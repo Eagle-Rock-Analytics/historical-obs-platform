@@ -232,7 +232,9 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
 
 # -----------------------------------------------------------------------------
 #
-def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, window=3):
+def qaqc_deaccumulate_precip(
+    df, var="pr", reset_threshold=50, threshold=10, window=3, plot=True, local=False
+):
     """
     Performs quality control (QAQC) and de-accumulation on a precipitation time series.
 
@@ -305,11 +307,19 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
             diff_series, flags = de_accumulate(
                 df[var], reset_threshold=50, window=3, threshold=10
             )
+
+            df.loc[:, var + "_eraqc"] = np.nan
             df.loc[flags, var + "_eraqc"] = 34  # see era_qaqc_flag_meanings.csv
 
             # Save original accumulated precip into new variable, and de-accumulated into original pr
             # and save de-accumulated precip into original pr
             tmp_var, tmp_index = df[var].values, df[var].index
+
+            # I wonder if this is neccessary, in my opinion it is
+            # We should flag those oscillating/ringing values in the de-accumulated
+            diff_series.loc[flags] = np.nan
+
+            # Re-assign de-accumulated to pr
             df[var] = diff_series.values
             df["accum_" + var] = tmp_var
 
@@ -318,6 +328,13 @@ def qaqc_deaccumulate_precip(df, var="pr", reset_threshold=50, threshold=10, win
             logger.info(
                 "{} on {} done".format("qaqc_deaccumulate_precip", vars_to_check),
             )
+
+            # --------------------------------------------------------
+            if plot:
+                precip_deaccumulation_plot(
+                    df.loc[:, ["pr", "accum_pr", "time", "station"]], flags, local=local
+                )
+                logger.info("plot produced for precip de-accumulation"),
             return df
 
         else:  # If it's not accumulated, bypass and return original df

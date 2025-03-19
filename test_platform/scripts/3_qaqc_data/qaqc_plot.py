@@ -1383,6 +1383,98 @@ def unusual_streaks_plot(
 
 
 # ============================================================================================================
+## precip de-accumulation plot
+def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
+    """ """
+
+    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
+
+    # Plot variable and flagged data
+    df.plot(
+        x="time",
+        y="accum_pr",
+        ax=ax0,
+        marker=".",
+        ms=3,
+        lw=1,
+        color="k",
+        alpha=0.5,
+        label="Original accumulated precip",
+    )
+    ax0.set_xticklabels([])
+    df.plot(
+        x="time",
+        y="pr",
+        ax=ax1,
+        marker=".",
+        ms=3,
+        lw=1,
+        color="C0",
+        alpha=0.5,
+        label="De-accumulated precip",
+    )
+
+    # Set ylims in a way we can avoid big ranges due to outliers/spikes
+    mean = np.mean(df["pr"])
+    std = np.std(df["pr"])
+    z_scores = (df["pr"] - mean) / std
+    ylim0 = -0.5
+    ylim1 = np.max(df["pr"][z_scores <= 4])
+    ax1.set_ylim(ylim0, ylim1)
+
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
+    # Plot aesthetics
+    ylab, units, miny, maxy = _plot_format_helper("pr")
+    ylab = "{0} [{1}]".format(ylab, units)
+    title = "Precipitation deaccumulation: {0}".format(station)
+    ax0.set_title(title, fontsize=10)
+
+    # Plot oscillating/ringing flags
+    df[flags].plot(
+        x="time",
+        y="accum_pr",
+        ax=ax0,
+        marker="o",
+        mfc="none",
+        lw=0,
+        ms=4,
+        color="red",
+        alpha=0.5,
+        label="Bad osscillating/ringing values",
+    )
+
+    for ax in (ax0, ax1):
+        ax.set_ylabel(ylab)
+        ax.set_xlabel("")
+        legend = ax.legend(loc=0, prop={"size": 8})
+
+    # save to AWS
+    bucket_name = "wecc-historical-wx"
+    directory = "3_qaqc_wx"
+    figname = "qaqc_figs/qaqc_recip_deaccumulation_{0}".format(station)
+
+    key = "{0}/{1}/{2}.png".format(directory, network, figname)
+    img_data = BytesIO()
+    fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
+    img_data.seek(0)
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
+
+    if local:
+        fig.savefig(
+            "{}.png".format(figname), format="png", dpi=dpi, bbox_inches="tight"
+        )
+
+    # close figure to save memory
+    plt.close("all")
+
+    return None
+
+
+# ============================================================================================================
 ## V2 research: these should live in qaqc_unusual_gaps.py but running into some circular import issues
 def standardized_median_bounds(df, var, iqr_thresh):
     """Part 1: Calculates the standardized median.
