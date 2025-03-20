@@ -1388,15 +1388,15 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
     """
     Generate and save a precipitation de-accumulation plot with flagged data points.
 
-    This function visualizes the de-accumulation of precipitation by plotting 
-    the original accumulated precipitation and the de-accumulated values. 
-    It highlights flagged oscillating or ringing values and saves the figure 
+    This function visualizes the de-accumulation of precipitation by plotting
+    the original accumulated precipitation and the de-accumulated values.
+    It highlights flagged oscillating or ringing values and saves the figure
     either locally or to an AWS S3 bucket.
 
     Parameters
     ----------
     df : pandas.DataFrame
-        A DataFrame containing the accumulated precipitation (`accum_pr`), 
+        A DataFrame containing the accumulated precipitation (`accum_pr`),
         de-accumulated precipitation (`pr`), timestamps (`time`), and station information (`station`).
     flags : pandas.Series (bool)
         A boolean Series indicating flagged data points that exhibit oscillating or ringing behavior.

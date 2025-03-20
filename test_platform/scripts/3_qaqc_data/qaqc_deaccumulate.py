@@ -116,8 +116,8 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     Compute incremental values from an accumulated time series while handling resets and filtering artifacts.
 
     This function converts an accumulated time series (e.g., precipitation, energy usage)
-    into incremental values by computing first-order differences. It detects and removes 
-    oscillatory ringing values and handles cases where the accumulation resets to zero or a 
+    into incremental values by computing first-order differences. It detects and removes
+    oscillatory ringing values and handles cases where the accumulation resets to zero or a
     lower value based on a specified threshold.
 
     Parameters
@@ -125,8 +125,8 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     original_series : pandas.Series
         The accumulated time series. The index should represent time or sequence.
     reset_threshold : float, optional
-        Threshold to detect a reset event. If `None`, a reset is assumed when the 
-        accumulated value drops to zero. If provided, resets are detected when 
+        Threshold to detect a reset event. If `None`, a reset is assumed when the
+        accumulated value drops to zero. If provided, resets are detected when
         the difference is smaller than `-reset_threshold`.
     window : int, optional
         Window size for detecting ringing behavior (default is 3).
@@ -155,7 +155,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     ...                   index=pd.date_range("2024-01-01", periods=12, freq="D"))
     >>> deaccumulated, flags = de_accumulate(series, reset_threshold=15)
     """
-    
+
     series = original_series.copy()
     diff_series = series.copy().diff()
 
