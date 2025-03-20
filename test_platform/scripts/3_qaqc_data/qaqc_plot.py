@@ -1384,7 +1384,7 @@ def unusual_streaks_plot(
 
 # ============================================================================================================
 ## precip de-accumulation plot
-def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
+def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
     """
     Generate and save a precipitation de-accumulation plot with flagged data points.
 
@@ -1424,7 +1424,7 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
     # Plot variable and flagged data
     df.plot(
         x="time",
-        y="accum_pr",
+        y="accum_"+var,
         ax=ax0,
         marker=".",
         ms=3,
@@ -1436,7 +1436,7 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
     ax0.set_xticklabels([])
     df.plot(
         x="time",
-        y="pr",
+        y=var,
         ax=ax1,
         marker=".",
         ms=3,
@@ -1447,11 +1447,11 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
     )
 
     # Set ylims in a way we can avoid big ranges due to outliers/spikes
-    mean = np.mean(df["pr"])
-    std = np.std(df["pr"])
-    z_scores = (df["pr"] - mean) / std
+    mean = np.mean(df[var])
+    std = np.std(df[var])
+    z_scores = (df[var] - mean) / std
     ylim0 = -0.5
-    ylim1 = np.max(df["pr"][z_scores <= 4])
+    ylim1 = np.max(df[var][z_scores <= 4])
     ax1.set_ylim(ylim0, ylim1)
 
     station = df["station"].unique()[0]
@@ -1459,14 +1459,14 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
 
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper("pr")
-    ylab = "{0} [{1}]".format(ylab, units)
+    ylab = "{0} ({1})".format(ylab, units)
     title = "Precipitation deaccumulation: {0}".format(station)
     ax0.set_title(title, fontsize=10)
 
     # Plot oscillating/ringing flags
     df[flags].plot(
         x="time",
-        y="accum_pr",
+        y="accum_"+var,
         ax=ax0,
         marker="o",
         mfc="none",
