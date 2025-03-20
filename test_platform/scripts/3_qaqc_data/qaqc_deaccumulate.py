@@ -113,58 +113,49 @@ def flag_ringing(series, window=3, threshold=None):
 #
 def de_accumulate(original_series, reset_threshold=None, window=3, threshold=None):
     """
-    Converts an accumulated time series into incremental values by computing differences.
-    Handles cases where accumulation resets to zero and filters out ringing values.
+    Compute incremental values from an accumulated time series while handling resets and filtering artifacts.
+
+    This function converts an accumulated time series (e.g., precipitation, energy usage)
+    into incremental values by computing first-order differences. It detects and removes 
+    oscillatory ringing values and handles cases where the accumulation resets to zero or a 
+    lower value based on a specified threshold.
 
     Parameters
     ----------
     original_series : pandas.Series
-        The accumulated time series (e.g., precipitation, energy usage).
-        It should have a numeric index representing time or sequence.
+        The accumulated time series. The index should represent time or sequence.
     reset_threshold : float, optional
-        The threshold to detect a reset. If None (default), any drop to zero is considered a reset.
-        If provided, resets are detected when the difference is less than `-reset_threshold`.
+        Threshold to detect a reset event. If `None`, a reset is assumed when the 
+        accumulated value drops to zero. If provided, resets are detected when 
+        the difference is smaller than `-reset_threshold`.
     window : int, optional
-        The window size used for detecting ringing (default is 3).
+        Window size for detecting ringing behavior (default is 3).
     threshold : float, optional
-        The threshold for detecting ringing behavior. If None, it will be determined automatically.
+        Threshold for identifying ringing values. If `None`, it is determined automatically.
 
     Returns
     -------
-    pandas.Series
-        The de-accumulated (incremental) time series with ringing values removed and resets handled.
+    deaccumulated_series : pandas.Series
+        The incremental time series with resets handled and ringing values removed.
+    final_flags : pandas.Series
+        A boolean series indicating which values were flagged as ringing or reset events.
 
     Notes
     -----
-    - The function first computes the first difference (`diff()`) of the series.
-    - It applies `flag_ringing()` to identify oscillatory (ringing) values and removes them.
-    - Any negative differences (except resets) are set to zero under the assumption that the accumulation should not decrease naturally.
-    - If `reset_threshold` is provided, it is used to detect unnatural drops (e.g., if accumulation should never decrease by more than this value).
-    - If the threshold is not set, any drop to zero is considered a reset.
-    - The cleaned differences are returned, ensuring that resets are handled properly.
+    - The function first computes the first-order difference of the input series.
+    - It applies `flag_ringing()` to detect and remove oscillatory artifacts.
+    - Negative differences (except resets) are set to zero, assuming accumulation should not decrease naturally.
+    - If `reset_threshold` is provided, it is used to detect unnatural drops; otherwise, any drop to zero is treated as a reset.
+    - The cleaned differences are returned with a flagging series to indicate removed values.
 
     Examples
     --------
     >>> import pandas as pd
-    >>> import numpy as np
     >>> series = pd.Series([0, 5, 10, 20, 0, 3, 7, 15, 25, 0, 4, 9],
     ...                   index=pd.date_range("2024-01-01", periods=12, freq="D"))
-    >>> de_accumulate(series, reset_threshold=15)
-    2024-01-01     NaN
-    2024-01-02     5.0
-    2024-01-03     5.0
-    2024-01-04    10.0
-    2024-01-05     0.0
-    2024-01-06     3.0
-    2024-01-07     4.0
-    2024-01-08     8.0
-    2024-01-09    10.0
-    2024-01-10     0.0
-    2024-01-11     4.0
-    2024-01-12     5.0
-    dtype: float64
-
+    >>> deaccumulated, flags = de_accumulate(series, reset_threshold=15)
     """
+    
     series = original_series.copy()
     diff_series = series.copy().diff()
 
