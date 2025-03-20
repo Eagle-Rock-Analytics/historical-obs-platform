@@ -192,7 +192,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
         # Detect precip large drops. When the instrument pr reservoir is emptied, the
         # accum precip value should drop from a large value to zero (or near zero)
         # This is detected as a reset
-        resets = clean_diff_series < -reset_threshold  
+        resets = clean_diff_series < -reset_threshold
     else:
         resets = (clean_series.diff() < 0) & (
             clean_series.shift(-1) == 0
@@ -202,7 +202,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     # The de-accumulated
     # values would have a negative large value (the value of the previous large value
     # minus zero), but this should be replaced by zero
-    clean_diff_series[resets] = np.nan  
+    clean_diff_series[resets] = np.nan
     clean_diff_series.fillna(
         0, inplace=True
     )  # Replace NaNs with zero (or use interpolation if needed)
@@ -292,13 +292,13 @@ def qaqc_deaccumulate_precip(
     all_pr_vars = [
         var for var in df.columns if "pr" in var
     ]  # can be variable length depending if there is a raw qc var
-    
+
     pr_vars = [
         var
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    
+
     logger.info("Running qaqc_deaccumulate_precip on: {}".format(pr_vars))
     vars_to_check = [var for var in df.columns if var in pr_vars]
 
@@ -311,49 +311,58 @@ def qaqc_deaccumulate_precip(
                 logger.info(
                     "Running {} on {}".format("qaqc_deaccumulate_precip", var),
                 )
-        
+
                 # First, determine if the series is accumulated or instantaneous
                 if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:
-        
+
                     # Calculate de-accumulated precip and flag "ringing" values
                     diff_series, flags = de_accumulate(
                         df[var], reset_threshold=50, window=3, threshold=10
                     )
-        
+
                     df.loc[:, var + "_eraqc"] = np.nan
                     df.loc[flags, var + "_eraqc"] = 34  # see era_qaqc_flag_meanings.csv
-        
+
                     # Save original accumulated precip into new variable, and de-accumulated into original pr
                     # and save de-accumulated precip into original pr
                     tmp_var, tmp_index = df[var].values, df[var].index
-        
+
                     # I wonder if this is neccessary, in my opinion it is
                     # We should flag those oscillating/ringing values in the de-accumulated
                     diff_series.loc[flags] = np.nan
-        
+
                     # Re-assign de-accumulated to pr
                     df[var] = diff_series.values
                     df["accum_" + var] = tmp_var
-        
+
                     # Flag the new accum_pr to acknowledge that precip was de-accumulated
-                    df.loc[:, "accum_" + var + "_eraqc"] = 35  # see era_qaqc_flag_meanings.csv
-                    logger.info(
-                        "{} on {} done".format("qaqc_deaccumulate_precip", vars_to_check),
+                    df.loc[:, "accum_" + var + "_eraqc"] = (
+                        35  # see era_qaqc_flag_meanings.csv
                     )
-        
+                    logger.info(
+                        "{} on {} done".format(
+                            "qaqc_deaccumulate_precip", vars_to_check
+                        ),
+                    )
+
                     # --------------------------------------------------------
                     if plot:
                         precip_deaccumulation_plot(
-                            df.loc[:, [var, "accum_"+var, "time", "station"]], flags, local=local
+                            df.loc[:, [var, "accum_" + var, "time", "station"]],
+                            flags,
+                            local=local,
                         )
                         logger.info("plot produced for precip de-accumulation"),
-                    
-        
+
                 else:  # If it's not accumulated, bypass and return original df
-                    logger.info("qaqc_deaccumulate_precip bypassed: Precip is not accumulated")
+                    logger.info(
+                        "qaqc_deaccumulate_precip bypassed: Precip is not accumulated"
+                    )
             except Exception as e:
                 logger.info(
-                    "qaqc_deaccumulate_precip failed on {} with Exception: {}".format(var,e),
+                    "qaqc_deaccumulate_precip failed on {} with Exception: {}".format(
+                        var, e
+                    ),
                 )
 
         # If de-accumulation was successful in at least one of the pr variables
