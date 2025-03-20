@@ -64,7 +64,6 @@ def _plot_format_helper(var):
         "pr_1h",
         "pr_24h",
         "pr_localmid",
-        "accum_pr",
     ]
     ps_vars = ["ps", "psl", "ps_derived", "ps_altimeter"]
 
@@ -96,6 +95,10 @@ def _plot_format_helper(var):
         ylab = "Precipitation"
         unit = "mm"
 
+    elif var == "accum_pr":
+        ylab = "Annual Accumulated Precipitation"
+        unit = "mm"
+
     elif var in ps_vars:
         ylab = "Pressure"
         unit = "Pa"
@@ -104,26 +107,44 @@ def _plot_format_helper(var):
         ylab = "Elevation"
         unit = "m"
 
-    T_X = {"North_America": 329.92}  # K
-    T_N = {"North_America": 210.15}  # K
-    D_X = {"North_America": 329.85}  # K
-    D_N = {"North_America": 173.15}  # K
-    W_X = {"North_America": 113.2}  # m/s
-    W_N = {"North_America": 0.0}  # m/s
-    S_X = {"North_America": 108330}  # Pa
-    S_N = {"North_America": 87000}  # Pa
-    R_X = {"North_America": 1500}  # W/m2
-    R_N = {"North_America": -5}  # W/m2
+    # ideally this would be in utils because it is in qaqc_wholestation
+    T_X = {"North_America": 329.92}  # temperature, K
+    T_N = {"North_America": 210.15}  # temperature, K
+    D_X = {"North_America": 329.85}  # dewpoint temperature, K
+    D_N = {"North_America": 173.15}  # dewpoint temperature, K
+    W_X = {"North_America": 113.2}  # wind speed, m/s
+    W_N = {"North_America": 0.0}  # wind speed, m/s
+    R_X = {"North_America": 1500}  # solar radiation, W/m2
+    R_N = {"North_America": -5}  # solar radiation, W/m2
 
-    # for other non-record variables (wind direction, precipitation)
-    N_X = {"North_America": 360}  # degrees
-    N_N = {"North_America": 0}  # degrees
-    P_X = {"North_America": 1000}  # mm, arbitrarily set
-    P_N = {"North_America": 0}  # mm
-    H_X = {"North_America": 100}  # humidity max
-    H_N = {"North_America": 0}  # humidity min
-    E_X = {"North_America": 6210.0}  # m
-    E_N = {"North_America": -100}  # m
+    # for other non-record variables (wind direction, humidity)
+    N_X = {"North_America": 360}  # wind direction, degrees
+    N_N = {"North_America": 0}  # wind direction, degrees
+    H_X = {"North_America": 100}  # humidity, max
+    H_N = {"North_America": 0}  # humidity, min
+    E_X = {"North_America": 6210.0}  # elevation, m
+    E_N = {"North_America": -100}  # elevation, m
+
+    # pressure, with elevation options
+    S_X = {"North_America": 108330}  # pressure, Pa
+    S_N = {"North_America": 87000}  # sea level pressure only, Pa
+    SALT_N = {
+        "North_America": 45960
+    }  # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
+
+    # precipitation, with variations depending on reporting interval
+    P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
+    PALT5_X = {
+        "North_America": 31.8
+    }  # precipitation, mm, 5-min rainfall, WECC-wide
+    PALT15_X = {
+        "North_America": 25.4
+    }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
+    PACC_X = {
+        "North_America": 10000
+    } # accumulated precipitation, mm, arbirtarily set to a high max value
+    P_N = {"North_America": 0}  # precipitaiton, mm
+
 
     maxes = {
         "tas": T_X,
@@ -131,17 +152,18 @@ def _plot_format_helper(var):
         "tdps_derived": D_X,
         "sfcWind": W_X,
         "sfcWind_dir": N_X,
-        "ps": S_X,
         "psl": S_X,
-        "ps_altimeter": S_X,
+        "ps": S_X,
         "ps_derived": S_X,
+        "ps_altimeter": S_X,
         "rsds": R_X,
         "pr": P_X,
-        "pr_5min": P_X,
-        "pr_15min": P_X,
+        "pr_5min": PALT5_X,
+        "pr_15min": PALT15_X,
         "pr_1h": P_X,
         "pr_24h": P_X,
         "pr_localmid": P_X,
+        "accum_pr": PACC_X,
         "hurs": H_X,
         "elevation": E_X,
     }
@@ -151,17 +173,18 @@ def _plot_format_helper(var):
         "tdps_derived": D_N,
         "sfcWind": W_N,
         "sfcWind_dir": N_N,
-        "ps": S_N,
         "psl": S_N,
-        "ps_altimeter": S_N,
-        "ps_derived": S_N,
+        "ps": SALT_N,
+        "ps_derived": SALT_N,
+        "ps_altimeter": SALT_N,
         "rsds": R_N,
         "pr": P_N,
         "pr_5min": P_N,
-        "pr_15min": P_X,
+        "pr_15min": P_N,
         "pr_1h": P_N,
         "pr_24h": P_N,
         "pr_localmid": P_N,
+        "accum_pr": P_N,
         "hurs": H_N,
         "elevation": E_N,
     }
