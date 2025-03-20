@@ -118,21 +118,20 @@ MIN_VALUE = {
 # ----------------------------------------------------------------------
 # Define test variables and check if they are in the dataframe
 check_vars = [
-    "sfcWind"
-    # "tas",
-    # "tdps",
-    # "tdps_derived",
-    # "ps",
-    # "psl",
-    # "ps_derived",
-    # "ps_altimeter",
-    # "sfcWind",
-    # "pr",
-    # "pr_5min",
-    # "pr_15min",
-    # "pr_1h",
-    # "pr_24h",
-    # "pr_localmid",
+    "sfcWind" "tas",
+    "tdps",
+    "tdps_derived",
+    "ps",
+    "psl",
+    "ps_derived",
+    "ps_altimeter",
+    "sfcWind",
+    "pr",
+    "pr_5min",
+    "pr_15min",
+    "pr_1h",
+    "pr_24h",
+    "pr_localmid",
 ]
 
 
