@@ -159,7 +159,6 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     series = original_series.copy()
     diff_series = series.copy().diff()
 
-    # print(len(series))
     series = series.loc[original_series.dropna().index]
     diff_series = diff_series.loc[original_series.dropna().index]
 
