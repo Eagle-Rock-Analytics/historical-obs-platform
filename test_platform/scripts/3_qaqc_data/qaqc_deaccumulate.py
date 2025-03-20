@@ -308,7 +308,6 @@ def qaqc_deaccumulate_precip(
     try:
         for var in vars_to_check:
             try:
-                # import pdb; pdb.set_trace()
                 logger.info(
                     "Running {} on {}".format("qaqc_deaccumulate_precip", var),
                 )
