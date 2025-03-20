@@ -1459,7 +1459,7 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
 
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper("pr")
-    ylab = "{0} ({1})".format(ylab, units)
+    ylab = "{0} [{1}]".format(ylab, units)
     title = "Precipitation deaccumulation: {0}".format(station)
     ax0.set_title(title, fontsize=10)
 
