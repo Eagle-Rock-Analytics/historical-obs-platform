@@ -1,6 +1,6 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged. 
-For use within the PIR-19-006 Historical Obsevations Platform.
+This is a script where Stage 3: QA/QC function(s) to identify and process observations with accumulated precipitation rather than instantaneous precipitation.  
+For use within the PIR-19-006 Historical Observations Platform.
 """
 
 ## Import Libraries
