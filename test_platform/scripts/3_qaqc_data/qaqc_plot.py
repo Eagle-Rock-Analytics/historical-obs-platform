@@ -1485,7 +1485,7 @@ def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
     # save to AWS
     bucket_name = "wecc-historical-wx"
     directory = "3_qaqc_wx"
-    figname = "qaqc_figs/qaqc_recip_deaccumulation_{0}".format(station)
+    figname = "qaqc_figs/qaqc_precip_deaccumulation_{0}".format(station)
 
     key = "{0}/{1}/{2}.png".format(directory, network, figname)
     img_data = BytesIO()
