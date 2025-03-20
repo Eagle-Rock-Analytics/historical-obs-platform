@@ -168,7 +168,7 @@ def pdf_bounds(df, mu, sigma, bins):
     pdf_bounds = np.argwhere(y > 0.1).squeeze()
     if len(pdf_bounds) == 0:
         logger.info(
-            "PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination",
+            "PDF distribution warning: there is a bad value present causing issues with pdf y=0.1 determination, returning furthest bins",
         )
         return (
             y,

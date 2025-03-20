@@ -206,6 +206,7 @@ def infere_res(df, verbose=False):
         "pr_1h",
         "pr_24h",
         "pr_localmid",
+        "pr",
         "tas",
         "tdps",
         "tdps_derived",
@@ -314,6 +315,11 @@ def qaqc_unusual_repeated_streaks(
             "ps_altimeter",
             "sfcWind",
             "pr",
+            "pr_5min",
+            "pr_15min",
+            "pr_1h",
+            "pr_24h",
+            "pr_localmid",
         ]
         variables = [var for var in check_vars if var in new_df.columns]
         logger.info(
