@@ -308,6 +308,7 @@ def qaqc_deaccumulate_precip(
     try:
         for var in vars_to_check:
             try:
+                # import pdb; pdb.set_trace()
                 logger.info(
                     "Running {} on {}".format("qaqc_deaccumulate_precip", var),
                 )
@@ -339,18 +340,13 @@ def qaqc_deaccumulate_precip(
                     df.loc[:, "accum_" + var + "_eraqc"] = (
                         35  # see era_qaqc_flag_meanings.csv
                     )
-                    logger.info(
-                        "{} on {} done".format(
-                            "qaqc_deaccumulate_precip", vars_to_check
-                        ),
-                    )
 
                     # --------------------------------------------------------
                     if plot:
                         precip_deaccumulation_plot(
                             df.loc[:, [var, "accum_" + var, "time", "station"]],
-                            var,
                             flags,
+                            var,
                             local=local,
                         )
                         logger.info("plot produced for precip de-accumulation"),
@@ -361,7 +357,7 @@ def qaqc_deaccumulate_precip(
                     )
             except Exception as e:
                 logger.info(
-                    "qaqc_deaccumulate_precip failed on {} with Exception: {}".format(
+                    "qaqc_deaccumulate_precip failed on '{}' with Exception: {}".format(
                         var, e
                     ),
                 )

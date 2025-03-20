@@ -57,7 +57,15 @@ def _plot_format_helper(var):
         max var value for y axis
     """
 
-    pr_vars = ["pr", "pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+    pr_vars = [
+        "pr",
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+        "accum_pr",
+    ]
     ps_vars = ["ps", "psl", "ps_derived", "ps_altimeter"]
 
     if var == "tas":
