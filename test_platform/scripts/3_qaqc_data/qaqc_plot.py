@@ -1385,8 +1385,40 @@ def unusual_streaks_plot(
 # ============================================================================================================
 ## precip de-accumulation plot
 def precip_deaccumulation_plot(df, flags, local=False, dpi=300):
-    """ """
+    """
+    Generate and save a precipitation de-accumulation plot with flagged data points.
 
+    This function visualizes the de-accumulation of precipitation by plotting 
+    the original accumulated precipitation and the de-accumulated values. 
+    It highlights flagged oscillating or ringing values and saves the figure 
+    either locally or to an AWS S3 bucket.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        A DataFrame containing the accumulated precipitation (`accum_pr`), 
+        de-accumulated precipitation (`pr`), timestamps (`time`), and station information (`station`).
+    flags : pandas.Series (bool)
+        A boolean Series indicating flagged data points that exhibit oscillating or ringing behavior.
+    local : bool, optional
+        If `True`, the plot is saved locally. If `False` (default), the plot is uploaded to AWS S3.
+    dpi : int, optional
+        Resolution of the saved figure in dots per inch (default is 300).
+
+    Returns
+    -------
+    None
+        The function saves the plot but does not return any values.
+
+    Notes
+    -----
+    - The top subplot shows the original accumulated precipitation (`accum_pr`).
+    - The bottom subplot shows the de-accumulated precipitation (`pr`).
+    - Flagged ringing values are marked in red on the accumulated precipitation plot.
+    - The function automatically adjusts the y-axis limits to mitigate the effect of outliers.
+    - The plot is saved either locally or to AWS S3 in the "wecc-historical-wx" bucket.
+    - The `_plot_format_helper("pr")` function is used to determine y-axis labels and units.
+    """
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
 
     # Plot variable and flagged data
