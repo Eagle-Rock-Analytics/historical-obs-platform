@@ -349,6 +349,7 @@ def qaqc_deaccumulate_precip(
                     if plot:
                         precip_deaccumulation_plot(
                             df.loc[:, [var, "accum_" + var, "time", "station"]],
+                            var,
                             flags,
                             local=local,
                         )
