@@ -1424,7 +1424,7 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
     # Plot variable and flagged data
     df.plot(
         x="time",
-        y="accum_"+var,
+        y="accum_" + var,
         ax=ax0,
         marker=".",
         ms=3,
@@ -1466,7 +1466,7 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
     # Plot oscillating/ringing flags
     df[flags].plot(
         x="time",
-        y="accum_"+var,
+        y="accum_" + var,
         ax=ax0,
         marker="o",
         mfc="none",
