@@ -1,6 +1,6 @@
 """
-This is a script where Stage 3: QA/QC function(s) to identify and process observations with accumulated precipitation rather than instantaneous precipitation.  
-For use within the PIR-19-006 Historical Observations Platform.
+This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged. 
+For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
@@ -159,6 +159,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     series = original_series.copy()
     diff_series = series.copy().diff()
 
+    # print(len(series))
     series = series.loc[original_series.dropna().index]
     diff_series = diff_series.loc[original_series.dropna().index]
 
@@ -181,19 +182,27 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     # Fix the flags where original series is zero
     flags[series == 0] = False
 
+    # print(len(flags))
     # De-accumulate clean series (without ringing)
     # clean_series = original_series.copy().loc[flags[~flags]]
     clean_series = original_series.copy().loc[flags.dropna().index]
     clean_diff_series = clean_series.diff()
 
     if reset_threshold is not None:
-        resets = clean_diff_series < -reset_threshold  # Detect large drops
+        # Detect precip large drops. When the instrument pr reservoir is emptied, the
+        # accum precip value should drop from a large value to zero (or near zero)
+        # This is detected as a reset
+        resets = clean_diff_series < -reset_threshold  
     else:
         resets = (clean_series.diff() < 0) & (
             clean_series.shift(-1) == 0
         )  # Drop to zero
 
-    clean_diff_series[resets] = np.nan  # Mark reset points
+    # Mark reset points where the instrument was emptied
+    # The de-accumulated
+    # values would have a negative large value (the value of the previous large value
+    # minus zero), but this should be replaced by zero
+    clean_diff_series[resets] = np.nan  
     clean_diff_series.fillna(
         0, inplace=True
     )  # Replace NaNs with zero (or use interpolation if needed)
