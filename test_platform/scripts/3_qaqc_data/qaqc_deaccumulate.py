@@ -287,61 +287,80 @@ def qaqc_deaccumulate_precip(
 
     """
     vars_for_deacummulation = ["pr"]
-
-    vars_to_check = [var for var in df.columns if var in vars_for_deacummulation]
+    # identify which precipitation vars are reported by a station
+    vars_to_remove = ["qc", "duration", "method", "depth", "accum"]
+    all_pr_vars = [
+        var for var in df.columns if "pr" in var
+    ]  # can be variable length depending if there is a raw qc var
+    
+    pr_vars = [
+        var
+        for var in all_pr_vars
+        if not any(True for item in vars_to_remove if item in var)
+    ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    
+    logger.info("Running qaqc_deaccumulate_precip on: {}".format(pr_vars))
+    vars_to_check = [var for var in df.columns if var in pr_vars]
 
     df = df.copy()
 
+    # Run de-accumulation on all precip vars
     try:
-        # if True:
-        logger.info(
-            "Running {} on {}".format("qaqc_deaccumulate_precip", vars_to_check),
-        )
-
-        # First, determine if the series is accumulated or instantaneous
-        if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:
-
-            # Calculate de-accumulated precip and flag "ringing" values
-            diff_series, flags = de_accumulate(
-                df[var], reset_threshold=50, window=3, threshold=10
-            )
-
-            df.loc[:, var + "_eraqc"] = np.nan
-            df.loc[flags, var + "_eraqc"] = 34  # see era_qaqc_flag_meanings.csv
-
-            # Save original accumulated precip into new variable, and de-accumulated into original pr
-            # and save de-accumulated precip into original pr
-            tmp_var, tmp_index = df[var].values, df[var].index
-
-            # I wonder if this is neccessary, in my opinion it is
-            # We should flag those oscillating/ringing values in the de-accumulated
-            diff_series.loc[flags] = np.nan
-
-            # Re-assign de-accumulated to pr
-            df[var] = diff_series.values
-            df["accum_" + var] = tmp_var
-
-            # Flag the new accum_pr to acknowledge that precip was de-accumulated
-            df.loc[:, "accum_" + var + "_eraqc"] = 35  # see era_qaqc_flag_meanings.csv
-            logger.info(
-                "{} on {} done".format("qaqc_deaccumulate_precip", vars_to_check),
-            )
-
-            # --------------------------------------------------------
-            if plot:
-                precip_deaccumulation_plot(
-                    df.loc[:, ["pr", "accum_pr", "time", "station"]], flags, local=local
+        for var in vars_to_check:
+            try:
+                logger.info(
+                    "Running {} on {}".format("qaqc_deaccumulate_precip", var),
                 )
-                logger.info("plot produced for precip de-accumulation"),
-            return df
+        
+                # First, determine if the series is accumulated or instantaneous
+                if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:
+        
+                    # Calculate de-accumulated precip and flag "ringing" values
+                    diff_series, flags = de_accumulate(
+                        df[var], reset_threshold=50, window=3, threshold=10
+                    )
+        
+                    df.loc[:, var + "_eraqc"] = np.nan
+                    df.loc[flags, var + "_eraqc"] = 34  # see era_qaqc_flag_meanings.csv
+        
+                    # Save original accumulated precip into new variable, and de-accumulated into original pr
+                    # and save de-accumulated precip into original pr
+                    tmp_var, tmp_index = df[var].values, df[var].index
+        
+                    # I wonder if this is neccessary, in my opinion it is
+                    # We should flag those oscillating/ringing values in the de-accumulated
+                    diff_series.loc[flags] = np.nan
+        
+                    # Re-assign de-accumulated to pr
+                    df[var] = diff_series.values
+                    df["accum_" + var] = tmp_var
+        
+                    # Flag the new accum_pr to acknowledge that precip was de-accumulated
+                    df.loc[:, "accum_" + var + "_eraqc"] = 35  # see era_qaqc_flag_meanings.csv
+                    logger.info(
+                        "{} on {} done".format("qaqc_deaccumulate_precip", vars_to_check),
+                    )
+        
+                    # --------------------------------------------------------
+                    if plot:
+                        precip_deaccumulation_plot(
+                            df.loc[:, [var, "accum_"+var, "time", "station"]], flags, local=local
+                        )
+                        logger.info("plot produced for precip de-accumulation"),
+                    
+        
+                else:  # If it's not accumulated, bypass and return original df
+                    logger.info("qaqc_deaccumulate_precip bypassed: Precip is not accumulated")
+            except Exception as e:
+                logger.info(
+                    "qaqc_deaccumulate_precip failed on {} with Exception: {}".format(var,e),
+                )
 
-        else:  # If it's not accumulated, bypass and return original df
-            logger.info("qaqc_deaccumulate_precip bypassed: Precip is not accumulated")
+        # If de-accumulation was successful in at least one of the pr variables
+        return df
 
-            return df
-
+    # If precip de-accumulation failed totally log it and return None
     except Exception as e:
-        # else:
         logger.info(
             "qaqc_deaccumulate_precip failed with Exception: {}".format(e),
         )
