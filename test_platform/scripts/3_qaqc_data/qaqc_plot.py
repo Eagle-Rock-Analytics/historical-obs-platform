@@ -1474,7 +1474,7 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
         ms=4,
         color="red",
         alpha=0.5,
-        label="Bad osscillating/ringing values",
+        label="Bad oscillating/ringing values",
     )
 
     for ax in (ax0, ax1):
