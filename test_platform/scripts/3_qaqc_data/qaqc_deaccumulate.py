@@ -181,7 +181,6 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     # Fix the flags where original series is zero
     flags[series == 0] = False
 
-    # print(len(flags))
     # De-accumulate clean series (without ringing)
     # clean_series = original_series.copy().loc[flags[~flags]]
     clean_series = original_series.copy().loc[flags.dropna().index]
