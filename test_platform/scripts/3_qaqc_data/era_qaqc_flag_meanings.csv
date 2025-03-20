@@ -25,8 +25,8 @@
 24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
 25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
 26,qaqc_climatological_outlier,Value flagged as a climatological outlier for specific month and hour
-27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of values
-28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+28,qaqc_unusual_repeated_streaks,Straight one after another replications over a number of observartions
 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
 30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeries
 31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
