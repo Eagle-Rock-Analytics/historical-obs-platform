@@ -1318,7 +1318,7 @@ def unusual_streaks_plot(
     mask1 = df[var + "_eraqc"] == 28
     flag_vals_1 = df.copy()[["time", var]]
     flag_vals_1.loc[:, var] = np.nan
-    flag_vals_1.loc[df[var + "_eraqc"] == 27, var] = df.loc[mask1, var]
+    flag_vals_1.loc[df[var + "_eraqc"] == 28, var] = df.loc[mask1, var]
 
     mask2 = df[var + "_eraqc"] == 29
     flag_vals_2 = df.copy()[["time", var]]
