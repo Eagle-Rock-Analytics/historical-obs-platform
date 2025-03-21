@@ -59,12 +59,17 @@ def is_precip_accumulated(pr):
     >>> is_precip_accumulated(pr)
     True
     """
-    test_pr = pr[(pr > 0) & (~pr.isnull())]
+    test_pr = pr[(pr > 0) & (pr.notnull())]
     autocorr = test_pr.autocorr()
-    if np.nanmean(autocorr) > 0.9:
-        return True
-    else:
+
+    # if autocorr is not well defined (i.e., not autocorrelated), it returns nan
+    if np.isnan(autocorr):
         return False
+    else:
+        if np.nanmean(autocorr) > 0.9:
+            return True
+        else:
+            return False
 
 
 # -----------------------------------------------------------------------------
@@ -348,7 +353,7 @@ def qaqc_deaccumulate_precip(
                             var,
                             local=local,
                         )
-                        logger.info("plot produced for precip de-accumulation"),
+                        logger.info("De-accumulation plot produced for {}".format(var)),
 
                 else:  # If it's not accumulated, bypass and return original df
                     logger.info(
