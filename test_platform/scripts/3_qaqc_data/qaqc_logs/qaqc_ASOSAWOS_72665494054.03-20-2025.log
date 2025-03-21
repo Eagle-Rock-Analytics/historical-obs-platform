@@ -1,0 +1,197 @@
+2025-03-20 11:27:01,491 - (Rank 1/1) - INFO - Reading s3://wecc-historical-wx/2_clean_wx/ASOSAWOS/ASOSAWOS_72665494054.nc
+2025-03-20 11:35:37,709 - (Rank 1/1) - INFO - Done reading. Ellapsed time: 517.2579121589661 s.
+
+2025-03-20 11:35:37,710 - (Rank 1/1) - INFO - Running QA/QC on: ASOSAWOS_72665494054
+
+2025-03-20 11:35:37,943 - (Rank 1/1) - INFO - Existing era_qc variables: []
+2025-03-20 11:35:37,946 - (Rank 1/1) - INFO - nans created for ps_eraqc
+2025-03-20 11:35:37,949 - (Rank 1/1) - INFO - nans created for tas_eraqc
+2025-03-20 11:35:37,952 - (Rank 1/1) - INFO - nans created for tdps_eraqc
+2025-03-20 11:35:37,955 - (Rank 1/1) - INFO - nans created for pr_eraqc
+2025-03-20 11:35:37,958 - (Rank 1/1) - INFO - nans created for sfcWind_eraqc
+2025-03-20 11:35:37,962 - (Rank 1/1) - INFO - nans created for sfcWind_dir_eraqc
+2025-03-20 11:35:37,966 - (Rank 1/1) - INFO - nans created for elevation_eraqc
+2025-03-20 11:35:37,969 - (Rank 1/1) - INFO - nans created for ps_altimeter_eraqc
+2025-03-20 11:35:37,972 - (Rank 1/1) - INFO - nans created for psl_eraqc
+2025-03-20 11:35:37,974 - (Rank 1/1) - INFO - Created 9 era_qc variables: ['ps_eraqc', 'tas_eraqc', 'tdps_eraqc', 'pr_eraqc', 'sfcWind_eraqc', 'sfcWind_dir_eraqc', 'elevation_eraqc', 'ps_altimeter_eraqc', 'psl_eraqc']
+2025-03-20 11:35:38,491 - (Rank 1/1) - INFO - QA/QC whole station tests
+2025-03-20 11:35:38,550 - (Rank 1/1) - INFO - Running: qaqc_missing_vals
+2025-03-20 11:35:38,615 - (Rank 1/1) - INFO - Updating missing values for: ps
+2025-03-20 11:35:38,616 - (Rank 1/1) - INFO - pass qaqc_missing_vals
+2025-03-20 11:35:38,616 - (Rank 1/1) - INFO - Running: qaqc_missing_latlon
+2025-03-20 11:35:38,616 - (Rank 1/1) - INFO - pass qaqc_missing_latlon
+2025-03-20 11:35:38,616 - (Rank 1/1) - INFO - Running: qaqc_within_wecc
+2025-03-20 11:35:39,951 - (Rank 1/1) - INFO - pass qaqc_within_wecc
+2025-03-20 11:35:39,951 - (Rank 1/1) - INFO - Running: qaqc_elev_infill
+2025-03-20 11:35:39,952 - (Rank 1/1) - INFO - pass qaqc_elev_infill
+2025-03-20 11:35:39,952 - (Rank 1/1) - INFO - Running: qaqc_elev_range
+2025-03-20 11:35:39,954 - (Rank 1/1) - INFO - Elevation values post-infilling/correcting: [1514.]
+2025-03-20 11:35:39,954 - (Rank 1/1) - INFO - pass qaqc_elev_range
+2025-03-20 11:35:39,954 - (Rank 1/1) - INFO - Running qaqc_pressure_units_fix
+2025-03-20 11:35:39,959 - (Rank 1/1) - INFO - Pressure units on psl updated to be Pa
+2025-03-20 11:35:39,959 - (Rank 1/1) - INFO - pass qaqc_pressure_units_fix
+2025-03-20 11:35:39,990 - (Rank 1/1) - INFO - Running qaqc_deaccumulate_precip on ['pr']
+2025-03-20 11:35:39,994 - (Rank 1/1) - INFO - qaqc_deaccumulate_precip bypassed: Precip is not accumulated
+2025-03-20 11:35:40,000 - (Rank 1/1) - INFO - pass qaqc_deaccumulate_precip
+2025-03-20 11:35:40,000 - (Rank 1/1) - INFO - Done whole station tests, Ellapsed time: 1.51 s.
+
+2025-03-20 11:35:40,000 - (Rank 1/1) - INFO - Running: qaqc_world_record
+2025-03-20 11:35:41,009 - (Rank 1/1) - INFO - pass qaqc_world_record
+2025-03-20 11:35:41,010 - (Rank 1/1) - INFO - Done whole station tests, Ellapsed time: 2.52 s.
+
+2025-03-20 11:35:41,010 - (Rank 1/1) - INFO - QA/QC logic checks
+2025-03-20 11:35:41,010 - (Rank 1/1) - INFO - Running: qaqc_crossvar_logic_tdps_to_tas_supersat
+2025-03-20 11:35:41,170 - (Rank 1/1) - INFO - pass qaqc_crossvar_logic_tdps_to_tas_supersat
+2025-03-20 11:35:41,170 - (Rank 1/1) - INFO - Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb
+2025-03-20 11:35:44,260 - (Rank 1/1) - INFO - pass qaqc_crossvar_logic_tdps_to_tas_wetbulb
+2025-03-20 11:35:44,261 - (Rank 1/1) - INFO - Running: qaqc_precip_logic_nonegvals
+2025-03-20 11:35:44,281 - (Rank 1/1) - INFO - Running qaqc_precip_logic_nonegvals on: ['pr']
+2025-03-20 11:35:44,463 - (Rank 1/1) - INFO - pass qaqc_precip_logic_nonegvals
+2025-03-20 11:35:44,463 - (Rank 1/1) - INFO - Running: qaqc_precip_logic_accum_amounts
+2025-03-20 11:35:44,464 - (Rank 1/1) - INFO - Station does not report multiple precipitation variables - bypassing precip logic accum check
+2025-03-20 11:35:44,464 - (Rank 1/1) - INFO - pass qaqc_precip_logic_accum_amounts
+2025-03-20 11:35:44,464 - (Rank 1/1) - INFO - Running: qaqc_crossvar_logic_calm_wind_dir
+2025-03-20 11:35:44,625 - (Rank 1/1) - INFO - pass qaqc_crossvar_logic_calm_wind_dir
+2025-03-20 11:35:44,625 - (Rank 1/1) - INFO - Done logic checks, Ellapsed time: 3.62 s.
+
+2025-03-20 11:35:44,625 - (Rank 1/1) - INFO - QA/QC frequent values
+2025-03-20 11:35:44,625 - (Rank 1/1) - INFO - Running: qaqc_frequent_vals
+2025-03-20 11:35:44,625 - (Rank 1/1) - INFO - Running frequent values check on: ps
+2025-03-20 11:35:44,783 - (Rank 1/1) - INFO - No unusually frequent values detected for entire ps observation record
+2025-03-20 11:35:44,826 - (Rank 1/1) - INFO - No unusually frequent values detected for seasonal ps observation record
+2025-03-20 11:35:44,826 - (Rank 1/1) - INFO - Running frequent values check on: tas
+2025-03-20 11:35:44,982 - (Rank 1/1) - INFO - No unusually frequent values detected for entire tas observation record
+2025-03-20 11:35:45,025 - (Rank 1/1) - INFO - No unusually frequent values detected for seasonal tas observation record
+2025-03-20 11:35:45,025 - (Rank 1/1) - INFO - Running frequent values check on: tdps
+2025-03-20 11:35:45,173 - (Rank 1/1) - INFO - No unusually frequent values detected for entire tdps observation record
+2025-03-20 11:35:45,217 - (Rank 1/1) - INFO - No unusually frequent values detected for seasonal tdps observation record
+2025-03-20 11:35:45,218 - (Rank 1/1) - INFO - Running frequent values check on: ps_altimeter
+2025-03-20 11:35:45,368 - (Rank 1/1) - INFO - No unusually frequent values detected for entire ps_altimeter observation record
+2025-03-20 11:35:45,412 - (Rank 1/1) - INFO - No unusually frequent values detected for seasonal ps_altimeter observation record
+2025-03-20 11:35:45,412 - (Rank 1/1) - INFO - Running frequent values check on: psl
+2025-03-20 11:35:45,563 - (Rank 1/1) - INFO - No unusually frequent values detected for entire psl observation record
+2025-03-20 11:35:45,611 - (Rank 1/1) - INFO - No unusually frequent values detected for seasonal psl observation record
+2025-03-20 11:35:45,613 - (Rank 1/1) - INFO - Running qaqc_frequent_precip on: pr
+2025-03-20 11:35:45,825 - (Rank 1/1) - INFO - pass qaqc_frequent_vals
+2025-03-20 11:35:45,826 - (Rank 1/1) - INFO - Done QA/QC frequent values, Ellapsed time: 1.20 s.
+
+2025-03-20 11:35:45,826 - (Rank 1/1) - INFO - QA/QC unusual gaps
+2025-03-20 11:35:45,826 - (Rank 1/1) - INFO - Running qaqc_unusual_gaps on ['ps', 'tas', 'tdps', 'ps_altimeter', 'psl']
+2025-03-20 11:35:45,864 - (Rank 1/1) - INFO - Running unusual gaps check on: ps, qaqc_dist_gap_part1
+2025-03-20 11:35:46,469 - (Rank 1/1) - INFO - Running unusual gaps check on: tas, qaqc_dist_gap_part1
+2025-03-20 11:35:47,058 - (Rank 1/1) - INFO - Running unusual gaps check on: tdps, qaqc_dist_gap_part1
+2025-03-20 11:35:47,642 - (Rank 1/1) - INFO - Running unusual gaps check on: ps_altimeter, qaqc_dist_gap_part1
+2025-03-20 11:35:48,231 - (Rank 1/1) - INFO - Running unusual gaps check on: psl, qaqc_dist_gap_part1
+2025-03-20 11:35:48,832 - (Rank 1/1) - INFO - Running unusual gaps check on: ps, qaqc_dist_gap_part2
+2025-03-20 11:35:49,016 - (Rank 1/1) - INFO - Running unusual gaps check on: tas, qaqc_dist_gap_part2
+2025-03-20 11:35:49,197 - (Rank 1/1) - INFO - Running unusual gaps check on: tdps, qaqc_dist_gap_part2
+2025-03-20 11:35:49,382 - (Rank 1/1) - INFO - Running unusual gaps check on: ps_altimeter, qaqc_dist_gap_part2
+2025-03-20 11:35:49,577 - (Rank 1/1) - INFO - Running unusual gaps check on: psl, qaqc_dist_gap_part2
+2025-03-20 11:35:49,765 - (Rank 1/1) - INFO - Running qaqc_unusual_gaps_precip on: pr
+2025-03-20 11:35:50,016 - (Rank 1/1) - INFO - pass qaqc_unusual_gaps
+2025-03-20 11:35:50,016 - (Rank 1/1) - INFO - Done QA/QC unusual gaps, Ellapsed time: 4.19 s.
+
+2025-03-20 11:35:50,016 - (Rank 1/1) - INFO - QA/QC climatological outliers
+2025-03-20 11:35:50,059 - (Rank 1/1) - INFO - Running qaqc_climatological_outlier on ['tas', 'tdps', 'pr']
+2025-03-20 11:35:50,059 - (Rank 1/1) - INFO - Checking for climatological outliers in: tas
+2025-03-20 11:35:50,491 - (Rank 1/1) - INFO - Flagging outliers in climatological outlier check for tas
+2025-03-20 11:35:50,494 - (Rank 1/1) - INFO - Checking for climatological outliers in: tdps
+2025-03-20 11:35:50,948 - (Rank 1/1) - INFO - Flagging outliers in climatological outlier check for tdps
+2025-03-20 11:35:50,951 - (Rank 1/1) - INFO - Checking for climatological outliers in: pr
+2025-03-20 11:35:51,234 - (Rank 1/1) - INFO - pass qaqc_climatological_outlier
+2025-03-20 11:35:51,234 - (Rank 1/1) - INFO - Done QA/QC climatological outliers, Ellapsed time: 1.22 s.
+
+2025-03-20 11:35:51,234 - (Rank 1/1) - INFO - QA/QC unsual repeated streaks
+2025-03-20 11:35:51,234 - (Rank 1/1) - INFO - Running: qaqc_unusual_repeated_streaks
+2025-03-20 11:35:51,531 - (Rank 1/1) - INFO - Running qaqc_unusual_repeated_streaks on ['tas', 'tdps', 'ps', 'psl', 'ps_altimeter', 'sfcWind', 'pr']
+2025-03-20 11:35:51,531 - (Rank 1/1) - INFO - Running unusual streaks check on: tas
+2025-03-20 11:35:51,700 - (Rank 1/1) - INFO - Running hourly repeats on tas
+2025-03-20 11:35:57,658 - (Rank 1/1) - INFO - Running straight repeats on tas
+2025-03-20 11:35:57,801 - (Rank 1/1) - INFO - Straight repeats flagged for tas. Ellapsed time: 0.14
+2025-03-20 11:35:57,802 - (Rank 1/1) - INFO - Running whole day repeats on tas
+2025-03-20 11:36:08,675 - (Rank 1/1) - INFO - 10 subset plots produced for flagged obs in tas
+2025-03-20 11:36:08,675 - (Rank 1/1) - INFO - Running unusual streaks check on: tdps
+2025-03-20 11:36:08,847 - (Rank 1/1) - INFO - Running hourly repeats on tdps
+2025-03-20 11:36:14,026 - (Rank 1/1) - INFO - Running straight repeats on tdps
+2025-03-20 11:36:14,155 - (Rank 1/1) - INFO - Straight repeats flagged for tdps. Ellapsed time: 0.13
+2025-03-20 11:36:14,155 - (Rank 1/1) - INFO - Running whole day repeats on tdps
+2025-03-20 11:36:20,081 - (Rank 1/1) - INFO - 1 subset plots produced for flagged obs in tdps
+2025-03-20 11:36:20,081 - (Rank 1/1) - INFO - Running unusual streaks check on: ps
+2025-03-20 11:36:20,249 - (Rank 1/1) - INFO - Running hourly repeats on ps
+2025-03-20 11:36:25,772 - (Rank 1/1) - INFO - Running straight repeats on ps
+2025-03-20 11:36:25,892 - (Rank 1/1) - INFO - Running whole day repeats on ps
+2025-03-20 11:36:31,514 - (Rank 1/1) - INFO - 0 subset plots produced for flagged obs in ps
+2025-03-20 11:36:31,514 - (Rank 1/1) - INFO - Running unusual streaks check on: psl
+2025-03-20 11:36:31,660 - (Rank 1/1) - INFO - Running hourly repeats on psl
+2025-03-20 11:36:42,699 - (Rank 1/1) - INFO - Running straight repeats on psl
+2025-03-20 11:36:42,815 - (Rank 1/1) - INFO - Running whole day repeats on psl
+2025-03-20 11:36:48,141 - (Rank 1/1) - INFO - 0 subset plots produced for flagged obs in psl
+2025-03-20 11:36:48,141 - (Rank 1/1) - INFO - Running unusual streaks check on: ps_altimeter
+2025-03-20 11:36:48,309 - (Rank 1/1) - INFO - Running hourly repeats on ps_altimeter
+2025-03-20 11:36:53,788 - (Rank 1/1) - INFO - Running straight repeats on ps_altimeter
+2025-03-20 11:36:53,913 - (Rank 1/1) - INFO - Running whole day repeats on ps_altimeter
+2025-03-20 11:36:59,511 - (Rank 1/1) - INFO - 0 subset plots produced for flagged obs in ps_altimeter
+2025-03-20 11:36:59,511 - (Rank 1/1) - INFO - Running unusual streaks check on: sfcWind
+2025-03-20 11:36:59,681 - (Rank 1/1) - INFO - Running hourly repeats on sfcWind
+2025-03-20 11:37:02,908 - (Rank 1/1) - INFO - Running straight repeats on sfcWind
+2025-03-20 11:37:03,036 - (Rank 1/1) - INFO - Running whole day repeats on sfcWind
+2025-03-20 11:37:08,376 - (Rank 1/1) - INFO - 0 subset plots produced for flagged obs in sfcWind
+2025-03-20 11:37:08,376 - (Rank 1/1) - INFO - Running unusual streaks check on: pr
+2025-03-20 11:37:08,539 - (Rank 1/1) - INFO - qaqc_unusual_repeated_streaks failed with Exception: 'pr'
+2025-03-20 11:37:08,551 - (Rank 1/1) - INFO - ASOSAWOS_72665494054 Flagging problem with unusual streaks (repeated values) check, skipping station
+2025-03-20 11:37:08,551 - (Rank 1/1) - INFO - Done QA/QC unsual repeated streaks, Ellapsed time: 77.32 s.
+
+2025-03-20 11:37:08,551 - (Rank 1/1) - INFO - QA/QC unsual large jumps
+2025-03-20 11:37:08,551 - (Rank 1/1) - INFO - Running: qaqc_unusual_large_jumps
+2025-03-20 11:37:08,593 - (Rank 1/1) - INFO - Running qaqc_unusual_large_jumps on ['pr', 'tas', 'tdps', 'ps', 'psl', 'ps_altimeter']
+2025-03-20 11:37:08,594 - (Rank 1/1) - INFO - Running unusual large jumps check on: pr
+2025-03-20 11:37:09,832 - (Rank 1/1) - INFO - Plotting 0 year/month cases
+2025-03-20 11:37:09,832 - (Rank 1/1) - INFO - Running unusual large jumps check on: tas
+2025-03-20 11:37:10,240 - (Rank 1/1) - INFO - Plotting 8 year/month cases
+2025-03-20 11:37:12,497 - (Rank 1/1) - INFO - Running unusual large jumps check on: tdps
+2025-03-20 11:37:12,913 - (Rank 1/1) - INFO - Plotting 28 year/month cases
+2025-03-20 11:37:28,092 - (Rank 1/1) - INFO - Running unusual large jumps check on: ps
+2025-03-20 11:37:28,696 - (Rank 1/1) - INFO - Plotting 0 year/month cases
+2025-03-20 11:37:28,696 - (Rank 1/1) - INFO - Running unusual large jumps check on: psl
+2025-03-20 11:37:30,646 - (Rank 1/1) - INFO - Plotting 33 year/month cases
+2025-03-20 11:37:48,506 - (Rank 1/1) - INFO - Running unusual large jumps check on: ps_altimeter
+2025-03-20 11:37:49,039 - (Rank 1/1) - INFO - Plotting 1 year/month cases
+2025-03-20 11:37:49,537 - (Rank 1/1) - INFO - pass qaqc_unusual_large_jumps
+2025-03-20 11:37:49,538 - (Rank 1/1) - INFO - Done QA/QC unsual large jumps, Ellapsed time: 40.99 s.
+
+2025-03-20 11:37:49,538 - (Rank 1/1) - INFO - Summary of QA/QC flags set per variable
+2025-03-20 11:37:49,538 - (Rank 1/1) - INFO - Running: flag_summary
+2025-03-20 11:37:49,539 - (Rank 1/1) - INFO - Flags set on ps_eraqc: [nan]
+2025-03-20 11:37:49,541 - (Rank 1/1) - INFO - Coverage of ps_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,542 - (Rank 1/1) - INFO - Flags set on tas_eraqc: [nan 23. 26.]
+2025-03-20 11:37:49,544 - (Rank 1/1) - INFO - Coverage of tas_eraqc obs flagged: 0.02% of obs
+2025-03-20 11:37:49,545 - (Rank 1/1) - INFO - Flags set on tdps_eraqc: [nan 23. 26.]
+2025-03-20 11:37:49,547 - (Rank 1/1) - INFO - Coverage of tdps_eraqc obs flagged: 0.14% of obs
+2025-03-20 11:37:49,551 - (Rank 1/1) - INFO - Flags set on pr_eraqc: [nan]
+2025-03-20 11:37:49,556 - (Rank 1/1) - INFO - Coverage of pr_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,557 - (Rank 1/1) - INFO - Flags set on sfcWind_eraqc: [nan]
+2025-03-20 11:37:49,558 - (Rank 1/1) - INFO - Coverage of sfcWind_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,559 - (Rank 1/1) - INFO - Flags set on sfcWind_dir_eraqc: [nan]
+2025-03-20 11:37:49,560 - (Rank 1/1) - INFO - Coverage of sfcWind_dir_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,561 - (Rank 1/1) - INFO - Flags set on elevation_eraqc: [nan]
+2025-03-20 11:37:49,563 - (Rank 1/1) - INFO - Coverage of elevation_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,563 - (Rank 1/1) - INFO - Flags set on ps_altimeter_eraqc: [nan 23.]
+2025-03-20 11:37:49,565 - (Rank 1/1) - INFO - Coverage of ps_altimeter_eraqc obs flagged: 0.0% of obs
+2025-03-20 11:37:49,566 - (Rank 1/1) - INFO - Flags set on psl_eraqc: [nan 23.]
+2025-03-20 11:37:49,567 - (Rank 1/1) - INFO - Coverage of psl_eraqc obs flagged: 0.09% of obs
+2025-03-20 11:37:49,961 - (Rank 1/1) - INFO - flagged_timeseries_plot failed for tas with Exception: Error tokenizing data. C error: Expected 3 fields in line 35, saw 4
+
+2025-03-20 11:37:50,244 - (Rank 1/1) - INFO - flagged_timeseries_plot failed for tdps with Exception: Error tokenizing data. C error: Expected 3 fields in line 35, saw 4
+
+2025-03-20 11:37:50,556 - (Rank 1/1) - INFO - flagged_timeseries_plot failed for ps_altimeter with Exception: Error tokenizing data. C error: Expected 3 fields in line 35, saw 4
+
+2025-03-20 11:37:50,875 - (Rank 1/1) - INFO - flagged_timeseries_plot failed for psl with Exception: Error tokenizing data. C error: Expected 3 fields in line 35, saw 4
+
+2025-03-20 11:37:51,131 - (Rank 1/1) - INFO - Saving/pushing ASOSAWOS_72665494054.zarr with dims Frozen({'station': 1, 'time': 198236}) to wecc-historical-wx/3_qaqc_wx/ASOSAWOS/
+2025-03-20 11:38:43,522 - (Rank 1/1) - INFO - Done saving/pushing file to AWS. Ellapsed time: 52.39 s.
+2025-03-20 11:38:43,531 - (Rank 1/1) - INFO - Done full QAQC for ASOSAWOS_72665494054. Ellapsed time: 703.08 s.
+
+2025-03-20 11:38:43,743 - (Rank 1/1) - INFO - errors_ASOSAWOS_202503201127.csv saved to wecc-historical-wx/3_qaqc_wx/ASOSAWOS/qaqc_errs/
+
+2025-03-20 11:38:43,743 - (Rank 1/1) - INFO - Saving log file to s3://wecc-historical-wx/3_qaqc_wx/ASOSAWOS/qaqc_logs/qaqc_ASOSAWOS_72665494054.03-20-2025.log
+
