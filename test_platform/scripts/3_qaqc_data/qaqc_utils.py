@@ -220,22 +220,33 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     -----
     Flag meaning : 19,Yellow flag,Warning: Whole station has too few monthly observations to proceed through any monthly distribution check. Observations were not assessed for quality
     """
+    # Copy df to avoid pandas warning
+    new_df = df.copy()
+
     # This piece will return a dictionary with the var name as key, and values are pd.Series with the
     # month and the number of years of data
     global stn_length
 
     stn_length = map(
-        qaqc_var_length_bypass_check, [df] * len(vars_to_check), vars_to_check
+        qaqc_var_length_bypass_check, [new_df] * len(vars_to_check), vars_to_check
     )
     stn_length = {k: v for k, v in zip(vars_to_check, stn_length)}
 
     nYears = np.array([v.max() for k, v in stn_length.items()])
 
+    vars_to_flag = []
     for var in vars_to_check:
         if stn_length[var].max() < min_num_months:
-            df.loc[:, [var + "_eraqc"]] = 19  # see era_qaqc_flag_meanings.csv
+            vars_to_flag.append(var)
+    if len(vars_to_flag) > 0:
+        # Avoid pandas warning
+        # Future-proof way:
+        # The safest way to write this is using direct column access by name:
+        # This avoids ambiguity and is the most stable across Pandas versions.
+        for col in vars_to_flag:
+            new_df[col] = 19  # see era_qaqc_flag_meanings.csv
 
-    return df, stn_length
+    return new_df, stn_length
 
 
 # -----------------------------------------------------------------------------
@@ -262,7 +273,7 @@ def qaqc_dist_var_bypass_check(df, var, min_num_months=5):
     -----
     Flag meaning : 20,Yellow flag,Warning: Variable has too few monthly non-nan observations to proceed through any monthly distribution check. Observations were not assessed for quality
     """
-
+    # Copy df to avoid pandas warning
     df = df.copy()
 
     # if all values are null for that month across years

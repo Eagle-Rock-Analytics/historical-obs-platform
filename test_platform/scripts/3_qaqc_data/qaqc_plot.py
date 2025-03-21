@@ -1186,8 +1186,10 @@ def climatological_precip_plot(df, var, flag, dpi=300, local=False):
     None
         This function does not return a value
     """
-    # valid precipitation variables
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
+    # valid precipitation variables
     fig, ax = plt.subplots(figsize=(10, 3))
 
     # plot all cleaned data
@@ -1287,6 +1289,8 @@ def unusual_streaks_plot(
     None
         This function does not return a value
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
     fig, ax = plt.subplots(figsize=(10, 3))
 
@@ -1304,23 +1308,22 @@ def unusual_streaks_plot(
     )
 
     # grab flagged data
+    mask0 = df[var + "_eraqc"] == 27
     flag_vals_0 = df.copy()[["time", var]]
     flag_vals_0.loc[:, var] = np.nan
-    flag_vals_0.loc[df[var + "_eraqc"] == 27, var] = df.loc[
-        df[var + "_eraqc"] == 27, var
-    ]
+    flag_vals_0.loc[df[var + "_eraqc"] == 27, var] = df.loc[mask0, var]
 
+    # This avoids chained or ambiguous indexing and is fully future-proof.
+    # and avoid pandas warning
+    mask1 = df[var + "_eraqc"] == 28
     flag_vals_1 = df.copy()[["time", var]]
     flag_vals_1.loc[:, var] = np.nan
-    flag_vals_1.loc[df[var + "_eraqc"] == 28, var] = df.loc[
-        df[var + "_eraqc"] == 28, var
-    ]
+    flag_vals_1.loc[mask, var] = df.loc[mask1, var]
 
+    mask2 = df[var + "_eraqc"] == 29
     flag_vals_2 = df.copy()[["time", var]]
     flag_vals_2.loc[:, var] = np.nan
-    flag_vals_2.loc[df[var + "_eraqc"] == 29, var] = df.loc[
-        df[var + "_eraqc"] == 29, var
-    ]
+    flag_vals_2.loc[df[var + "_eraqc"] == 29, var] = df.loc[mask2, var]
 
     # Amount of data flagged
     flag_label_0 = "Same hour replication"

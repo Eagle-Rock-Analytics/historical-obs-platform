@@ -311,6 +311,9 @@ def qaqc_unusual_repeated_streaks(
     ----------
     [1] https://doi.org/10.5194/cp-8-1649-2012 : Table 4
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
+
     logger.info("Running: qaqc_unusual_repeated_streaks")
 
     station = df["station"].dropna().unique()[0]
@@ -761,7 +764,7 @@ def consecutive_fullDay_repeats(df, var, threshold, min_value):
     da["date"] = pd.to_datetime(da["time"]).dt.date.values
 
     # Whole days to analysis
-    whole_days = da.groupby(by=["date"])[var].apply(
+    whole_days = da.groupby(by=["date"], group_keys=False)[var].apply(
         lambda x: np.round(x.values, decimals=1)
     )
     whole_days = pd.DataFrame({var: whole_days, "date": whole_days.index.values})

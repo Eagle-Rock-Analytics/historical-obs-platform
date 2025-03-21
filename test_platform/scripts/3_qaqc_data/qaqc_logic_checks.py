@@ -105,7 +105,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     logger.info(
         "Running: qaqc_crossvar_logic_tdps_to_tas_wetbulb",
     )
-    df_dpt = df.copy(deep=True)
+    df_dpt = df.copy()
 
     # first check that tdps and/or tdps_derived are provided
     dew_vars = [col for col in df_dpt.columns if "tdps" in col]
@@ -187,7 +187,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
 
     logger.info("Running: qaqc_precip_logic_nonegvals")
 
-    df_neg_pr = df.copy(deep=True)
+    df_neg_pr = df.copy()
 
     # identify which precipitation vars are reported by a station
     vars_to_remove = ["qc", "duration", "method", "depth", "accum"]
