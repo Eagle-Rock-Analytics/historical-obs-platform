@@ -1308,22 +1308,11 @@ def unusual_streaks_plot(
     )
 
     # grab flagged data
-    mask0 = df[var + "_eraqc"] == 27
-    flag_vals_0 = df.copy()[["time", var]]
-    flag_vals_0[var] = np.nan
-    flag_vals_0.loc[df[var + "_eraqc"] == 27, var] = df.loc[mask0, var]
-
     # This avoids chained or ambiguous indexing and is fully future-proof.
     # and avoid pandas warning
+    mask0 = df[var + "_eraqc"] == 27
     mask1 = df[var + "_eraqc"] == 28
-    flag_vals_1 = df.copy()[["time", var]]
-    flag_vals_1[var] = np.nan
-    flag_vals_1.loc[df[var + "_eraqc"] == 28, var] = df.loc[mask1, var]
-
     mask2 = df[var + "_eraqc"] == 29
-    flag_vals_2 = df.copy()[["time", var]]
-    flag_vals_2.loc[var] = np.nan
-    flag_vals_2.loc[df[var + "_eraqc"] == 29, var] = df.loc[mask2, var]
 
     # Amount of data flagged
     flag_label_0 = "Same hour replication"
@@ -1331,8 +1320,8 @@ def unusual_streaks_plot(
     flag_label_2 = "Whole-day replication"
 
     # if no flags are present, it messes with time x axis labels
-    if len(flag_vals_0) != 0:
-        flag_vals_0.plot(
+    if mask0.any():
+        df[mask0].plot(
             ax=ax,
             x="time",
             y=var,
@@ -1344,8 +1333,8 @@ def unusual_streaks_plot(
             label=flag_label_0,
         )
 
-    if len(flag_vals_1) != 0:
-        flag_vals_1.plot(
+    if mask1.any():
+        df[mask1].plot(
             ax=ax,
             x="time",
             y=var,
@@ -1357,8 +1346,9 @@ def unusual_streaks_plot(
             label=flag_label_1,
         )
 
-    if len(flag_vals_2) != 0:
-        flag_vals_2.plot(
+    # if len(flag_vals_2) != 0:
+    if mask2.any():
+        df[mask2].plot(
             ax=ax,
             x="time",
             y=var,
