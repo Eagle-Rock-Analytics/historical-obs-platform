@@ -28,7 +28,7 @@
 27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
 28,qaqc_unusual_repeated_streaks,Straight one after another replications over a number of observartions
 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
-30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeries
+30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeseries
 31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
 32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
 33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check

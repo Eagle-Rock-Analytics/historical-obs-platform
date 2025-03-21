@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusually frequent values in the data observations are flagged. 
+This is a script where Stage 3: QA/QC function(s) on logic checks in the data observations are flagged. 
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
