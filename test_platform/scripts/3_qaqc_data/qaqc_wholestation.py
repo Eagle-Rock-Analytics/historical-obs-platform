@@ -595,7 +595,7 @@ def qaqc_world_record(df, verbose=False):
         }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
         PACC_X = {
             "North_America": 10000
-        } # accumulated precipitation, mm, arbirtarily set to a high max value
+        }  # accumulated precipitation, mm, arbirtarily set to a high max value
         P_N = {"North_America": 0}  # precipitaiton, mm
 
         maxes = {

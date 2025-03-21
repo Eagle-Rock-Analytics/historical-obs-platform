@@ -134,17 +134,14 @@ def _plot_format_helper(var):
 
     # precipitation, with variations depending on reporting interval
     P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
-    PALT5_X = {
-        "North_America": 31.8
-    }  # precipitation, mm, 5-min rainfall, WECC-wide
+    PALT5_X = {"North_America": 31.8}  # precipitation, mm, 5-min rainfall, WECC-wide
     PALT15_X = {
         "North_America": 25.4
     }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
     PACC_X = {
         "North_America": 10000
-    } # accumulated precipitation, mm, arbirtarily set to a high max value
+    }  # accumulated precipitation, mm, arbirtarily set to a high max value
     P_N = {"North_America": 0}  # precipitaiton, mm
-
 
     maxes = {
         "tas": T_X,
