@@ -217,7 +217,7 @@ def id_flag(flag_to_id):
 
 # ============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
+def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
     """Produces timeseries of variables that have flags placed.
 
     Parameters
@@ -328,7 +328,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
 
 # ============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=False):
     """Plotting helper with common plotting elements for all 3 versions of this plot.
 
     Parameters
@@ -582,7 +582,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_precip_plot(df, var, flag, dpi=None, local=False):
+def frequent_precip_plot(df, var, flag, dpi=300, local=False):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -679,7 +679,7 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
 # ============================================================================================================
 ## distribution gap plotting functions
 def dist_gap_part1_plot(
-    df, month, var, flagval, iqr_thresh, network, dpi=None, local=False
+    df, month, var, flagval, iqr_thresh, network, dpi=300, local=False
 ):
     """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
@@ -798,7 +798,7 @@ def dist_gap_part1_plot(
 
 
 # -----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
+def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
     """Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
 
@@ -930,7 +930,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 
 # ============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
+def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
     """Plots unusual large jumps qaqc.
 
     Parameters
@@ -1021,7 +1021,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 # ============================================================================================================
 def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, station=None, dpi=None, local=False
+    series, month, hour, bin_size=0.1, station=None, dpi=300, local=False
 ):
     """Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -1165,7 +1165,7 @@ def clim_outlier_plot(
 
 
 # ============================================================================================================
-def climatological_precip_plot(df, var, flag, dpi=None, local=False):
+def climatological_precip_plot(df, var, flag, dpi=300, local=False):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -1265,7 +1265,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
 
 # ============================================================================================================
 def unusual_streaks_plot(
-    df, var, flagvals=(27, 28, 29), station=None, dpi=None, local=False
+    df, var, flagvals=(27, 28, 29), station=None, dpi=300, local=False
 ):
     """Plots unusual large jumps qaqc result.
 
