@@ -58,7 +58,7 @@ def qaqc_unusual_large_jumps(
 
     logger.info("Running: qaqc_unusual_large_jumps")
     INDEX = df.index
-    df = df.copy(deep=True)
+    df = df.copy()
     df.set_index(df["time"], inplace=True)
     df.drop(columns=["time"], inplace=True)
 
@@ -67,6 +67,7 @@ def qaqc_unusual_large_jumps(
     try:
         # Define test variables and check if they are in the dataframe
         check_vars = [
+            "pr",
             "pr_5min",
             "pr_15min",
             "pr_1h",
@@ -167,7 +168,7 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
        of opposite sign of the actual spike
     """
 
-    potential_spike = potential_spike.copy(deep=True)
+    potential_spike = potential_spike.copy()
 
     ind = np.where(potential_spike)[0]
     spikes = pd.Series(
@@ -251,7 +252,7 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
     """
 
     # Make a copy of the original dataframe
-    df = df.copy(deep=True)
+    df = df.copy()
 
     # Calculate difference in var values
     df[var + "_difference"] = df[var].diff().fillna(0)

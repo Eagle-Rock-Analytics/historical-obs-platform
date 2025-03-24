@@ -38,6 +38,7 @@ try:
     from qaqc_unusual_large_jumps import *
     from qaqc_climatological_outlier import *
     from qaqc_unusual_streaks import *
+    from qaqc_deaccumulate import *
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
@@ -753,6 +754,26 @@ def run_qaqc_pipeline(
         logger.info(
             "pass qaqc_pressure_units_fix",
         )
+
+    # ---------------------------------------------------------
+    ## Precipitation de-accumulation
+    new_df = qaqc_deaccumulate_precip(stn_to_qaqc, local=local)
+    if new_df is None:
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message="Flagging problem with precip deaccumulation",
+            test="qaqc_deaccumulate_precip",
+            verbose=verbose,
+        )
+    else:
+        stn_to_qaqc = new_df
+        logger.info("pass qaqc_deaccumulate_precip")
+
+    logger.info(
+        "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
+    )
 
     # ---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure

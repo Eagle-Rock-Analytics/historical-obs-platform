@@ -57,7 +57,14 @@ def _plot_format_helper(var):
         max var value for y axis
     """
 
-    pr_vars = ["pr", "pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+    pr_vars = [
+        "pr",
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+    ]
     ps_vars = ["ps", "psl", "ps_derived", "ps_altimeter"]
 
     if var == "tas":
@@ -88,6 +95,10 @@ def _plot_format_helper(var):
         ylab = "Precipitation"
         unit = "mm"
 
+    elif var == "accum_pr":
+        ylab = "Annual Accumulated Precipitation"
+        unit = "mm"
+
     elif var in ps_vars:
         ylab = "Pressure"
         unit = "Pa"
@@ -96,26 +107,41 @@ def _plot_format_helper(var):
         ylab = "Elevation"
         unit = "m"
 
-    T_X = {"North_America": 329.92}  # K
-    T_N = {"North_America": 210.15}  # K
-    D_X = {"North_America": 329.85}  # K
-    D_N = {"North_America": 173.15}  # K
-    W_X = {"North_America": 113.2}  # m/s
-    W_N = {"North_America": 0.0}  # m/s
-    S_X = {"North_America": 108330}  # Pa
-    S_N = {"North_America": 87000}  # Pa
-    R_X = {"North_America": 1500}  # W/m2
-    R_N = {"North_America": -5}  # W/m2
+    # ideally this would be in utils because it is in qaqc_wholestation
+    T_X = {"North_America": 329.92}  # temperature, K
+    T_N = {"North_America": 210.15}  # temperature, K
+    D_X = {"North_America": 329.85}  # dewpoint temperature, K
+    D_N = {"North_America": 173.15}  # dewpoint temperature, K
+    W_X = {"North_America": 113.2}  # wind speed, m/s
+    W_N = {"North_America": 0.0}  # wind speed, m/s
+    R_X = {"North_America": 1500}  # solar radiation, W/m2
+    R_N = {"North_America": -5}  # solar radiation, W/m2
 
-    # for other non-record variables (wind direction, precipitation)
-    N_X = {"North_America": 360}  # degrees
-    N_N = {"North_America": 0}  # degrees
-    P_X = {"North_America": 1000}  # mm, arbitrarily set
-    P_N = {"North_America": 0}  # mm
-    H_X = {"North_America": 100}  # humidity max
-    H_N = {"North_America": 0}  # humidity min
-    E_X = {"North_America": 6210.0}  # m
-    E_N = {"North_America": -100}  # m
+    # for other non-record variables (wind direction, humidity)
+    N_X = {"North_America": 360}  # wind direction, degrees
+    N_N = {"North_America": 0}  # wind direction, degrees
+    H_X = {"North_America": 100}  # humidity, max
+    H_N = {"North_America": 0}  # humidity, min
+    E_X = {"North_America": 6210.0}  # elevation, m
+    E_N = {"North_America": -100}  # elevation, m
+
+    # pressure, with elevation options
+    S_X = {"North_America": 108330}  # pressure, Pa
+    S_N = {"North_America": 87000}  # sea level pressure only, Pa
+    SALT_N = {
+        "North_America": 45960
+    }  # non-sea level pressure, Pa, reduced min based on max elevation (6190 m)
+
+    # precipitation, with variations depending on reporting interval
+    P_X = {"North_America": 656}  # precipitation, mm, 24-hr rainfall
+    PALT5_X = {"North_America": 31.8}  # precipitation, mm, 5-min rainfall, WECC-wide
+    PALT15_X = {
+        "North_America": 25.4
+    }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
+    PACC_X = {
+        "North_America": 10000
+    }  # accumulated precipitation, mm, arbirtarily set to a high max value
+    P_N = {"North_America": 0}  # precipitaiton, mm
 
     maxes = {
         "tas": T_X,
@@ -123,17 +149,18 @@ def _plot_format_helper(var):
         "tdps_derived": D_X,
         "sfcWind": W_X,
         "sfcWind_dir": N_X,
-        "ps": S_X,
         "psl": S_X,
-        "ps_altimeter": S_X,
+        "ps": S_X,
         "ps_derived": S_X,
+        "ps_altimeter": S_X,
         "rsds": R_X,
         "pr": P_X,
-        "pr_5min": P_X,
-        "pr_15min": P_X,
+        "pr_5min": PALT5_X,
+        "pr_15min": PALT15_X,
         "pr_1h": P_X,
         "pr_24h": P_X,
         "pr_localmid": P_X,
+        "accum_pr": PACC_X,
         "hurs": H_X,
         "elevation": E_X,
     }
@@ -143,17 +170,18 @@ def _plot_format_helper(var):
         "tdps_derived": D_N,
         "sfcWind": W_N,
         "sfcWind_dir": N_N,
-        "ps": S_N,
         "psl": S_N,
-        "ps_altimeter": S_N,
-        "ps_derived": S_N,
+        "ps": SALT_N,
+        "ps_derived": SALT_N,
+        "ps_altimeter": SALT_N,
         "rsds": R_N,
         "pr": P_N,
         "pr_5min": P_N,
-        "pr_15min": P_X,
+        "pr_15min": P_N,
         "pr_1h": P_N,
         "pr_24h": P_N,
         "pr_localmid": P_N,
+        "accum_pr": P_N,
         "hurs": H_N,
         "elevation": E_N,
     }
@@ -189,7 +217,7 @@ def id_flag(flag_to_id):
 
 # ============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
+def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
     """Produces timeseries of variables that have flags placed.
 
     Parameters
@@ -300,7 +328,7 @@ def flagged_timeseries_plot(df, var, dpi=None, local=False, savefig=True):
 
 # ============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=None, local=False):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=False):
     """Plotting helper with common plotting elements for all 3 versions of this plot.
 
     Parameters
@@ -554,7 +582,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_precip_plot(df, var, flag, dpi=None, local=False):
+def frequent_precip_plot(df, var, flag, dpi=300, local=False):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -651,7 +679,7 @@ def frequent_precip_plot(df, var, flag, dpi=None, local=False):
 # ============================================================================================================
 ## distribution gap plotting functions
 def dist_gap_part1_plot(
-    df, month, var, flagval, iqr_thresh, network, dpi=None, local=False
+    df, month, var, flagval, iqr_thresh, network, dpi=300, local=False
 ):
     """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
@@ -770,7 +798,7 @@ def dist_gap_part1_plot(
 
 
 # -----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
+def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
     """Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
 
@@ -902,7 +930,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=None, local=False):
 
 # ============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
+def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
     """Plots unusual large jumps qaqc.
 
     Parameters
@@ -993,7 +1021,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=None, local=False):
 
 # ============================================================================================================
 def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, station=None, dpi=None, local=False
+    series, month, hour, bin_size=0.1, station=None, dpi=300, local=False
 ):
     """Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -1137,7 +1165,7 @@ def clim_outlier_plot(
 
 
 # ============================================================================================================
-def climatological_precip_plot(df, var, flag, dpi=None, local=False):
+def climatological_precip_plot(df, var, flag, dpi=300, local=False):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -1158,8 +1186,10 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
     None
         This function does not return a value
     """
-    # valid precipitation variables
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
+    # valid precipitation variables
     fig, ax = plt.subplots(figsize=(10, 3))
 
     # plot all cleaned data
@@ -1237,7 +1267,7 @@ def climatological_precip_plot(df, var, flag, dpi=None, local=False):
 
 # ============================================================================================================
 def unusual_streaks_plot(
-    df, var, flagvals=(27, 28, 29), station=None, dpi=None, local=False
+    df, var, flagvals=(27, 28, 29), station=None, dpi=300, local=False
 ):
     """Plots unusual large jumps qaqc result.
 
@@ -1259,6 +1289,8 @@ def unusual_streaks_plot(
     None
         This function does not return a value
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
     fig, ax = plt.subplots(figsize=(10, 3))
 
@@ -1276,23 +1308,11 @@ def unusual_streaks_plot(
     )
 
     # grab flagged data
-    flag_vals_0 = df.copy()[["time", var]]
-    flag_vals_0.loc[:, var] = np.nan
-    flag_vals_0.loc[df[var + "_eraqc"] == 27, var] = df.loc[
-        df[var + "_eraqc"] == 27, var
-    ]
-
-    flag_vals_1 = df.copy()[["time", var]]
-    flag_vals_1.loc[:, var] = np.nan
-    flag_vals_1.loc[df[var + "_eraqc"] == 28, var] = df.loc[
-        df[var + "_eraqc"] == 28, var
-    ]
-
-    flag_vals_2 = df.copy()[["time", var]]
-    flag_vals_2.loc[:, var] = np.nan
-    flag_vals_2.loc[df[var + "_eraqc"] == 29, var] = df.loc[
-        df[var + "_eraqc"] == 29, var
-    ]
+    # This avoids chained or ambiguous indexing and is fully future-proof.
+    # and avoid pandas warning
+    mask0 = df[var + "_eraqc"] == 27
+    mask1 = df[var + "_eraqc"] == 28
+    mask2 = df[var + "_eraqc"] == 29
 
     # Amount of data flagged
     flag_label_0 = "Same hour replication"
@@ -1300,8 +1320,8 @@ def unusual_streaks_plot(
     flag_label_2 = "Whole-day replication"
 
     # if no flags are present, it messes with time x axis labels
-    if len(flag_vals_0) != 0:
-        flag_vals_0.plot(
+    if mask0.any():
+        df[mask0].plot(
             ax=ax,
             x="time",
             y=var,
@@ -1313,8 +1333,8 @@ def unusual_streaks_plot(
             label=flag_label_0,
         )
 
-    if len(flag_vals_1) != 0:
-        flag_vals_1.plot(
+    if mask1.any():
+        df[mask1].plot(
             ax=ax,
             x="time",
             y=var,
@@ -1326,8 +1346,9 @@ def unusual_streaks_plot(
             label=flag_label_1,
         )
 
-    if len(flag_vals_2) != 0:
-        flag_vals_2.plot(
+    # if len(flag_vals_2) != 0:
+    if mask2.any():
+        df[mask2].plot(
             ax=ax,
             x="time",
             y=var,
@@ -1378,6 +1399,130 @@ def unusual_streaks_plot(
 
     # close figure to save memory
     plt.close()
+
+    return None
+
+
+# ============================================================================================================
+## precip de-accumulation plot
+def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
+    """
+    Generate and save a precipitation de-accumulation plot with flagged data points.
+
+    This function visualizes the de-accumulation of precipitation by plotting
+    the original accumulated precipitation and the de-accumulated values.
+    It highlights flagged oscillating or ringing values and saves the figure
+    either locally or to an AWS S3 bucket.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        A DataFrame containing the accumulated precipitation (`accum_pr`),
+        de-accumulated precipitation (`pr`), timestamps (`time`), and station information (`station`).
+    flags : pandas.Series (bool)
+        A boolean Series indicating flagged data points that exhibit oscillating or ringing behavior.
+    local : bool, optional
+        If `True`, the plot is saved locally. If `False` (default), the plot is uploaded to AWS S3.
+    dpi : int, optional
+        Resolution of the saved figure in dots per inch (default is 300).
+
+    Returns
+    -------
+    None
+        The function saves the plot but does not return any values.
+
+    Notes
+    -----
+    - The top subplot shows the original accumulated precipitation (`accum_pr`).
+    - The bottom subplot shows the de-accumulated precipitation (`pr`).
+    - Flagged ringing values are marked in red on the accumulated precipitation plot.
+    - The function automatically adjusts the y-axis limits to mitigate the effect of outliers.
+    - The plot is saved either locally or to AWS S3 in the "wecc-historical-wx" bucket.
+    - The `_plot_format_helper("pr")` function is used to determine y-axis labels and units.
+    """
+    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
+
+    # Plot variable and flagged data
+    df.plot(
+        x="time",
+        y="accum_" + var,
+        ax=ax0,
+        marker=".",
+        ms=3,
+        lw=1,
+        color="k",
+        alpha=0.5,
+        label="Original accumulated precip",
+    )
+    ax0.set_xticklabels([])
+    df.plot(
+        x="time",
+        y=var,
+        ax=ax1,
+        marker=".",
+        ms=3,
+        lw=1,
+        color="C0",
+        alpha=0.5,
+        label="De-accumulated precip",
+    )
+
+    # Set ylims in a way we can avoid big ranges due to outliers/spikes
+    mean = np.mean(df[var])
+    std = np.std(df[var])
+    z_scores = (df[var] - mean) / std
+    ylim0 = -0.5
+    ylim1 = np.max(df[var][z_scores <= 4])
+    ax1.set_ylim(ylim0, ylim1)
+
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
+    # Plot aesthetics
+    ylab, units, miny, maxy = _plot_format_helper("pr")
+    ylab = "{0} [{1}]".format(ylab, units)
+    title = "Precipitation deaccumulation: {0}".format(station)
+    ax0.set_title(title, fontsize=10)
+
+    # Plot oscillating/ringing flags
+    df[flags].plot(
+        x="time",
+        y="accum_" + var,
+        ax=ax0,
+        marker="o",
+        mfc="none",
+        lw=0,
+        ms=4,
+        color="red",
+        alpha=0.5,
+        label="Bad oscillating/ringing values",
+    )
+
+    for ax in (ax0, ax1):
+        ax.set_ylabel(ylab)
+        ax.set_xlabel("")
+        legend = ax.legend(loc=0, prop={"size": 8})
+
+    # save to AWS
+    bucket_name = "wecc-historical-wx"
+    directory = "3_qaqc_wx"
+    figname = "qaqc_figs/qaqc_precip_deaccumulation_{0}".format(station)
+
+    key = "{0}/{1}/{2}.png".format(directory, network, figname)
+    img_data = BytesIO()
+    fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
+    img_data.seek(0)
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
+
+    if local:
+        fig.savefig(
+            "{}.png".format(figname), format="png", dpi=dpi, bbox_inches="tight"
+        )
+
+    # close figure to save memory
+    plt.close("all")
 
     return None
 

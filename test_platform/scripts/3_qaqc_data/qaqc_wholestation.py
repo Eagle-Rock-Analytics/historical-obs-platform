@@ -81,6 +81,7 @@ def qaqc_missing_vals(df, verbose=False):
             "station",
             "anemometer_height_m",
             "thermometer_height_m",
+            "accum",
         ]
     ]
     obs_vars = [
@@ -167,7 +168,8 @@ def qaqc_within_wecc(df, verbose=False):
 
     Returns
     -------
-    If QAQC is successful, returns a dataframe with flagged values
+    If QAQC is successful, returns a dataframe with flagged valueACH1370maninof
+
     If QAQC fails, returns None
     """
     logger.info("Running: qaqc_within_wecc")
@@ -591,6 +593,9 @@ def qaqc_world_record(df, verbose=False):
         PALT15_X = {
             "North_America": 25.4
         }  # precipitation, mm, 15-min rainfall, specific to VALLEYWATER
+        PACC_X = {
+            "North_America": 10000
+        }  # accumulated precipitation, mm, arbirtarily set to a high max value
         P_N = {"North_America": 0}  # precipitaiton, mm
 
         maxes = {
@@ -610,6 +615,7 @@ def qaqc_world_record(df, verbose=False):
             "pr_1h": P_X,
             "pr_24h": P_X,
             "pr_localmid": P_X,
+            "accum_pr": PACC_X,
             "hurs": H_X,
             "elevation": E_X,
         }
@@ -630,6 +636,7 @@ def qaqc_world_record(df, verbose=False):
             "pr_1h": P_N,
             "pr_24h": P_N,
             "pr_localmid": P_N,
+            "accum_pr": P_N,
             "hurs": H_N,
             "elevation": E_N,
         }

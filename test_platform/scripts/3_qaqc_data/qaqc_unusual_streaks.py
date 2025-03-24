@@ -37,18 +37,18 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 # Straight repeat streak criteria
 straight_repeat_criteria = {
     "tas": {
-        1: [40, 14],  # 40 values of 14 days
+        1: [40, 14],  # 40 values or 14 days
         0.5: [30, 10],  # 30 values or 10 days
         0.1: [24, 7],  # 24 values or 7 days
     },
     "tdps": {
-        1: [80, 14],  # of
+        1: [80, 14],  # or
         0.5: [60, 10],  # or
         0.1: [48, 7],  # or
     },
     "psl": {1: [120, 28], 0.5: [100, 21], 0.1: [72, 14]},  # of  # or  # or
     "sfcWind": {
-        1: [40, 14],  # of
+        1: [40, 14],  # or
         0.5: [30, 10],  # or
         0.1: [24, 7],  # or
     },
@@ -57,6 +57,11 @@ straight_repeat_criteria["tdps_derived"] = straight_repeat_criteria["tdps"]
 straight_repeat_criteria["ps"] = straight_repeat_criteria["psl"]
 straight_repeat_criteria["ps_derived"] = straight_repeat_criteria["psl"]
 straight_repeat_criteria["ps_altimeter"] = straight_repeat_criteria["psl"]
+
+# Add criteria for precipiation
+pr_variables = ["pr", "pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
+for pr_var in pr_variables:
+    straight_repeat_criteria[pr_var] = straight_repeat_criteria["tas"]
 
 # ----------------------------------------------------------------------
 # Hour repeat streak criteria
@@ -75,6 +80,9 @@ hour_repeat_criteria["ps"] = hour_repeat_criteria["tas"]
 hour_repeat_criteria["ps_altimeter"] = hour_repeat_criteria["tas"]
 hour_repeat_criteria["ps_derived"] = hour_repeat_criteria["tas"]
 hour_repeat_criteria["sfcWind"] = hour_repeat_criteria["tas"]
+# Add criteria for precipiation
+for pr_var in pr_variables:
+    hour_repeat_criteria[pr_var] = hour_repeat_criteria["tas"]
 
 # ----------------------------------------------------------------------
 # Day repeat streak criteria
@@ -93,12 +101,38 @@ day_repeat_criteria["ps"] = day_repeat_criteria["tas"]
 day_repeat_criteria["ps_altimeter"] = day_repeat_criteria["tas"]
 day_repeat_criteria["ps_derived"] = day_repeat_criteria["tas"]
 day_repeat_criteria["sfcWind"] = day_repeat_criteria["tas"]
+# Add criteria for precipiation
+for pr_var in pr_variables:
+    day_repeat_criteria[pr_var] = day_repeat_criteria["tas"]
 
 # ----------------------------------------------------------------------
 # Min wind value for straight repeat test
 # TODO: HadISD thresholds: does it make sense to change them in future versions?
 # More analysis needs to be done to ensure what is a good threshold for calm wind conditions for this test
-WIND_MIN_VALUE = {1: 1.0, 0.5: 0.5, 0.1: 0.5}
+# For now, precipitation min value for streaks is set to 2 mm, which means that very low precip repeated values shoold not be flagged
+MIN_VALUE = {
+    "sfcWind": {1: 1.0, 0.5: 0.5, 0.1: 1.0},
+    "pr": {1: 2.0, 0.5: 2.0, 0.1: 2.0},
+}
+
+# ----------------------------------------------------------------------
+# Define test variables and check if they are in the dataframe
+check_vars = [
+    "sfcWind" "tas",
+    "tdps",
+    "tdps_derived",
+    "ps",
+    "psl",
+    "ps_derived",
+    "ps_altimeter",
+    "sfcWind",
+    "pr",
+    "pr_5min",
+    "pr_15min",
+    "pr_1h",
+    "pr_24h",
+    "pr_localmid",
+]
 
 
 # ----------------------------------------------------------------------
@@ -200,21 +234,6 @@ def infere_res(df, verbose=False):
     resolutions : [?]
         [?]
     """
-    check_vars = [
-        "pr_5min",
-        "pr_15min",
-        "pr_1h",
-        "pr_24h",
-        "pr_localmid",
-        "tas",
-        "tdps",
-        "tdps_derived",
-        "ps",
-        "psl",
-        "ps_derived",
-        "ps_altimeter",
-        "sfcWind",
-    ]
     variables = [var for var in check_vars if var in df.columns]
     # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
     # logger.info(variables)
@@ -285,13 +304,16 @@ def qaqc_unusual_repeated_streaks(
           or for sparser records, a number of days during which all the observations have the same value)
         - Whole day replication for a streak of days
     Flag meaning: 27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days
-    Flag meaning: 28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+    Flag meaning: 28,qaqc_unusual_repeated_streaks,Straight repetition on observation after another
     Flag meaning: 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
 
     References
     ----------
     [1] https://doi.org/10.5194/cp-8-1649-2012 : Table 4
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
+
     logger.info("Running: qaqc_unusual_repeated_streaks")
 
     station = df["station"].dropna().unique()[0]
@@ -303,17 +325,6 @@ def qaqc_unusual_repeated_streaks(
         # Save original df multiindex and create station column
         new_df = df.copy()
 
-        # Define test variables and check if they are in the dataframe
-        check_vars = [
-            "tas",
-            "tdps",
-            "tdps_derived",
-            "ps",
-            "psl",
-            "ps_derived",
-            "ps_altimeter",
-            "sfcWind",
-        ]
         variables = [var for var in check_vars if var in new_df.columns]
         logger.info(
             "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
@@ -363,8 +374,17 @@ def qaqc_unusual_repeated_streaks(
             )
             tt00 = time.time()
             threshold = hour_repeat_criteria[var][res]
+
+            # If the data is precip avoid dry season bad flagging
+            if var == "sfcWind":
+                min_value = MIN_VALUE["sfcWind"][res]
+            elif "pr" in var:
+                min_value = MIN_VALUE["pr"][res]
+            else:
+                min_value = None
+
             bad_hourly = hourly_repeats(
-                test_df, var=var, threshold=threshold
+                test_df, var=var, threshold=threshold, min_value=min_value
             )  # Bad hourly returns a pd.Series of time stamps
             if len(bad_hourly) > 0:
                 new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
@@ -383,14 +403,16 @@ def qaqc_unusual_repeated_streaks(
             tt00 = time.time()
             threshold = straight_repeat_criteria[var][res]
             if var == "sfcWind":
-                wind_min_value = WIND_MIN_VALUE[res]
+                min_value = MIN_VALUE["sfcWind"][res]
+            elif "pr" in var:
+                min_value = MIN_VALUE["pr"][res]
             else:
-                wind_min_value = None
+                min_value = None
             bad_straight = consecutive_repeats(
                 test_df,
                 var,
                 threshold,
-                wind_min_value,
+                min_value,
                 min_sequence_length=min_sequence_length,
             )  # Bad straight returns a pd.Series of time stamps
             if len(bad_straight) > 0:
@@ -409,8 +431,17 @@ def qaqc_unusual_repeated_streaks(
             )
             tt00 = time.time()
             threshold = day_repeat_criteria[var][res]
+
+            # If the data is precip avoid dry season bad flagging
+            if var == "sfcWind":
+                min_value = MIN_VALUE["sfcWind"][res]
+            elif "pr" in var:
+                min_value = MIN_VALUE["pr"][res]
+            else:
+                min_value = None
+
             bad_whole = consecutive_fullDay_repeats(
-                test_df, var, threshold
+                test_df, var, threshold, min_value
             )  # Bad whole returns a pd.Series of time stamps
             if len(bad_whole) > 0:
                 new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
@@ -422,7 +453,6 @@ def qaqc_unusual_repeated_streaks(
                     ),
                 )
             # ------------------------------------------------------------------------------------------------
-
             bad_keys = np.concatenate(
                 [
                     len(bad_hourly) * [27],
@@ -500,7 +530,7 @@ def find_date_clusters(dates, threshold):
 
 
 # ---------------------------------------------------------------------------------------------------
-def hourly_repeats(df, var, threshold):
+def hourly_repeats(df, var, threshold=None, min_value=None):
     """DOCUMENTAITON UPDATE REQUIRED.
 
     Parameters
@@ -531,8 +561,13 @@ def hourly_repeats(df, var, threshold):
     ##########################################################################################
     hourly_streaks = []
     values = []
+
     for hour in range(24):
         da = df[df["hour"] == hour]
+        # If variable is wind or precip, only use values above min wind value
+        if min_value is not None:
+            da = da[da[var] > min_value]
+
         streaks = (
             da.groupby(var, group_keys=True)["time"]
             .apply(find_date_clusters, threshold=15)
@@ -547,9 +582,7 @@ def hourly_repeats(df, var, threshold):
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_repeats(
-    df, var, threshold, wind_min_value=None, min_sequence_length=10
-):
+def consecutive_repeats(df, var, threshold, min_value=None, min_sequence_length=10):
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 
@@ -561,7 +594,7 @@ def consecutive_repeats(
         variable name
     threshold : int
         comes from straight_repeat_criteria[var][res]
-    wind_min_value : [?], optional
+    min_value : [?], optional
         [?]
     min_sequence_length : [?], optional
         [?]
@@ -574,9 +607,9 @@ def consecutive_repeats(
 
     da = df.copy()[[var, "time"]]
 
-    # If variable is wind, only use values above min wind value
-    if wind_min_value is not None:
-        da = da[da[var] > wind_min_value]
+    # If variable is wind or precip, only use values above min wind value
+    if min_value is not None:
+        da = da[da[var] > min_value]
     # Identify sequences of similar values
     da.loc[:, "group"] = (da[var] != da[var].shift()).cumsum()
     da.loc[:, "start_date"] = da["time"].values
@@ -621,6 +654,13 @@ def consecutive_repeats(
     if len(bad) > 0:
         bad["month"] = pd.to_datetime(bad.loc[:, "time"]).dt.month.values
         bad["year"] = pd.to_datetime(bad.loc[:, "time"]).dt.year.values
+
+        # Remove spurious consecutive streaks that were generated by removing
+        # below the min_value and created repeated series
+        # For this, we only will take bad values in groups where
+        # the indices are consecutive
+        bad = bad.groupby("group").filter(is_consecutive)
+
     else:
         bad = pd.DataFrame(
             {
@@ -629,11 +669,25 @@ def consecutive_repeats(
                 "year": np.array([], dtype=np.int64),
             }
         )
+
     if bad.size > 0:
         return pd.Series(bad["time"].values, index=bad[var]).sort_values()
     else:
         return pd.Series([], dtype="datetime64[ns]")
-    # return bad[['time', 'month', 'year']]
+
+
+# ---------------------------------------------------------------------------------------------------
+# Function to check consecutive indices
+def is_consecutive(group):
+    """
+    Since consecutive repeats are dropping elements below the min_value,
+    there are spurious 'repeated' series. If a value<min_value is removed,
+    and to the left and right are enough values repeated, this will be flagged
+    as repeated streak. To solve this, we need to filter the repeated bad series from
+    `consecutive_repeats` and filter. Only groups/repeated streaks that have
+    consecutive indices will be considered true streaks
+    """
+    return (group.index.to_series().diff().dropna() == 1).all()
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -672,7 +726,7 @@ def full_day_compare(series0, series1):
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_fullDay_repeats(df, var, threshold):
+def consecutive_fullDay_repeats(df, var, threshold, min_value):
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 
@@ -703,10 +757,14 @@ def consecutive_fullDay_repeats(df, var, threshold):
         "time": othervars.time.values,
     }
     da = pd.DataFrame(data)
+    # If variable is wind or precip, only use values above min wind value
+    if min_value is not None:
+        da = da[da[var] > min_value]
+
     da["date"] = pd.to_datetime(da["time"]).dt.date.values
 
     # Whole days to analysis
-    whole_days = da.groupby(by=["date"])[var].apply(
+    whole_days = da.groupby(by=["date"], group_keys=False)[var].apply(
         lambda x: np.round(x.values, decimals=1)
     )
     whole_days = pd.DataFrame({var: whole_days, "date": whole_days.index.values})
@@ -720,9 +778,6 @@ def consecutive_fullDay_repeats(df, var, threshold):
     )
     sequence_lengths = sequence_lengths[sequence_lengths["group"] >= 0]
 
-    # for g,l in zip(sequence_lengths['group'].values, sequence_lengths['length'].values):
-    #     print(g,l)
-    # import pdb; pdb.set_trace()
     bad_groups = np.array(
         [
             g

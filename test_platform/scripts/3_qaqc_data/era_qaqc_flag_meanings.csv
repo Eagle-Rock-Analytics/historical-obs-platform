@@ -25,10 +25,12 @@
 24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
 25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
 26,qaqc_climatological_outlier,Value flagged as a climatological outlier for specific month and hour
-27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of values
-28,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+28,qaqc_unusual_repeated_streaks,Straight one after another replications over a number of observartions
 29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
-30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeries
+30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeseries
 31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
 32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
 33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
+34,qaqc_deaccumulate_precip,Value flagged has a period of oscillating values (probably sensor malfunction producing ringing-like data) in the accumulated precipitation (that would result on incorrect/false de-accumulated values that look correct): cannot determine which value (higher or lower) is the real one (it has been also converted to nan in the deaccumulated series)
+35,qaqc_deaccumulate_precip,Original precipitation data; deaccumulation process has been applied

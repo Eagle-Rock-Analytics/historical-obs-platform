@@ -70,14 +70,7 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
     logger.info("Running: qaqc_frequent_vals")
 
     # list of var substrings to remove if present in var
-    vars_to_remove = [
-        "qc",
-        "eraqc",
-        "duration",
-        "method",
-        "flag",
-        "depth",
-    ]
+    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "accum"]
 
     non_pr_vars_to_run = [
         "tas",

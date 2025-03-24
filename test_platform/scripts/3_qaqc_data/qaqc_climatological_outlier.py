@@ -267,6 +267,7 @@ def flag_clim_outliers(series, bin_size=0.25):
 
     # Calculate frequency, normal fit, and boumdaries for clim outliers
     # freq, bins, p, left, right = fit_normal(series, bin_size=0.10, plot=True)
+    # import pdb; pdb.set_trace();
     freq, bins, p, left, right = fit_normal(series, bin_size=bin_size, plot=False)
 
     # Calculate bins for frequency checks
@@ -360,7 +361,6 @@ def fit_normal(series, bin_size=0.25, plot=False):
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
     bins = np.arange(-max_bin - bin_size, max_bin + 2 * bin_size, bin_size)
-
     freq, bins = np.histogram(
         series,
         bins=bins,
@@ -369,7 +369,16 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
     # Fit a normal distribution to the data
     mu, std = stats.norm.fit(series)
-    p = stats.norm.pdf(bins, mu, std) * area
+
+    # check std before calling stats.norm.pdf():\
+    # to prevent dividing by zero warniing
+    # if all values in series are the same
+    # or the variance is too low, the stats.norm.pdf would
+    # calculate 1 / (std * sqrt(2π)) * exp( ... ) and give the div/by/zero warning
+    if std == 0 or np.isclose(std, 0):
+        p = np.zeros_like(bins)
+    else:
+        p = stats.norm.pdf(bins, mu, std) * area
 
     try:
         left = np.where(np.logical_and(np.gradient(p) > 0, p <= 0.1))[0][

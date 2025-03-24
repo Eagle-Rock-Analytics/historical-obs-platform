@@ -53,6 +53,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
     Flag meaning : 21,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
     Flag meaning : 22,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
     vars_for_gaps = [
         "tas",
@@ -148,6 +150,9 @@ def qaqc_dist_gap_part1(
         - compare stepwise from the middle of the distribution outwards
         - asymmetries are identified and flagged if severe
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
+
     network = df["station"].unique()[0].split("_")[0]
 
     for var in vars_to_check:
@@ -246,6 +251,8 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
         - going outwards from center, distribution is scanned for gaps which occur outside threshold
         - obs beyond gap are flagged
     """
+    # Copy df to avoid pandas warning
+    df = df.copy()
 
     for var in vars_to_check:
         logger.info(
