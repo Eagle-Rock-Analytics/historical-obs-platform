@@ -35,3 +35,6 @@ MM,NDBC,all,realtime data (less than 45 days old),https://www.ndbc.noaa.gov/meas
 61.25,VCAPCD,tdps;tdps_derived,,in cleaned data
 73.33,VCAPCD,tas,,in cleaned data
 -998.36,VCAPCD,sfcWind,,in cleaned data
+V010,ASOSAWOS,qaqc_process,,in cleaned data
+V020,ASOSAWOS,qaqc_process,,in cleaned data
+"9",ASOSAWOS,tas_qc;tdps_qc;sfcWind_qc;sfcWind_dir_qc;psl_qc,flag is a string not a float
