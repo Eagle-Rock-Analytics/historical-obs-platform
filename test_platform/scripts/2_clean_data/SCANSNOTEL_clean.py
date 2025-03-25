@@ -571,11 +571,15 @@ def clean_scansnotel(rawdir, cleandir):
                     ds["hurs"].attrs["standard_name"] = "relative_humidity"
                     ds["hurs"].attrs["units"] = "percent"
 
-                    # If QA/QC column exists
-                    if "RHUM_flag" in ds.keys():
-                        ds = ds.rename({"RHUM_flag": "hurs_qc"})
-                        ds["hurs_qc"].attrs["flag_values"] = "V S E"
-                        ds["hurs_qc"].attrs["flag_meanings"] = "valid suspect edited"
+                # bumping out of the RH loop -- one SNOTEL station does not have rh, but does have QC flag
+                if "RHUM_flag" in ds.keys():
+                    ds = ds.rename({"RHUM_flag": "hurs_qc"})
+                    ds["hurs_qc"].attrs["flag_values"] = "V S E"
+                    ds["hurs_qc"].attrs["flag_meanings"] = "valid suspect edited"
+                    
+                    # including within QC loop -- one SNOTEL station does not have rh, but does have QC flag
+                    # only update this info if rh variable is also present
+                    if "hurs" in ds.keys():
                         ds["hurs"].attrs[
                             "ancillary_variables"
                         ] = "hurs_qc"  # List other variables associated with variable (QA/QC)
