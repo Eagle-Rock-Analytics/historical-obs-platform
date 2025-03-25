@@ -37,8 +37,6 @@ import zipfile
 from cleaning_helpers import var_to_unique_list, get_file_paths
 
 # To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
-
-
 try:
     import calc_clean
 except:
@@ -48,6 +46,9 @@ except:
 ## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
+
+# Set relative paths to other folders and objects in repository.
+bucket_name = "wecc-historical-wx"
 
 
 # Set up directory to save files temporarily, if it doesn't already exist.
@@ -174,8 +175,9 @@ def clean_cimis(rawdir, cleandir):
         errors["Error"].append("Whole network error: {}".format(e))
 
     else:  # If files read successfully, continue.
-        for station in stations:
-            # for station in stations.sample(3): # subset for testing
+        # for station in stations:
+        for station in ['127']: # subset a specific station
+        # for station in stations.sample(3): # subset for testing
             station_metadata = station_file.loc[
                 station_file["Station Number"] == float(station)
             ]
@@ -485,19 +487,25 @@ def clean_cimis(rawdir, cleandir):
                     ds["pr"].attrs["long_name"] = "precipitation_accumulation"
                     ds["pr"].attrs["units"] = "mm/hour"
 
-                    if "QC for Precipitation" in ds.keys():  # If QA/QC exists.
-                        ds = ds.rename({"QC for Precipitation": "pr_qc"})
-                        ds["pr_qc"].attrs["flag_values"] = var_to_unique_list(
-                            ds, "pr_qc"
-                        )
-                        ds["pr_qc"].attrs[
-                            "flag_meanings"
-                        ] = "See QA/QC csv for network."
+                # pr: precipitation
+                # bumping out of the precipitation loop -- one CIMIS station does not have pr, but does have QC flag
+                if "QC for Precipitation" in ds.keys():  # If QA/QC exists.
+                    ds = ds.rename({"QC for Precipitation": "pr_qc"})
+                    ds["pr_qc"].attrs["flag_values"] = var_to_unique_list(
+                        ds, "pr_qc"
+                    )
+                    ds["pr_qc"].attrs[
+                        "flag_meanings"
+                    ] = "See QA/QC csv for network."
+
+                    # including within QC loop -- one CIMIS station does not have pr, but does have QC flag
+                    # only update this info if pr variable is also present
+                    if "pr" in ds.keys():
                         ds["pr"].attrs[
                             "ancillary_variables"
                         ] = "pr_qc"  # List other variables associated with variable (QA/QC)
 
-                    ds["pr"].attrs["comment"] = "Accumulated precipitation."
+                        ds["pr"].attrs["comment"] = "Accumulated precipitation."
 
                 # hurs: relative humidity (%)
                 if (
