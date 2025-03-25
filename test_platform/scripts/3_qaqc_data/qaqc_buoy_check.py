@@ -40,6 +40,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
 
     Notes
     -----
+    Flag meaning : 1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
     Flag meaning : 2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
     """
     logger.info("Running: spurious_buoy_check")
@@ -125,13 +126,10 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         ):  # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             df_valid = grab_valid_obs(df, var="sfcWind", var2="sfcWind_dir")
-            df.loc[
-                (df_valid["hour"] >= 6) & (df_valid["hour"] <= 20), "sfcWind_eraqc"
-            ] = 1  # see era_qaqc_flag_meanings.csv
-            df.loc[
-                (df_valid["hour"] >= 6) & (df_valid["hour"] <= 20), "sfcWind_dir_eraqc"
-            ] = 1  # see era_qaqc_flag_meanings.csv
-
+            isBad = df_valid.loc[(df_valid["hour"] >= 6) & (df_valid["hour"] <= 20)]
+            df.loc[df.time.isin(isBad.time), 'sfcWind_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
+            df.loc[df.time.isin(isBad.time), 'sfcWind_dir_eraqc'] = 1 # see era_qaqc_flag_meanings.csv
+            
         # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
         #     # modify attribute/naming with note
         #     # this will get flagged in station proximity tests
