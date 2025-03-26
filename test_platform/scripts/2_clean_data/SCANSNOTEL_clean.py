@@ -137,8 +137,8 @@ def clean_scansnotel(rawdir, cleandir):
 
     else:  # If files read successfully, continue.
         for i in ids:  # For each station (full run)
-        # for i in ['457:CO:SNTL']: # specific station -- look up the station triplet!
-        # for i in random.sample(ids,2): # Subsample for testing errors
+            # for i in ['457:CO:SNTL']: # specific station -- look up the station triplet!
+            # for i in random.sample(ids,2): # Subsample for testing errors
             df_stat = None  # Initialize merged df.
             try:
                 stat_files = [
@@ -577,7 +577,7 @@ def clean_scansnotel(rawdir, cleandir):
                     ds = ds.rename({"RHUM_flag": "hurs_qc"})
                     ds["hurs_qc"].attrs["flag_values"] = "V S E"
                     ds["hurs_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                    
+
                     # including within QC loop -- one SNOTEL station does not have rh, but does have QC flag
                     # only update this info if rh variable is also present
                     if "hurs" in ds.keys():

@@ -176,8 +176,8 @@ def clean_cimis(rawdir, cleandir):
 
     else:  # If files read successfully, continue.
         for station in stations:
-        # for station in ['127']: # subset a specific station
-        # for station in stations.sample(3): # subset for testing
+            # for station in ['127']: # subset a specific station
+            # for station in stations.sample(3): # subset for testing
             station_metadata = station_file.loc[
                 station_file["Station Number"] == float(station)
             ]
@@ -491,12 +491,8 @@ def clean_cimis(rawdir, cleandir):
                 # bumping out of the precipitation loop -- one CIMIS station does not have pr, but does have QC flag
                 if "QC for Precipitation" in ds.keys():  # If QA/QC exists.
                     ds = ds.rename({"QC for Precipitation": "pr_qc"})
-                    ds["pr_qc"].attrs["flag_values"] = var_to_unique_list(
-                        ds, "pr_qc"
-                    )
-                    ds["pr_qc"].attrs[
-                        "flag_meanings"
-                    ] = "See QA/QC csv for network."
+                    ds["pr_qc"].attrs["flag_values"] = var_to_unique_list(ds, "pr_qc")
+                    ds["pr_qc"].attrs["flag_meanings"] = "See QA/QC csv for network."
 
                     # including within QC loop -- one CIMIS station does not have pr, but does have QC flag
                     # only update this info if pr variable is also present
