@@ -658,7 +658,7 @@ def qaqc_world_record(df, verbose=False):
             "pr_15min",
             "pr_1h",
             "pr_24h",
-            "pr_24h",
+            "pr_24h", # TODO: repeat of pr_24h
             "hurs",
             "elevation",
         ]
