@@ -735,7 +735,6 @@ def clean_scansnotel(rawdir, cleandir):
                     "svp",
                 ]
                 actual_order = [i for i in desired_order if i in list(ds.keys())]
-                print(actual_order)
                 rest_of_vars = [
                     i for i in list(ds.keys()) if i not in desired_order
                 ]  # Retain rest of variables at the bottom.
