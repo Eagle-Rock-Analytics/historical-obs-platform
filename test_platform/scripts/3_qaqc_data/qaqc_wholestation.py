@@ -63,7 +63,7 @@ def qaqc_missing_vals(df, verbose=False):
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
 
-    vars_to_remove = ["qc", "duration", "method"]
+    vars_to_remove = ["qc", "duration", "method", "process"]
     all_vars = [
         var
         for var in df.columns
@@ -91,25 +91,30 @@ def qaqc_missing_vals(df, verbose=False):
     ]
 
     try:
-        for item in obs_vars:
-            # pull missing values which are appropriate for the range of real values for each variable
-            missing_codes = missing_vals.loc[
-                missing_vals["variable"].str.contains(item)
-                | missing_vals["variable"].str.contains("all")
-            ]
+        if len(obs_vars) != 0:
+            for item in obs_vars:
+                # pull missing values which are appropriate for the range of real values for each variable
+                missing_codes = missing_vals.loc[
+                    missing_vals["variable"].str.contains(item)
+                    | missing_vals["variable"].str.contains("all")
+                ]
 
-            # values in column that == missing_flag values, replace with NAs
-            # note numerical vals converted to strings first to match missing_flag formatting
-            df[item] = np.where(
-                df[item].astype(str).isin(missing_codes["missing_flag"]),
-                float("NaN"),
-                df[item],
-            )
+                # values in column that == missing_flag values, replace with NAs
+                # note numerical vals converted to strings first to match missing_flag formatting
+                df[item] = np.where(
+                    df[item].astype(str).isin(missing_codes["missing_flag"]),
+                    float("NaN"),
+                    df[item],
+                )
 
-            logger.info(
-                "Updating missing values for: {}".format(item),
-            )
-            return df
+                logger.info(
+                    "Updating missing values for: {}".format(item),
+                )
+                return df
+        else:
+            # station does not have any actual observations values
+            logger.info("Station does not have any observations variables -- bypassing!")
+            return None
 
     except Exception as e:
         logger.info(e)
@@ -657,7 +662,6 @@ def qaqc_world_record(df, verbose=False):
             "pr_5min",
             "pr_15min",
             "pr_1h",
-            "pr_24h",
             "pr_24h",
             "hurs",
             "elevation",

@@ -175,8 +175,8 @@ def clean_cimis(rawdir, cleandir):
         errors["Error"].append("Whole network error: {}".format(e))
 
     else:  # If files read successfully, continue.
-        # for station in stations:
-        for station in ['127']: # subset a specific station
+        for station in stations:
+        # for station in ['127']: # subset a specific station
         # for station in stations.sample(3): # subset for testing
             station_metadata = station_file.loc[
                 station_file["Station Number"] == float(station)

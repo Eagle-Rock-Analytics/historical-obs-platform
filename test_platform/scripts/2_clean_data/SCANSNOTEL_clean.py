@@ -137,7 +137,8 @@ def clean_scansnotel(rawdir, cleandir):
 
     else:  # If files read successfully, continue.
         for i in ids:  # For each station (full run)
-            # for i in random.sample(ids,2): # Subsample for testing errors
+        # for i in ['457:CO:SNTL']: # specific station -- look up the station triplet!
+        # for i in random.sample(ids,2): # Subsample for testing errors
             df_stat = None  # Initialize merged df.
             try:
                 stat_files = [
@@ -734,6 +735,7 @@ def clean_scansnotel(rawdir, cleandir):
                     "svp",
                 ]
                 actual_order = [i for i in desired_order if i in list(ds.keys())]
+                print(actual_order)
                 rest_of_vars = [
                     i for i in list(ds.keys()) if i not in desired_order
                 ]  # Retain rest of variables at the bottom.
@@ -823,7 +825,7 @@ def clean_scansnotel(rawdir, cleandir):
 
 # # Run functions
 if __name__ == "__main__":
-    network = "SCAN"
+    network = "SNOTEL"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
     print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)
