@@ -4,13 +4,11 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
 import geopandas as gp
 import shapely
 import numpy as np
 import pandas as pd
 import shapely
-import scipy.stats as stats
 import urllib
 import requests
 
@@ -91,6 +89,7 @@ def qaqc_missing_vals(df, verbose=False):
     ]
 
     try:
+        # first checks if num. of obs vars are present
         if len(obs_vars) != 0:
             for item in obs_vars:
                 # pull missing values which are appropriate for the range of real values for each variable
