@@ -113,7 +113,9 @@ def qaqc_missing_vals(df, verbose=False):
                 return df
         else:
             # station does not have any actual observations values
-            logger.info("Station does not have any observations variables -- bypassing!")
+            logger.info(
+                "Station does not have any observations variables -- bypassing!"
+            )
             return None
 
     except Exception as e:
