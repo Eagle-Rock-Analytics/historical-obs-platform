@@ -7,9 +7,11 @@
 ## Type of change
 - [ ] Bug fix
 - [ ] New feature
+- [ ] Documentation update
 - [ ] None of the above  
 
 ## To-Do
+- [ ] All unneccessary files are removed from this PR (no station files or stationlist csvs!)
 - [ ] Documentation
   - [ ] Intent of all functions included
   - [ ] Complex code commented
