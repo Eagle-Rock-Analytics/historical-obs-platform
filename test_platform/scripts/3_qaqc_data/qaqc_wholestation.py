@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) whole station checks. 
+This is a script where Stage 3: QA/QC function(s) whole station checks.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
