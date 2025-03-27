@@ -558,7 +558,7 @@ def qaqc_world_record(df, verbose=False):
     [5] https://www.weather.gov/media/owp/oh/hdsc/docs/TP2.pdf
     """
 
-    logger.info("Running: qaqc_world_record")
+    print("Running: qaqc_world_record")
 
     try:
         T_X = {"North_America": 329.92}  # temperature, K
@@ -671,18 +671,21 @@ def qaqc_world_record(df, verbose=False):
                     df_valid[var] > maxes[var]["North_America"],
                 )
                 if isOffRecord.any():
-                    df.loc[df.index.isin(isOffRecord.index), var + "_eraqc"] = (
+                    isOffRecord_true = isOffRecord[
+                        isOffRecord
+                    ]  # keep only true indices
+                    df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
-                    logger.info(
+                    print(
                         "Flagging {} observations exceeding world/regional records: {}".format(
-                            sum(isOffRecord), var
+                            sum(isOffRecord_true), var
                         )
                     )
 
         return df
     except Exception as e:
-        logger.info(
+        print(
             "qaqc_world_record failed with Exception: {}".format(e),
         )
         return None
