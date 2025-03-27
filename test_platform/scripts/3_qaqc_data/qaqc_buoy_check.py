@@ -161,7 +161,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
             logger.info(
                 "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage.".format(
                     station
-                ),
+                )
             )
 
         for new_var in qc_vars:

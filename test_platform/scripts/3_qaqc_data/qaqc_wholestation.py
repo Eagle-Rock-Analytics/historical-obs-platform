@@ -66,7 +66,7 @@ def qaqc_missing_vals(df, verbose=False):
         "method",
         "process",
     ]  # adding process to list of vars to remove
-    
+
     all_vars = [
         var
         for var in df.columns
