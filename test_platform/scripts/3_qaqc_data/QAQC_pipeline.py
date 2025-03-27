@@ -507,7 +507,7 @@ def qaqc_ds_to_df(ds, verbose=False):
                 var
             )  # raw qc variables, need to keep for comparison, then drop
 
-    logger.info("Existing era_qc variables: {}".format(era_qc_vars))
+    logger.info("Existing observation and QC variables: {}".format(list(ds.keys())))
 
     # only in-fill nans for valid variables
     for var in ds.data_vars:
@@ -656,7 +656,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="has an unchecked missing value",
+            message="has an unchecked missing value or does not report any observation variables",
             test="qaqc_missing_vals",
             verbose=verbose,
         )
@@ -1114,7 +1114,7 @@ def whole_station_qaqc(
     # How to run on a specific station
     # Uncomment "specific_sample" and input desired station id as a list of strings
     # Example: ["ASOSAWOS_74948400395"]
-    # specific_sample = ["ASOSAWOS_74948400395", "ASOSAWOS_74509023244", "ASOSAWOS_72494523293"]
+    specific_sample = ["ASOSAWOS_99999953129", "ASOSAWOS_99999923162", "ASOSAWOS_99999904221"]
     # ------------------------------------------
 
     # Read in network files
@@ -1213,7 +1213,6 @@ def whole_station_qaqc(
             ## The file_df dataframe must have already checked if file exist in clean directory
             ###################################################################################################
             T0 = time.time()
-            # logger.info('Running QA/QC on: {}\n'.format(station)) # testing
 
             # =====================================================================================
             # Testing speed-up re-order in case file is locally found
