@@ -162,6 +162,22 @@ def qaqc_climatological_outlier(
             data_freq = 1 / (
                 df_valid["time"].diff().mode().values[0].astype("float") / 1e9
             )  # In Hz
+
+            # Ensure that the data complies with butter filter requirements
+            # In some cases, if the valid data has very far apart values, the
+            # frequency would be to low (long period) and the filter would fail
+            # For example, on CAHYDRO_LANC1 (var='tdps_derived') only two
+            # valid observations 460 days apart remain.
+            # Instead of putting an arbitrary valid_obs len threshold, we bypass
+            # when there is no enough data to run the filtering
+            if cut_freq >= data_freq / 2:
+                logger.info(
+                    "bypassing qaqc_climatological_outlier failed on {}: not enough data to run butter filter".format(
+                        var
+                    ),
+                )
+                continue
+
             sos = signal.butter(1, cut_freq, "lp", output="sos", fs=data_freq)
             filtered = signal.sosfilt(sos, std[var].interpolate(method="linear"))
             df_valid["raw_" + var] = df_valid[var]
