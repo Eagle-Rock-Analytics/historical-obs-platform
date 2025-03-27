@@ -1,16 +1,14 @@
 """
-This is a script where Stage 3: QA/QC function(s) whole station checks. 
+This is a script where Stage 3: QA/QC function(s) whole station checks.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
 import geopandas as gp
 import shapely
 import numpy as np
 import pandas as pd
 import shapely
-import scipy.stats as stats
 import urllib
 import requests
 
@@ -63,7 +61,12 @@ def qaqc_missing_vals(df, verbose=False):
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
 
-    vars_to_remove = ["qc", "duration", "method"]
+    vars_to_remove = [
+        "qc",
+        "duration",
+        "method",
+        "process",
+    ]  # adding process to list of vars to remove 03/25/25
     all_vars = [
         var
         for var in df.columns
@@ -91,25 +94,33 @@ def qaqc_missing_vals(df, verbose=False):
     ]
 
     try:
-        for item in obs_vars:
-            # pull missing values which are appropriate for the range of real values for each variable
-            missing_codes = missing_vals.loc[
-                missing_vals["variable"].str.contains(item)
-                | missing_vals["variable"].str.contains("all")
-            ]
+        # first checks if num. of obs vars are present
+        if len(obs_vars) != 0:
+            for item in obs_vars:
+                # pull missing values which are appropriate for the range of real values for each variable
+                missing_codes = missing_vals.loc[
+                    missing_vals["variable"].str.contains(item)
+                    | missing_vals["variable"].str.contains("all")
+                ]
 
-            # values in column that == missing_flag values, replace with NAs
-            # note numerical vals converted to strings first to match missing_flag formatting
-            df[item] = np.where(
-                df[item].astype(str).isin(missing_codes["missing_flag"]),
-                float("NaN"),
-                df[item],
-            )
+                # values in column that == missing_flag values, replace with NAs
+                # note numerical vals converted to strings first to match missing_flag formatting
+                df[item] = np.where(
+                    df[item].astype(str).isin(missing_codes["missing_flag"]),
+                    float("NaN"),
+                    df[item],
+                )
 
+                logger.info(
+                    "Updating missing values for: {}".format(item),
+                )
+                return df
+        else:
+            # station does not have any actual observations values
             logger.info(
-                "Updating missing values for: {}".format(item),
+                "Station does not have any observations variables -- bypassing!"
             )
-            return df
+            return None
 
     except Exception as e:
         logger.info(e)
