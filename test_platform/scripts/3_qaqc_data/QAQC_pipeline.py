@@ -747,7 +747,7 @@ def run_qaqc_pipeline(
             test="qaqc_elev_internal_range_consistency",
             verbose=verbose,
         )
-        return [None] * 4 # whole station failure, skip to next station
+        return [None] * 4  # whole station failure, skip to next station
     else:
         stn_to_qaqc = new_df
         logger.info("pass qaqc_elev_internal_range_consistency")

@@ -246,12 +246,12 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
         )
         dem_elev_short = 0.00  # m
         return dem_elev_short
-    
+
 
 # ----------------------------------------------------------------------
 def qaqc_elev_internal_range_consistency(df, verbose=False):
     """
-    For stations with multiple elevation values, checks if the delta is reasonable, flags if not. 
+    For stations with multiple elevation values, checks if the delta is reasonable, flags if not.
 
     Parameters
     ----------
@@ -266,22 +266,29 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
     If QAQC fails, returns None
 
     Notes:
-    1. All elevation values are checked, not just in-filled values. Some ASOSAWOS stations have substantial changes in elevation. 
+    1. All elevation values are checked, not just in-filled values. Some ASOSAWOS stations have substantial changes in elevation.
     Flag meaning : 36,_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/- 50m are flagged
     """
 
     logger.info("Running qaqc_elev_internal_range_consistency")
 
-    all_elevs = list(df['elevation'].unique())
+    all_elevs = list(df["elevation"].unique())
 
     try:
         if len(all_elevs) > 2:
             # large array of elevation values, use median to identify "normal" range
             if np.abs(np.nanmax(all_elevs) - np.nanmin(all_elevs)) > 50:
-                base_elev = np.nanmedian(all_elevs) # median of elevation values
-                susElevs = df.loc[(df['elevation'] < base_elev - 50) | (df['elevation'] > base_elev + 50)] # find suspicious elevations
-                df.loc[df.time.isin(susElevs.time), 'elevation_eraqc'] = 36 # see era_qaqc_flag_meanings.csv
-                logger.info("Flagging {} elevation values as inconsistent".format(sum(susElevs)))
+                base_elev = np.nanmedian(all_elevs)  # median of elevation values
+                susElevs = df.loc[
+                    (df["elevation"] < base_elev - 50)
+                    | (df["elevation"] > base_elev + 50)
+                ]  # find suspicious elevations
+                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
+                    36  # see era_qaqc_flag_meanings.csv
+                )
+                logger.info(
+                    "Flagging {} elevation values as inconsistent".format(sum(susElevs))
+                )
 
         else:
             # small array of elevation values, use counts to identify "normal" range -- or DEM
@@ -290,20 +297,32 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
 
             if np.abs(elev1 - elev2) > 50:
                 # identify which has the greater counts as "normal"
-                if len(df.loc[df['elevation'] == elev1]) > len(df.loc[df['elevation'] == elev2]):
+                if len(df.loc[df["elevation"] == elev1]) > len(
+                    df.loc[df["elevation"] == elev2]
+                ):
                     # flag elev2
-                    df.loc[df['elevation'] == elev2, 'elevation_eraqc'] = 36
-                    logger.info("Flagging {} as an inconsistent elevation value".format(elev2))
+                    df.loc[df["elevation"] == elev2, "elevation_eraqc"] = 36
+                    logger.info(
+                        "Flagging {} as an inconsistent elevation value".format(elev2)
+                    )
 
-                elif len(df.loc[df['elevation'] == elev2]) > len(df.loc[df['elevation'] == elev1]):
+                elif len(df.loc[df["elevation"] == elev2]) > len(
+                    df.loc[df["elevation"] == elev1]
+                ):
                     # flag elev1
-                    df.loc[df['elevation'] == elev1, 'elevation_eraqc'] = 36
-                    logger.info("Flagging {} as an inconsistent elevation value".format(elev1))
-        
+                    df.loc[df["elevation"] == elev1, "elevation_eraqc"] = 36
+                    logger.info(
+                        "Flagging {} as an inconsistent elevation value".format(elev1)
+                    )
+
         return df
 
     except Exception as e:
-        logger.info("_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(e))
+        logger.info(
+            "_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(
+                e
+            )
+        )
         return None
 
 
