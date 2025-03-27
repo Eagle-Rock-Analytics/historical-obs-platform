@@ -34,4 +34,4 @@
 33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
 34,qaqc_deaccumulate_precip,Value flagged has a period of oscillating values (probably sensor malfunction producing ringing-like data) in the accumulated precipitation (that would result on incorrect/false de-accumulated values that look correct): cannot determine which value (higher or lower) is the real one (it has been also converted to nan in the deaccumulated series)
 35,qaqc_deaccumulate_precip,Original precipitation data; deaccumulation process has been applied
-36,_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/-50m are flagged
+36,qaqc_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/-50m are flagged
