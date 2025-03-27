@@ -287,7 +287,7 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
                     36  # see era_qaqc_flag_meanings.csv
                 )
                 logger.info(
-                    "Flagging {} elevation values as inconsistent".format(sum(susElevs))
+                    "Flagging {} elevation values as inconsistent".format(len(susElevs))
                 )
 
         else:
@@ -297,29 +297,25 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
 
             if np.abs(elev1 - elev2) > 50:
                 # identify which has the greater counts as "normal"
-                if len(df.loc[df["elevation"] == elev1]) > len(
-                    df.loc[df["elevation"] == elev2]
-                ):
+                if len(df.loc[df["elevation"] == elev1]) > len(df.loc[df["elevation"] == elev2]):
                     # flag elev2
                     df.loc[df["elevation"] == elev2, "elevation_eraqc"] = 36
                     logger.info(
-                        "Flagging {} as an inconsistent elevation value".format(elev2)
+                        "Flagging {} as an inconsistent elevation value".format(str(elev2))
                     )
 
-                elif len(df.loc[df["elevation"] == elev2]) > len(
-                    df.loc[df["elevation"] == elev1]
-                ):
+                elif len(df.loc[df["elevation"] == elev2]) > len(df.loc[df["elevation"] == elev1]):
                     # flag elev1
                     df.loc[df["elevation"] == elev1, "elevation_eraqc"] = 36
                     logger.info(
-                        "Flagging {} as an inconsistent elevation value".format(elev1)
+                        "Flagging {} as an inconsistent elevation value".format(str(elev1))
                     )
 
         return df
 
     except Exception as e:
         logger.info(
-            "_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(
+            "qaqc_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(
                 e
             )
         )
