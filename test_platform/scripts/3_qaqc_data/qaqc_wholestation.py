@@ -669,7 +669,8 @@ def qaqc_world_record(df, verbose=False):
             "pr_15min",
             "pr_1h",
             "pr_24h",
-            "pr_24h",
+            "pr_localmid",
+            "accum_pr",
             "hurs",
             "elevation",
         ]
@@ -681,7 +682,10 @@ def qaqc_world_record(df, verbose=False):
                     df_valid[var] > maxes[var]["North_America"],
                 )
                 if isOffRecord.any():
-                    df.loc[isOffRecord, var + "_eraqc"] = (
+                    isOffRecord_true = isOffRecord[
+                        isOffRecord
+                    ]  # keep only true indices
+                    df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
                     logger.info(
