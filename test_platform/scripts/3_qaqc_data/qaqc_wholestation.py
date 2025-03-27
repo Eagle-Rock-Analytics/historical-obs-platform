@@ -1,16 +1,14 @@
 """
-This is a script where Stage 3: QA/QC function(s) whole station checks. 
+This is a script where Stage 3: QA/QC function(s) whole station checks.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
 import geopandas as gp
 import shapely
 import numpy as np
 import pandas as pd
 import shapely
-import scipy.stats as stats
 import urllib
 import requests
 
@@ -62,8 +60,13 @@ def qaqc_missing_vals(df, verbose=False):
     logger.info("Running: qaqc_missing_vals")
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
-
-    vars_to_remove = ["qc", "duration", "method", "process"]
+    vars_to_remove = [
+        "qc",
+        "duration",
+        "method",
+        "process",
+    ]  # adding process to list of vars to remove
+    
     all_vars = [
         var
         for var in df.columns
@@ -91,6 +94,7 @@ def qaqc_missing_vals(df, verbose=False):
     ]
 
     try:
+        # first checks if num. of obs vars are present
         if len(obs_vars) != 0:
             for item in obs_vars:
                 # pull missing values which are appropriate for the range of real values for each variable
