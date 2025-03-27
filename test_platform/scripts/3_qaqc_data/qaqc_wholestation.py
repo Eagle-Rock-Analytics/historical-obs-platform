@@ -224,16 +224,19 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
 
     dem_elev_short = np.ones_like(lats_to_check) * np.nan
 
-    for i, lat, lon in zip(range(len(lats_to_check)), lats_to_check, lons_to_check):
-        # define rest query params
-        params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
+    try:
+        params = {"output": "json", "x": lons_to_check, "y": lats_to_check, "units": "Meters"}
         # format query string and return value
         result = requests.get((url + urllib.parse.urlencode(params)))
         dem_elev_long = float(result.json()["value"])
         # make sure to round off lat-lon values so they are not improbably precise for our needs
-        dem_elev_short[i] = np.round(dem_elev_long, decimals=2)
-
-    return dem_elev_short.astype("float")
+        dem_elev_short = np.round(dem_elev_long, decimals=2)
+        return dem_elev_short.astype("float")
+    
+    except Exception as e:
+        logger.info("In-filling failed, may be related to DEM server. In-filling with 0.0m, but should be checked: {}".format(e))
+        dem_elev_short = 0.00 # m
+        return dem_elev_short
 
 
 # ----------------------------------------------------------------------
@@ -280,6 +283,7 @@ def qaqc_elev_infill(df, verbose=False):
                     len(nan_lons) == 1
                 ):  # single lat-lon pair for missing elevs
                     try:
+                        logger.info("Station has a single lat-lon pair, missing all elevation values -- attempting to in-fill from DEM")
                         dem_elev_value = _grab_dem_elev_m(
                             list(nan_lats), list(nan_lons)
                         )
@@ -291,6 +295,7 @@ def qaqc_elev_infill(df, verbose=False):
                         )
 
                     except:  # some buoys out of range of dem (past coastal range) report nan elevation, manually set to 0.00m and flag
+                        logger.info("Station has a single lat-lon pair outside range of DEM, missing all elevations -- manually setting to 0.0m (buoys)")
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             5  # see era_qaqc_flag_meanings.csv
                         )
@@ -299,6 +304,7 @@ def qaqc_elev_infill(df, verbose=False):
                         )  # manual infilling for buoys
 
                 else:  # multiple pairs of lat-lon for missing elevs
+                    logger.info("Station has multiple lat-lon pairs, missing all elevation values -- attempting to in-fill from DEM")
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
@@ -328,6 +334,7 @@ def qaqc_elev_infill(df, verbose=False):
                     if (nan_lats[0] == df["lat"].iloc[0]) & (
                         nan_lons[0] == df["lon"].iloc[0]
                     ):  # single set of lat-lons matches station, infill from station
+                        logger.info("Station has a single lat-lon pair, missing some elevation values -- attempting to in-fill from station")
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             4  # see era_qaqc_flag_meanings.csv
                         )
@@ -335,6 +342,7 @@ def qaqc_elev_infill(df, verbose=False):
                             "elevation"
                         ].iloc[0]
                     else:  # lat-lon of missing elev does not match station lat-lon (has shifted), infill from dem
+                        logger.info("Station has different lat-lon pair of missing elevation value from station lat-lon (shifted) -- attempting to infill from DEM")
                         dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             3  # see era_qaqc_flag_meanings.csv
@@ -344,6 +352,7 @@ def qaqc_elev_infill(df, verbose=False):
                         )
 
                 else:  # multiple pairs of lat-lon for missing elevs
+                    logger.info("Station has multiple lat-lon pairs, missing some elevation values -- attempting to in-fill from DEM")
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
@@ -734,9 +743,9 @@ def flag_summary(df, verbose=False, local=False):
             "Flags set on {}: {}".format(var, df[var].unique()),
         )  # unique flag values
         logger.info(
-            "Coverage of {} obs flagged: {}% of obs".format(
-                var,
-                round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 2),
+            "Coverage of {} obs flagged: {} of {} obs ({}%)".format(
+                var, len(df.loc[(df[var].isnull() == False)]), len(df),
+                round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 3),
             )
         )  # % of coverage flagged
 
