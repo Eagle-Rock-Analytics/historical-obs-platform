@@ -60,13 +60,13 @@ def qaqc_missing_vals(df, verbose=False):
     logger.info("Running: qaqc_missing_vals")
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
-
     vars_to_remove = [
         "qc",
         "duration",
         "method",
         "process",
-    ]  # adding process to list of vars to remove 03/25/25
+    ]  # adding process to list of vars to remove
+
     all_vars = [
         var
         for var in df.columns
