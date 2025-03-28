@@ -132,14 +132,6 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
                 (df_valid["hour"] >= 6) & (df_valid["hour"] <= 20), "sfcWind_dir_eraqc"
             ] = 1  # see era_qaqc_flag_meanings.csv
 
-        # elif station == "MARITIME_MTYC1" or station == "MARITIME_MEYC1": # buoy was renamed, no relocation; MTYC1 2005-2016, MEYC1 2016-2021
-        #     # modify attribute/naming with note
-        #     # this will get flagged in station proximity tests
-
-        # elif station == "MARITIME_SMOC1" or station == "MARITIME_ICAC1": # buoy was renamed, small relocation (see notes); SMOC1 2005-2010, ICAC1 2010-2021
-        #     # modify attribute/naming with note
-        #     # this will get flagged in station proximity tests
-
     elif station in potential_issues:
         # other stations have partial coverage of their full data records as well as disestablishment dates
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
@@ -152,7 +144,11 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
             )
 
         for new_var in qc_vars:
-            if new_var != "elevation_qaqc":
-                df.loc[:, new_var] = 2  # see era_qaqc_flag_meanings.csv
+            try:
+                if new_var != "elevation_qaqc":
+                    df.loc[:, new_var] = 2  # see era_qaqc_flag_meanings.csv
+            except Exception as e:
+                logger.info("{0} has a potential issue in buoy QAQC: {1}".format(station, e))
+                continue
 
     return df
