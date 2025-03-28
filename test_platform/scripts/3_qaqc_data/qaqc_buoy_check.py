@@ -40,6 +40,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
 
     Notes
     -----
+    Flag meaning : 1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
     Flag meaning : 2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
     """
     logger.info("Running: spurious_buoy_check")
@@ -82,42 +83,53 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
 
         # buoys with "data" past their disestablishment dates
         if station == "NDBC_46023":  # disestablished 9/8/2010
-            isBad = df["time"] >= np.datetime64("2010-09-09")
+            isBad = df.loc[df["time"] >= np.datetime64("2010-09-09")]
             for new_var in qc_vars:
                 if new_var != "elevation_qaqc":
-                    df.loc[isBad, new_var] = 2  # see era_qaqc_flag_meanings.csv
+                    df.loc[df.time.isin(isBad.time), new_var] = (
+                        2  # see era_qaqc_flag_meanings.csv
+                    )
 
         elif station == "NDBC_46045":  # disestablished 11/1997
-            isBad = df["time"] >= np.datetime64("1997-12-01")
+            isBad = df.loc[df["time"] >= np.datetime64("1997-12-01")]
             for new_var in qc_vars:
                 if new_var != "elevation_qaqc":
-                    df.loc[isBad, new_var] = 2  # see era_qaqc_flag_meanings.csv
+                    df.loc[df.time.isin(isBad.time), new_var] = (
+                        2  # see era_qaqc_flag_meanings.csv
+                    )
 
         elif (
             station == "NDBC_46051"
         ):  # disestablished 4/1996, and out of range of DEM (past coastal range) but reports nan elevation
-            isBad = df["time"] >= np.datetime64("1996-05-01")
+            isBad = df.loc[df["time"] >= np.datetime64("1996-05-01")]
             for new_var in qc_vars:
                 if new_var != "elevation_qaqc":
-                    df.loc[isBad, new_var] = 2  # see era_qaqc_flag_meanings.csv
+                    df.loc[df.time.isin(isBad.time), new_var] = (
+                        2  # see era_qaqc_flag_meanings.csv
+                    )
 
         elif (
             station == "MARITIME_PTAC1"
         ):  # data currently available 1984-2012, but disestablished 2/9/2022
             # only flag if new data is added after 2022 in a new data pull
-            isBad = df["time"] >= np.datetime64("2022-02-09")
+            isBad = df.loc[df["time"] >= np.datetime64("2022-02-09")]
             for new_var in qc_vars:
                 if new_var != "elevation_qaqc":
-                    df.loc[isBad, new_var] = 2  # see era_qaqc_flag_meanings.csv
+                    df.loc[df.time.isin(isBad.time), new_var] = (
+                        2  # see era_qaqc_flag_meanings.csv
+                    )
 
         # adrift buoy that reports valid data during adrift period (5/2/2015 1040Z to 5/3/2015 1600Z)
         elif station == "NDBC_46044":
-            isBad = df["time"] >= np.datetime64("2015-05-02 10:40:00") and df[
-                "time"
-            ] <= np.datetime64("2015-05-03 15:50:00")
+            isBad = df.loc[
+                (df["time"] >= np.datetime64("2015-05-02 10:40:00"))
+                & (df["time"] <= np.datetime64("2015-05-03 15:50:00"))
+            ]
             for new_var in qc_vars:
                 if new_var != "elevation_qaqc":
-                    df.loc[isBad, new_var] = 2  # see era_qaqc_flag_meanings.csv
+                    df.loc[df.time.isin(isBad.time), new_var] = (
+                        2  # see era_qaqc_flag_meanings.csv
+                    )
 
         # other known issues
         elif (
@@ -125,12 +137,13 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         ):  # wind data obstructed by ferries docking at pier during day hours
             # only wind vars need flag during "day" hours, currently set for 6am to 8pm every day
             df_valid = grab_valid_obs(df, var="sfcWind", var2="sfcWind_dir")
-            df.loc[
-                (df_valid["hour"] >= 6) & (df_valid["hour"] <= 20), "sfcWind_eraqc"
-            ] = 1  # see era_qaqc_flag_meanings.csv
-            df.loc[
-                (df_valid["hour"] >= 6) & (df_valid["hour"] <= 20), "sfcWind_dir_eraqc"
-            ] = 1  # see era_qaqc_flag_meanings.csv
+            isBad = df_valid.loc[(df_valid["hour"] >= 6) & (df_valid["hour"] <= 20)]
+            df.loc[df.time.isin(isBad.time), "sfcWind_eraqc"] = (
+                1  # see era_qaqc_flag_meanings.csv
+            )
+            df.loc[df.time.isin(isBad.time), "sfcWind_dir_eraqc"] = (
+                1  # see era_qaqc_flag_meanings.csv
+            )
 
     elif station in potential_issues:
         # other stations have partial coverage of their full data records as well as disestablishment dates
@@ -140,7 +153,7 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
             logger.info(
                 "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage.".format(
                     station
-                ),
+                )
             )
 
         for new_var in qc_vars:
