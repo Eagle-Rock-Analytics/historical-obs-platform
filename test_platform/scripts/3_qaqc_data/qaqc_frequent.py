@@ -189,7 +189,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
 
         except Exception as e:
             logger.info(
-                "qaqc_frequent_precip failed with Exception: {} -- bypassing variable".format(e),
+                "qaqc_frequent_precip failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
             )
             continue
 

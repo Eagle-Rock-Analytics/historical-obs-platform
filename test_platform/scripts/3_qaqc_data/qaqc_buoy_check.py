@@ -161,7 +161,9 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
                 if new_var != "elevation_qaqc":
                     df.loc[:, new_var] = 2  # see era_qaqc_flag_meanings.csv
             except Exception as e:
-                logger.info("{0} has a potential issue in buoy QAQC: {1}".format(station, e))
+                logger.info(
+                    "{0} has a potential issue in buoy QAQC: {1}".format(station, e)
+                )
                 continue
 
     return df

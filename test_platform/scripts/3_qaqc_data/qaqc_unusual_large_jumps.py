@@ -130,7 +130,10 @@ def qaqc_unusual_large_jumps(
 
         except Exception as e:
             logger.info(
-            "qaqc_unusual_large_jumps failed on {} with Exception: {}".format(var, e))
+                "qaqc_unusual_large_jumps failed on {} with Exception: {}".format(
+                    var, e
+                )
+            )
             continue
 
     df["time"] = df.index.values

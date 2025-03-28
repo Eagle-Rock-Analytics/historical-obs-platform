@@ -188,7 +188,9 @@ def qaqc_climatological_outlier(
 
         except Exception as e:
             logger.info(
-                "qaqc_climatological_outlier failed with Exception: {} -- bypassing variable".format(e),
+                "qaqc_climatological_outlier failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
             )
             continue
 
@@ -199,8 +201,10 @@ def qaqc_climatological_outlier(
 
         except Exception as e:
             logger.info(
-                "qaqc_climatological_outlier_precip failed with Exception: {} -- bypassing variable".format(e)
-        )
+                "qaqc_climatological_outlier_precip failed with Exception: {} -- bypassing variable".format(
+                    e
+                )
+            )
         continue
 
     # Plot flagged values

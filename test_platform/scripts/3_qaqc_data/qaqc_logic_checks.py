@@ -59,7 +59,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
     # dew point is present
     else:
         for dew_var in all_dew_vars:
-            try: 
+            try:
                 # only use valid obs for both dewpoint and air temp
                 df_valid = grab_valid_obs(df, var="tas", var2=dew_var)
                 isBad = df_valid.loc[df_valid[dew_var] > df_valid["tas"]]
@@ -67,7 +67,11 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
                     12  # see qaqc_flag_meanings.csv
                 )
             except Exception as e:
-                logger.info("qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(e))
+                logger.info(
+                    "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
+                        e
+                    )
+                )
                 continue
 
     return df
@@ -145,7 +149,11 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                         "Flagging extended streak in dewpoint depression",
                     )
             except Exception as e:
-                logger.info("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(e))
+                logger.info(
+                    "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
+                        e
+                    )
+                )
                 continue
 
     return df_dpt
@@ -207,10 +215,13 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
                         df_neg_pr.index.isin(df_to_flag.index), item + "_eraqc"
                     ] = 10  # see era_qaqc_flag_meanings.csv
             except Exception as e:
-                logger.info("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e))
+                logger.info(
+                    "qaqc_precip_logic_nonegvals failed with Exception: {}".format(e)
+                )
                 continue
 
         return df_neg_pr
+
 
 # ----------------------------------------------------------------------
 ## logic check: precip accumulation amounts balance for time period
@@ -435,6 +446,6 @@ def qaqc_pressure_units_fix(df, verbose=False):
             logger.info(
                 "qaqc_pressure_units_fix failed with Exception: {}".format(e),
             )
-            continue 
+            continue
 
     return df

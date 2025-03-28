@@ -244,7 +244,11 @@ def infere_res(df, verbose=False):
             else:
                 resolutions[var] = infere_res_var(df, var)
         except Exception as e:
-            logger.info("Issue in qaqc_unusual_streaks.infere_res: {} -- bypassing variable".format(e))
+            logger.info(
+                "Issue in qaqc_unusual_streaks.infere_res: {} -- bypassing variable".format(
+                    e
+                )
+            )
             continue
 
     return resolutions
@@ -485,7 +489,9 @@ def qaqc_unusual_repeated_streaks(
 
         except Exception as e:
             logger.info(
-                "qaqc_unusual_repeated_streaks failed with Exception: {} -- bypassing variable".format(e),
+                "qaqc_unusual_repeated_streaks failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
             )
             continue
 

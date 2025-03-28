@@ -164,7 +164,9 @@ def qaqc_dist_gap_part1(
                 monthly_df = df.loc[df["month"] == month]
 
                 # per variable bypass check (first yellow flag being set)
-                monthly_df = qaqc_dist_var_bypass_check(monthly_df, var)  # flag here is 20
+                monthly_df = qaqc_dist_var_bypass_check(
+                    monthly_df, var
+                )  # flag here is 20
 
                 # subset for valid obs, distribution drop yellow flags
                 df_valid = grab_valid_obs(
@@ -200,7 +202,9 @@ def qaqc_dist_gap_part1(
                     )
 
                 # flag all obs in that month
-                bad = np.logical_and(df["month"] == month, df["year"].isin(years_to_flag))
+                bad = np.logical_and(
+                    df["month"] == month, df["year"].isin(years_to_flag)
+                )
                 df.loc[bad, var + "_eraqc"] = 21  # see era_qaqc_flag_meanings.csv
 
                 if plot:
@@ -217,7 +221,11 @@ def qaqc_dist_gap_part1(
                             local=local,
                         )
         except Exception as e:
-            logger.info("qaqc_dist_gap_part1 failed on {} -- bypassing to next variable".format(var))
+            logger.info(
+                "qaqc_dist_gap_part1 failed on {} -- bypassing to next variable".format(
+                    var
+                )
+            )
             continue
 
     return df
@@ -268,7 +276,9 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                 monthly_df = df.loc[df["month"] == month]
 
                 # per variable bypass check
-                monthly_df = qaqc_dist_var_bypass_check(monthly_df, var)  # flag here is 20
+                monthly_df = qaqc_dist_var_bypass_check(
+                    monthly_df, var
+                )  # flag here is 20
                 # subset for valid obs, distribution drop yellow flags
                 df_valid = grab_valid_obs(
                     monthly_df, var, kind="drop"
@@ -354,7 +364,11 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                             local=local,
                         )
         except Exception as e:
-            logger.info("qaqc_dist_gap_part2 failed on {} -- bypassing to next variable".format(var))
+            logger.info(
+                "qaqc_dist_gap_part2 failed on {} -- bypassing to next variable".format(
+                    var
+                )
+            )
             continue
 
     return df
