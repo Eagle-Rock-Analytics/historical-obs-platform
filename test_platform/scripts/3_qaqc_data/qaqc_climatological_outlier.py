@@ -205,7 +205,7 @@ def qaqc_climatological_outlier(
                     e
                 )
             )
-        continue
+            continue
 
     # Plot flagged values
     if plot:
