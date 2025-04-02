@@ -43,7 +43,7 @@ except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
-dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/"]
+dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)

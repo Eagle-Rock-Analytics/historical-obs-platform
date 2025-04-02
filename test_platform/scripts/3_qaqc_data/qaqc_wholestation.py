@@ -60,13 +60,13 @@ def qaqc_missing_vals(df, verbose=False):
     logger.info("Running: qaqc_missing_vals")
 
     missing_vals = pd.read_csv("missing_data_flags.csv")
-
     vars_to_remove = [
         "qc",
         "duration",
         "method",
         "process",
-    ]  # adding process to list of vars to remove 03/25/25
+    ]  # adding process to list of vars to remove
+
     all_vars = [
         var
         for var in df.columns
@@ -781,7 +781,8 @@ def qaqc_world_record(df, verbose=False):
             "pr_15min",
             "pr_1h",
             "pr_24h",
-            "pr_24h",
+            "pr_localmid",
+            "accum_pr",
             "hurs",
             "elevation",
         ]
@@ -793,7 +794,10 @@ def qaqc_world_record(df, verbose=False):
                     df_valid[var] > maxes[var]["North_America"],
                 )
                 if isOffRecord.any():
-                    df.loc[isOffRecord, var + "_eraqc"] = (
+                    isOffRecord_true = isOffRecord[
+                        isOffRecord
+                    ]  # keep only true indices
+                    df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )
                     logger.info(

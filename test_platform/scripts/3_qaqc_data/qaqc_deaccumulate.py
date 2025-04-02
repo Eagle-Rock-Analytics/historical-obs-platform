@@ -47,7 +47,7 @@ def is_precip_accumulated(pr):
     - The function filters out non-positive and missing values from `pr` before computing autocorrelation.
     - The Pearson autocorrelation is computed using `pandas.Series.autocorr()`, which measures the
       correlation of the series with a lag of 1.
-    - If the mean autocorrelation exceeds 0.9, the function assumes that the data is accumulated precipitation.
+    - If the mean autocorrelation exceeds 0.80, the function assumes that the data is accumulated precipitation.
     - Missing values (`NaN`) in the autocorrelation calculation are handled using `np.nanmean()`
       to avoid bias in the decision.
 
@@ -66,7 +66,7 @@ def is_precip_accumulated(pr):
     if np.isnan(autocorr):
         return False
     else:
-        if np.nanmean(autocorr) > 0.9:
+        if np.nanmean(autocorr) > 0.8:
             return True
         else:
             return False
@@ -365,6 +365,7 @@ def qaqc_deaccumulate_precip(
                         var, e
                     ),
                 )
+                continue
 
         # If de-accumulation was successful in at least one of the pr variables
         return df

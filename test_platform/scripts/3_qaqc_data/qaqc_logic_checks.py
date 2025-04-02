@@ -44,38 +44,37 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
         "Running: qaqc_crossvar_logic_tdps_to_tas_supersat",
     )
 
-    try:
-        # first check that tdps and/or tdps_derived are provided
-        dew_vars = [col for col in df.columns if "tdps" in col]
-        all_dew_vars = [
-            var for var in dew_vars if "qc" not in var
-        ]  # remove all qc variables so they do not also run through: raw, eraqc
+    # first check that tdps and/or tdps_derived are provided
+    dew_vars = [col for col in df.columns if "tdps" in col]
+    all_dew_vars = [
+        var for var in dew_vars if "qc" not in var
+    ]  # remove all qc variables so they do not also run through: raw, eraqc
 
-        # dew point is not present
-        if not all_dew_vars:
-            logger.info(
-                "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
-            )
+    # dew point is not present
+    if not all_dew_vars:
+        logger.info(
+            "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
+        )
 
-        # dew point is present
-        else:
-            for dew_var in all_dew_vars:
+    # dew point is present
+    else:
+        for dew_var in all_dew_vars:
+            try:
                 # only use valid obs for both dewpoint and air temp
                 df_valid = grab_valid_obs(df, var="tas", var2=dew_var)
                 isBad = df_valid.loc[df_valid[dew_var] > df_valid["tas"]]
                 df.loc[isBad.index, dew_var + "_eraqc"] = (
                     12  # see qaqc_flag_meanings.csv
                 )
+            except Exception as e:
+                logger.info(
+                    "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
+                        e
+                    )
+                )
+                continue
 
-        return df
-
-    except Exception as e:
-        logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
-                e
-            )
-        )
-        return None
+    return df
 
 
 # ----------------------------------------------------------------------
@@ -113,16 +112,16 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
         var for var in dew_vars if "qc" not in var
     ]  # remove all qc variables so they do not also run through: raw, eraqc
 
-    try:
-        # dew point is not present
-        if not all_dew_vars:
-            logger.info(
-                "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
-            )
+    # dew point is not present
+    if not all_dew_vars:
+        logger.info(
+            "Station does not report dew point temperature - bypassing temperature cross-variable logic check",
+        )
 
-        # dew point is present
-        else:
-            for dew_var in all_dew_vars:
+    # dew point is present
+    else:
+        for dew_var in all_dew_vars:
+            try:
                 # only use valid obs for both dewpoint and air temp
                 df_valid = grab_valid_obs(df, var="tas", var2=dew_var)
                 df_valid = df_valid.assign(
@@ -149,16 +148,15 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
                     logger.info(
                         "Flagging extended streak in dewpoint depression",
                     )
+            except Exception as e:
+                logger.info(
+                    "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
+                        e
+                    )
+                )
+                continue
 
-        return df_dpt
-
-    except Exception as e:
-        logger.info(
-            "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
-                e
-            )
-        )
-        return None
+    return df_dpt
 
 
 ## ----------------------------------------------------------------------
@@ -201,13 +199,13 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
     logger.info("Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars))
 
-    try:
-        if not pr_vars:  # precipitation variable(s) is not present
-            logger.info(
-                "Station does not report precipitation - bypassing precip logic nonnegvals check",
-            )
-        else:
-            for item in pr_vars:
+    if not pr_vars:  # precipitation variable(s) is not present
+        logger.info(
+            "Station does not report precipitation - bypassing precip logic nonnegvals check",
+        )
+    else:
+        for item in pr_vars:
+            try:
                 df_valid = grab_valid_obs(df_neg_pr, item)  # subset for valid obs
                 df_to_flag = df_valid.loc[df_valid[item] < 0]
 
@@ -216,12 +214,13 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
                     df_neg_pr.loc[
                         df_neg_pr.index.isin(df_to_flag.index), item + "_eraqc"
                     ] = 10  # see era_qaqc_flag_meanings.csv
+            except Exception as e:
+                logger.info(
+                    "qaqc_precip_logic_nonegvals failed with Exception: {}".format(e)
+                )
+                continue
 
         return df_neg_pr
-
-    except Exception as e:
-        logger.info("qaqc_precip_logic_nonegvals failed with Exception: {}".format(e))
-        return None
 
 
 # ----------------------------------------------------------------------
@@ -328,7 +327,7 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
         logger.info(
             "qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e),
         )
-        return None
+        return df
 
 
 # ----------------------------------------------------------------------
@@ -431,21 +430,22 @@ def qaqc_pressure_units_fix(df, verbose=False):
     """
 
     logger.info("Running qaqc_pressure_units_fix")
-    try:
-        # identify pressure variables to check conversion on
-        ps_vars = ["ps", "psl", "ps_altimeter", "ps_derived"]
 
-        for var in ps_vars:
+    # identify pressure variables to check conversion on
+    ps_vars = ["ps", "psl", "ps_altimeter", "ps_derived"]
+
+    for var in ps_vars:
+        try:
             if var in df.columns:
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
                     logger.info(
                         "Pressure units on {} updated to be Pa".format(var),
                     )
-        return df
+        except Exception as e:
+            logger.info(
+                "qaqc_pressure_units_fix failed with Exception: {}".format(e),
+            )
+            continue
 
-    except Exception as e:
-        logger.info(
-            "qaqc_pressure_units_fix failed with Exception: {}".format(e),
-        )
-        return None
+    return df

@@ -103,8 +103,8 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         and not any(True for item in vars_to_remove if item in var)
     ]
 
-    try:
-        for var in vars_to_check:
+    for var in vars_to_check:
+        try:
             logger.info(
                 "Running frequent values check on: {}".format(var),
             )
@@ -187,6 +187,14 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 ].values[0]
                 df.loc[isFlagged.index, var + "_eraqc"] = flag_to_place
 
+        except Exception as e:
+            logger.info(
+                "qaqc_frequent_precip failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
+            )
+            continue
+
         # synergistic flag on tas and tdps/tdps_derived
         # first establish at least tas and one tdps var present
         temp_vars = ["tas", "tdps", "tdps_derived"]
@@ -195,22 +203,16 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             # proceed to synergistic check
             df = synergistic_flag(df, num_temp_vars)
 
-    except Exception as e:
-        logger.info(
-            "qaqc_frequent_vals failed with Exception: {}".format(e),
-        )
-        return None
-
-    try:
-        # precip focused check
-        for v in pr_vars_to_check:
+    # precip focused check
+    for v in pr_vars_to_check:
+        try:
             df = qaqc_frequent_precip(df, v)
 
-    except Exception as e:
-        logger.info(
-            "qaqc_frequent_precip failed with Exception: {}".format(e),
-        )
-        return None
+        except Exception as e:
+            logger.info(
+                "qaqc_frequent_precip failed with Exception: {}".format(e),
+            )
+            continue
 
     # plots item
     if plots:

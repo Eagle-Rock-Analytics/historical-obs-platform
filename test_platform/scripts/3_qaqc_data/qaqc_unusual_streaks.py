@@ -235,16 +235,21 @@ def infere_res(df, verbose=False):
         [?]
     """
     variables = [var for var in check_vars if var in df.columns]
-    # variables = [var for var in df.columns if any(True for item in check_vars if item in var)]
-    # logger.info(variables)
 
     resolutions = {}
     for var in variables:
-        # if var in df.columns:
-        if df[var].isnull().all() or len(np.where(df[var].isnull())[0]) < 100:
-            resolutions[var] = 0.1
-        else:
-            resolutions[var] = infere_res_var(df, var)
+        try:
+            if df[var].isnull().all() or len(np.where(df[var].isnull())[0]) < 100:
+                resolutions[var] = 0.1
+            else:
+                resolutions[var] = infere_res_var(df, var)
+        except Exception as e:
+            logger.info(
+                "Issue in qaqc_unusual_streaks.infere_res: {} -- bypassing variable".format(
+                    e
+                )
+            )
+            continue
 
     return resolutions
 
@@ -318,23 +323,23 @@ def qaqc_unusual_repeated_streaks(
 
     station = df["station"].dropna().unique()[0]
 
-    try:
-        # Infer resolution from data
-        resolutions = infere_res(df)
+    # Infer resolution from data
+    resolutions = infere_res(df)
 
-        # Save original df multiindex and create station column
-        new_df = df.copy()
+    # Save original df multiindex and create station column
+    new_df = df.copy()
 
-        variables = [var for var in check_vars if var in new_df.columns]
+    variables = [var for var in check_vars if var in new_df.columns]
+    logger.info(
+        "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
+    )
+
+    # Loop through test variables
+    for var in variables:
         logger.info(
-            "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
+            "Running unusual streaks check on: {}".format(var),
         )
-
-        # Loop through test variables
-        for var in variables:
-            logger.info(
-                "Running unusual streaks check on: {}".format(var),
-            )
+        try:
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
 
@@ -482,12 +487,15 @@ def qaqc_unusual_repeated_streaks(
                     ),
                 )
 
-        return new_df
-    except Exception as e:
-        logger.info(
-            "qaqc_unusual_repeated_streaks failed with Exception: {}".format(e),
-        )
-        return None
+        except Exception as e:
+            logger.info(
+                "qaqc_unusual_repeated_streaks failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
+            )
+            continue
+
+    return new_df
 
 
 # ---------------------------------------------------------------------------------------------------
