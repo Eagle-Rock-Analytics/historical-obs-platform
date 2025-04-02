@@ -64,31 +64,31 @@ def qaqc_unusual_large_jumps(
 
     station = df["station"].values[0]
 
-    try:
-        # Define test variables and check if they are in the dataframe
-        check_vars = [
-            "pr",
-            "pr_5min",
-            "pr_15min",
-            "pr_1h",
-            "pr_24h",
-            "pr_localmid",
-            "tas",
-            "tdps",
-            "tdps_derived",
-            "ps",
-            "psl",
-            "ps_altimeter",
-            "ps_derived",
-        ]
-        variables = [var for var in check_vars if var in df.columns]
+    # Define test variables and check if they are in the dataframe
+    check_vars = [
+        "pr",
+        "pr_5min",
+        "pr_15min",
+        "pr_1h",
+        "pr_24h",
+        "pr_localmid",
+        "tas",
+        "tdps",
+        "tdps_derived",
+        "ps",
+        "psl",
+        "ps_altimeter",
+        "ps_derived",
+    ]
+    variables = [var for var in check_vars if var in df.columns]
 
-        logger.info(
-            "Running {} on {}".format("qaqc_unusual_large_jumps", variables),
-        )
+    logger.info(
+        "Running {} on {}".format("qaqc_unusual_large_jumps", variables),
+    )
 
-        # Loop through test variables
-        for var in variables:
+    # Loop through test variables
+    for var in variables:
+        try:
             logger.info(
                 "Running unusual large jumps check on: {}".format(var),
             )
@@ -112,6 +112,7 @@ def qaqc_unusual_large_jumps(
             bad = df.loc[ind, ["year", "month"]]
 
             df_plot = df.copy()
+
             # --------------------------------------------------------
             if plot:
                 ## Plotting by month/year will reduce the number of plots
@@ -127,15 +128,17 @@ def qaqc_unusual_large_jumps(
                         df_plot.loc[ind, :], var, flagval=23, local=local
                     )
 
-        df["time"] = df.index.values
-        df = df.set_index(INDEX)
-        return df
+        except Exception as e:
+            logger.info(
+                "qaqc_unusual_large_jumps failed on {} with Exception: {}".format(
+                    var, e
+                )
+            )
+            continue
 
-    except Exception as e:
-        logger.info(
-            "qaqc_unusual_large_jumps failed with Exception: {}".format(e),
-        )
-        return None
+    df["time"] = df.index.values
+    df = df.set_index(INDEX)
+    return df
 
 
 # -----------------------------------------------------------------------------
@@ -177,48 +180,52 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
     dates = pd.Series(potential_spike.index.values)
 
     for i in ind:
-        # Ignore edges for now
-        if i == 1 or i >= len(potential_spike) - 4:
+        try:
+            # Ignore edges for now
+            if i == 1 or i >= len(potential_spike) - 4:
+                continue
+            # Indices, critical values, and values before and after potential spike
+            im1, i0, ip1, ip2, ip3, ip4 = [i - 1, i, i + 1, i + 2, i + 3, i + 4]
+            tm1, t0, tp1, tp2, tp3, tp4 = diff.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
+            cm1, c0, cp1, cp2, cp3, cp4 = crit.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
+            # Three-values spike
+            if (
+                np.sign(t0) != np.sign(tp2)
+                and np.abs(tm1) < 0.5 * cm1
+                and np.abs(tp1) < 0.5 * cp1
+                and np.abs(tp2) < 0.5 * cp2
+                and np.abs(tp3) > cp3
+                and np.abs(tp4) < 0.5 * cp4
+            ):
+                spikes.iloc[[i0, ip1, ip2]] = True
+                # i += 3
+                # continue
+
+            # Two-values spike
+            elif (
+                np.sign(t0) != np.sign(tp2)
+                and np.abs(tm1) < 0.5 * cm1
+                and np.abs(tp1) < 0.5 * cp1
+                and np.abs(tp2) > cp2
+                and np.abs(tp3) < 0.5 * cp3
+            ):
+                spikes.iloc[[i0, ip1]] = True
+                # i += 2
+                # continue
+
+            # One-value spike
+            elif (
+                np.sign(t0) != np.sign(tp1)
+                and np.abs(tm1) < 1.0 * cm1
+                and np.abs(tp1) > cp1
+                and np.abs(tp2) < 1.0 * cp2
+            ):
+                spikes.iloc[i0] = True
+                # i += 1
+                # continue
+        except Exception as e:
+            logger.info("potential_spike_check failed on {}: {}".format(i, e))
             continue
-        # Indices, critical values, and values before and after potential spike
-        im1, i0, ip1, ip2, ip3, ip4 = [i - 1, i, i + 1, i + 2, i + 3, i + 4]
-        tm1, t0, tp1, tp2, tp3, tp4 = diff.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
-        cm1, c0, cp1, cp2, cp3, cp4 = crit.iloc[[im1, i0, ip1, ip2, ip3, ip4]]
-        # Three-values spike
-        if (
-            np.sign(t0) != np.sign(tp2)
-            and np.abs(tm1) < 0.5 * cm1
-            and np.abs(tp1) < 0.5 * cp1
-            and np.abs(tp2) < 0.5 * cp2
-            and np.abs(tp3) > cp3
-            and np.abs(tp4) < 0.5 * cp4
-        ):
-            spikes.iloc[[i0, ip1, ip2]] = True
-            # i += 3
-            # continue
-
-        # Two-values spike
-        elif (
-            np.sign(t0) != np.sign(tp2)
-            and np.abs(tm1) < 0.5 * cm1
-            and np.abs(tp1) < 0.5 * cp1
-            and np.abs(tp2) > cp2
-            and np.abs(tp3) < 0.5 * cp3
-        ):
-            spikes.iloc[[i0, ip1]] = True
-            # i += 2
-            # continue
-
-        # One-value spike
-        elif (
-            np.sign(t0) != np.sign(tp1)
-            and np.abs(tm1) < 1.0 * cm1
-            and np.abs(tp1) > cp1
-            and np.abs(tp2) < 1.0 * cp2
-        ):
-            spikes.iloc[i0] = True
-            # i += 1
-            # continue
 
     return spikes
 
@@ -269,7 +276,7 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
 
     # Group by month to avoid strong seasonal cycle
     # grouped = df.groupby([pd.Grouper(freq='M'), df['hours_diff']])
-    grouped = df.groupby(pd.Grouper(freq="M"))
+    grouped = df.groupby(pd.Grouper(freq="ME"))
 
     # Count number of data per month
     counts = grouped[var + "_difference"].transform("count")

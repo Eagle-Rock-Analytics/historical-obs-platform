@@ -86,17 +86,17 @@ def qaqc_climatological_outlier(
     vars_to_anom = [v for v in vars_to_check if v in df.columns]
     pr_vars_to_anom = [v for v in pr_vars if v in df.columns]
 
-    try:
-        logger.info(
-            "Running {} on {}".format(
-                "qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom
-            )
+    logger.info(
+        "Running {} on {}".format(
+            "qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom
         )
+    )
 
-        # whole station bypass check first
-        # df is already flagged by gaps function (careful if the order is modified)
+    # whole station bypass check first
+    # df is already flagged by gaps function (careful if the order is modified)
 
-        for var in vars_to_anom:
+    for var in vars_to_anom:
+        try:
             # only work with non-flagged values
             logger.info("Checking for climatological outliers in: {}".format(var))
             df_valid = grab_valid_obs(
@@ -202,22 +202,26 @@ def qaqc_climatological_outlier(
                 "flag"
             ]
 
-    except Exception as e:
-        logger.info(
-            "qaqc_climatological_outlier failed with Exception: {}".format(e),
-        )
-        return None
+        except Exception as e:
+            logger.info(
+                "qaqc_climatological_outlier failed with Exception: {} -- bypassing variable".format(
+                    e
+                ),
+            )
+            continue
 
-    try:
-        # precip focused check
-        for var in pr_vars_to_anom:
+    # precip focused check
+    for var in pr_vars_to_anom:
+        try:
             new_df = qaqc_climatological_outlier_precip(new_df, var)
 
-    except Exception as e:
-        logger.info(
-            "qaqc_climatological_outlier_precip failed with Exception: {}".format(e)
-        )
-        return None
+        except Exception as e:
+            logger.info(
+                "qaqc_climatological_outlier_precip failed with Exception: {} -- bypassing variable".format(
+                    e
+                )
+            )
+            continue
 
     # Plot flagged values
     if plot:

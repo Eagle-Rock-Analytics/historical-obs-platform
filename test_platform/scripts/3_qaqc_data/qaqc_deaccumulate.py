@@ -365,6 +365,7 @@ def qaqc_deaccumulate_precip(
                         var, e
                     ),
                 )
+                continue
 
         # If de-accumulation was successful in at least one of the pr variables
         return df
