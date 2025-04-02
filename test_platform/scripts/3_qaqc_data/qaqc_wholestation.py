@@ -224,16 +224,110 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
 
     dem_elev_short = np.ones_like(lats_to_check) * np.nan
 
-    for i, lat, lon in zip(range(len(lats_to_check)), lats_to_check, lons_to_check):
-        # define rest query params
-        params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
+    try:
+        params = {
+            "output": "json",
+            "x": lons_to_check,
+            "y": lats_to_check,
+            "units": "Meters",
+        }
         # format query string and return value
         result = requests.get((url + urllib.parse.urlencode(params)))
         dem_elev_long = float(result.json()["value"])
         # make sure to round off lat-lon values so they are not improbably precise for our needs
-        dem_elev_short[i] = np.round(dem_elev_long, decimals=2)
+        dem_elev_short = np.round(dem_elev_long, decimals=2)
+        return dem_elev_short.astype("float")
 
-    return dem_elev_short.astype("float")
+    except Exception as e:
+        logger.info(
+            "In-filling failed, may be related to DEM server. In-filling with 0.0m, but should be checked: {}".format(
+                e
+            )
+        )
+        dem_elev_short = 0.00  # m
+        return dem_elev_short
+
+
+# ----------------------------------------------------------------------
+def qaqc_elev_internal_range_consistency(df, verbose=False):
+    """
+    For stations with multiple elevation values, checks if the delta is reasonable, flags if not.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+    verbose : bool, optional
+        if True, returns runtime output to terminal
+
+    Returns
+    -------
+    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    If QAQC fails, returns None
+
+    Notes:
+    1. All elevation values are checked, not just in-filled values. Some ASOSAWOS stations have substantial changes in elevation.
+    Flag meaning : 36,_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/- 50m are flagged
+    """
+
+    logger.info("Running qaqc_elev_internal_range_consistency")
+
+    all_elevs = list(df["elevation"].unique())
+
+    try:
+        if len(all_elevs) > 2:
+            # large array of elevation values, use median to identify "normal" range
+            if np.abs(np.nanmax(all_elevs) - np.nanmin(all_elevs)) > 50:
+                base_elev = np.nanmedian(all_elevs)  # median of elevation values
+                susElevs = df.loc[
+                    (df["elevation"] < base_elev - 50)
+                    | (df["elevation"] > base_elev + 50)
+                ]  # find suspicious elevations
+                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
+                    36  # see era_qaqc_flag_meanings.csv
+                )
+                logger.info(
+                    "Flagging {} elevation values as inconsistent".format(len(susElevs))
+                )
+
+        else:
+            # small array of elevation values, use counts to identify "normal" range -- or DEM
+            elev1 = all_elevs[0]
+            elev2 = all_elevs[1]
+
+            if np.abs(elev1 - elev2) > 50:
+                # identify which has the greater counts as "normal"
+                if len(df.loc[df["elevation"] == elev1]) > len(
+                    df.loc[df["elevation"] == elev2]
+                ):
+                    # flag elev2
+                    df.loc[df["elevation"] == elev2, "elevation_eraqc"] = 36
+                    logger.info(
+                        "Flagging {} as an inconsistent elevation value".format(
+                            str(elev2)
+                        )
+                    )
+
+                elif len(df.loc[df["elevation"] == elev2]) > len(
+                    df.loc[df["elevation"] == elev1]
+                ):
+                    # flag elev1
+                    df.loc[df["elevation"] == elev1, "elevation_eraqc"] = 36
+                    logger.info(
+                        "Flagging {} as an inconsistent elevation value".format(
+                            str(elev1)
+                        )
+                    )
+
+        return df
+
+    except Exception as e:
+        logger.info(
+            "qaqc_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(
+                e
+            )
+        )
+        return None
 
 
 # ----------------------------------------------------------------------
@@ -280,6 +374,9 @@ def qaqc_elev_infill(df, verbose=False):
                     len(nan_lons) == 1
                 ):  # single lat-lon pair for missing elevs
                     try:
+                        logger.info(
+                            "Station has a single lat-lon pair, missing all elevation values -- attempting to in-fill from DEM"
+                        )
                         dem_elev_value = _grab_dem_elev_m(
                             list(nan_lats), list(nan_lons)
                         )
@@ -291,6 +388,9 @@ def qaqc_elev_infill(df, verbose=False):
                         )
 
                     except:  # some buoys out of range of dem (past coastal range) report nan elevation, manually set to 0.00m and flag
+                        logger.info(
+                            "Station has a single lat-lon pair outside range of DEM, missing all elevations -- manually setting to 0.0m (buoys)"
+                        )
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             5  # see era_qaqc_flag_meanings.csv
                         )
@@ -299,6 +399,9 @@ def qaqc_elev_infill(df, verbose=False):
                         )  # manual infilling for buoys
 
                 else:  # multiple pairs of lat-lon for missing elevs
+                    logger.info(
+                        "Station has multiple lat-lon pairs, missing all elevation values -- attempting to in-fill from DEM"
+                    )
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
@@ -328,6 +431,9 @@ def qaqc_elev_infill(df, verbose=False):
                     if (nan_lats[0] == df["lat"].iloc[0]) & (
                         nan_lons[0] == df["lon"].iloc[0]
                     ):  # single set of lat-lons matches station, infill from station
+                        logger.info(
+                            "Station has a single lat-lon pair, missing some elevation values -- attempting to in-fill from station"
+                        )
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             4  # see era_qaqc_flag_meanings.csv
                         )
@@ -335,6 +441,9 @@ def qaqc_elev_infill(df, verbose=False):
                             "elevation"
                         ].iloc[0]
                     else:  # lat-lon of missing elev does not match station lat-lon (has shifted), infill from dem
+                        logger.info(
+                            "Station has different lat-lon pair of missing elevation value from station lat-lon (shifted) -- attempting to infill from DEM"
+                        )
                         dem_elev_value = _grab_dem_elev_m(nan_lats[0], nan_lons[0])
                         df.loc[df["elevation"].isnull() == True, "elevation_eraqc"] = (
                             3  # see era_qaqc_flag_meanings.csv
@@ -344,6 +453,9 @@ def qaqc_elev_infill(df, verbose=False):
                         )
 
                 else:  # multiple pairs of lat-lon for missing elevs
+                    logger.info(
+                        "Station has multiple lat-lon pairs, missing some elevation values -- attempting to in-fill from DEM"
+                    )
                     for ilat in nan_lats:
                         for ilon in nan_lons:
                             dem_elev_value = _grab_dem_elev_m(ilat, ilon)
@@ -738,9 +850,11 @@ def flag_summary(df, verbose=False, local=False):
             "Flags set on {}: {}".format(var, df[var].unique()),
         )  # unique flag values
         logger.info(
-            "Coverage of {} obs flagged: {}% of obs".format(
+            "Coverage of {} obs flagged: {} of {} obs ({}%)".format(
                 var,
-                round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 2),
+                len(df.loc[(df[var].isnull() == False)]),
+                len(df),
+                round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 3),
             )
         )  # % of coverage flagged
 

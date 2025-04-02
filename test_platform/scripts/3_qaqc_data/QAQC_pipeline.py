@@ -735,6 +735,23 @@ def run_qaqc_pipeline(
         stn_to_qaqc = new_df
         logger.info("pass qaqc_elev_range")
 
+    # ---------------------------------------------------------
+    ## Elevation -- range consistency check
+    new_df = qaqc_elev_internal_range_consistency(stn_to_qaqc, verbose=verbose)
+    if new_df is None:
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message="internal elevation range is inconsistent",
+            test="qaqc_elev_internal_range_consistency",
+            verbose=verbose,
+        )
+        return [None] * 4  # whole station failure, skip to next station
+    else:
+        stn_to_qaqc = new_df
+        logger.info("pass qaqc_elev_internal_range_consistency")
+
     # =========================================================
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
     # ---------------------------------------------------------
@@ -1114,7 +1131,6 @@ def whole_station_qaqc(
     # How to run on a specific station
     # Uncomment "specific_sample" and input desired station id as a list of strings
     # Example: ["ASOSAWOS_74948400395"]
-    # specific_sample = ["ASOSAWOS_99999953129", "ASOSAWOS_99999923162", "ASOSAWOS_99999904221"]
     # ------------------------------------------
 
     # Read in network files
