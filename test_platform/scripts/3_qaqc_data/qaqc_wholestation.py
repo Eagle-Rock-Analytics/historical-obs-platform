@@ -290,7 +290,7 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
                     "Flagging {} elevation values as inconsistent".format(len(susElevs))
                 )
 
-        else:
+        elif len(all_elevs) == 2:
             # small array of elevation values, use counts to identify "normal" range -- or DEM
             elev1 = all_elevs[0]
             elev2 = all_elevs[1]
@@ -318,6 +318,9 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
                             str(elev1)
                         )
                     )
+        else:
+            # only a single elevation value present
+            logger.info("Only a single elevation value present -- bypassing qaqc_elev_internal_range_consistency check")
 
         return df
 
