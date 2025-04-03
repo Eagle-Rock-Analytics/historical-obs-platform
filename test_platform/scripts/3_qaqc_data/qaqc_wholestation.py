@@ -320,7 +320,9 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
                     )
         else:
             # only a single elevation value present
-            logger.info("Only a single elevation value present -- bypassing qaqc_elev_internal_range_consistency check")
+            logger.info(
+                "Only a single elevation value present -- bypassing qaqc_elev_internal_range_consistency check"
+            )
 
         return df
 
