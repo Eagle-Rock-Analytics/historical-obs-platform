@@ -19,6 +19,7 @@ import pandas as pd
 import xarray as xr
 import boto3
 import s3fs
+import sys
 from io import StringIO
 import time
 import tempfile
@@ -1392,5 +1393,13 @@ def whole_station_qaqc(
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
+
+        # Finalize the MPI environment and ensure proper shutdown of logging and standard output streams
+        if "smpi" in locals():
+            smpi.finalize()  # Finalize the MPI environment to clean up any active MPI resources
+        logging.shutdown()  # Ensure that all log messages are written and handlers are closed
+        sys.stdout.flush()  # Flush any buffered data in the standard output stream
+        sys.stderr.flush()  # Flush any buffered data in the standard error stream
+        sys.exit(0)  # Exit the script with a successful termination status (0)
 
     return None
