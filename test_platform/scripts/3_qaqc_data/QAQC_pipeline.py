@@ -617,7 +617,6 @@ def run_qaqc_pipeline(
             end_api,
             message="has an unchecked missing value or does not report any observation variables",
             test="qaqc_missing_vals",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -634,7 +633,6 @@ def run_qaqc_pipeline(
             end_api,
             message="missing lat-lon",
             test="qaqc_missing_latlon",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -651,7 +649,6 @@ def run_qaqc_pipeline(
             end_api,
             message="lat-lon is out of range for WECC",
             test="qaqc_within_wecc",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -670,7 +667,6 @@ def run_qaqc_pipeline(
             end_api,
             message="DEM in-filling failed",
             test="DEM in-filling, may not mean station does not pass qa/qc -- check",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -687,7 +683,6 @@ def run_qaqc_pipeline(
             end_api,
             message="elevation out of range for WECC",
             test="qaqc_elev_range",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -704,7 +699,6 @@ def run_qaqc_pipeline(
             end_api,
             message="internal elevation range is inconsistent",
             test="qaqc_elev_internal_range_consistency",
-            verbose=verbose,
         )
         return [None] * 4  # whole station failure, skip to next station
     else:
@@ -723,7 +717,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with world record check",
             test="qaqc_pressure_units_fix",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -741,7 +734,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with precip deaccumulation",
             test="qaqc_deaccumulate_precip",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -761,7 +753,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with world record check",
             test="qaqc_world_record",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -785,7 +776,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with temperature cross-variable logic check",
             test="qaqc_crossvar_logic_tdps_to_tas_supersat",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -803,7 +793,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with temperature cross-variable logic check",
             test="qaqc_crossvar_logic_tdps_to_tas_wetbulb",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -821,7 +810,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with negative precipitation values",
             test="qaqc_precip_logic_nonegvals",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -839,7 +827,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with precip duration logic check",
             test="qaqc_precip_logic_accum_amounts",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -856,7 +843,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with wind cross-variable logic check",
             test="qaqc_crossvar_logic_calm_wind_dir",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -884,7 +870,6 @@ def run_qaqc_pipeline(
                 end_api,
                 message="Flagging problematic buoy issue",
                 test="spurious_buoy_check",
-                verbose=verbose,
             )
         else:
             stn_to_qaqc = new_df
@@ -910,7 +895,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with frequent values function",
             test="qaqc_frequent_vals",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -934,7 +918,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with unusual gap distribution function",
             test="qaqc_unusual_gaps",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -956,7 +939,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with climatological outlier check",
             test="qaqc_climatological_outlier",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -982,7 +964,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with unusual streaks (repeated values) check",
             test="qaqc_unusual_repeated_streaks",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
@@ -1008,7 +989,6 @@ def run_qaqc_pipeline(
             end_api,
             message="Flagging problem with unusual large jumps (spike check) check",
             test="qaqc_unusual_large_jumps",
-            verbose=verbose,
         )
     else:
         stn_to_qaqc = new_df
