@@ -22,12 +22,11 @@ import s3fs
 from io import StringIO
 import time
 import tempfile
-from mpi4py import MPI
 import logging
-from simplempi import simpleMPI
 
 # Import all qaqc script functions
 try:
+    from log_config import setup_logger
     from qaqc_plot import *
     from qaqc_utils import *
     from qaqc_wholestation import *
@@ -42,15 +41,6 @@ try:
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
-# Set up directory to save files temporarily and save timing, if it doesn't already exist.
-dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
-for d in dirs:
-    if not os.path.exists(d):
-        os.makedirs(d)
-
-from log_config import setup_logger
-
-os.environ["HDF5_USE_FILE_LOCKING"] = "TRUE"
 # ----------------------------------------------------------------------------
 ## Set AWS credentials
 s3 = boto3.resource("s3")
@@ -59,9 +49,11 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
 
-# ============================================================================
-# Define global functions and variables
-
+# Make local directories to save files temporarily and save timing, 
+dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
+for d in dirs:
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 # ----------------------------------------------------------------------------
 def setup_error_handling():
@@ -86,7 +78,7 @@ def setup_error_handling():
 
 # ----------------------------------------------------------------------------
 def print_qaqc_failed(
-    errors, station=None, end_api=None, message=None, test=None, verbose=False
+    errors, station=None, end_api=None, message=None, test=None
 ):
     """QAQC failure messaging
 
@@ -102,8 +94,6 @@ def print_qaqc_failed(
         error message
     test : str, optional
         QAQC test name to include in error message
-    verbose : bool, optional
-        if True, provides runtime output to local terminal
     """
     logger.info(
         "{0} {1}, skipping station".format(station, message),
@@ -282,10 +272,7 @@ def process_output_ds(
     timestamp,
     station,
     qaqcdir,
-    errors,
-    end_api,
     zarr,
-    verbose=False,
     local=False,
 ):
     """
@@ -307,14 +294,8 @@ def process_output_ds(
         station name
     qaqcdir : str
         path to QAQC AWS directory
-    errors : dict
-        dictionary of error messages
-    end_api : datetime
-        time at beginning of data download
     zarr : bool
         if True, output is a .zarr. if False, output is a .nc
-    verbose : bool, optional
-        if True, provides runtime output to local terminal
     local : bool, optional
         if True, saves figures to local directory in addition to AWS
 
@@ -370,75 +351,58 @@ def process_output_ds(
     # --------------------------------------------------------
 
     # Write station file
-    try:
-        if zarr == False:
-            filename_nc = station + ".nc"  # Make file name
-        elif zarr == True:
-            filename = station + ".zarr"
-        filepath = qaqcdir + filename  # Writes file path
+    if zarr == False:
+        filename = station + ".nc"  # Make file name
+    elif zarr == True:
+        filename = station + ".zarr"
+    filepath = qaqcdir + filename  # Writes file path
 
-        if local == True or zarr == False:
-            tmpFile = tempfile.NamedTemporaryFile(
-                dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
-            )
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=RuntimeWarning)
-                ds.to_netcdf(tmpFile.name)  # Save station file.
+    if local == True or zarr == False:
+        tmpFile = tempfile.NamedTemporaryFile(
+            dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            ds.to_netcdf(tmpFile.name)  # Save station file.
 
-        # Push file to AWS with correct file name
+    # Push file to AWS with correct file name
+    t0 = time.time()
+    logger.info(
+        "Saving/pushing {0} with dims {1} to {2}".format(
+            filename, ds.dims, bucket_name + "/" + qaqcdir
+        ),
+    )
+    if zarr == False:  # Upload as netcdf
+        s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
+    elif zarr == True:
+        filepath_s3 = "s3://{0}/{1}{2}".format(bucket_name, qaqcdir, filename)
+        ds.to_zarr(
+            filepath_s3,
+            consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
+            mode="w",  # Write & overwrite if file with same name exists already
+        )
+    logger.info(
+        "Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(
+            time.time() - t0
+        ),
+    )
+    ds.close()
+    del ds
+
+    if local:
         t0 = time.time()
         logger.info(
-            "Saving/pushing {0} with dims {1} to {2}".format(
-                filename, ds.dims, bucket_name + "/" + qaqcdir
-            ),
+            "Saving local file temp/{}.nc".format(station),
         )
-        if zarr == False:  # Upload as netcdf
-            s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
-        elif zarr == True:
-            filepath_s3 = "s3://{0}/{1}{2}".format(bucket_name, qaqcdir, filename)
-            ds.to_zarr(
-                filepath_s3,
-                consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
-                mode="w",  # Write & overwrite if file with same name exists already
-            )
+        # Write locally
+        os.system("mv {} local_qaqced_files/{}.nc".format(tmpFile.name, station))
         logger.info(
-            "Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(
+            "Done saving local file. Ellapsed time: {:.2f} s.".format(
                 time.time() - t0
             ),
         )
-        ds.close()
-        del ds
 
-        if local:
-            t0 = time.time()
-            logger.info(
-                "Saving local file temp/{}.nc".format(station),
-            )
-            # Write locally
-            os.system("mv {} local_qaqced_files/{}.nc".format(tmpFile.name, station))
-            logger.info(
-                "Done saving local file. Ellapsed time: {:.2f} s.".format(
-                    time.time() - t0
-                ),
-            )
-
-    except Exception as e:
-        logger.info(
-            "netCDF writing failed for {} with Error: {}".format(filename, e),
-        )
-        errors = print_qaqc_failed(
-            errors,
-            filename,
-            end_api,
-            message="Error saving dataset to AWS bucket: {}".format(e),
-            test="process_output_ds",
-            verbose=verbose,
-        )
-        ds.close()
-        del ds
-
-        return None
-
+    return None
 
 # --------------------------------------------------------------------------------
 def qaqc_ds_to_df(ds, verbose=False):
@@ -582,7 +546,6 @@ def qaqc_ds_to_df(ds, verbose=False):
 def run_qaqc_pipeline(
     ds,
     network,
-    file_name,
     errors,
     station,
     end_api,
@@ -598,8 +561,6 @@ def run_qaqc_pipeline(
         input data
     network : str
         network name
-    file_name : str
-        path to file on AWS
     errors : dict
         errors dictionary
     station : str
@@ -1084,313 +1045,184 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-def whole_station_qaqc(
-    network,
-    cleandir,
-    qaqcdir,
-    rad_scheme,
-    zarr,
-    verbose=False,
-    local=False,
-    sample=None,
-):
-    """Conducts whole station qaqc checks (lat-lon, within WECC, elevation)
+def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove_zeros"):
+    """
+    Runs the full QA/QC pipeline on a single weather station dataset.
+
+    This function handles file path setup, reads cleaned station data 
+    from AWS S3 (NetCDF or Zarr), runs a series of QA/QC tests, writes
+    the processed output, and logs errors and status messages. It is 
+    intended to be used as part of the Historical Observations Platform.
 
     Parameters
     ----------
-    network : str
-        name of network
-    cleandir : str
-        path to cleaned data directory
-    qaqcdir : str
-        path to qaqc data directory
-    rad_scheme : str
-        radiation handling scheme for qaqc_frequent
-    zarr : bool
-        if False = .nc; if True = .zarr
+    station : str
+        Unique identifier for the weather station (e.g., "LOXWFO_CBGC1").
     verbose : bool, optional
-        if True, provides runtime output to local terminal
+        If True, enables verbose logging. Default is False.
     local : bool, optional
-        if True, saves output to local directory
-    sample : int, optional
-        number of stations to randomly sample from station list to run
+        If True, saves output locally instead of to AWS. Default is False.
+    rad_scheme : str, optional
+        Strategy for handling solar radiation data. Default is "remove_zeros".
 
     Returns
     -------
     None
-        This function does not return a value
-
-    Notes
-    -----
-    1. For full run, command is: "for station in stations: " ## unsure if necessary now
     """
-    smpi = simpleMPI()
+    
+    ## ======== BASIC SETUP ========
 
-    specific_sample = None
-    # ------------------------------------------
-    # How to run on a specific station
-    # Uncomment "specific_sample" and input desired station id as a list of strings
-    # Example: ["ASOSAWOS_74948400395"]
-    # ------------------------------------------
+    # Read in csv file containing information about each station 
+    stations_df = pd.read_csv("s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv")
+    station_row = stations_df[stations_df["era-id"]==station]
 
-    # Read in network files
-    # This needs to be done only in rank 0, otherwise it gets run by every thread and will overwrite results
-    if smpi.rank == 0:
-        try:
-            files_df = read_network_files(network, zarr)
-        except Exception as e:
-            errors = print_qaqc_failed(
-                errors,
-                station="Whole network",
-                end_api=end_api,
-                message="Error in whole network:",
-                test=e,
-            )
+    # Check that the input station exists in the station list :) 
+    if len(station_row) == 0: 
+        print(f"No file found in records for station {station}.")
+        return None 
 
-        # When "sample" argument is passed to ALLNETWORKS, implements a smaller subset to test
-        # Subsetting for a specific set of stations in a single network
-        if specific_sample:
-            stations_sample = specific_sample
+    # Get the network and directories for network data in AWS  
+    network = station_row["network"].item()
+    raw_data_dir, cleaned_data_dir, qaqc_dir, merge_dir = get_file_paths(network)
 
-        # "all" for no restrictions on sample size
-        elif sample == "all":
-            stations_sample = list(files_df["era-id"].values)
+    # Set zarr argument
+    # Are the cleaned (2_qaqc_data/) data in zarr format? or netcdf? 
+    zarrified_networks = ["VALLEYWATER"]  # Networks with zarrified data
+    if network in zarrified_networks:
+        zarr = True
+    else:
+        zarr = False
 
-        # DOCUMENTATION NEEDED
-        elif all(char.isnumeric() for char in sample):
-            nSample = int(sample)
-            files_df = files_df.sample(nSample)
-            stations_sample = list(files_df["era-id"])
+    # Set up error handling
+    t0 = time.time()
+    errors, end_api, t0_str = setup_error_handling()
 
-        # DOCUMENTATION NEEDED
-        else:
-            files_df = files_df[files_df["era-id"] == sample]
-            if len(files_df) == 0:
-                logger.info(
-                    "Sample station '{}' not in network/stations_df. Please double-check names".format(
-                        sample
-                    ),
-                )
-                exit()  # end script
-                stations_sample = list(files_df["era-id"])
-            stations_sample = [sample]
+    # Initialize the logger with the specific log file name
+    log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, t0_str)
+    logger = setup_logger(log_file=log_fname, verbose=verbose)
+    logger.info(f"Starting QAQC for station: {station}\n",)
 
-        print(
-            "Running a sample of {} files on {} network \n Stations: {}".format(
-                len(stations_sample), network, stations_sample
-            ),
-            flush=True,
+    ## ======== READ FILE FROM S3 ========
+
+    # Create an s3fs filesystem object
+    fs = s3fs.S3FileSystem()
+
+    # Define path to file using correct file extension 
+    aws_url_no_extension = f"s3://{bucket_name}/{cleaned_data_dir}{station}"
+    aws_url = aws_url_no_extension + ".zarr" if zarr else aws_url_no_extension + ".nc"
+
+    # Open the file 
+    logger.info(f"Reading file from AWS S3...")
+    try: 
+        if zarr: # Open zarr 
+            ds = xr.open_zarr(aws_url)
+        else: # Open netcdf 
+            with fs.open(aws_url) as fileObj:
+                # Now we use the open file handle with xarray, without closing it prematurely
+                ds = xr.open_dataset(fileObj).load()
+    except: 
+        print(f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}")
+        exit() # End script here 
+        
+    logger.info(
+        f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
+    )
+
+    ## ======== MANUAL PREPROCESSING =========
+
+    # Drop time duplicates, if they were not properly dropped in the cleaning process
+    if ("station" in list(ds.dims.keys())) and (
+        "time" in list(ds.dims.keys())
+    ):
+        ds = ds.drop_duplicates(dim="time")
+    # There are stations without time/station dimensions
+    elif ("time" in list(ds.data_vars.keys())) and (
+        "station" in list(ds.data_vars.keys())
+    ):
+        tt = ds["time"]
+        ss = [ds["station"].values[0]]
+        ds = (
+            ds.drop(["time", "station"])
+            .rename_dims(index="time")
+            .expand_dims({"station": ss})
+            .rename(index="time")
+            .assign_coords(time=tt.values)
         )
     else:
-        stations_sample = None
-        files_df = None
+        ds = ds.drop_duplicates(dim="time")
 
-    # DOCUMENTATION NEEDED
-    files_df = smpi.comm.bcast(files_df, root=0)
-    stations_sample = smpi.comm.bcast(stations_sample, root=0)
-    stations_sample_scatter = smpi.scatterList(stations_sample)
+    ## ======== RUN FULL QAQC PIPELINE =========
+    logger.info("Running QA/QC on: {}\n".format(station),)
+    try: 
+        # Run main QAQC functions 
+        test = "run_qaqc_pipeline" # Used for making error message 
+        df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
+            ds,
+            network,
+            errors,
+            station,
+            end_api,
+            rad_scheme,
+            verbose=verbose,
+            local=local,
+        )
+        if df is None: # No data is returned by qaqc_pipeline :( but no error was raised 
+            raise ValueError("No data returned by qaqc pipeline. Returned DataFrame is None") # Skip to Exception 
+        
+        # Save file 
+        # Attributes are assigned to dataset 
+        # File is uploaded as a zarr/nc locally or to AWS 
+        test = "process_output_ds"
+        process_output_ds(
+            df,
+            attrs,
+            var_attrs,
+            network,
+            t0,
+            station,
+            qaqc_dir,
+            zarr=True,  # Default to always write to zarr
+            local=local,
+        )
 
-    # Loop over stations
-    for station in stations_sample_scatter:
-        try:
-            # ----------------------------------------------------------------------------
-            # Set up error handling
-            errors, end_api, timestamp = setup_error_handling()
+    except Exception as e:
+        logger.info("QAQC failed for {} with Error: {}".format(station, e),)
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message=f"{test} failed with error: {e}",
+            test=test,
+        )
+        
+    ## ======== FINISH =========
+    finally:
 
-            # ----------------------------------------------------------------------------
-            # Set log file
-            # DOCUMENTATION NEEDED
-            ts = datetime.datetime.utcnow().strftime("%m-%d-%Y")
-            # for station in stations_sample:
-            #     log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
-            #     # Initialize the logger with the specific log file name
-            #     logger = setup_logger(log_file=log_fname, verbose=verbose)
+        # Convert errors to DataFrame and 
+        errors_df = pd.DataFrame(errors)
+        errors_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}qaqc_errs/errors_{station}_{end_api}.csv"
+        errors_df.to_csv(errors_s3_filepath)
 
-            log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, ts)
-            # Initialize the logger with the specific log file name
-            logger = setup_logger(log_file=log_fname, verbose=verbose)
+        # Print error file location
+        logger.info("errors saved to {0}\n".format(errors_s3_filepath))
 
-            # ----------------------------------------------------------------------------
-            file_name = files_df.loc[files_df["era-id"] == station, "key"].values[0]
-            qaqcdir = files_df.loc[files_df["era-id"] == station, "qaqcdir"].values[0]
-            network_ds = files_df.loc[files_df["era-id"] == station, "network"].values[
-                0
-            ]
+        # Save log file to s3 bucket
+        logfile_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}{log_fname}"
+        logger.info(
+            "Saving log file to {0}\n".format(logfile_s3_filepath),
+        )
+        s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
 
-            ###################################################################################################
-            ## The file_df dataframe must have already checked if file exist in clean directory
-            # if file_name not in files: # dont run qa/qc on a station that isn't cleaned
-            #     logger.info("{} was not cleaned - skipping qa/qc".format(station))
-            #     message = "No cleaned data for this station, does not proceed to qa/qc: see cleaned station list for reason"
-            #     errors = print_qaqc_failed(errors, station="Whole network", end_api=end_api,
-            #                                message=message, test="whole_station_qaqc")
-            #     continue
-            # else:
-            ## The file_df dataframe must have already checked if file exist in clean directory
-            ###################################################################################################
-            T0 = time.time()
+        # Close logging handlers manually
+        for handler in logger.handlers:
+            handler.close()
+            logger.removeHandler(handler)
 
-            # =====================================================================================
-            # Testing speed-up re-order in case file is locally found
-            # TODO: DELETE LOCAL READING FOR FINAL VERSION
-            fs = s3fs.S3FileSystem()
-            aws_url = "s3://wecc-historical-wx/" + file_name
-            t0 = time.time()
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=RuntimeWarning)
-                    ds = xr.open_dataset("Train_Files/{}.nc".format(station)).load()
-            except:
-                if zarr == False:  # Read netcdf file
-                    with fs.open(aws_url) as fileObj:
-                        try:
-                            logger.info("Reading {}".format(aws_url))
-                            with warnings.catch_warnings():
-                                warnings.filterwarnings(
-                                    "ignore", category=RuntimeWarning
-                                )
-                                ds = xr.open_dataset(fileObj).load()
-                        except Exception as e:
-                            logger.info(
-                                "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
-                                    station
-                                )
-                            )
-                elif zarr == True:  # Or, read zarr
-                    try:
-                        ds = xr.open_zarr(aws_url)
-                    except Exception as e:
-                        logger.info(
-                            "{} did not pass QA/QC because the file could not be opened and/or found in AWS - station not saved.".format(
-                                station
-                            ),
-                        )
-            # Testing speed-up re-order in case file is locally found
-            # =====================================================================================
-            try:
-                # TODO:
-                # Same issue than in the pipeline:
-                # Probably not needed to drop time duplicates here, if they were properly
-                # dropped in the cleaning process?
-                # Drop time duplicates
-
-                # There are stations without time/station dimensions
-                if ("station" in list(ds.dims.keys())) and (
-                    "time" in list(ds.dims.keys())
-                ):
-                    ds = ds.drop_duplicates(dim="time")
-                elif ("time" in list(ds.data_vars.keys())) and (
-                    "station" in list(ds.data_vars.keys())
-                ):
-                    tt = ds["time"]
-                    ss = [ds["station"].values[0]]
-                    ds = (
-                        ds.drop(["time", "station"])
-                        .rename_dims(index="time")
-                        .expand_dims({"station": ss})
-                        .rename(index="time")
-                        .assign_coords(time=tt.values)
-                    )
-                else:
-                    ds = ds.drop_duplicates(dim="time")
-
-                logger.info(
-                    f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
-                )
-
-                # CHECK THE ENGINE HERE:
-                # setting to default which operates on best with dependencies, previously 'h5netcdf'
-
-                # Run full QA/QC pipeline
-                logger.info(
-                    "Running QA/QC on: {}\n".format(station),
-                )
-                df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
-                    ds,
-                    network_ds,
-                    file_name,
-                    errors,
-                    station,
-                    end_api,
-                    rad_scheme,
-                    verbose=verbose,
-                    local=local,
-                )
-
-                ## Assign ds attributes and save .nc file
-                if df is not None:
-                    t0 = time.time()
-
-                    process_output_ds(
-                        df,
-                        attrs,
-                        var_attrs,
-                        network_ds,
-                        timestamp,
-                        station,
-                        qaqcdir,
-                        errors,
-                        end_api,
-                        zarr=True,  # Default to always write to zarr
-                        verbose=verbose,
-                        local=local,
-                    )
-
-            except Exception as e:
-                logger.info(
-                    "run_qaqc_pipeline failed with error: {}".format(e),
-                )
-                errors = print_qaqc_failed(
-                    errors,
-                    station,
-                    end_api,
-                    message="run_qaqc_pipeline failed with error: {}".format(e),
-                    test="run_qaqc_pipeline",
-                    verbose=verbose,
-                )
-
-        except Exception as e:
-            logger.info(
-                "QAQC failed\n\n{}\n{}\n\n".format(station, e),
-            )
-        # Write errors to csv
-        finally:
-            errors = pd.DataFrame(errors)
-            csv_buffer = StringIO()
-            errors.to_csv(csv_buffer)
-            content = csv_buffer.getvalue()
-
-            # Done with station qaqc
-            logger.info(
-                "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                    station, time.time() - T0
-                ),
-            )
-
-            # Make sure error files save to correct directory
-            s3_cl.put_object(
-                Bucket=bucket_name,
-                Body=content,
-                Key=qaqcdir + "qaqc_errs/errors_{}_{}.csv".format(station, end_api),
-            )
-            # Print error file location
-            logger.info(
-                "errors_{0}_{1}.csv saved to {2}qaqc_errs/\n".format(
-                    network_ds, end_api, bucket_name + "/" + qaqcdir
-                ),
-            )
-
-            # Save log file to s3 bucket
-            logger.info(
-                "Saving log file to s3://{0}/{1}{2}\n".format(
-                    bucket_name, qaqcdir, log_fname
-                ),
-            )
-            s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqcdir}{log_fname}")
-
-            # Close logging handlers manually
-            for handler in logger.handlers:
-                handler.close()
-                logger.removeHandler(handler)
+        # Done with station qaqc
+        logger.info(
+            "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
+                station, time.time() - t0
+            ),
+        )
 
     return None
