@@ -18,22 +18,26 @@
 #SBATCH --ntasks-per-node=1            # 1 task per CPU 
 #SBATCH --time=2:00:00                 # Time limit for the job
 #SBATCH --partition=compute-72cpus     # Queue/partition to use
-#SBATCH --output=%x_%A_%a_output.txt   # Output file for each array job (task ID %a will be replaced by the array index)
-#SBATCH --error=%x_%A_%a_error.txt     # Error file for each array job
+#SBATCH --output=logs/%x_%A_%a_output.txt   # Output file for each array job (task ID %a will be replaced by the array index)
+#SBATCH --error=logs/%x_%A_%a_error.txt     # Error file for each array job
 
-# Get the station name for this array task
-STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations-input.dat)
+# Get the station name for this array task from the stations_input folder
+STATIONS_INPUT="stations-input.dat"
+STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" "stations_input/$STATIONS_INPUT")
 
 # AWS credentials
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
 export AWS_DEFAULT_REGION="us-west-2"
 
+# Create the logs folder if it doesn't exist
+mkdir -p logs
+
 # Rename SLURM-generated output and error files to include station name
-ORIG_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
-ORIG_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
-NEW_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt"
-NEW_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt"
+ORIG_OUT="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
+ORIG_ERR="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
+NEW_OUT="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt"
+NEW_ERR="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt"
 
 # Wait for SLURM to generate the default files, then rename
 sleep 2
@@ -62,7 +66,7 @@ log_file="$NEW_OUT"
 # Change to the directory containing the script
 cd ../3_qaqc_data/ || { echo "Directory change failed"; exit 1; }
 
-# Define the path to your Python script
+# Name of python script 
 PYSCRIPT="QAQC_run_for_single_station.py"
 
 # Start time tracking
