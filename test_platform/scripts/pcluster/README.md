@@ -3,10 +3,6 @@ Here's a useful guide for how to run the QAQC code in an AWS pcluster environmen
 
 ## 📖 Read This First!
 
-- **Update AWS Info:**  
-  Add your AWS credentials to the batch script.  
-  ⚠️ **Do NOT push this modified batch script to GitHub since it contains your private info!**
-
 - **Changing Stations?**  
   See the [Changing the Stations to Run](#changing-the-stations-to-run) section below.
   
@@ -25,16 +21,15 @@ ssh hist-obs-cluster
 3. **Navigate to the scripts directory:**  
 ```
 cd historical-obs-platform/test_platform/scripts/pcluster
-
 ```
 
 4. **Update the batch script:**  
-Make sure your AWS credentials included! You'll need to modify the following rows with your unique info: 
+Make sure your AWS credentials included! But, ⚠️ Do **NOT** push this modified batch script to GitHub since it contains your private info! You'll need to modify the following rows in the batch script with your unique info: 
 ```
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
 export AWS_DEFAULT_REGION="us-west-2"
-```
+```   
 5. **Submit the batch script:**  
 ```
 sbatch run.sh
