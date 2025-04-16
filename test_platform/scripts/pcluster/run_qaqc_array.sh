@@ -34,9 +34,6 @@
 #   - Adjust array range depending on the number of stations.
 ################################################################################
 
-# Create the logs folder if it doesn't exist
-mkdir -p logs
-
 # Job Information:
 #SBATCH --job-name=hist-obs            # Name of the job
 #SBATCH --array=1-55                   # Number of array jobs 
