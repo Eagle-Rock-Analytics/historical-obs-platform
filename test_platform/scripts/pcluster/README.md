@@ -1,7 +1,7 @@
-## 🧪 Running the QAQC Script on the Cluster (with Slurm)
+# 🧪 Running the QAQC Script on the Cluster (with Slurm)
 Here's a useful guide for how to run the QAQC code in an AWS pcluster environment 🖥️✨
 
-### 📖 Read This First!
+## 📖 Read This First!
 
 - **Update AWS Info:**  
   Add your AWS credentials to the batch script.  
@@ -10,11 +10,11 @@ Here's a useful guide for how to run the QAQC code in an AWS pcluster environmen
 - **Changing Stations?**  
   See the [Changing the Stations to Run](#changing-the-stations-to-run) section below.
   
-- **PLEASE always remember to turn off the compute fleet after you've finished your jobs!**
+- **PLEASE always remember to turn off the compute fleet after you've finished your jobs!**   
   We get charged by AWS when the fleet is on. 
 ---
 
-### 🚀 Step-by-Step Instructions
+## 🚀 Step-by-Step Instructions
 
 1. **Turn on the compute fleet**  
 
@@ -46,7 +46,7 @@ Use "squeue", or check the output/error files (see below).
 (Don’t forget! 💡)
 
 ---
-### 🔄 Changing the Stations to Run
+## 🔄 Changing the Stations to Run
 
 - The batch script (`run.sh`) reads station info from `stations-input.dat`.
 - **To change stations:**
@@ -71,7 +71,7 @@ Use "squeue", or check the output/error files (see below).
 
 ---
 
-### 📝 Reference Info
+## 📝 Reference Info
 
 - **Check job duration:**  
 - Look in the output file, usually in the same directory as the batch script.
@@ -89,7 +89,7 @@ Use "squeue", or check the output/error files (see below).
 
 ---
 
-### 🌟 Tips & Reminders
+## 🌟 Tips & Reminders
 
 - Double-check your AWS info before submitting!
 - Don’t push sensitive info to GitHub.
