@@ -57,7 +57,9 @@ def generate_station_list(network: str):
         )
 
     # Get the 'era-id' column as a list (array of station IDs)
-    era_ids = network_df["era-id"].values
+    era_ids = sorted(
+        network_df["era-id"].values
+    )  # Sort into alphabetical/numerical order
     num_stations = len(era_ids)
     print(f"{num_stations} stations found.")
 
