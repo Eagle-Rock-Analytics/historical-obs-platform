@@ -66,7 +66,7 @@ Each SLURM array task processes one station in a fully independent and serial jo
        Replace `n` with the total number of stations (rows). For example, if you have two stations, use `1-2`.
   3. Update the filename in the batch script to match `{NETWORK}-input.dat`. For example, for LOXWFO:
       ```bash
-      STATIONS_INPUT="LOXWFO-input.dat"
+      STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/LOXWFO-input.dat)
       ```
 
 ### Important 
