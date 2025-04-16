@@ -92,6 +92,9 @@ PYSCRIPT="QAQC_run_for_single_station.py"
 # Start time tracking
 start_time=$(date +%s)
 
+# Load Conda initialization
+source /shared/miniconda3/etc/profile.d/conda.sh
+
 # Run the Python script using conda
 conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
 
