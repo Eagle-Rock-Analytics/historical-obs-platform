@@ -17,7 +17,6 @@ Here's a useful guide for how to run the QAQC code in an AWS pcluster environmen
 ### 🚀 Step-by-Step Instructions
 
 1. **Turn on the compute fleet**  
-   (Use the provided interface or command.)
 
 2. **Log in to the cluster:**  
 ```
