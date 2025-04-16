@@ -28,12 +28,13 @@ import pandas as pd
 import argparse
 import os
 
+
 def generate_station_list(network: str):
     """
     Generates a list of station IDs for a specified network and saves it to a `.dat` file.
 
-    This script filters stations from a cleaned CSV dataset based on the provided network and 
-    extracts their corresponding 'era-id' values. The results are then written to a `.dat` file 
+    This script filters stations from a cleaned CSV dataset based on the provided network and
+    extracts their corresponding 'era-id' values. The results are then written to a `.dat` file
     with each station ID on a new line.
 
     Parameters:
@@ -48,11 +49,13 @@ def generate_station_list(network: str):
     # Filter the dataframe to only include rows corresponding to the specified network
     network_df = stations_df[stations_df["network"] == network]
 
-    # Check if nothing is returned. Raise ValueError and print useful message. 
-    if len(network_df) == 0: 
-        unique_networks = ", ".join(stations_df["network"].unique()) # Unique networks 
-        raise ValueError(f"No stations found for network: {network}. Available networks: {unique_networks}")
-    
+    # Check if nothing is returned. Raise ValueError and print useful message.
+    if len(network_df) == 0:
+        unique_networks = ", ".join(stations_df["network"].unique())  # Unique networks
+        raise ValueError(
+            f"No stations found for network: {network}. Available networks: {unique_networks}"
+        )
+
     # Get the 'era-id' column as a list (array of station IDs)
     era_ids = network_df["era-id"].values
     num_stations = len(era_ids)
@@ -64,17 +67,20 @@ def generate_station_list(network: str):
     # Write the station IDs to the file, one per line, without quotes
     with open(filename, "w") as f:
         for i, era_id in enumerate(era_ids):
-            f.write(str(era_id)) 
+            f.write(str(era_id))
             if i < len(era_ids) - 1:  # Add newline only if it's not the last item
                 f.write("\n")
 
     print(f"Station list successfully written to {filename}")
-    
+
     print("\nUpdate the following lines in the batch script:")
     print(f"#SBATCH --array=1-{num_stations}")
-    print(f'STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/{network}-input.dat)\n')
-    
-    return None 
+    print(
+        f'STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/{network}-input.dat)\n'
+    )
+
+    return None
+
 
 def main():
     """
@@ -85,13 +91,16 @@ def main():
     -n, --network    : The network to process (e.g., 'LOXWFO')
     """
     # Create argument parser
-    parser = argparse.ArgumentParser(description="Generate a station list for a given network")
+    parser = argparse.ArgumentParser(
+        description="Generate a station list for a given network"
+    )
 
     # Define arguments (network is required, input CSV is hardcoded)
     parser.add_argument(
-        "-n", "--network", 
-        required=True, 
-        help="Network name to filter stations (e.g., 'LOXWFO')."
+        "-n",
+        "--network",
+        required=True,
+        help="Network name to filter stations (e.g., 'LOXWFO').",
     )
 
     # Parse arguments
@@ -101,6 +110,7 @@ def main():
     print(f"Generating station input list for network: {args.network}")
     generate_station_list(args.network)
     print("Script complete.")
+
 
 if __name__ == "__main__":
     main()
