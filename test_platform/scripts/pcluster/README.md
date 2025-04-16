@@ -1,18 +1,17 @@
 ## 🧪 Running the QAQC Script on the Cluster (with Slurm)
-So you've decided to run QAQC in an AWS pcluster 🖥️✨. Here's a useful guide for how to do so. 
+Here's a useful guide for how to run the QAQC code in an AWS pcluster environment 🖥️✨
 
 ### 📖 Read This First!
 
-- **Clone the Repository:**  
-  Start by cloning the `hist-obs` repo onto the cluster.
-
 - **Update AWS Info:**  
   Add your AWS credentials to the batch script.  
-  ⚠️ **Do NOT push this modified batch script to GitHub!**
+  ⚠️ **Do NOT push this modified batch script to GitHub since it contains your private info!**
 
-- **Changing Networks?**  
-  See the [Changing the Networks to Run](#changing-the-networks-to-run) section below.
-
+- **Changing Stations?**  
+  See the [Changing the Stations to Run](#changing-the-stations-to-run) section below.
+  
+- **PLEASE always remember to turn off the compute fleet after you've finished your jobs!**
+  We get charged by AWS when the fleet is on. 
 ---
 
 ### 🚀 Step-by-Step Instructions
@@ -42,22 +41,18 @@ export AWS_DEFAULT_REGION="us-west-2"
 sbatch run.sh
 ```
 6. **Monitor your run** 
-Use "squeue": 
-```
-squeue 
-```
-Or check the output/error files (see below).
+Use "squeue", or check the output/error files (see below).
 
 7. **Turn off the compute fleet**  
 (Don’t forget! 💡)
 
 ---
-### 🔄 Changing the Networks to Run
+### 🔄 Changing the Stations to Run
 
 - The batch script (`run.sh`) reads station info from `stations-input.dat`.
 - **To change stations:**
-1. Add the desired network(s) to `stations-input.dat`.  
-  - One network per line, no commas or quotes.  
+1. Add the desired station(s) to `stations-input.dat`.  
+  - One station per line, no commas or quotes.  
   - Example:  
     ```
     LOXWFO_CRXC1
