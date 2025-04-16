@@ -49,11 +49,12 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 ## Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
 
-# Make local directories to save files temporarily and save timing, 
+# Make local directories to save files temporarily and save timing,
 dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
+
 
 # ----------------------------------------------------------------------------
 def setup_error_handling():
@@ -77,9 +78,7 @@ def setup_error_handling():
 
 
 # ----------------------------------------------------------------------------
-def print_qaqc_failed(
-    errors, station=None, end_api=None, message=None, test=None
-):
+def print_qaqc_failed(errors, station=None, end_api=None, message=None, test=None):
     """QAQC failure messaging
 
     Parameters
@@ -397,12 +396,11 @@ def process_output_ds(
         # Write locally
         os.system("mv {} local_qaqced_files/{}.nc".format(tmpFile.name, station))
         logger.info(
-            "Done saving local file. Ellapsed time: {:.2f} s.".format(
-                time.time() - t0
-            ),
+            "Done saving local file. Ellapsed time: {:.2f} s.".format(time.time() - t0),
         )
 
     return None
+
 
 # --------------------------------------------------------------------------------
 def qaqc_ds_to_df(ds, verbose=False):
@@ -1045,13 +1043,15 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove_zeros"):
+def run_qaqc_one_station(
+    station, verbose=False, local=False, rad_scheme="remove_zeros"
+):
     """
     Runs the full QA/QC pipeline on a single weather station dataset.
 
-    This function handles file path setup, reads cleaned station data 
+    This function handles file path setup, reads cleaned station data
     from AWS S3 (NetCDF or Zarr), runs a series of QA/QC tests, writes
-    the processed output, and logs errors and status messages. It is 
+    the processed output, and logs errors and status messages. It is
     intended to be used as part of the Historical Observations Platform.
 
     Parameters
@@ -1069,24 +1069,26 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
     -------
     None
     """
-    
+
     ## ======== BASIC SETUP ========
 
-    # Read in csv file containing information about each station 
-    stations_df = pd.read_csv("s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv")
-    station_row = stations_df[stations_df["era-id"]==station]
+    # Read in csv file containing information about each station
+    stations_df = pd.read_csv(
+        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
+    )
+    station_row = stations_df[stations_df["era-id"] == station]
 
-    # Check that the input station exists in the station list :) 
-    if len(station_row) == 0: 
+    # Check that the input station exists in the station list :)
+    if len(station_row) == 0:
         print(f"No file found in records for station {station}.")
-        return None 
+        return None
 
-    # Get the network and directories for network data in AWS  
+    # Get the network and directories for network data in AWS
     network = station_row["network"].item()
     raw_data_dir, cleaned_data_dir, qaqc_dir, merge_dir = get_file_paths(network)
 
     # Set zarr argument
-    # Are the cleaned (2_qaqc_data/) data in zarr format? or netcdf? 
+    # Are the cleaned (2_qaqc_data/) data in zarr format? or netcdf?
     zarrified_networks = ["VALLEYWATER"]  # Networks with zarrified data
     if network in zarrified_networks:
         zarr = True
@@ -1100,30 +1102,34 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
     # Initialize the logger with the specific log file name
     log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, t0_str)
     logger = setup_logger(log_file=log_fname, verbose=verbose)
-    logger.info(f"Starting QAQC for station: {station}\n",)
+    logger.info(
+        f"Starting QAQC for station: {station}\n",
+    )
 
     ## ======== READ FILE FROM S3 ========
 
     # Create an s3fs filesystem object
     fs = s3fs.S3FileSystem()
 
-    # Define path to file using correct file extension 
+    # Define path to file using correct file extension
     aws_url_no_extension = f"s3://{bucket_name}/{cleaned_data_dir}{station}"
     aws_url = aws_url_no_extension + ".zarr" if zarr else aws_url_no_extension + ".nc"
 
-    # Open the file 
+    # Open the file
     logger.info(f"Reading file from AWS S3...")
-    try: 
-        if zarr: # Open zarr 
+    try:
+        if zarr:  # Open zarr
             ds = xr.open_zarr(aws_url)
-        else: # Open netcdf 
+        else:  # Open netcdf
             with fs.open(aws_url) as fileObj:
                 # Now we use the open file handle with xarray, without closing it prematurely
                 ds = xr.open_dataset(fileObj).load()
-    except: 
-        print(f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}")
-        exit() # End script here 
-        
+    except:
+        print(
+            f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}"
+        )
+        exit()  # End script here
+
     logger.info(
         f"Done reading. Ellapsed time: {time.time() - t0} s.\n",
     )
@@ -1131,9 +1137,7 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
     ## ======== MANUAL PREPROCESSING =========
 
     # Drop time duplicates, if they were not properly dropped in the cleaning process
-    if ("station" in list(ds.dims.keys())) and (
-        "time" in list(ds.dims.keys())
-    ):
+    if ("station" in list(ds.dims.keys())) and ("time" in list(ds.dims.keys())):
         ds = ds.drop_duplicates(dim="time")
     # There are stations without time/station dimensions
     elif ("time" in list(ds.data_vars.keys())) and (
@@ -1152,10 +1156,12 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
         ds = ds.drop_duplicates(dim="time")
 
     ## ======== RUN FULL QAQC PIPELINE =========
-    logger.info("Running QA/QC on: {}\n".format(station),)
-    try: 
-        # Run main QAQC functions 
-        test = "run_qaqc_pipeline" # Used for making error message 
+    logger.info(
+        "Running QA/QC on: {}\n".format(station),
+    )
+    try:
+        # Run main QAQC functions
+        test = "run_qaqc_pipeline"  # Used for making error message
         df, attrs, var_attrs, era_qc_vars = run_qaqc_pipeline(
             ds,
             network,
@@ -1166,12 +1172,16 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
             verbose=verbose,
             local=local,
         )
-        if df is None: # No data is returned by qaqc_pipeline :( but no error was raised 
-            raise ValueError("No data returned by qaqc pipeline. Returned DataFrame is None") # Skip to Exception 
-        
-        # Save file 
-        # Attributes are assigned to dataset 
-        # File is uploaded as a zarr/nc locally or to AWS 
+        if (
+            df is None
+        ):  # No data is returned by qaqc_pipeline :( but no error was raised
+            raise ValueError(
+                "No data returned by qaqc pipeline. Returned DataFrame is None"
+            )  # Skip to Exception
+
+        # Save file
+        # Attributes are assigned to dataset
+        # File is uploaded as a zarr/nc locally or to AWS
         test = "process_output_ds"
         process_output_ds(
             df,
@@ -1186,7 +1196,9 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
         )
 
     except Exception as e:
-        logger.info("QAQC failed for {} with Error: {}".format(station, e),)
+        logger.info(
+            "QAQC failed for {} with Error: {}".format(station, e),
+        )
         errors = print_qaqc_failed(
             errors,
             station,
@@ -1194,13 +1206,15 @@ def run_qaqc_one_station(station, verbose=False, local=False, rad_scheme="remove
             message=f"{test} failed with error: {e}",
             test=test,
         )
-        
+
     ## ======== FINISH =========
     finally:
 
-        # Convert errors to DataFrame and 
+        # Convert errors to DataFrame and
         errors_df = pd.DataFrame(errors)
-        errors_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}qaqc_errs/errors_{station}_{end_api}.csv"
+        errors_s3_filepath = (
+            f"s3://{bucket_name}/{qaqc_dir}qaqc_errs/errors_{station}_{end_api}.csv"
+        )
         errors_df.to_csv(errors_s3_filepath)
 
         # Print error file location
