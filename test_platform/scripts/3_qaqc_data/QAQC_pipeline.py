@@ -1220,13 +1220,6 @@ def run_qaqc_one_station(
         # Print error file location
         logger.info("errors saved to {0}\n".format(errors_s3_filepath))
 
-        # Save log file to s3 bucket
-        logfile_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}{log_fname}"
-        logger.info(
-            "Saving log file to {0}\n".format(logfile_s3_filepath),
-        )
-        s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
-
         # Close logging handlers manually
         for handler in logger.handlers:
             handler.close()
@@ -1238,5 +1231,12 @@ def run_qaqc_one_station(
                 station, time.time() - t0
             ),
         )
+
+        # Save log file to s3 bucket
+        logfile_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}{log_fname}"
+        logger.info(
+            "Saving log file to {0}\n".format(logfile_s3_filepath),
+        )
+        s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
 
     return None
