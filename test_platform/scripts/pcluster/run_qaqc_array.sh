@@ -27,7 +27,7 @@
 #   This script must be submitted from the `pcluster/` directory.
 #
 # Output:
-#   Logs are saved to `logs/` with filenames containing job, task ID, and station name.
+#   Logs are saved to the current directory with filenames containing job, task ID, and station name.
 #
 # Notes:
 #   - AWS credentials must be set before submission or injected manually below.
