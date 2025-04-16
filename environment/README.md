@@ -12,13 +12,13 @@ conda --version
 
 ## 📥 2. Create the environment
 
-Run the following command from the root of the repository:
+Run the following command from the `environment/` directory of the repository:
 
 ```bash
 conda env create -f environment.yml  
 ```
 
-This will create a new environment named hist-obs with all necessary dependencies.
+This will create a new environment named `hist-obs` with all necessary dependencies.
 
 ## 🧪 3. Activate the environment
 
