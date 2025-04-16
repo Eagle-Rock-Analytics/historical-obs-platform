@@ -64,13 +64,7 @@ log_file="$NEW_OUT"
 cd ../3_qaqc_data/ || { echo "Directory change failed"; exit 1; }
 
 # Define the path to your Python script
-PYSCRIPT="run_qaqc_one_station.py"
-
-# Check if the Python script exists
-if [ ! -f "$PYSCRIPT" ]; then
-  echo "Error: Python script not found!" >> "$log_file"
-  exit 1
-fi
+PYSCRIPT="QAQC_run_for_single_station.py"
 
 # Start time tracking
 start_time=$(date +%s)
