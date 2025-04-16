@@ -1100,7 +1100,7 @@ def run_qaqc_one_station(
     errors, end_api, t0_str = setup_error_handling()
 
     # Initialize the logger with the specific log file name
-    log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, t0_str)
+    log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, t0_str.split(", ")[0])
     logger = setup_logger(log_file=log_fname, verbose=verbose)
     logger.info(
         f"Starting QAQC for station: {station}\n",
@@ -1188,7 +1188,7 @@ def run_qaqc_one_station(
             attrs,
             var_attrs,
             network,
-            t0,
+            t0_str,
             station,
             qaqc_dir,
             zarr=True,  # Default to always write to zarr
