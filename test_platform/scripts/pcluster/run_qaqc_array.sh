@@ -1,14 +1,41 @@
 #!/bin/bash -l
 
-# Job Information:
-# Name: hist-obs MPI Job
-# Description: This script runs an MPI-optimized job using Conda environment "hist-obs" on a single node with 72 CPUs.
-# Partition: compute (for 1 node, 72 CPUs)
-# Time Limit: 72 hours
-# Python Script: QAQC_run_for_single_station.py
-# Arguments: station=[row from stations-input.dat]
+################################################################################
+# SLURM Batch Script: run_qaqc_array.sh
+#
+# Description:
+#   Runs the QA/QC pipeline for historical weather station data using the 
+#   script `QAQC_run_for_single_station.py`, targeting a single station per 
+#   SLURM array task. Each task runs serially and independently on 1 CPU.
+#   This is an example of an **embarrassingly parallel** workload, where tasks 
+#   have no dependencies or communication between them. Each task processes a 
+#   different station and can be run fully independently, making it ideal for 
+#   array jobs and horizontal scaling.
+#
+# Environment:
+#   - Conda env: hist-obs
+#   - Python script: ../3_qaqc_data/QAQC_run_for_single_station.py
+#   - Station list: stations_input/{NETWORK}-input.dat
+#
+# SLURM Configuration:
+#   - Partition: compute-72cpus (1 node, 72 CPUs available)
+#   - Array job: each array index maps to one station
+#   - CPUs used per task: 1
+#   - Node usage: 1 task per job, 1 job per node by default
+#
+# Submission Directory:
+#   This script must be submitted from the `pcluster/` directory.
+#
+# Output:
+#   Logs are saved to `logs/` with filenames containing job, task ID, and station name.
+#
+# Notes:
+#   - AWS credentials must be set before submission or injected manually below.
+#   - Adjust array range depending on the number of stations.
+################################################################################
 
-# NOTE: This script must be submitted from the directory containing stations-input.dat
+# Create the logs folder if it doesn't exist
+mkdir -p logs
 
 # Job Information:
 #SBATCH --job-name=hist-obs            # Name of the job
@@ -16,6 +43,7 @@
 #SBATCH --ntasks=1                     # One task per array job
 #SBATCH --nodes=1                      # All tasks run on 1 node
 #SBATCH --ntasks-per-node=1            # 1 task per CPU 
+#SBATCH --cpus-per-task=1              # 1 CPU per job 
 #SBATCH --time=2:00:00                 # Time limit for the job
 #SBATCH --partition=compute-72cpus     # Queue/partition to use
 #SBATCH --output=logs/%x_%A_%a_output.txt   # Output file for each array job (task ID %a will be replaced by the array index)
@@ -29,9 +57,6 @@ STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" "stations_input/$STATIONS_INPUT")
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="put-your-key-here"
 export AWS_DEFAULT_REGION="us-west-2"
-
-# Create the logs folder if it doesn't exist
-mkdir -p logs
 
 # Rename SLURM-generated output and error files to include station name
 ORIG_OUT="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
