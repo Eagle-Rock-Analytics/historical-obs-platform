@@ -10,7 +10,7 @@ Make sure you have Conda installed and available in your terminal:
 conda --version
 ```
 
-# 📥 2. Create the environment
+## 📥 2. Create the environment
 
 Run the following command from the root of the repository:
 
