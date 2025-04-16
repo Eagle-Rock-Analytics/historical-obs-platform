@@ -32,11 +32,11 @@ export AWS_DEFAULT_REGION="us-west-2"
 # Rename SLURM-generated output and error files to include station name
 ORIG_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
 ORIG_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
-NEW_OUT="${SLURM_JOB_NAME}_${STATION}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
-NEW_ERR="${SLURM_JOB_NAME}_${STATION}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
+NEW_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt"
+NEW_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt"
 
 # Wait for SLURM to generate the default files, then rename
-sleep 3
+sleep 2
 [ -f "$ORIG_OUT" ] && mv "$ORIG_OUT" "$NEW_OUT"
 [ -f "$ORIG_ERR" ] && mv "$ORIG_ERR" "$NEW_ERR"
 
