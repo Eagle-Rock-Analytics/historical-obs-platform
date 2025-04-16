@@ -9,6 +9,7 @@ This repository contains the code (via Python scripts and Jupyter Notebooks) ass
 * **2_clean_data**: Scripts to clean individual networks to a consistent standard, including metadata, missing values, and data encoding.
 * **3_qaqc_data**: Scripts to QA/QC stations, including visualization of tests.
 * **4_merge_data**: Scripts to close out processing, and standardize to hourly timesteps. Data at conclusion have been fully processed.
+* **pcluster**: Scripts and files for running code in an AWS pcluster
 
 **History**<br>
 **v1.0** -- *In progress*
