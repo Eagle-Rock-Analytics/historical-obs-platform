@@ -1,94 +1,145 @@
-# Running the QAQC Script on the Cluster (with Slurm)
-Here's a useful guide for how to run the QAQC code in an AWS pcluster environment  🖥️✨
+# Historical Weather Station QA/QC Pipeline  
+*SLURM Batch Processing Guide*
 
-## 📖 Read This First!
+Welcome! This guide explains how to run the QA/QC pipeline for historical weather station data using AWS ParallelCluster and SLURM. It covers setup, job submission, and monitoring for efficient, parallelized processing.
 
-- **Changing Stations?**  
-  See the [Changing the Stations to Run](#changing-the-stations-to-run) section below.
-  
-- **PLEASE always remember to turn off the compute fleet after you've finished your jobs!**   
-  We get charged by AWS when the fleet is on. 
 ---
 
-## 🚀 Step-by-Step Instructions
+## Table of Contents
 
-1. **Turn on the compute fleet**  
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Step-by-Step Instructions](#step-by-step-instructions)
+- [Changing the Stations to Run](#changing-the-stations-to-run)
+- [Job Output and Monitoring](#job-output-and-monitoring)
+- [Tips & Reminders](#tips--reminders)
 
-2. **Log in to the cluster:**  
-```
+---
+
+## Overview
+
+This pipeline processes historical weather station data by running a Python QA/QC script for each station in parallel, using a SLURM array job. Each SLURM task processes one station, making the workflow highly scalable and efficient.
+
+---
+
+## Prerequisites
+
+- Access to an AWS ParallelCluster environment with SLURM.
+- Your AWS credentials (do **not** share or commit these).
+- A conda environment named `hist-obs` with required dependencies.
+- The following directory structure (relative to your SSH login directory):
+
+historical-obs-platform/
+└── test_platform/
+├── scripts/
+│ └── pcluster/
+│ └── run_qaqc_array.sh
+├── 3_qaqc_data/
+│ └── QAQC_run_for_single_station.py
+└── stations_input/
+└── stations-input.dat
+
+text
+
+---
+
+## Step-by-Step Instructions
+
+1. **Start the Compute Fleet**  
+ Use the AWS Console or CLI to start the compute fleet.
+
+2. **SSH into the Cluster**  
+ Replace `hist-obs-cluster` with your cluster's alias:
 ssh hist-obs-cluster
-```
-3. **Navigate to the scripts directory:**  
-```
+
+text
+
+3. **Navigate to the Batch Script Directory**  
 cd historical-obs-platform/test_platform/scripts/pcluster
-```
 
-4. **Update the batch script:**  
-Make sure your AWS credentials included! But, ⚠️ Do **NOT** push this modified batch script to GitHub since it contains your private info! You'll need to modify the following rows in the batch script with your unique info: 
-```
-export AWS_ACCESS_KEY_ID="put-your-key-id-here"
-export AWS_SECRET_ACCESS_KEY="put-your-key-here"
+text
+
+4. **Edit the Batch Script with Your AWS Credentials**  
+Open `run_qaqc_array.sh` and update these lines with your credentials:
+export AWS_ACCESS_KEY_ID="your-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret-key"
 export AWS_DEFAULT_REGION="us-west-2"
-```   
-5. **Submit the batch script:**  
-```
-sbatch run.sh
-```
-6. **Monitor your run** 
-Use "squeue", or check the output/error files (see below).
 
-7. **Turn off the compute fleet**  
-(Don’t forget! 💡)
+text
+**⚠️ Never commit or push this file with credentials to GitHub.**
+
+5. **Submit the Batch Script to SLURM**  
+Ensure your AWS credentials and station list are set, then run:
+sbatch run_qaqc_array.sh
+
+text
+
+6. **Monitor Your Run**  
+- Use `squeue` to check job status.
+- Output and error logs are in the `logs/` directory.
+
+7. **Turn Off the Compute Fleet**  
+When jobs finish, stop the fleet to avoid unnecessary AWS charges.
 
 ---
-## 🔄 Changing the Stations to Run
 
-- The batch script (`run.sh`) reads station info from `stations-input.dat`.
+## Changing the Stations to Run
+
+- The batch script reads station IDs from `stations_input/stations-input.dat`.
 - **To change stations:**
-1. Add the desired station(s) to `stations-input.dat`.  
-  - One station per line, no commas or quotes.  
-  - Example:  
-    ```
-    LOXWFO_CRXC1
-    SFOXYZ_ABC12
-    ```
-2. Update the batch script’s array size to match the number of rows:  
-  - Edit line 14:  
-    ```
-    #SBATCH --array=1-n
-    ```
-    Replace `n` with the total number of stations (rows).
-  - For two networks, use `1-2`.
+- Edit `stations-input.dat`, placing one station ID per line (no quotes or commas).
+ ```
+ LOXWFO_CRXC1
+ SFOXYZ_ABC12
+ ```
+- Count the number of stations (lines) and update the array size in `run_qaqc_array.sh`:
+ ```
+ #SBATCH --array=1-N
+ ```
+ Replace `N` with the total number of stations.
 
 - **Important:**  
-- The station string must match the actual station ID in AWS.
-- No quotation marks around network names (e.g., `LOXWFO_CRXC1`, not `"LOXWFO_CRXC1"`).
+- Station IDs must match those in AWS.
+- Do **not** use quotation marks or extra spaces.
 
 ---
 
-## 📝 Reference Info
+## Job Output and Monitoring
 
-- **Check job duration:**  
-- Look in the output file, usually in the same directory as the batch script.
-- Output file format:  
- ```
- ${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt
- ```
-- Error file format:  
- ```
- ${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt
- ```
+- **Logs:**  
+Output and error logs are saved in the `logs/` directory with filenames:
+{JOB_NAME}{ARRAY_JOB_ID}{TASK_ID}{STATION}output.txt
+{JOB_NAME}{ARRAY_JOB_ID}{TASK_ID}_{STATION}_error.txt
 
-- **Monitor jobs:**  
-- Use `squeue` to see job status.
+text
+- **Check Job Duration:**  
+Open the output log file to view job start/end times and elapsed time.
+
+- **Monitor Jobs:**  
+Use:
+squeue
+
+text
+to view job status.
+
+---
+
+## Tips & Reminders
+
+- Double-check AWS credentials before submitting.
+- Never push sensitive info (like AWS keys) to GitHub.
+- Keep `stations-input.dat` and `--array` setting in sync.
+- If errors occur, check the corresponding output/error files in `logs/`.
+- Always turn off the compute fleet when done.
 
 ---
 
-## 🌟 Tips & Reminders
-
-- Double-check your AWS info before submitting!
-- Don’t push sensitive info to GitHub.
-- Keep your `stations-input.dat` and batch script in sync.
-- If you get stuck, check the output/error files for clues! 🕵️‍♂️
+*For more on README formatting and best practices, see [GitHub Docs] and [README Best Practices].*
 
 ---
+
+**Current date:** Wednesday, April 16, 2025
+
+---
+
+Let me know if you need a section on troubleshooting or further customization!
