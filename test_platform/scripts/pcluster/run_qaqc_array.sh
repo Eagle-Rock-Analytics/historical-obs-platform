@@ -39,19 +39,17 @@ mkdir -p logs
 
 # Job Information:
 #SBATCH --job-name=hist-obs            # Name of the job
-#SBATCH --array=1-4                    # Number of array jobs 
+#SBATCH --array=1-55                   # Number of array jobs 
 #SBATCH --ntasks=1                     # One task per array job
 #SBATCH --nodes=1                      # All tasks run on 1 node
 #SBATCH --ntasks-per-node=1            # 1 task per CPU 
-#SBATCH --cpus-per-task=1              # 1 CPU per job 
 #SBATCH --time=2:00:00                 # Time limit for the job
 #SBATCH --partition=compute-72cpus     # Queue/partition to use
-#SBATCH --output=logs/%x_%A_%a_output.txt   # Output file for each array job (task ID %a will be replaced by the array index)
-#SBATCH --error=logs/%x_%A_%a_error.txt     # Error file for each array job
+#SBATCH --output=%x_%A_%a_output.txt   # Output file for each array job (task ID %a will be replaced by the array index)
+#SBATCH --error=%x_%A_%a_error.txt     # Error file for each array job
 
-# Get the station name for this array task from the stations_input folder
-STATIONS_INPUT="LOXWFO-input.dat"
-STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" "stations_input/$STATIONS_INPUT")
+# Get the station name for this array task
+STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/LOXWFO-input.dat)
 
 # AWS credentials
 export AWS_ACCESS_KEY_ID="put-your-key-id-here"
@@ -59,10 +57,10 @@ export AWS_SECRET_ACCESS_KEY="put-your-key-here"
 export AWS_DEFAULT_REGION="us-west-2"
 
 # Rename SLURM-generated output and error files to include station name
-ORIG_OUT="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
-ORIG_ERR="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
-NEW_OUT="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt"
-NEW_ERR="logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt"
+ORIG_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
+ORIG_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_error.txt"
+NEW_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_output.txt"
+NEW_ERR="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${STATION}_error.txt"
 
 # Wait for SLURM to generate the default files, then rename
 sleep 2
@@ -91,14 +89,14 @@ log_file="$NEW_OUT"
 # Change to the directory containing the script
 cd ../3_qaqc_data/ || { echo "Directory change failed"; exit 1; }
 
-# Name of python script 
+# Define the path to your Python script
 PYSCRIPT="QAQC_run_for_single_station.py"
 
 # Start time tracking
 start_time=$(date +%s)
 
 # Run the Python script using conda
-conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"::
 
 # End time tracking
 end_time=$(date +%s)
