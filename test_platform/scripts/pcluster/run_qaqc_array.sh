@@ -50,7 +50,7 @@ mkdir -p logs
 #SBATCH --error=logs/%x_%A_%a_error.txt     # Error file for each array job
 
 # Get the station name for this array task from the stations_input folder
-STATIONS_INPUT="stations-input.dat"
+STATIONS_INPUT="LOXWFO-input.dat"
 STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" "stations_input/$STATIONS_INPUT")
 
 # AWS credentials
