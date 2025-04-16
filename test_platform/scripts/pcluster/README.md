@@ -1,5 +1,5 @@
-# 🧪 Running the QAQC Script on the Cluster (with Slurm)
-Here's a useful guide for how to run the QAQC code in an AWS pcluster environment 🖥️✨
+# 🖥️✨ Running the QAQC Script on the Cluster (with Slurm)
+Here's a useful guide for how to run the QAQC code in an AWS pcluster environment 
 
 ## 📖 Read This First!
 
