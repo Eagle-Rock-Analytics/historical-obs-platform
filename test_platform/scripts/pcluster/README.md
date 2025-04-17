@@ -52,26 +52,48 @@ Welcome! This guide walks you through running the QA/QC pipeline for historical 
 ## 🔄 Changing the Stations to Run
 Each SLURM array task processes one station in a fully independent and serial job — a classic [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) workload. The batch script (`run_qaqc_array.sh`) reads station info from `{NETWORK}-input.dat`, where {NETWORK} is the name of the weather station network (i.e. for network LOXWFO, the file is named `LOXWFO-input.dat`).
 
-### To change stations
- 1. Create a file named `{NETWORK}-input.dat` containing the stations you wish to run. You can use the provided Python script `generate_station_list.py` to generate this file—refer to the script header for detailed instructions. Each station should be listed on a new line, without commas or quotes, and **must** be stations in the same network. Before creating the file, check if one already exists for the network you're interested in, as some have been pre-generated 😊.
-      Example: 
-      ```   
-      LOXWFO_CRXC1   
-      LOXWFO_ABC12
-      ```   
-  2. Update the batch script’s array size to match the number of rows:   
-       ```bash
-       #SBATCH --array=1-n
-       ```
-       Replace `n` with the total number of stations (rows). For example, if you have two stations, use `1-2`.
-  3. Update the filename in the batch script to match `{NETWORK}-input.dat`. For example, for LOXWFO:
-      ```bash
-      STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/LOXWFO-input.dat)
-      ```
+1. **Create a station list file**  
+   Create a file named `{NETWORK}-input.dat` containing the stations you want to run. Each station should be on a new line—no commas, quotes, or extra formatting—and **all stations must belong to the same network**.
+
+   👉 You can use the provided `generate_station_list.py` script to create this file. Check the script's header for usage instructions.
+
+   Before creating a new file, check the `stations_input/` folder—some lists have already been pre-generated 😊.
+
+   **Example file contents:**
+   ```
+   LOXWFO_CRXC1
+   LOXWFO_ABC12
+   ```
+
+2. **Update the batch script**  
+   The batch script needs two updates:
+   - The array size (to match the number of stations)  
+   - The path to the correct `{NETWORK}-input.dat` file
+
+   You can do this in one of two ways:
+
+   **Option 1 (Recommended): Use the generator script**
+   ```bash
+   python generate_batch_script -n="LOXWFO"
+   ```
+   This will automatically read from `LOXWFO-input.dat` and update the batch script for you.
+
+   **Option 2: Manual edits**
+   - Set the array size:
+     ```bash
+     #SBATCH --array=1-n
+     ```
+     Replace `n` with the number of stations (e.g., `1-2` if you have two stations).
+
+   - Update the station file path:
+     ```bash
+     STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/LOXWFO-input.dat)
+     ```
 
 ### Important 
  - The station string must match the actual station ID in AWS.
- - No quotation marks around network names (e.g., `LOXWFO_CRXC1`, not `"LOXWFO_CRXC1"`).
+ - No quotation marks around station ids in the `{NETWORK}-input.dat` (e.g., `LOXWFO_CRXC1`, not `"LOXWFO_CRXC1"`).
+ - Each station id must be a new row in the `{NETWORK}-input.dat` file. 
 
 ---
 
