@@ -28,13 +28,14 @@ Welcome! This guide walks you through running the QA/QC pipeline for historical 
    ```bash
    cd historical-obs-platform/test_platform/scripts/pcluster
 
-4. **Edit the batch script with your AWS credentials:**  
-   But, ⚠️ Do **NOT** push this modified batch script to GitHub since it contains your private info!   
-   Open `run_qaqc_array.sh` and update these lines:
+4. **Make sure your AWS credentials are stored:**  
+   You can either modify the batch script in these lines:   
    ```bash
    export AWS_ACCESS_KEY_ID="your-key-id"
    export AWS_SECRET_ACCESS_KEY="your-secret-key"
    export AWS_DEFAULT_REGION="us-west-2"
+   ```
+   OR you can save your credentials directly as environment variables (easier). However, it can be difficult to get these environment variables to persist across different sessions in the pcluster (i.e. if you log out and log back in, they might be wiped) and you will need to reset them each time. 
 
 6. **Submit the batch script to SLURM:**  
    Once your batch script is updated with the correct AWS credentials and station information, submit it using the following command:
