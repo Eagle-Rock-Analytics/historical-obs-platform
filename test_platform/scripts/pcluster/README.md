@@ -7,7 +7,7 @@ Welcome! This guide walks you through running the QA/QC pipeline for historical 
 ## 📖 Read This First!
 
 - **Want to process different stations?**  
-  See the [🔄 Changing the Stations to Run](#changing-the-stations-to-run) section below.
+  See the [🔄 Changing the Stations to Run](#-changing-the-stations-to-run) section below.
 
 - **PLEASE remember to turn off the compute fleet after your jobs finish!**  
   AWS charges while the fleet is running ⏳💸
