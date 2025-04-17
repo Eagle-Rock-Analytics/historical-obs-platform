@@ -26,7 +26,7 @@ python generate_station_list.py --network=LOXWFO
 
 import pandas as pd
 import argparse
-import os
+from pathlib import Path
 
 
 def generate_station_list(network: str):
@@ -46,6 +46,10 @@ def generate_station_list(network: str):
     csv_filepath = "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
     stations_df = pd.read_csv(csv_filepath)
 
+    # Define and create the directory (if it doesn't already exist)
+    stations_input_dir = Path("stations_input")
+    stations_input_dir.mkdir(parents=True, exist_ok=True)
+
     # Filter the dataframe to only include rows corresponding to the specified network
     network_df = stations_df[stations_df["network"] == network]
 
@@ -64,7 +68,7 @@ def generate_station_list(network: str):
     print(f"{num_stations} stations found.")
 
     # Define the file path for the output .dat file (saved to the current directory)
-    filename = f"{network}-input.dat"
+    filename = f"{stations_input_dir}/{network}-input.dat"
 
     # Write the station IDs to the file, one per line, without quotes
     with open(filename, "w") as f:
