@@ -36,7 +36,6 @@ dependencies:
   - jupyterlab_vim=0.16.0 #vim-style editor for Jupyter
   - matplotlib=3.5.3 #Python plotting package
   - metpy=1.6.2 #Collection of tools for reading, visualizing and performing calculations with weather data
-  - mpi4py=3.1.6 #python bindings for MPI
   - netcdf4=1.6.0 #object-oriented python interface to the netCDF version 4 library
   - nodejs=18.15.0 #for installing extensions in Jupyter
   - numba=0.59.1 #speed ups for numpy
