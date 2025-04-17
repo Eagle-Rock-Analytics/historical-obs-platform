@@ -49,9 +49,10 @@
 STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/{NETWORK}-input.dat)
 
 # AWS credentials
-export AWS_ACCESS_KEY_ID="put-your-key-id-here"
-export AWS_SECRET_ACCESS_KEY="put-your-key-here"
-export AWS_DEFAULT_REGION="us-west-2"
+# Don't need to hard code them in if they are already saved as environment variables
+# export AWS_ACCESS_KEY_ID="put-your-key-id-here"
+# export AWS_SECRET_ACCESS_KEY="put-your-key-here"
+# export AWS_DEFAULT_REGION="us-west-2"
 
 # Rename SLURM-generated output and error files to include station name
 ORIG_OUT="${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}_output.txt"
