@@ -340,8 +340,8 @@ def qaqc_unusual_repeated_streaks(
             "Running unusual streaks check on: {}".format(var),
         )
         try:
-            # Drop NaNs in the testing variable
-            test_df = new_df.dropna(subset=var)
+            # Create a copy of the original dataframe and drop NaNs in the testing variable
+            test_df = new_df.copy().dropna(subset=var)
 
             # Use only values that have not been flagged by previous QAQC tests
             test_df = grab_valid_obs(test_df, var)  # subset for valid obs
