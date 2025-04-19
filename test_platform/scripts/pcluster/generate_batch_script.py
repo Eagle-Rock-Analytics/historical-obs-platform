@@ -5,11 +5,12 @@ Reads a SLURM batch script template and fills in the network name and number
 of stations to set up an embarrassingly parallel array job. Updates the header
 comment to reflect the specific network.
 
-Usage:
-    python generate_batch_script.py --network NETWORK_NAME
+Example usage:
+---------------
+python generate_batch_script.py --network=LOXWFO
 
 This will read the template `run_qaqc_template.sh`, replace placeholders 
-({network}, {nrows}), and write a batch script `run_qaqc_{network}.sh`.
+({network}, {nrows}), and write a batch script `run_qaqc_LOXWFO.sh`.
 """
 
 import argparse
