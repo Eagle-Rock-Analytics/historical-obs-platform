@@ -17,7 +17,7 @@ Welcome! This guide walks you through running the QA/QC pipeline for historical 
 ## 🚀 Step-by-Step Instructions
 
 1. **Start the compute fleet**  
-   Use the AWS console or CLI to turn it on.
+   Use the AWS console to turn it on.
 
 2. **SSH into the cluster:**  
    Use your unique cluster alias, which may or may not be the same as `hist-obs-cluster` depending on what you've set it to.  
