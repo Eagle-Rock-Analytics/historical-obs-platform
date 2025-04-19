@@ -51,7 +51,10 @@ def generate_station_list(network: str):
     stations_input_dir.mkdir(parents=True, exist_ok=True)
 
     # Filter the dataframe to only include rows corresponding to the specified network
-    network_df = stations_df[stations_df["network"] == network]
+    # And, only cleaned stations
+    network_df = stations_df[
+        (stations_df["network"] == network) & (stations_df["cleaned"] == "Y")
+    ]
 
     # Check if nothing is returned. Raise ValueError and print useful message.
     if len(network_df) == 0:
