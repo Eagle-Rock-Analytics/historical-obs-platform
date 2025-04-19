@@ -77,7 +77,7 @@ Each SLURM array task processes one station in a fully independent and serial jo
    ```bash
    python generate_batch_script -n="LOXWFO"
    ```
-   This will automatically read from `LOXWFO-input.dat` and update the batch script for you.
+   This will automatically read from `LOXWFO-input.dat` and create a new batch script for you based on the template. The batch script will be called `qaqc_run_LOXWFO.sh`. 
 
    **Option 2: Manual edits**
    - Set the array size:
@@ -89,6 +89,11 @@ Each SLURM array task processes one station in a fully independent and serial jo
    - Update the station file path:
      ```bash
      STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/LOXWFO-input.dat)
+     ```
+  3. **Want to generate the `{NETWORK}-input.dat` and `qaqc_run_{NETWORK}.sh` for a bunch of files, all at once?**   
+ - You can use this terminal command to run both python scripts for a number of stations, all at once:
+     ```bash
+      for net in ASOSAWOS CAHYDRO CIMIS CW3E CDEC CNRFC CRN CWOP HADS HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD RAWS SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_station_list.py --network="$net"; python generate_batch_script.py --network="$net"; done
      ```
 
 ### Important 
