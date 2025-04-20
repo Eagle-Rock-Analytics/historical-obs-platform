@@ -23,7 +23,6 @@ import s3fs
 from io import BytesIO, StringIO
 import time
 import tempfile
-from mpi4py import MPI
 from merge_log_config import logger
 
 # Import all merge script functions
