@@ -23,5 +23,6 @@ dependencies:
   - statsmodels=0.14.2
   - tqdm=4.66.4
   - xarray=2022.3.0
+  - zarr=2.18.2
   - pip:
       - black==24.10.0
