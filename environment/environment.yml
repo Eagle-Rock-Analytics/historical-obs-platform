@@ -2,6 +2,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
+  - black=24.8.0
   - boto3=1.24.59
   - dask=2024.2.1
   - geopandas=0.11.1
