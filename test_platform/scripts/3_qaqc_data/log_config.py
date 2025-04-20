@@ -35,9 +35,7 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
     file_handler.setLevel(logging.DEBUG)
 
     # Create a formatter and attach it to the handler
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
 
     # Add the file handler to the logger
