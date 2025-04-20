@@ -6,6 +6,7 @@ dependencies:
   - boto3=1.24.59
   - dask=2024.2.1
   - geopandas=0.11.1
+  - h5netcdf=1.0.2
   - ipykernel=6.29.5
   - ipython=8.18.1
   - jupyterlab==4.2.2
