@@ -1,13 +1,14 @@
 """
 generate_station_list.py
 
-This script generates a list of station IDs for a specified network and saves them to a .dat file.
+This script generates a list of station IDs for a specified network and saves them to one or more .dat files.
 
 Overview:
 ---------
 1. Filters stations from a CSV file based on the specified network.
 2. Extracts the 'era-id' values for the filtered stations.
-3. Writes the station IDs to a .dat file, one per line, without quotes.
+3. Writes the station IDs to one or more .dat files, one per line, without quotes.
+   If the number of stations exceeds 1000, multiple files will be created.
 
 Inputs:
 -------
@@ -16,7 +17,7 @@ Inputs:
 
 Outputs:
 --------
-- A .dat file containing the list of station IDs for the specified network.
+- One or more .dat files containing the list of station IDs for the specified network.
 
 Example usage:
 --------------
@@ -31,14 +32,13 @@ from pathlib import Path
 
 def generate_station_list(network: str):
     """
-    Generates a list of station IDs for a specified network and saves it to a `.dat` file.
+    Generates a list of station IDs for a specified network and saves to `.dat` files.
 
-    This script filters stations from a cleaned CSV dataset based on the provided network and
-    extracts their corresponding 'era-id' values. The results are then written to a `.dat` file
-    with each station ID on a new line.
+    If there are more than 1000 stations, the list is split into multiple files with
+    names like `{network}_1-input.dat`, `{network}_2-input.dat`, etc.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     network : str
         The network to process. Corresponds to the network name in the dataset.
     """
@@ -70,19 +70,41 @@ def generate_station_list(network: str):
     num_stations = len(era_ids)
     print(f"{num_stations} stations found.")
 
-    # Define the file path for the output .dat file (saved to the current directory)
-    filename = f"{stations_input_dir}/{network}-input.dat"
+    # If fewer than or equal to 1000 stations, save to a single file
+    chunk_size = 1000
+    file_summary = []
 
-    # Write the station IDs to the file, one per line, without quotes
-    with open(filename, "w") as f:
-        for i, era_id in enumerate(era_ids):
-            f.write(str(era_id))
-            if i < len(era_ids) - 1:  # Add newline only if it's not the last item
-                f.write("\n")
+    if num_stations <= chunk_size:
+        filename = stations_input_dir / f"{network}-input.dat"
 
-    print(f"Station list successfully written to {filename}")
+        # Write the station IDs to the file, one per line, without quotes
+        with open(filename, "w") as f:
+            f.write("\n".join(map(str, era_ids)))
 
-    return None
+        print(f"Station list successfully written to {filename}")
+        file_summary.append((filename.name, 1, num_stations))
+
+    # If more than 1000 stations, split into chunks
+    else:
+        for i in range(0, num_stations, chunk_size):
+            chunk = era_ids[i:i + chunk_size]
+            index = i // chunk_size + 1
+            start_idx = i + 1
+            end_idx = min(i + chunk_size, num_stations)
+            filename = stations_input_dir / f"{network}_{index}-input.dat"
+
+            # Write the station IDs to the file
+            with open(filename, "w") as f:
+                f.write("\n".join(map(str, chunk)))
+
+            print(f"Chunk {index} written to {filename}")
+            file_summary.append((filename.name, start_idx, end_idx))
+
+    # Print a summary of all the files written
+    print("\nSummary of station input files:")
+    for fname, start, end in file_summary:
+        print(f"  - {fname}: stations {start}–{end} ({end - start + 1} total)")
+    print(f"\n{len(file_summary)} file(s) written.")
 
 
 def main():

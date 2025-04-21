@@ -93,15 +93,21 @@ Each SLURM array task processes one station in a fully independent and serial jo
   3. **Want to generate the `{NETWORK}-input.dat` and `qaqc_run_{NETWORK}.sh` for a bunch of files, all at once?**   
  - You can use this terminal command to run both python scripts for a number of stations, all at once:
      ```bash
-      for net in ASOSAWOS CAHYDRO CIMIS CW3E CDEC CNRFC CRN CWOP HADS HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD RAWS SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_station_list.py --network="$net"; python generate_batch_script.py --network="$net"; done
-     ```
+      for net in ASOSAWOS CAHYDRO CIMIS CW3E CDEC CNRFC CRN HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_station_list.py --network="$net"; python generate_batch_script.py --network="$net"; done
+     ```   
+     Note that this won't work for networks with more than 1000 stations; see the Additional Info section below for more information. 
 
-### Important 
+### Additional Info
  - The station string must match the actual station ID in AWS.
  - No quotation marks around station ids in the `{NETWORK}-input.dat` (e.g., `LOXWFO_CRXC1`, not `"LOXWFO_CRXC1"`).
  - Each station id must be a new row in the `{NETWORK}-input.dat` file. 
- - Our pcluster has a setting where there can be no more than 1000 array jobs submitted, so the `generate_batch_script.py` script generates more than one batch script if the network has more than 1000 stations. For example, the HADS network has 2145 stations total. `generate_batch_script.py` for the HADS network will actually make 3 different batch scripts -- `run_qaqc_HADS_1.py`, `run_qaqc_HADS_2.py`, `run_qaqc_HADS_3.py`-- each with a different value for `#SBATCH --array` such that the run is split into runs of <=1000. 
-
+ - Our pcluster has a setting where there can be no more than 1000 array jobs submitted, so the `generate_station_list.py` script generates more than one stations-input.dat file if the network has more than 1000 stations. For example, the HADS network has 2145 stations total. `generate_station_list.py` for the HADS network will actually make 3 different stations input files -- `HADS_1-input.dat`, `HADS_2-input.dat`, `HADS_3-input.dat`-- such that no list contains more than 1000 rows. You'll then need to run `generate_batch_script.py` for each `.dat` file: 
+   
+   ```bash 
+   python generate_batch_script --network=HADS_1
+   python generate_batch_script --network=HADS_2
+   python generate_batch_script --network=HADS_3
+   ```
 ---
 
 ## 📝 Reference Info

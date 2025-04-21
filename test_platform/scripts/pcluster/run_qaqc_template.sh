@@ -36,7 +36,7 @@
 
 # Job Information:
 #SBATCH --job-name=hist-obs
-#SBATCH --array={ARRAY_RANGE}
+#SBATCH --array=1-{NROWS}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
