@@ -100,6 +100,7 @@ Each SLURM array task processes one station in a fully independent and serial jo
  - The station string must match the actual station ID in AWS.
  - No quotation marks around station ids in the `{NETWORK}-input.dat` (e.g., `LOXWFO_CRXC1`, not `"LOXWFO_CRXC1"`).
  - Each station id must be a new row in the `{NETWORK}-input.dat` file. 
+ - Our pcluster has a setting where there can be no more than 1000 array jobs submitted, so the `generate_batch_script.py` script generates more than one batch script if the network has more than 1000 stations. For example, the HADS network has 2145 stations total. `generate_batch_script.py` for the HADS network will actually make 3 different batch scripts -- `run_qaqc_HADS_1.py`, `run_qaqc_HADS_2.py`, `run_qaqc_HADS_3.py`-- each with a different value for `#SBATCH --array` such that the run is split into runs of <=1000. 
 
 ---
 
