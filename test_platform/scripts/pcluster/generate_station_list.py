@@ -82,12 +82,6 @@ def generate_station_list(network: str):
 
     print(f"Station list successfully written to {filename}")
 
-    print("\nUpdate the following lines in the batch script:")
-    print(f"#SBATCH --array=1-{num_stations}")
-    print(
-        f'STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/{network}-input.dat)\n'
-    )
-
     return None
 
 
