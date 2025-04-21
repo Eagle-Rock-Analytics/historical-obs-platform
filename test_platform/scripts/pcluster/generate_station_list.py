@@ -87,7 +87,7 @@ def generate_station_list(network: str):
     # If more than 1000 stations, split into chunks
     else:
         for i in range(0, num_stations, chunk_size):
-            chunk = era_ids[i:i + chunk_size]
+            chunk = era_ids[i : i + chunk_size]
             index = i // chunk_size + 1
             start_idx = i + 1
             end_idx = min(i + chunk_size, num_stations)
