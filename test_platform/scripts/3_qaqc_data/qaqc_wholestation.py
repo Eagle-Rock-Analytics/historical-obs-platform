@@ -251,7 +251,12 @@ def qaqc_within_wecc(df, verbose=False):
     pxy = shapely.geometry.Point(df["lon"].mean(), df["lat"].mean())
     if pxy.within(t) or pxy.within(m):
         return df
-    elif df['lat'].mean() > 43.0 and df['lat'].mean() < 45.0 and df['lon'].mean() > -104.0 and df['lon'].mean() < -102.0: # trying to get the weird SD bump
+    elif (
+        df["lat"].mean() > 43.0
+        and df["lat"].mean() < 45.0
+        and df["lon"].mean() > -104.0
+        and df["lon"].mean() < -102.0
+    ):  # trying to get the weird SD bump
         logger.info("Station is within the South Dakota portion -- informational only")
         return df
     elif pxy.within(ak_t) or df["lon"].mean() <= -141.0:
@@ -260,7 +265,9 @@ def qaqc_within_wecc(df, verbose=False):
         )
         return None
     else:
-        logger.info("Station is likely wihtin MRO/ERCOT instead of WECC -- bypassing station")
+        logger.info(
+            "Station is likely wihtin MRO/ERCOT instead of WECC -- bypassing station"
+        )
         return None
 
 
