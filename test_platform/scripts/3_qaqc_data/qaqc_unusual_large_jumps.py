@@ -32,7 +32,7 @@ def qaqc_unusual_large_jumps(
     plot: bool = True,
     local: bool = False,
     verbose: bool = False,
-) -> pd.DataFrame | None:
+) -> pd.DataFrame:
     """
     Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
     time series to account for seasonal cycles in different regions.
@@ -53,12 +53,10 @@ def qaqc_unusual_large_jumps(
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
     Flag meaning : 23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
-
     """
 
     logger.info("Running: qaqc_unusual_large_jumps")
