@@ -26,7 +26,12 @@ except Exception as e:
 # -----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(
-    df: pd.DataFrame, iqr_thresh: int=6, min_datapoints: int=50, plot: bool=True, local: bool=False, verbose: bool=False
+    df: pd.DataFrame,
+    iqr_thresh: int = 6,
+    min_datapoints: int = 50,
+    plot: bool = True,
+    local: bool = False,
+    verbose: bool = False,
 ) -> pd.DataFrame | None:
     """
     Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
@@ -140,7 +145,9 @@ def qaqc_unusual_large_jumps(
 
 
 # -----------------------------------------------------------------------------
-def potential_spike_check(potential_spike: pd.Series, diff: pd.Series, crit: pd.Series, hours_diff: pd.Series) -> pd.DataFrame:
+def potential_spike_check(
+    potential_spike: pd.Series, diff: pd.Series, crit: pd.Series, hours_diff: pd.Series
+) -> pd.DataFrame:
     """Checks for neccessary conditions for a potential spike to be an actual spike.
 
     Parameters
@@ -229,7 +236,9 @@ def potential_spike_check(potential_spike: pd.Series, diff: pd.Series, crit: pd.
 
 
 # -----------------------------------------------------------------------------
-def detect_spikes(df: pd.DataFrame, var: str, iqr_thresh: int=6, min_datapoints: int=50) -> pd.DataFrame:
+def detect_spikes(
+    df: pd.DataFrame, var: str, iqr_thresh: int = 6, min_datapoints: int = 50
+) -> pd.DataFrame:
     """
     Detect  unusual large jumps or ''spikes'' in the time series for `var`.
 
