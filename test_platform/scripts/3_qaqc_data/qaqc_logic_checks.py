@@ -220,7 +220,7 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
                 )
                 continue
 
-        return df_neg_pr
+    return df_neg_pr
 
 
 # ----------------------------------------------------------------------
