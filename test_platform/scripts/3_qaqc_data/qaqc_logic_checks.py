@@ -5,6 +5,7 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 
 ## Import Libraries
 import datetime
+import pandas as pd
 
 # New logger function
 from log_config import logger
@@ -17,7 +18,9 @@ except Exception as e:
 
 # -----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
+def qaqc_crossvar_logic_tdps_to_tas_supersat(
+    df: pd.DataFrame, verbose: bool = False
+) -> pd.DataFrame:
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -33,7 +36,6 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
@@ -78,7 +80,9 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df, verbose=False):
 
 
 # ----------------------------------------------------------------------
-def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
+def qaqc_crossvar_logic_tdps_to_tas_wetbulb(
+    df: pd.DataFrame, verbose: bool = False
+) -> pd.DataFrame:
     """
     Checks for extended periods of a dewpoint depression of 0°C.
     Extended period is defined as a 24-hour period
@@ -94,7 +98,6 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
@@ -161,7 +164,9 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df, verbose=False):
 
 ## ----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
-def qaqc_precip_logic_nonegvals(df, verbose=False):
+def qaqc_precip_logic_nonegvals(
+    df: pd.DataFrame, verbose: bool = False
+) -> pd.DataFrame:
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data.
@@ -176,7 +181,6 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
@@ -220,12 +224,14 @@ def qaqc_precip_logic_nonegvals(df, verbose=False):
                 )
                 continue
 
-        return df_neg_pr
+    return df_neg_pr
 
 
 # ----------------------------------------------------------------------
 ## logic check: precip accumulation amounts balance for time period
-def qaqc_precip_logic_accum_amounts(df, verbose=False):
+def qaqc_precip_logic_accum_amounts(
+    df: pd.DataFrame, verbose: bool = False
+) -> pd.DataFrame:
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
     Only needs to be applied when 2 or more precipitation duration specific variables are present (pr_5min, pr_1h, pr_24h)
@@ -241,7 +247,6 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
@@ -332,7 +337,9 @@ def qaqc_precip_logic_accum_amounts(df, verbose=False):
 
 # ----------------------------------------------------------------------
 ## logic check: wind direction must be 0 if wind speed is 0
-def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
+def qaqc_crossvar_logic_calm_wind_dir(
+    df: pd.DataFrame, verbose: bool = False
+) -> pd.DataFrame:
     """
     Checks that wind direction is zero when wind speed is also zero.
     If fails, wind direction is flagged.
@@ -347,7 +354,6 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
@@ -399,13 +405,13 @@ def qaqc_crossvar_logic_calm_wind_dir(df, verbose=False):
         logger.info(
             "qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e),
         )
-        return None
+        return df
 
 
 # -----------------------------------------------------------------------------
 ## temporary fix on pressure variables being in the wrong unit
 ## fn to be removed from pipeline on next full cleaning update
-def qaqc_pressure_units_fix(df, verbose=False):
+def qaqc_pressure_units_fix(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """
     Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations,
     where the pressure unit conversion did not take.
@@ -420,7 +426,6 @@ def qaqc_pressure_units_fix(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
 
     Notes
     -----
