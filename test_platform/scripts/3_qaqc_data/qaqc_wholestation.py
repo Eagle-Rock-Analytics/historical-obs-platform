@@ -32,6 +32,7 @@ wecc_terr = (
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 ascc = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
+mro = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
 
 
 # ======================================================================
@@ -250,14 +251,16 @@ def qaqc_within_wecc(df, verbose=False):
     pxy = shapely.geometry.Point(df["lon"].mean(), df["lat"].mean())
     if pxy.within(t) or pxy.within(m):
         return df
-    elif pxy.within(ak_t):
+    elif df['lat'].mean() > 43.0 and df['lat'].mean() < 45.0 and df['lon'].mean() > -104.0 and df['lon'].mean() < -102.0: # trying to get the weird SD bump
+        logger.info("Station is within the South Dakota portion -- informational only")
+        return df
+    elif pxy.within(ak_t) or df["lon"].mean() <= -141.0:
         logger.info(
-            "Station is within the Alaska Interconnection Zone instead of WECC: {}°N {}°W -- bypassing station".format(
-                df["lat"].mean(), df["lon"].mean()
-            )
+            "Station is within the Alaska Interconnection Zone instead of WECC -- bypassing station"
         )
         return None
     else:
+        logger.info("Station is likely wihtin MRO/ERCOT instead of WECC -- bypassing station")
         return None
 
 
