@@ -26,8 +26,8 @@ except Exception as e:
 # -----------------------------------------------------------------------------
 ## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(
-    df, iqr_thresh=6, min_datapoints=50, plot=True, local=False, verbose=False
-):
+    df: pd.DataFrame, iqr_thresh: int=6, min_datapoints: int=50, plot: bool=True, local: bool=False, verbose: bool=False
+) -> pd.DataFrame | None:
     """
     Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
     time series to account for seasonal cycles in different regions.
@@ -61,8 +61,6 @@ def qaqc_unusual_large_jumps(
     df = df.copy()
     df.set_index(df["time"], inplace=True)
     df.drop(columns=["time"], inplace=True)
-
-    station = df["station"].values[0]
 
     # Define test variables and check if they are in the dataframe
     check_vars = [
@@ -142,7 +140,7 @@ def qaqc_unusual_large_jumps(
 
 
 # -----------------------------------------------------------------------------
-def potential_spike_check(potential_spike, diff, crit, hours_diff):
+def potential_spike_check(potential_spike: pd.Series, diff: pd.Series, crit: pd.Series, hours_diff: pd.Series) -> pd.DataFrame:
     """Checks for neccessary conditions for a potential spike to be an actual spike.
 
     Parameters
@@ -153,7 +151,7 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
         float pd.Series with differences in the test variable
     crit : pandas series
         float pd.Series with the critical value for the differences in the test variable
-    crit : pandas series
+    hours_diff : pandas series
         float pd.Series with the hour differences between data points in the test variable
 
     Returns
@@ -231,7 +229,7 @@ def potential_spike_check(potential_spike, diff, crit, hours_diff):
 
 
 # -----------------------------------------------------------------------------
-def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
+def detect_spikes(df: pd.DataFrame, var: str, iqr_thresh: int=6, min_datapoints: int=50) -> pd.DataFrame:
     """
     Detect  unusual large jumps or ''spikes'' in the time series for `var`.
 
@@ -246,8 +244,8 @@ def detect_spikes(df, var, iqr_thresh=6, min_datapoints=50):
     min_datapoints : int, optional
         minimum data points in each month to be valid for testing (default=50)
 
-    Output:
-    ------
+    Returns
+    -------
     df : pd.DataFrame
         input df with added columns for spike check
 
