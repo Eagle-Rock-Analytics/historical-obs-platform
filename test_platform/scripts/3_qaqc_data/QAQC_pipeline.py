@@ -633,6 +633,23 @@ def run_qaqc_pipeline(
     - Part 2: Logic checks
     - Part 3: Distribution & time series checks
     """
+    
+    # First identify if the station has valid data variables
+    ds = qaqc_eligible_vars(ds, verbose=verbose)
+    if ds is None:
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message="does not report any data variables",
+            test="qaqc_eligible_vars",
+            verbose=verbose,
+        )
+        return [None] * 4 # whole station failure, skip to next station
+        
+    else:
+        ds = ds
+        
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
     df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 

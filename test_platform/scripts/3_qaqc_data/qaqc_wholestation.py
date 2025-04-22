@@ -8,6 +8,7 @@ import geopandas as gp
 import shapely
 import numpy as np
 import pandas as pd
+import xarray as xr
 import shapely
 import urllib
 import requests
@@ -30,11 +31,64 @@ wecc_terr = (
     "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 )
 wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+ascc = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
 
 
 # ======================================================================
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
+
+# ----------------------------------------------------------------------
+def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
+    """Initial check on data variables within a station to determine whether to proceed through QA/QC. 
+    Some stations have only qc variables and should not be QC'd (because there is no data to QC).
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Cleaned station object
+    verbose : bool, optional
+        if True, returns runtime output to terminal
+
+    Returns
+    -------
+    If successful, returns xr.Dataset to proceed through QAQC
+    If failure, returns None to close out QAQC and proceed to next station
+    """
+
+    # list of initial exclude QC variables
+    exclude_qaqc = [
+        "time",
+        "station",
+        "lat",
+        "lon",
+        "qaqc_process",
+        "sfcWind_method",
+        "pr_duration",
+        "pr_depth",
+        "PREC_flag",
+        "rsds_duration",
+        "rsds_flag",
+        "anemometer_height_m",
+        "thermometer_height_m",
+    ]    
+
+    # add "_qc" vars to exclusion list
+    for var in list(ds.keys()):
+        if "_qc" in var:
+            exclude_qaqc.append(var)
+
+    # identify what variables are left
+    remaining_vars = [x for x in list(ds.keys()) if x not in exclude_qaqc]
+
+    # if only elevation remains this means there are no data vars and the station will not go through QAQC
+    if len(remaining_vars) == 1 and "elevation" in remaining_vars:
+        logger.info("No data variables reported: {}".format(list(ds.keys())))
+        return None
+    
+    else:
+        logger.info("{} data variables will proceed through QA/QC.".format(len(remaining_vars)))
+        return ds
 
 
 # ----------------------------------------------------------------------
@@ -180,16 +234,20 @@ def qaqc_within_wecc(df, verbose=False):
     Returns
     -------
     If QAQC is successful, returns a dataframe with flagged valueACH1370maninof
-
     If QAQC fails, returns None
     """
     logger.info("Running: qaqc_within_wecc")
 
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
     m = gp.read_file(wecc_mar).iloc[0].geometry  ## Read in marine WECC shapefile.
+    ak_t = gp.read_file(ascc).iloc[9].geometry ## Read in Alaska boundaries shapefile -- Southeast region.
+
     pxy = shapely.geometry.Point(df["lon"].mean(), df["lat"].mean())
     if pxy.within(t) or pxy.within(m):
         return df
+    elif pxy.within(ak_t):
+        logger.info("Station is within the Alaska Interconnection Zone instead of WECC: {}°N {}°W -- bypassing station".format(df["lat"].mean(), df["lon"].mean()))
+        return None
     else:
         return None
 
