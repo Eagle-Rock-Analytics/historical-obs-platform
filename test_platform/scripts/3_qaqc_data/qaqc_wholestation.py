@@ -38,9 +38,10 @@ ascc = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
 ## Part 1a functions (whole station/network)
 ## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 
+
 # ----------------------------------------------------------------------
-def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
-    """Initial check on data variables within a station to determine whether to proceed through QA/QC. 
+def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool = False) -> xr.Dataset:
+    """Initial check on data variables within a station to determine whether to proceed through QA/QC.
     Some stations have only qc variables and should not be QC'd (because there is no data to QC).
 
     Parameters
@@ -71,7 +72,7 @@ def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
         "rsds_flag",
         "anemometer_height_m",
         "thermometer_height_m",
-    ]    
+    ]
 
     # add "_qc" vars to exclusion list
     for var in list(ds.keys()):
@@ -85,9 +86,11 @@ def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
     if len(remaining_vars) == 1 and "elevation" in remaining_vars:
         logger.info("No data variables reported: {}".format(list(ds.keys())))
         return None
-    
+
     else:
-        logger.info("{} data variables will proceed through QA/QC.".format(len(remaining_vars)))
+        logger.info(
+            "{} data variables will proceed through QA/QC.".format(len(remaining_vars))
+        )
         return ds
 
 
@@ -240,13 +243,19 @@ def qaqc_within_wecc(df, verbose=False):
 
     t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
     m = gp.read_file(wecc_mar).iloc[0].geometry  ## Read in marine WECC shapefile.
-    ak_t = gp.read_file(ascc).iloc[9].geometry ## Read in Alaska boundaries shapefile -- Southeast region.
+    ak_t = (
+        gp.read_file(ascc).iloc[9].geometry
+    )  ## Read in Alaska boundaries shapefile -- Southeast region.
 
     pxy = shapely.geometry.Point(df["lon"].mean(), df["lat"].mean())
     if pxy.within(t) or pxy.within(m):
         return df
     elif pxy.within(ak_t):
-        logger.info("Station is within the Alaska Interconnection Zone instead of WECC: {}°N {}°W -- bypassing station".format(df["lat"].mean(), df["lon"].mean()))
+        logger.info(
+            "Station is within the Alaska Interconnection Zone instead of WECC: {}°N {}°W -- bypassing station".format(
+                df["lat"].mean(), df["lon"].mean()
+            )
+        )
         return None
     else:
         return None
