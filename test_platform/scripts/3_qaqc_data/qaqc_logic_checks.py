@@ -19,7 +19,7 @@ except Exception as e:
 # -----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(
-    df: pd.DataFrame, verbose: bool = False
+    df: pd.DataFrame
 ) -> pd.DataFrame:
     """
     Checks that dewpoint temperature does not exceed air temperature.
@@ -29,9 +29,6 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
-
 
     Returns
     -------
@@ -81,7 +78,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(
 
 # ----------------------------------------------------------------------
 def qaqc_crossvar_logic_tdps_to_tas_wetbulb(
-    df: pd.DataFrame, verbose: bool = False
+    df: pd.DataFrame
 ) -> pd.DataFrame:
     """
     Checks for extended periods of a dewpoint depression of 0°C.
@@ -92,8 +89,6 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
 
     Returns
     -------
@@ -164,9 +159,7 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(
 
 ## ----------------------------------------------------------------------
 ## logic check: precip does not have any negative values
-def qaqc_precip_logic_nonegvals(
-    df: pd.DataFrame, verbose: bool = False
-) -> pd.DataFrame:
+def qaqc_precip_logic_nonegvals(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
     Provides handling for the multiple precipitation variables presently in the cleaned data.
@@ -175,8 +168,6 @@ def qaqc_precip_logic_nonegvals(
     -----------
     df : pd.DataFrame
          station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
 
     Returns
     -------
@@ -229,9 +220,7 @@ def qaqc_precip_logic_nonegvals(
 
 # ----------------------------------------------------------------------
 ## logic check: precip accumulation amounts balance for time period
-def qaqc_precip_logic_accum_amounts(
-    df: pd.DataFrame, verbose: bool = False
-) -> pd.DataFrame:
+def qaqc_precip_logic_accum_amounts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
     Only needs to be applied when 2 or more precipitation duration specific variables are present (pr_5min, pr_1h, pr_24h)
@@ -241,8 +230,6 @@ def qaqc_precip_logic_accum_amounts(
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
 
     Returns
     -------
@@ -337,9 +324,7 @@ def qaqc_precip_logic_accum_amounts(
 
 # ----------------------------------------------------------------------
 ## logic check: wind direction must be 0 if wind speed is 0
-def qaqc_crossvar_logic_calm_wind_dir(
-    df: pd.DataFrame, verbose: bool = False
-) -> pd.DataFrame:
+def qaqc_crossvar_logic_calm_wind_dir(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks that wind direction is zero when wind speed is also zero.
     If fails, wind direction is flagged.
@@ -348,8 +333,6 @@ def qaqc_crossvar_logic_calm_wind_dir(
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
 
     Returns
     -------
@@ -411,7 +394,7 @@ def qaqc_crossvar_logic_calm_wind_dir(
 # -----------------------------------------------------------------------------
 ## temporary fix on pressure variables being in the wrong unit
 ## fn to be removed from pipeline on next full cleaning update
-def qaqc_pressure_units_fix(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def qaqc_pressure_units_fix(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations,
     where the pressure unit conversion did not take.
@@ -420,8 +403,6 @@ def qaqc_pressure_units_fix(df: pd.DataFrame, verbose: bool = False) -> pd.DataF
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, provides runtime output to local temrinal
 
     Returns
     -------

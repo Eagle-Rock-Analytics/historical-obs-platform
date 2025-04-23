@@ -41,7 +41,7 @@ mro = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
 
 
 # ----------------------------------------------------------------------
-def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
+def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
     """Initial check on data variables within a station to determine whether to proceed through QA/QC.
     Some stations have only qc variables and should not be QC'd (because there is no data to QC).
 
@@ -49,9 +49,7 @@ def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
     ----------
     ds : xr.Dataset
         Cleaned station object
-    verbose : bool, optional
-        if True, returns runtime output to terminal
-        
+
     Returns
     -------
     If successful, returns xr.Dataset to proceed through QAQC
@@ -97,7 +95,7 @@ def qaqc_eligible_vars(ds: xr.Dataset, verbose: bool=False) -> xr.Dataset:
 
 # ----------------------------------------------------------------------
 # missing value check: double check that all missing value observations are converted to NA before QA/QC
-def qaqc_missing_vals(df, verbose: bool=False):
+def qaqc_missing_vals(df):
     """
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
     Searches for missing values in 3_qaqc_data/missing_data_flags.csv.
@@ -106,8 +104,6 @@ def qaqc_missing_vals(df, verbose: bool=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -187,7 +183,7 @@ def qaqc_missing_vals(df, verbose: bool=False):
 
 # ----------------------------------------------------------------------
 # missing spatial coords (lat-lon)
-def qaqc_missing_latlon(df, verbose=False):
+def qaqc_missing_latlon(df):
     """
     Test for missing latitude / longitude values for a station.
     Checks if latitude and longitude is missing for a station.
@@ -197,8 +193,6 @@ def qaqc_missing_latlon(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -223,7 +217,7 @@ def qaqc_missing_latlon(df, verbose=False):
 
 # ----------------------------------------------------------------------
 # in bounds of WECC
-def qaqc_within_wecc(df, verbose=False):
+def qaqc_within_wecc(df):
     """
     Test for whether station is within terrestrial & marine WECC boundaries.
     If outside of boundaries, station is flagged to not proceed through QA/QC.
@@ -232,8 +226,6 @@ def qaqc_within_wecc(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -275,7 +267,7 @@ def qaqc_within_wecc(df, verbose=False):
 
 # ----------------------------------------------------------------------
 # elevation
-def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
+def _grab_dem_elev_m(lats_to_check, lons_to_check):
     """
     If elevation is missing, retrieves elevation value from the USGS Elevation Point Query Service,
     lat lon must be in decimal degrees (which it is after cleaning).
@@ -286,8 +278,6 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
         list of latitude values to input for DEM elevation retrieval
     lons_to_check : list of float
         list of longitude values to input for DEM elevation retrieval
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -328,7 +318,7 @@ def _grab_dem_elev_m(lats_to_check, lons_to_check, verbose=False):
 
 
 # ----------------------------------------------------------------------
-def qaqc_elev_internal_range_consistency(df, verbose=False):
+def qaqc_elev_internal_range_consistency(df):
     """
     For stations with multiple elevation values, checks if the delta is reasonable, flags if not.
 
@@ -336,8 +326,6 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -415,15 +403,13 @@ def qaqc_elev_internal_range_consistency(df, verbose=False):
 
 
 # ----------------------------------------------------------------------
-def qaqc_elev_infill(df, verbose=False):
+def qaqc_elev_infill(df):
     """Test if elevation is NA/missing.
 
     Parameters
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -559,7 +545,7 @@ def qaqc_elev_infill(df, verbose=False):
 
 
 # ----------------------------------------------------------------------
-def qaqc_elev_range(df, verbose=False):
+def qaqc_elev_range(df):
     """
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
     If outside range, station is flagged to not proceed through QA/QC.
@@ -568,8 +554,6 @@ def qaqc_elev_range(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -613,7 +597,7 @@ def qaqc_elev_range(df, verbose=False):
 
 # ----------------------------------------------------------------------
 ## sensor height - air temperature
-def qaqc_sensor_height_t(df, verbose=False):
+def qaqc_sensor_height_t(df):
     """
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, temperature value for station is flagged to not proceed through QA/QC.
@@ -622,8 +606,6 @@ def qaqc_sensor_height_t(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -673,7 +655,7 @@ def qaqc_sensor_height_t(df, verbose=False):
 # ----------------------------------------------------------------------
 ## sensor height - wind
 ## NOTE: qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
-def qaqc_sensor_height_w(df, verbose=False):
+def qaqc_sensor_height_w(df):
     """
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
     If missing or outside range, wind speed and direction values for station are flagged to not proceed through QA/QC.
@@ -682,8 +664,6 @@ def qaqc_sensor_height_w(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -735,7 +715,7 @@ def qaqc_sensor_height_w(df, verbose=False):
 
 # ----------------------------------------------------------------------
 ## flag values outside world records for North America
-def qaqc_world_record(df, verbose=False):
+def qaqc_world_record(df):
     """
     Checks if variables are outside North American world records.
     If outside minimum or maximum records, flags values.
@@ -744,8 +724,6 @@ def qaqc_world_record(df, verbose=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
 
     Returns
     -------
@@ -900,7 +878,7 @@ def qaqc_world_record(df, verbose=False):
 
 # ----------------------------------------------------------------------
 ## final summary stats of flagged variables and percentage of coverage
-def flag_summary(df, verbose=False, local=False):
+def flag_summary(df):
     """Generates summary of flags set on all QAQC tests.
     Returns list of unique flag values for each variable
     Returns % of total obs per variable that was flagged
@@ -912,10 +890,6 @@ def flag_summary(df, verbose=False, local=False):
     ----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
-    verbose : bool, optional
-        if True, returns runtime output to terminal
-    local : bool, optional
-        if True, saves plots to local folder in addition to AWS
 
     Returns
     -------

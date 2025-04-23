@@ -219,15 +219,13 @@ def infere_res_var(df, var):
 
 
 # ----------------------------------------------------------------------
-def infere_res(df, verbose=False):
+def infere_res(df):
     """DOCUMENTATION UPDATE REQUIRED.
 
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe to check
-    verbose : bool, optional
-        if True, returns runtime output to local terminal
 
     Returns
     -------
@@ -281,7 +279,7 @@ def consecutive_months(series):
 
 # ---------------------------------------------------------------------------------------------------
 def qaqc_unusual_repeated_streaks(
-    df, min_sequence_length=10, plot=True, local=False, verbose=False
+    df, min_sequence_length=10, plot=True
 ):
     """Test for repeated streaks/unusual spell frequency.
 
@@ -291,8 +289,6 @@ def qaqc_unusual_repeated_streaks(
         station dataset converted to dataframe through QAQC pipeline
     min_sequence_length : int, optional
         [?]
-    local : bool, optional
-        if True, saves the plot to local directory
     plot : bool, optional
         if True, produces plot and uploads it to AWS
 
@@ -480,7 +476,7 @@ def qaqc_unusual_repeated_streaks(
                     ind = np.logical_and(
                         new_df["year"] == k[0], new_df["month"] == k[1]
                     )
-                    unusual_streaks_plot(new_df[ind], var, station=station, local=local)
+                    unusual_streaks_plot(new_df[ind], var, station=station)
                 logger.info(
                     "{} subset plots produced for flagged obs in {}".format(
                         len(keys), var

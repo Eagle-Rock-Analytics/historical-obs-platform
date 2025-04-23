@@ -25,7 +25,6 @@ except Exception as e:
 
 
 # -----------------------------------------------------------------------------
-#
 def is_precip_accumulated(pr):
     """
     Determines whether a precipitation time series is accumulated by analyzing its autocorrelation.
@@ -73,7 +72,6 @@ def is_precip_accumulated(pr):
 
 
 # -----------------------------------------------------------------------------
-#
 def flag_ringing(series, window=3, threshold=None):
     """
     Flags values exhibiting ringing (back-and-forth oscillations).
@@ -115,7 +113,6 @@ def flag_ringing(series, window=3, threshold=None):
 
 
 # -----------------------------------------------------------------------------
-#
 def de_accumulate(original_series, reset_threshold=None, window=3, threshold=None):
     """
     Compute incremental values from an accumulated time series while handling resets and filtering artifacts.
@@ -234,9 +231,8 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
 
 
 # -----------------------------------------------------------------------------
-#
 def qaqc_deaccumulate_precip(
-    df, var="pr", reset_threshold=50, threshold=10, window=3, plot=True, local=False
+    df, var="pr", reset_threshold=50, threshold=10, window=3, plot=True
 ):
     """
     Performs quality control (QAQC) and de-accumulation on a precipitation time series.
@@ -351,7 +347,6 @@ def qaqc_deaccumulate_precip(
                             df.loc[:, [var, "accum_" + var, "time", "station"]],
                             flags,
                             var,
-                            local=local,
                         )
                         logger.info("De-accumulation plot produced for {}".format(var)),
 
@@ -376,6 +371,3 @@ def qaqc_deaccumulate_precip(
             "qaqc_deaccumulate_precip failed with Exception: {}".format(e),
         )
         return None
-
-
-# -----------------------------------------------------------------------------

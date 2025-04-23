@@ -19,7 +19,7 @@ except Exception as e:
 
 ## NDBC and MARITIME only
 # -----------------------------------------------------------------------------
-def spurious_buoy_check(df, qc_vars, verbose=False):
+def spurious_buoy_check(df, qc_vars):
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
@@ -30,8 +30,6 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         QAQC dataframe to check
     qc_vars : list of str
         QC'd variables to avoid
-    verbose : bool, optional
-        If True, provides runtime output to local terminal
 
     Returns
     -------
@@ -149,12 +147,11 @@ def spurious_buoy_check(df, qc_vars, verbose=False):
         # other stations have partial coverage of their full data records as well as disestablishment dates
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
-        if verbose:
-            logger.info(
-                "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage.".format(
-                    station
-                )
+        logger.info(
+            "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage.".format(
+                station
             )
+        )
 
         for new_var in qc_vars:
             try:

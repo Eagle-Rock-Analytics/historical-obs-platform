@@ -30,8 +30,6 @@ def qaqc_unusual_large_jumps(
     iqr_thresh: int = 6,
     min_datapoints: int = 50,
     plot: bool = True,
-    local: bool = False,
-    verbose: bool = False,
 ) -> pd.DataFrame:
     """
     Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
@@ -45,8 +43,6 @@ def qaqc_unusual_large_jumps(
         critical value (iqr_thresh*IQR) for spike detection (default=6)
     min_datapoints : int, optional
         minimum data points in each month to be valid for testing (default=50)
-    local : bool, optional
-        if True, saves the plot to local directory
     plot : bool, optional
         if True, produces plot and uploads it to AWS
 
@@ -126,7 +122,7 @@ def qaqc_unusual_large_jumps(
                         df_plot["year"] == k[0], df_plot["month"] == k[1]
                     )
                     unusual_jumps_plot(
-                        df_plot.loc[ind, :], var, flagval=23, local=local
+                        df_plot.loc[ind, :], var, flagval=23
                     )
 
         except Exception as e:

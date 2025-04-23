@@ -26,7 +26,7 @@ except Exception as e:
 
 # -----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
+def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
     """
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -38,10 +38,6 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
         interquartile range year threshold, default set to 5
     plots : bool, optional
         if True, produces figures
-    verbose : bool, optional
-        if True, provides runtime output to the local terminal
-    local : bool, optional
-        if True, saves plots to local directory
 
     Returns
     -------
@@ -92,10 +88,10 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
             return df
         else:
             df_to_run = qaqc_dist_gap_part1(
-                df, vars_to_check, iqr_thresh, plots, verbose=verbose, local=local
+                df, vars_to_check, iqr_thresh, plots
             )
             df_to_run = qaqc_dist_gap_part2(
-                df_to_run, vars_to_check, plots, verbose=verbose, local=local
+                df_to_run, vars_to_check, plots
             )
 
     except Exception as e:
@@ -118,7 +114,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True, verbose=False, local=False):
 
 # -----------------------------------------------------------------------------
 def qaqc_dist_gap_part1(
-    df, vars_to_check, iqr_thresh, plot=True, verbose=False, local=False
+    df, vars_to_check, iqr_thresh, plot=True
 ):
     """Identifies suspect months and flags all obs within month
 
@@ -132,10 +128,6 @@ def qaqc_dist_gap_part1(
         interquartile range year threshold, default set to 5
     plot : bool, optional
         if True, produces figures
-    verbose : bool, optional
-        if True, provides runtime output to the local terminal
-    local : bool, optional
-        if True, saves plots to local directory
 
     Returns
     -------
@@ -218,7 +210,6 @@ def qaqc_dist_gap_part1(
                             flagval=21,
                             iqr_thresh=iqr_thresh,
                             network=network,
-                            local=local,
                         )
         except Exception as e:
             logger.info(
@@ -232,7 +223,7 @@ def qaqc_dist_gap_part1(
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False):
+def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
     """Identifies individual suspect observations and flags the entire month
 
     Parameters
@@ -243,10 +234,6 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
         list of variables to run test on
     plot : bool, optional
         if True, produces figures
-    verbose : bool, optional
-        if True, provides runtime output to the local terminal
-    local : bool, optional
-        if True, saves plots to local directory
 
     Returns
     -------
@@ -361,7 +348,6 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True, verbose=False, local=False
                             month,
                             var,
                             network=df["station"].unique()[0].split("_")[0],
-                            local=local,
                         )
         except Exception as e:
             logger.info(
@@ -515,7 +501,7 @@ def check_differences(series, threshold):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
+def qaqc_unusual_gaps_precip(df, var, threshold):
     """
     Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
@@ -529,8 +515,6 @@ def qaqc_unusual_gaps_precip(df, var, threshold, verbose=False):
         variable name
     threshold : int
         precipitation total to check, default 200 mm
-    verbose : boolean, optional
-        whether to provide output to local env
 
     Returns
     -------
