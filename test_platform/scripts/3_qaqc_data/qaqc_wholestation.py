@@ -239,17 +239,14 @@ def qaqc_within_wecc(df):
     ak_t = (
         gp.read_file(ascc).iloc[9].geometry
     )  ## Read in Alaska boundaries shapefile -- Southeast region.
-    lat = df['lat'].iloc[0]
-    lon = df['lon'].iloc[0]
+    lat = df["lat"].iloc[0]
+    lon = df["lon"].iloc[0]
 
     pxy = shapely.geometry.Point(lon, lat)
     if pxy.within(t) or pxy.within(m):
         return df
     elif (
-        lat > 43.0
-        and lat < 45.0
-        and lon > -104.0
-        and lon < -102.0
+        lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0
     ):  # trying to get the weird SD bump
         logger.info("Station is within the South Dakota portion -- informational only")
         return df
