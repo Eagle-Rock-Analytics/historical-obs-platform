@@ -455,7 +455,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     -------
     df : pd.DataFrame
         converted xr.Dataset into dataframe
-    MultiIndex : pd.Index
+    df_multi_idx : pd.Index
         multi-index of station and time
     attrs : list of str
         attributes from xr.Dataset
@@ -557,7 +557,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     df = df[~df.index.duplicated()].sort_index()
 
     # Save station/time multiindex
-    MultiIndex = df.index
+    df_multi_idx = df.index
     station = df.index.get_level_values(0)
     df["station"] = station
 
@@ -574,7 +574,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     df["year"] = pd.to_datetime(df["time"]).dt.year
     df["date"] = pd.to_datetime(df["time"]).dt.date
 
-    return df, MultiIndex, attrs, var_attrs, era_qc_vars
+    return df, df_multi_idx, attrs, var_attrs, era_qc_vars
 
 
 # ----------------------------------------------------------------------------
@@ -651,7 +651,7 @@ def run_qaqc_pipeline(
         ds = ds
 
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
+    df, df_multidx, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
 
     # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
     ds.close()
@@ -1088,7 +1088,7 @@ def run_qaqc_pipeline(
     )
     flag_summary(stn_to_qaqc, verbose=verbose, local=local)
 
-    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(
+    stn_to_qaqc = stn_to_qaqc.set_index(df_multidx).drop(
         columns=["time", "hour", "day", "month", "year", "date", "station"]
     )
 
