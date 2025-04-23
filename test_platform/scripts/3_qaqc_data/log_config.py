@@ -4,7 +4,6 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 import logging
-from mpi4py import MPI
 import os
 
 
@@ -36,9 +35,7 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
     file_handler.setLevel(logging.DEBUG)
 
     # Create a formatter and attach it to the handler
-    formatter = logging.Formatter(
-        "%(asctime)s - %(rank)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
 
     # Add the file handler to the logger
@@ -50,19 +47,6 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False):
         console_handler.setLevel(logging.DEBUG)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
-
-    # Add a custom filter to include the MPI rank in the log messages
-    class RankFilter(logging.Filter):
-        def filter(self, record):
-            # Attach the MPI rank to the log record
-            record.rank = MPI.COMM_WORLD.Get_rank()
-            record.rank = "(Rank {}/{})".format(
-                MPI.COMM_WORLD.Get_rank() + 1, MPI.COMM_WORLD.Get_size()
-            )
-            return True
-
-    # Add the filter to the logger
-    logger.addFilter(RankFilter())
 
     return logger
 
