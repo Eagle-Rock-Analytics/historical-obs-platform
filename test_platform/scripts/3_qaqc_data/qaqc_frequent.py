@@ -26,7 +26,7 @@ except Exception as e:
 
 ## frequent values + helper functions
 # -----------------------------------------------------------------------------
-def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
+def qaqc_frequent_vals(df, rad_scheme, plots=True):
     """
     Test for unusually frequent values, run on temperatures and pressure. This check is performed in two phases.
     - Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -47,10 +47,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
         radiation handling for frequent occurence of valid zeros
     plots : bool, optional
         if True, produces plots of any flagged data and saved to AWS
-    verbose : bool, optional
-        if True, provides runtime output to local terminal
-    local : bool, optional
-        if True, saves plots and log files to local directory
 
     Returns
     -------
@@ -116,7 +112,10 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 continue  # bypass to next variable if all obs are nans
 
             df_valid = frequent_bincheck(
-                df_valid, var, data_group="all", rad_scheme=rad_scheme, verbose=verbose
+                df_valid,
+                var,
+                data_group="all",
+                rad_scheme=rad_scheme,
             )
 
             # if no values are flagged as suspect, end function, no need to proceed
@@ -138,7 +137,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                     var,
                     data_group="annual",
                     rad_scheme=rad_scheme,
-                    verbose=verbose,
                 )
 
             # seasonal scan (JF+D, MAM, JJA, SON)
@@ -153,7 +151,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                 var,
                 data_group="seasonal_all",
                 rad_scheme=rad_scheme,
-                verbose=verbose,
             )  ## DECISION: December is from the current year
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
                 logger.info(
@@ -173,7 +170,6 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
                     var,
                     data_group="seasonal_annual",
                     rad_scheme=rad_scheme,
-                    verbose=verbose,
                 )
 
             # remove any lingering preliminary flags, data passed check
@@ -220,17 +216,17 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True, verbose=False, local=False):
             if (
                 24 in df[var + "_eraqc"].unique() or 25 in df[var + "_eraqc"].unique()
             ):  # only plot a figure if a value is flagged
-                frequent_vals_plot(df, var, rad_scheme, local=local)
+                frequent_vals_plot(df, var, rad_scheme)
 
         for v in pr_vars_to_check:
             if 31 in df[v + "_eraqc"].unique():
-                frequent_precip_plot(df, v, flag=31, local=local)
+                frequent_precip_plot(df, v, flag=31)
 
     return df
 
 
 # -----------------------------------------------------------------------------
-def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
+def frequent_bincheck(df, var, data_group, rad_scheme):
     """Identifies which bins should be flagged via the annual/seasonal frequent test.
 
     Parameters
@@ -243,8 +239,6 @@ def frequent_bincheck(df, var, data_group, rad_scheme, verbose=False):
         annual vs. seasonal handling, options: all, annual, seasonal_all, seasonal_annual
     rad_scheme : str
         radiation handling for frequent occurence of valid zeros
-    verbose : bool, optional
-        if True, provides runtime output to local terminal
 
     Returns
     -------
@@ -578,7 +572,7 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 # -----------------------------------------------------------------------------
 # precipitation focused precip check
-def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5, verbose=False):
+def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5):
     """Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
     and flagged values are applied to all subhourly observations within a flagged day.
@@ -593,8 +587,6 @@ def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5, verbose=Fals
         moderate precipitation total to check, default 18mm (~0.7 inch for Santa Clara County, may be different for other regions)
     day_thresh : int, optional
         num. of min consecutive days to flag, default 5 days
-    verbose : bool, optional
-        whether to provide output to local env
 
     Returns
     -------

@@ -39,8 +39,6 @@ def qaqc_climatological_outlier(
     winz_limits=[0.05, 0.05],
     bin_size=0.25,
     plot=True,
-    verbose=False,
-    local=False,
 ):
     """Flags individual gross outliers from climatological distribution
 
@@ -56,10 +54,6 @@ def qaqc_climatological_outlier(
         size of distribution bins
     plot : bool, optional
         if True, produces plots of any flagged data and saved to AWS
-    verbose : bool, optional
-        if True, provides runtime output to local terminal
-    local : bool, optional
-        if True, retains local copy of figures
 
     Returns
     -------
@@ -256,7 +250,6 @@ def qaqc_climatological_outlier(
         #             hour,
         #             bin_size=bin_size,
         #             station=station,
-        #             local=local,
         #         )
         for var in pr_vars_to_anom:
             if 32 in new_df[var + "_eraqc"].unique():  # only plot if flag is present

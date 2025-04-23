@@ -50,7 +50,7 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 bucket_name = "wecc-historical-wx"
 
 # Make local directories to save files temporarily and save timing,
-dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
+dirs = ["./qaqc_logs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
@@ -272,7 +272,6 @@ def process_output_ds(
     station,
     qaqcdir,
     zarr,
-    local=False,
 ):
     """
     Processes the final dataset for export to AWS.
@@ -295,8 +294,6 @@ def process_output_ds(
         path to QAQC AWS directory
     zarr : bool
         if True, output is a .zarr. if False, output is a .nc
-    local : bool, optional
-        if True, saves figures to local directory in addition to AWS
 
     Returns
     -------
@@ -356,14 +353,6 @@ def process_output_ds(
         filename = station + ".zarr"
     filepath = qaqcdir + filename  # Writes file path
 
-    if local == True or zarr == False:
-        tmpFile = tempfile.NamedTemporaryFile(
-            dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
-        )
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            ds.to_netcdf(tmpFile.name)  # Save station file.
-
     # Push file to AWS with correct file name
     t0 = time.time()
     logger.info(
@@ -388,36 +377,23 @@ def process_output_ds(
     ds.close()
     del ds
 
-    if local:
-        t0 = time.time()
-        logger.info(
-            "Saving local file temp/{}.nc".format(station),
-        )
-        # Write locally
-        os.system("mv {} local_qaqced_files/{}.nc".format(tmpFile.name, station))
-        logger.info(
-            "Done saving local file. Ellapsed time: {:.2f} s.".format(time.time() - t0),
-        )
-
     return None
 
 
 # --------------------------------------------------------------------------------
-def qaqc_ds_to_df(ds, verbose=False):
+def qaqc_ds_to_df(ds):
     """Converts xarray ds for a station to pandas df in the format needed for the pipeline
 
     Parameters
     ----------
     ds : xr.Dataset
         input data from the clean step
-    verbose : bool, optional
-        if True, provides runtime output to the terminal
 
     Returns
     -------
     df : pd.DataFrame
         converted xr.Dataset into dataframe
-    MultiIndex : pd.Index
+    df_multi_idx : pd.Index
         multi-index of station and time
     attrs : list of str
         attributes from xr.Dataset
@@ -519,7 +495,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     df = df[~df.index.duplicated()].sort_index()
 
     # Save station/time multiindex
-    MultiIndex = df.index
+    df_multi_idx = df.index
     station = df.index.get_level_values(0)
     df["station"] = station
 
@@ -536,7 +512,7 @@ def qaqc_ds_to_df(ds, verbose=False):
     df["year"] = pd.to_datetime(df["time"]).dt.year
     df["date"] = pd.to_datetime(df["time"]).dt.date
 
-    return df, MultiIndex, attrs, var_attrs, era_qc_vars
+    return df, df_multi_idx, attrs, var_attrs, era_qc_vars
 
 
 # ----------------------------------------------------------------------------
@@ -548,8 +524,6 @@ def run_qaqc_pipeline(
     station,
     end_api,
     rad_scheme,
-    verbose=False,
-    local=False,
 ):
     """Runs all QAQC functions.
 
@@ -567,10 +541,6 @@ def run_qaqc_pipeline(
         time at beginnging of data download
     rad_scheme : str
         radiation handling scheme for qaqc_frequent
-    verbose : bool, optional
-        if True, provides runtime output to the terminal
-    local : bool, optional
-        if True, saves output to local directory in addition to AWS
 
     Returns
     -------
@@ -592,8 +562,24 @@ def run_qaqc_pipeline(
     - Part 2: Logic checks
     - Part 3: Distribution & time series checks
     """
+
+    # First identify if the station has valid data variables
+    ds = qaqc_eligible_vars(ds)
+    if ds is None:
+        errors = print_qaqc_failed(
+            errors,
+            station,
+            end_api,
+            message="does not report any data variables",
+            test="qaqc_eligible_vars",
+        )
+        return [None] * 4  # whole station failure, skip to next station
+
+    else:
+        ds = ds
+
     # Convert from xarray ds to pandas df in the format needed for qaqc pipeline
-    df, MultiIndex, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds, verbose=verbose)
+    df, df_multidx, attrs, var_attrs, era_qc_vars = qaqc_ds_to_df(ds)
 
     # Close ds file, netCDF,HDF5 unclosed files can sometimes cause issues during the mpi4py cleanup phase.
     ds.close()
@@ -609,7 +595,7 @@ def run_qaqc_pipeline(
     # ---------------------------------------------------------
     ## Missing values -- does not proceed through qaqc if failure
     stn_to_qaqc = df.copy()  # Need to define before qaqc_pipeline, in case
-    new_df = qaqc_missing_vals(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_missing_vals(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -625,7 +611,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Lat-lon -- does not proceed through qaqc if failure
-    new_df = qaqc_missing_latlon(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_missing_latlon(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -641,7 +627,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Within WECC -- does not proceed through qaqc if failure
-    new_df = qaqc_within_wecc(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_within_wecc(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -657,9 +643,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-    new_df = qaqc_elev_infill(
-        stn_to_qaqc, verbose=verbose
-    )  # nan infilling must be before range check
+    new_df = qaqc_elev_infill(stn_to_qaqc)  # nan infilling must be before range check
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -675,7 +659,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Elevation -- range within WECC
-    new_df = qaqc_elev_range(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_elev_range(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -691,7 +675,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Elevation -- range consistency check
-    new_df = qaqc_elev_internal_range_consistency(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_elev_internal_range_consistency(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -709,7 +693,7 @@ def run_qaqc_pipeline(
     ## Part 1b: Whole station checks - if failure, entire station does proceed through QA/QC
     # ---------------------------------------------------------
     ## Pressure units fix (temporary)
-    new_df = qaqc_pressure_units_fix(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_pressure_units_fix(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -726,7 +710,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Precipitation de-accumulation
-    new_df = qaqc_deaccumulate_precip(stn_to_qaqc, local=local)
+    new_df = qaqc_deaccumulate_precip(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -745,7 +729,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
-    new_df = qaqc_world_record(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_world_record(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -768,7 +752,7 @@ def run_qaqc_pipeline(
     logger.info("QA/QC logic checks")
     # ---------------------------------------------------------
     ## dew point temp cannot exceed air temperature
-    new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_crossvar_logic_tdps_to_tas_supersat(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -785,7 +769,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## dew point temp cannot exceed air temperature (wet bulb drying)
-    new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_crossvar_logic_tdps_to_tas_wetbulb(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -802,7 +786,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## precipitation is not negative
-    new_df = qaqc_precip_logic_nonegvals(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_precip_logic_nonegvals(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -819,7 +803,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## precipitation duration logic
-    new_df = qaqc_precip_logic_accum_amounts(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_precip_logic_accum_amounts(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -835,7 +819,7 @@ def run_qaqc_pipeline(
         )
     # ---------------------------------------------------------
     ## wind direction should be 0 when wind speed is also 0
-    new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_crossvar_logic_calm_wind_dir(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -862,7 +846,7 @@ def run_qaqc_pipeline(
         t0 = time.time()
         logger.info("QA/QC bouy check")
 
-        new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars, verbose=verbose)
+        new_df = spurious_buoy_check(stn_to_qaqc, era_qc_vars)
         if new_df is None:
             errors = print_qaqc_failed(
                 errors,
@@ -887,7 +871,7 @@ def run_qaqc_pipeline(
     t0 = time.time()
     logger.info("QA/QC frequent values")
 
-    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme, verbose=verbose)
+    new_df = qaqc_frequent_vals(stn_to_qaqc, rad_scheme=rad_scheme)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -910,7 +894,7 @@ def run_qaqc_pipeline(
     t0 = time.time()
     logger.info("QA/QC unusual gaps")
 
-    new_df = qaqc_unusual_gaps(stn_to_qaqc, verbose=verbose, local=local)
+    new_df = qaqc_unusual_gaps(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -931,7 +915,7 @@ def run_qaqc_pipeline(
     t0 = time.time()
     logger.info("QA/QC climatological outliers")
 
-    new_df = qaqc_climatological_outlier(stn_to_qaqc, verbose=verbose)
+    new_df = qaqc_climatological_outlier(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -956,7 +940,7 @@ def run_qaqc_pipeline(
     t0 = time.time()
     logger.info("QA/QC unsual repeated streaks")
 
-    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc, verbose=verbose, local=local)
+    new_df = qaqc_unusual_repeated_streaks(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -981,7 +965,7 @@ def run_qaqc_pipeline(
     t0 = time.time()
     logger.info("QA/QC unsual large jumps")
 
-    new_df = qaqc_unusual_large_jumps(stn_to_qaqc, verbose=verbose, local=local)
+    new_df = qaqc_unusual_large_jumps(stn_to_qaqc)
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -1008,9 +992,9 @@ def run_qaqc_pipeline(
     logger.info(
         "Summary of QA/QC flags set per variable",
     )
-    flag_summary(stn_to_qaqc, verbose=verbose, local=local)
+    flag_summary(stn_to_qaqc)
 
-    stn_to_qaqc = stn_to_qaqc.set_index(MultiIndex).drop(
+    stn_to_qaqc = stn_to_qaqc.set_index(df_multidx).drop(
         columns=["time", "hour", "day", "month", "year", "date", "station"]
     )
 
@@ -1023,9 +1007,7 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-def run_qaqc_one_station(
-    station, verbose=False, local=False, rad_scheme="remove_zeros"
-):
+def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
     """
     Runs the full QA/QC pipeline on a single weather station dataset.
 
@@ -1040,8 +1022,6 @@ def run_qaqc_one_station(
         Unique identifier for the weather station (e.g., "LOXWFO_CBGC1").
     verbose : bool, optional
         If True, enables verbose logging. Default is False.
-    local : bool, optional
-        If True, saves output locally instead of to AWS. Default is False.
     rad_scheme : str, optional
         Strategy for handling solar radiation data. Default is "remove_zeros".
 
@@ -1149,8 +1129,6 @@ def run_qaqc_one_station(
             station,
             end_api,
             rad_scheme,
-            verbose=verbose,
-            local=local,
         )
         if (
             df is None
@@ -1172,7 +1150,6 @@ def run_qaqc_one_station(
             station,
             qaqc_dir,
             zarr=True,  # Default to always write to zarr
-            local=local,
         )
 
     except Exception as e:

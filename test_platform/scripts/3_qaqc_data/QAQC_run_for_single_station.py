@@ -53,13 +53,6 @@ def main():
         type=str,
     )
     parser.add_argument(
-        "-l",
-        "--local",
-        default=False,
-        help="Save files and plots locally (default: False).",
-        type=bool,
-    )
-    parser.add_argument(
         "-r",
         "--rad_scheme",
         default="remove_zeros",
@@ -81,7 +74,6 @@ def main():
     run_qaqc_one_station(
         station=args.station,
         verbose=args.verbose,
-        local=args.local,
         rad_scheme=args.rad_scheme,
     )
 
