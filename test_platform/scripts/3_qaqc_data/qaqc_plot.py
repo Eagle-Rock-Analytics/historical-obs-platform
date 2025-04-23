@@ -20,7 +20,7 @@ import time
 # IGNORE PERFORMANCE WARNING FOR NOW
 # Related to:
 # PerformanceWarning: indexing past lexsort depth may impact performance.
-# clim_outlier_plot(df_plot.loc[i][var], month, hour, bin_size=0.1, station=station, local=True)
+# clim_outlier_plot(df_plot.loc[i][var], month, hour, bin_size=0.1, station=station)
 # It's because we are using multiindex and is not sorted, for now leaving like that since
 # it's not a big deal. Check for V2 if ordering de multiindex would preserve order for final/original df
 import warnings
@@ -217,7 +217,7 @@ def id_flag(flag_to_id):
 
 # ============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
+def flagged_timeseries_plot(df, var, dpi=300 savefig=True):
     """Produces timeseries of variables that have flags placed.
 
     Parameters
@@ -228,10 +228,8 @@ def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
         variable name
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        if True, saves plot locally, else: only saves plot to AWS
     savefig : bool, optional
-        if True, produces plot and saves either locally or to AWS
+        if True, produces plot and saves to AWS
 
     Returns
     -------
@@ -308,15 +306,6 @@ def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
                 Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
             )
 
-            # save locally if needed
-            if local:
-                fig.savefig(
-                    "qaqc_figs/{}.png".format(figname),
-                    format="png",
-                    dpi=dpi,
-                    bbox_inches="tight",
-                )
-
             # close figure to save memory
             plt.close()
 
@@ -328,7 +317,7 @@ def flagged_timeseries_plot(df, var, dpi=300, local=False, savefig=True):
 
 # ============================================================================================================
 ## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=False):
+def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300):
     """Plotting helper with common plotting elements for all 3 versions of this plot.
 
     Parameters
@@ -347,8 +336,6 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=Fal
         radiation scheme, default is "remove_zeros"
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
@@ -420,15 +407,6 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=Fal
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    # save locally if needed
-    if local:
-        fig.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -436,7 +414,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300, local=Fal
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_vals_plot(df, var, rad_scheme, local=False):
+def frequent_vals_plot(df, var, rad_scheme):
     """
     Produces a histogram of the diagnostic histogram per variable,
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test
@@ -450,8 +428,6 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
         variable name
     rad_scheme : str
         radiation scheme, default is "remove_zeros"
-    local : bool, optional
-        whether to produce local plots for review
 
     Returns
     -------
@@ -582,7 +558,7 @@ def frequent_vals_plot(df, var, rad_scheme, local=False):
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_precip_plot(df, var, flag, dpi=300, local=False):
+def frequent_precip_plot(df, var, flag, dpi=300):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -595,8 +571,6 @@ def frequent_precip_plot(df, var, flag, dpi=300, local=False):
         qaqc_precip_check flag (31)
     dpi : int, optional
         resolution of figure
-    local : bool, optional
-        whether to save figure locally in addition to AWS
 
     Returns
     -------
@@ -661,15 +635,6 @@ def frequent_precip_plot(df, var, flag, dpi=300, local=False):
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    # save locally if needed
-    if local:
-        plt.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -679,7 +644,7 @@ def frequent_precip_plot(df, var, flag, dpi=300, local=False):
 # ============================================================================================================
 ## distribution gap plotting functions
 def dist_gap_part1_plot(
-    df, month, var, flagval, iqr_thresh, network, dpi=300, local=False
+    df, month, var, flagval, iqr_thresh, network, dpi=300
 ):
     """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
@@ -699,8 +664,6 @@ def dist_gap_part1_plot(
         name of network
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        whether to produce local plots for review
 
     Returns
     -------
@@ -782,15 +745,6 @@ def dist_gap_part1_plot(
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    # save locally if needed
-    if local:
-        plt.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -798,7 +752,7 @@ def dist_gap_part1_plot(
 
 
 # -----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
+def dist_gap_part2_plot(df, month, var, network, dpi=300):
     """Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
 
@@ -814,8 +768,6 @@ def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
         name of network
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        whether to produce local plots for review
 
     Returns
     -------
@@ -913,15 +865,6 @@ def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    # Save locally if needed
-    if local:
-        plt.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -930,7 +873,7 @@ def dist_gap_part2_plot(df, month, var, network, dpi=300, local=False):
 
 # ============================================================================================================
 ## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
+def unusual_jumps_plot(df, var, flagval=23, dpi=300):
     """Plots unusual large jumps qaqc.
 
     Parameters
@@ -943,8 +886,6 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
         flag value to plot (23 for unusual large jumps)
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
@@ -1008,11 +949,6 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
 
-    if local:
-        fig.savefig(
-            "{}.png".format(figname), format="png", dpi=dpi, bbox_inches="tight"
-        )
-
     # close figure to save memory
     plt.close("all")
 
@@ -1021,7 +957,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300, local=False):
 
 # ============================================================================================================
 def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, station=None, dpi=300, local=False
+    series, month, hour, bin_size=0.1, station=None, dpi=300
 ):
     """Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
@@ -1042,8 +978,6 @@ def clim_outlier_plot(
         station name
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
@@ -1150,14 +1084,6 @@ def clim_outlier_plot(
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    if local:
-        plt.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figures to save memory
     plt.close(fig)
 
@@ -1165,7 +1091,7 @@ def clim_outlier_plot(
 
 
 # ============================================================================================================
-def climatological_precip_plot(df, var, flag, dpi=300, local=False):
+def climatological_precip_plot(df, var, flag, dpi=300):
     """Plot frequent values for precipitation.
 
     Parameters
@@ -1178,8 +1104,6 @@ def climatological_precip_plot(df, var, flag, dpi=300, local=False):
         qaqc_precip_check flag (31)
     dpi : int, optional
         resolution of figure
-    local : bool, optional
-        if True, whether to save figure locally in addition to AWS
 
     Returns
     -------
@@ -1250,15 +1174,6 @@ def climatological_precip_plot(df, var, flag, dpi=300, local=False):
         Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
     )
 
-    # save locally if needed
-    if local:
-        plt.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -1267,7 +1182,7 @@ def climatological_precip_plot(df, var, flag, dpi=300, local=False):
 
 # ============================================================================================================
 def unusual_streaks_plot(
-    df, var, flagvals=(27, 28, 29), station=None, dpi=300, local=False
+    df, var, flagvals=(27, 28, 29), station=None, dpi=300
 ):
     """Plots unusual large jumps qaqc result.
 
@@ -1281,8 +1196,6 @@ def unusual_streaks_plot(
         flag value to plot (27, 28, 29 for unusual streaks)
     dpi : int, optional
         resolution for png plots
-    local : bool, optional
-        if True, saves plot locally, else: only saves plot to AWS
 
     Returns
     -------
@@ -1389,14 +1302,6 @@ def unusual_streaks_plot(
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
 
-    if local:
-        fig.savefig(
-            "qaqc_figs/{}.png".format(figname),
-            format="png",
-            dpi=dpi,
-            bbox_inches="tight",
-        )
-
     # close figure to save memory
     plt.close()
 
@@ -1405,14 +1310,13 @@ def unusual_streaks_plot(
 
 # ============================================================================================================
 ## precip de-accumulation plot
-def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
+def precip_deaccumulation_plot(df, flags, var="pr", dpi=300):
     """
     Generate and save a precipitation de-accumulation plot with flagged data points.
 
     This function visualizes the de-accumulation of precipitation by plotting
     the original accumulated precipitation and the de-accumulated values.
-    It highlights flagged oscillating or ringing values and saves the figure
-    either locally or to an AWS S3 bucket.
+    It highlights flagged oscillating or ringing values and saves the figure to S3.
 
     Parameters
     ----------
@@ -1421,8 +1325,6 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
         de-accumulated precipitation (`pr`), timestamps (`time`), and station information (`station`).
     flags : pandas.Series (bool)
         A boolean Series indicating flagged data points that exhibit oscillating or ringing behavior.
-    local : bool, optional
-        If `True`, the plot is saved locally. If `False` (default), the plot is uploaded to AWS S3.
     dpi : int, optional
         Resolution of the saved figure in dots per inch (default is 300).
 
@@ -1437,7 +1339,7 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
     - The bottom subplot shows the de-accumulated precipitation (`pr`).
     - Flagged ringing values are marked in red on the accumulated precipitation plot.
     - The function automatically adjusts the y-axis limits to mitigate the effect of outliers.
-    - The plot is saved either locally or to AWS S3 in the "wecc-historical-wx" bucket.
+    - The plot is saved to AWS S3 in the "wecc-historical-wx" bucket.
     - The `_plot_format_helper("pr")` function is used to determine y-axis labels and units.
     """
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
@@ -1515,11 +1417,6 @@ def precip_deaccumulation_plot(df, flags, var="pr", local=False, dpi=300):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket_name)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
-
-    if local:
-        fig.savefig(
-            "{}.png".format(figname), format="png", dpi=dpi, bbox_inches="tight"
-        )
 
     # close figure to save memory
     plt.close("all")

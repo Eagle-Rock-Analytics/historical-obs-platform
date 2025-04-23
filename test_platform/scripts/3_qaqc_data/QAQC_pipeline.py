@@ -50,7 +50,7 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 bucket_name = "wecc-historical-wx"
 
 # Make local directories to save files temporarily and save timing,
-dirs = ["./temp/", "./timing/", "./local_qaqced_files/", "./qaqc_logs/", "qaqc_figs/"]
+dirs = ["./qaqc_logs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
