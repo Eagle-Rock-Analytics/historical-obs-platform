@@ -353,14 +353,6 @@ def process_output_ds(
         filename = station + ".zarr"
     filepath = qaqcdir + filename  # Writes file path
 
-    # if zarr == False:
-    #     tmpFile = tempfile.NamedTemporaryFile(
-    #         dir="./temp/", prefix="_" + station, suffix=".nc", delete=False
-    #     )
-    #     with warnings.catch_warnings():
-    #         warnings.filterwarnings("ignore", category=RuntimeWarning)
-    #         ds.to_netcdf(tmpFile.name)  # Save station file.
-
     # Push file to AWS with correct file name
     t0 = time.time()
     logger.info(
