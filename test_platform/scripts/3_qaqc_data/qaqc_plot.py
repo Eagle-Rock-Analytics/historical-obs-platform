@@ -217,7 +217,7 @@ def id_flag(flag_to_id):
 
 # ============================================================================================================
 ## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=300 savefig=True):
+def flagged_timeseries_plot(df, var, dpi=300, savefig=True):
     """Produces timeseries of variables that have flags placed.
 
     Parameters
@@ -643,9 +643,7 @@ def frequent_precip_plot(df, var, flag, dpi=300):
 
 # ============================================================================================================
 ## distribution gap plotting functions
-def dist_gap_part1_plot(
-    df, month, var, flagval, iqr_thresh, network, dpi=300
-):
+def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=300):
     """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
     Parameters
@@ -956,9 +954,7 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300):
 
 
 # ============================================================================================================
-def clim_outlier_plot(
-    series, month, hour, bin_size=0.1, station=None, dpi=300
-):
+def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=300):
     """Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
     Differs from dist_gap_part2_plot for the climatological outlier
@@ -1181,9 +1177,7 @@ def climatological_precip_plot(df, var, flag, dpi=300):
 
 
 # ============================================================================================================
-def unusual_streaks_plot(
-    df, var, flagvals=(27, 28, 29), station=None, dpi=300
-):
+def unusual_streaks_plot(df, var, flagvals=(27, 28, 29), station=None, dpi=300):
     """Plots unusual large jumps qaqc result.
 
     Parameters
