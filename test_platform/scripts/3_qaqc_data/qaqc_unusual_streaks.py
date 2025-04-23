@@ -278,9 +278,7 @@ def consecutive_months(series):
 
 
 # ---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(
-    df, min_sequence_length=10, plot=True
-):
+def qaqc_unusual_repeated_streaks(df, min_sequence_length=10, plot=True):
     """Test for repeated streaks/unusual spell frequency.
 
     Parameters

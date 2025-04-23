@@ -18,9 +18,7 @@ except Exception as e:
 
 # -----------------------------------------------------------------------------
 ## logic check: dew point must not exceed air temperature
-def qaqc_crossvar_logic_tdps_to_tas_supersat(
-    df: pd.DataFrame
-) -> pd.DataFrame:
+def qaqc_crossvar_logic_tdps_to_tas_supersat(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks that dewpoint temperature does not exceed air temperature.
     If fails, only dewpoint temperature is flagged.
@@ -77,9 +75,7 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(
 
 
 # ----------------------------------------------------------------------
-def qaqc_crossvar_logic_tdps_to_tas_wetbulb(
-    df: pd.DataFrame
-) -> pd.DataFrame:
+def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks for extended periods of a dewpoint depression of 0°C.
     Extended period is defined as a 24-hour period

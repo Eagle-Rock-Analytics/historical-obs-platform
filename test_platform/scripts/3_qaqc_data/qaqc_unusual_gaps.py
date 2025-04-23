@@ -87,12 +87,8 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
         ).all():  # If all variables have less than 5 years, bypass whole station
             return df
         else:
-            df_to_run = qaqc_dist_gap_part1(
-                df, vars_to_check, iqr_thresh, plots
-            )
-            df_to_run = qaqc_dist_gap_part2(
-                df_to_run, vars_to_check, plots
-            )
+            df_to_run = qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plots)
+            df_to_run = qaqc_dist_gap_part2(df_to_run, vars_to_check, plots)
 
     except Exception as e:
         logger.info(
@@ -113,9 +109,7 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_gap_part1(
-    df, vars_to_check, iqr_thresh, plot=True
-):
+def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
     """Identifies suspect months and flags all obs within month
 
     Parameters

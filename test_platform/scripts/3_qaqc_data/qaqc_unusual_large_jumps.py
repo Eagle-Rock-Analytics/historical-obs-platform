@@ -121,9 +121,7 @@ def qaqc_unusual_large_jumps(
                     ind = np.logical_and(
                         df_plot["year"] == k[0], df_plot["month"] == k[1]
                     )
-                    unusual_jumps_plot(
-                        df_plot.loc[ind, :], var, flagval=23
-                    )
+                    unusual_jumps_plot(df_plot.loc[ind, :], var, flagval=23)
 
         except Exception as e:
             logger.info(

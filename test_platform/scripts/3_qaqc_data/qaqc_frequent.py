@@ -112,7 +112,10 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True):
                 continue  # bypass to next variable if all obs are nans
 
             df_valid = frequent_bincheck(
-                df_valid, var, data_group="all", rad_scheme=rad_scheme, 
+                df_valid,
+                var,
+                data_group="all",
+                rad_scheme=rad_scheme,
             )
 
             # if no values are flagged as suspect, end function, no need to proceed

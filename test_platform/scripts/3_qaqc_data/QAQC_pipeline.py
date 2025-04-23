@@ -651,9 +651,7 @@ def run_qaqc_pipeline(
 
     # ---------------------------------------------------------
     ## Elevation -- if DEM in-filling fails, does not proceed through qaqc
-    new_df = qaqc_elev_infill(
-        stn_to_qaqc
-    )  # nan infilling must be before range check
+    new_df = qaqc_elev_infill(stn_to_qaqc)  # nan infilling must be before range check
     if new_df is None:
         errors = print_qaqc_failed(
             errors,
@@ -1017,9 +1015,7 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-def run_qaqc_one_station(
-    station, verbose=False, rad_scheme="remove_zeros"
-):
+def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
     """
     Runs the full QA/QC pipeline on a single weather station dataset.
 
