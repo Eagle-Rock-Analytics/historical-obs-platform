@@ -1163,6 +1163,11 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
     ## ======== FINISH =========
     finally:
 
+        # Print elapsed time
+        logger.info(
+            "Script complete. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
+        )
+
         # Convert errors to DataFrame and
         errors_df = pd.DataFrame(errors)
         errors_s3_filepath = (
@@ -1172,11 +1177,6 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
 
         # Print error file location
         logger.info("errors saved to {0}\n".format(errors_s3_filepath))
-
-        # Done with station qaqc
-        logger.info(
-            "Script complete. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-        )
 
         # Save log file to s3 bucket
         logfile_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}{log_fname}"
