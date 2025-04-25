@@ -95,7 +95,7 @@ def print_qaqc_failed(errors, station=None, end_api=None, message=None, test=Non
         QAQC test name to include in error message
     """
     logger.info(
-        "{0} {1}, skipping station".format(station, message),
+        "{0} {1}".format(station, message),
     )
     errors["File"].append(station)
     errors["Time"].append(end_api)
@@ -332,7 +332,7 @@ def process_output_ds(
     # Append qaqc to the file history and comments (https://docs.unidata.ucar.edu/netcdf-c/current/attribute_conventions.html)
     ds.attrs["history"] = ds.attrs[
         "history"
-    ] + " \nALLNETWORKS_qaqc.py script run on {} UTC".format(timestamp)
+    ] + " \nQAQC_pipeline.py script run on {} UTC".format(timestamp)
     ds.attrs["comment"] = ds.attrs[
         "comment"
     ] + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.".format(
@@ -361,7 +361,7 @@ def process_output_ds(
         ),
     )
     if zarr == False:  # Upload as netcdf
-        s3.Bucket(bucket_name).upload_file(tmpFile.name, filepath)
+        s3.Bucket(bucket_name).upload_file(filename, filepath)
     elif zarr == True:
         filepath_s3 = "s3://{0}/{1}{2}".format(bucket_name, qaqcdir, filename)
         ds.to_zarr(
@@ -570,7 +570,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="does not report any data variables",
+            message="does not report any data variables. Station failed QAQC.",
             test="qaqc_eligible_vars",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -601,7 +601,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="has an unchecked missing value or does not report any observation variables",
+            message="has an unchecked missing value or does not report any observation variables. Station failed QAQC.",
             test="qaqc_missing_vals",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -617,7 +617,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="missing lat-lon",
+            message="missing lat-lon. Station failed QAQC.",
             test="qaqc_missing_latlon",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -633,7 +633,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="lat-lon is out of range for WECC",
+            message="lat-lon is out of range for WECC. Station failed QAQC.",
             test="qaqc_within_wecc",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -649,7 +649,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="DEM in-filling failed",
+            message="DEM in-filling failed. Station failed QAQC.",
             test="DEM in-filling, may not mean station does not pass qa/qc -- check",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -665,7 +665,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="elevation out of range for WECC",
+            message="elevation out of range for WECC. Station failed QAQC.",
             test="qaqc_elev_range",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -681,7 +681,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="internal elevation range is inconsistent",
+            message="internal elevation range is inconsistent. Station failed QAQC.",
             test="qaqc_elev_internal_range_consistency",
         )
         return [None] * 4  # whole station failure, skip to next station
@@ -699,7 +699,7 @@ def run_qaqc_pipeline(
             errors,
             station,
             end_api,
-            message="Flagging problem with world record check",
+            message="Flagging problem with world record check.",
             test="qaqc_pressure_units_fix",
         )
     else:
@@ -1130,13 +1130,12 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
             end_api,
             rad_scheme,
         )
-        if (
-            df is None
-        ):  # No data is returned by qaqc_pipeline :( but no error was raised
-            raise ValueError(
-                "No data returned by qaqc pipeline. Returned DataFrame is None"
-            )  # Skip to Exception
-
+        if (df is None):  
+            # No data is returned by qaqc_pipeline 
+            # Error handling should have happened within run_qaqc_pipeline 
+            # Thus, just skip right to the finally section
+            return 
+        
         # Save file
         # Attributes are assigned to dataset
         # File is uploaded as a zarr/nc locally or to AWS
@@ -1153,9 +1152,6 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
         )
 
     except Exception as e:
-        logger.info(
-            "QAQC failed for {} with Error: {}".format(station, e),
-        )
         errors = print_qaqc_failed(
             errors,
             station,
@@ -1177,15 +1173,10 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
         # Print error file location
         logger.info("errors saved to {0}\n".format(errors_s3_filepath))
 
-        # Close logging handlers manually
-        for handler in logger.handlers:
-            handler.close()
-            logger.removeHandler(handler)
-
         # Done with station qaqc
         logger.info(
-            "Done full QAQC for {}. Ellapsed time: {:.2f} s.\n".format(
-                station, time.time() - t0
+            "Script complete. Ellapsed time: {:.2f} s.\n".format(
+                time.time() - t0
             ),
         )
 
@@ -1195,5 +1186,10 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
             "Saving log file to {0}\n".format(logfile_s3_filepath),
         )
         s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
+
+        # Close logging handlers manually
+        for handler in logger.handlers:
+            handler.close()
+            logger.removeHandler(handler)
 
     return None
