@@ -1130,12 +1130,12 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
             end_api,
             rad_scheme,
         )
-        if (df is None):  
-            # No data is returned by qaqc_pipeline 
-            # Error handling should have happened within run_qaqc_pipeline 
+        if df is None:
+            # No data is returned by qaqc_pipeline
+            # Error handling should have happened within run_qaqc_pipeline
             # Thus, just skip right to the finally section
-            return 
-        
+            return
+
         # Save file
         # Attributes are assigned to dataset
         # File is uploaded as a zarr/nc locally or to AWS
@@ -1175,9 +1175,7 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
 
         # Done with station qaqc
         logger.info(
-            "Script complete. Ellapsed time: {:.2f} s.\n".format(
-                time.time() - t0
-            ),
+            "Script complete. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
         )
 
         # Save log file to s3 bucket
