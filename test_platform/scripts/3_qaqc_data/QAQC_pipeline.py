@@ -1049,7 +1049,7 @@ def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
 
     # Set zarr argument
     # Are the cleaned (2_qaqc_data/) data in zarr format? or netcdf?
-    zarrified_networks = ["VALLEYWATER"]  # Networks with zarrified data
+    zarrified_networks = ["VALLEYWATER", "CW3E"]  # Networks with zarrified data
     if network in zarrified_networks:
         zarr = True
     else:
