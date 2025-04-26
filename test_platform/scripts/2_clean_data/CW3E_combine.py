@@ -3,7 +3,7 @@ CW3E_combine.py
 
 This script merges individual NetCDF files for the same weather station in the CW3E network.
 Originally, CW3E station data were split into multiple NetCDF files due to size limitations during the initial cleaning step.
-This script combines them into single zarr files for easier ingestion and analysis.
+This script combines all the individual NetCDF files for each station into zarr stores for each station for easier ingestion and analysis.
 
 Overview:
 ---------
@@ -158,7 +158,7 @@ def main():
     print(f"Processing {len(station_ids)} stations for network: CW3E")
     for i in range(len(station_ids)):
         station_id = station_ids[i]
-        print(f"Processing station {station_id}: station {i+1}/{len(station_ids)}")
+        print(f"\nProcessing station {station_id}: station {i+1}/{len(station_ids)}")
 
         # Find all NetCDF files for the current station
         filenames_in_s3 = [file for file in cw3e_nc_files if station_id in file]
