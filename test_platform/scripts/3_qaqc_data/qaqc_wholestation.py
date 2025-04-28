@@ -248,18 +248,14 @@ def qaqc_within_wecc(df):
     elif (
         lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0
     ):  # trying to get the weird SD bump
-        logger.info("Station is within the South Dakota portion -- informational only")
-        return df
+        logger.info("Station is within the South Dakota portion")
+        return df  # QAQC will NOT fail
     elif pxy.within(ak_t) or lon <= -141.0:
-        logger.info(
-            "Station is within the Alaska Interconnection Zone instead of WECC -- bypassing station"
-        )
-        return None
+        logger.info("Station is within the Alaska Interconnection Zone instead of WECC")
+        return None  # QAQC will fail
     else:
-        logger.info(
-            "Station is likely wihtin MRO/ERCOT instead of WECC -- bypassing station"
-        )
-        return None
+        logger.info("Station is likely within MRO/ERCOT instead of WECC")
+        return None  # QAQC will fail
 
 
 # ----------------------------------------------------------------------
@@ -570,10 +566,8 @@ def qaqc_elev_range(df):
     if (df["elevation"].values.any() < -95.0) or (
         df["elevation"].values.any() > 6210.0
     ):
-        logger.info(
-            "Station out of range for WECC -- station does not proceed through QAQC"
-        )
-        return None
+        logger.info("Station out of range for WECC")
+        return None  # QAQC will fail
 
     # Elevation value is present and within reasonable value range
     else:
