@@ -28,7 +28,7 @@ import boto3
 from time import time
 
 
-def get_filenames_in_s3_folder(bucket, folder):
+def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
     """Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
     See example in the function docstrings for more details.
@@ -79,7 +79,9 @@ def get_filenames_in_s3_folder(bucket, folder):
     return files_in_s3
 
 
-def open_multiple_netcdf_files(filepaths, fs):
+def open_multiple_netcdf_files(
+    filepaths: list[str], fs: s3fs.S3FileSystem
+) -> list[xr.Dataset]:
     """Open a list of NetCDF files from S3 using xarray.
 
     Parameters
@@ -106,7 +108,7 @@ def open_multiple_netcdf_files(filepaths, fs):
     return ds_list
 
 
-def concat_and_sort_datasets(ds_list):
+def concat_and_sort_datasets(ds_list: list[xr.Dataset]) -> xr.Dataset:
     """Concatenate a list of datasets along 'time' and sort chronologically.
 
     Parameters
