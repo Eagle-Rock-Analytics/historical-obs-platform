@@ -892,7 +892,8 @@ def flag_summary(df):
 
     # identify _eraqc variables
     eraqc_vars = [var for var in df.columns if "_eraqc" in var]
-    obs_vars = [item.split("_e")[0] for item in eraqc_vars]
+    # Select obs variables to plot and ignore originally accumulated variables (pr)
+    obs_vars = [item.split("_e")[0] for var in eraqc_vars if "accum" not in var]
 
     for var in eraqc_vars:
         logger.info(
