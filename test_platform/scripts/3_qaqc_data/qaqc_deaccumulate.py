@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged. 
+This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
@@ -25,13 +25,13 @@ except Exception as e:
 
 
 # -----------------------------------------------------------------------------
-def is_precip_accumulated(pr):
+def is_precip_accumulated(pr: pd.Series) -> bool:
     """
     Determines whether a precipitation time series is accumulated by analyzing its autocorrelation.
 
     Parameters
     ----------
-    pr : pandas.Series
+    pr : pd.Series
         A time series of precipitation values, which may contain missing (NaN) values.
 
     Returns
@@ -72,13 +72,15 @@ def is_precip_accumulated(pr):
 
 
 # -----------------------------------------------------------------------------
-def flag_ringing(series, window=3, threshold=None):
+def flag_ringing(
+    series: pd.Series, window: int = 3, threshold: float | None = None
+) -> pd.Series:
     """
     Flags values exhibiting ringing (back-and-forth oscillations).
 
     Parameters
     ----------
-    series : pandas.Series
+    series : pd.Series
         The input time series.
     window : int, optional
         The window size for detecting frequent oscillations (default is 3).
@@ -87,7 +89,7 @@ def flag_ringing(series, window=3, threshold=None):
 
     Returns
     -------
-    pandas.Series
+    ringing_flags : pd.Series
         A boolean series where `True` indicates a flagged (bad) ringing value.
     """
     diff_series = series.diff()  # Compute first difference
@@ -113,7 +115,12 @@ def flag_ringing(series, window=3, threshold=None):
 
 
 # -----------------------------------------------------------------------------
-def de_accumulate(original_series, reset_threshold=None, window=3, threshold=None):
+def de_accumulate(
+    original_series: pd.Series,
+    reset_threshold: float | None = None,
+    window: int = 3,
+    threshold: float | None = None,
+) -> tuple[pd.Series, pd.Series]:
     """
     Compute incremental values from an accumulated time series while handling resets and filtering artifacts.
 
@@ -124,7 +131,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
 
     Parameters
     ----------
-    original_series : pandas.Series
+    original_series : pd.Series
         The accumulated time series. The index should represent time or sequence.
     reset_threshold : float, optional
         Threshold to detect a reset event. If `None`, a reset is assumed when the
@@ -137,9 +144,9 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
 
     Returns
     -------
-    deaccumulated_series : pandas.Series
+    diff_series : pd.Series
         The incremental time series with resets handled and ringing values removed.
-    final_flags : pandas.Series
+    final_flags : pd.Series
         A boolean series indicating which values were flagged as ringing or reset events.
 
     Notes
@@ -155,7 +162,7 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
     >>> import pandas as pd
     >>> series = pd.Series([0, 5, 10, 20, 0, 3, 7, 15, 25, 0, 4, 9],
     ...                   index=pd.date_range("2024-01-01", periods=12, freq="D"))
-    >>> deaccumulated, flags = de_accumulate(series, reset_threshold=15)
+    >>> diff_series, flags = de_accumulate(series, reset_threshold=15)
     """
 
     series = original_series.copy()
@@ -232,8 +239,13 @@ def de_accumulate(original_series, reset_threshold=None, window=3, threshold=Non
 
 # -----------------------------------------------------------------------------
 def qaqc_deaccumulate_precip(
-    df, var="pr", reset_threshold=50, threshold=10, window=3, plot=True
-):
+    df: pd.DataFrame,
+    var: str = "pr",
+    reset_threshold: float = 50,
+    threshold: float = 10,
+    window: int = 3,
+    plot: bool = True,
+) -> pd.DataFrame | None:
     """
     Performs quality control (QAQC) and de-accumulation on a precipitation time series.
 
@@ -243,7 +255,7 @@ def qaqc_deaccumulate_precip(
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df : pd.DataFrame
         A DataFrame containing the precipitation data.
     var : str, optional
         The column name of the precipitation variable to be checked and de-accumulated (default is 'pr').
@@ -257,7 +269,7 @@ def qaqc_deaccumulate_precip(
 
     Returns
     -------
-    pandas.DataFrame or None
+    pd.DataFrame or None
         - If precipitation is accumulated, a DataFrame with de-accumulated precipitation and
           additional QAQC flags is returned.
         - If precipitation is not accumulated, the original DataFrame is returned unchanged.
