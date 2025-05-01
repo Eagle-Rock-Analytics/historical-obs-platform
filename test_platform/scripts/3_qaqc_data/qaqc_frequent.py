@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusually frequent values in the data observations are flagged. 
+This is a script where Stage 3: QA/QC function(s) on unusually frequent values in the data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
@@ -24,9 +24,10 @@ except Exception as e:
     logger.debug("Error importing qaqc_utils: {}".format(e))
 
 
-## frequent values + helper functions
 # -----------------------------------------------------------------------------
-def qaqc_frequent_vals(df, rad_scheme, plots=True):
+def qaqc_frequent_vals(
+    df: pd.DataFrame, rad_scheme: str, plots: bool = True
+) -> pd.DataFrame | None:
     """
     Test for unusually frequent values, run on temperatures and pressure. This check is performed in two phases.
     - Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
@@ -50,8 +51,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True):
 
     Returns
     -------
-    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
+    df : pd.DataFrame
+        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+        If QAQC fails, returns None
 
     Notes
     -----
@@ -226,7 +228,9 @@ def qaqc_frequent_vals(df, rad_scheme, plots=True):
 
 
 # -----------------------------------------------------------------------------
-def frequent_bincheck(df, var, data_group, rad_scheme):
+def frequent_bincheck(
+    df: pd.DataFrame, var: str, data_group: str, rad_scheme: str
+) -> pd.DataFrame:
     """Identifies which bins should be flagged via the annual/seasonal frequent test.
 
     Parameters
@@ -476,7 +480,7 @@ def frequent_bincheck(df, var, data_group, rad_scheme):
 
 
 # -----------------------------------------------------------------------------
-def synergistic_flag(df, num_temp_vars):
+def synergistic_flag(df: pd.DataFrame, num_temp_vars: list) -> pd.DataFrame:
     """
     In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
     Applies appropriate flag in corresponding vars
@@ -513,8 +517,14 @@ def synergistic_flag(df, num_temp_vars):
 
 
 # -----------------------------------------------------------------------------
-def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh=30):
-    """Returns the specific bins to flag as suspect.
+def bins_to_flag(
+    bar_counts: list,
+    bins: list,
+    bin_main_thresh: int = 30,
+    secondary_bin_main_thresh: int = 30,
+) -> list[float]:
+    """
+    Returns the specific bins to flag as suspect.
 
     Parameters
     ----------
@@ -571,9 +581,11 @@ def bins_to_flag(bar_counts, bins, bin_main_thresh=30, secondary_bin_main_thresh
 
 
 # -----------------------------------------------------------------------------
-# precipitation focused precip check
-def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5):
-    """Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
+def qaqc_frequent_precip(
+    df: pd.DataFrame, var: str, moderate_thresh: int = 18, day_thresh: int = 5
+) -> pd.DataFrame:
+    """
+    Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
     and flagged values are applied to all subhourly observations within a flagged day.
 
@@ -590,7 +602,7 @@ def qaqc_frequent_precip(df, var, moderate_thresh=18, day_thresh=5):
 
     Returns
     -------
-    df : pd.DataFrame
+    new_df : pd.DataFrame
         QAQC dataframe with test applied
 
     Notes
