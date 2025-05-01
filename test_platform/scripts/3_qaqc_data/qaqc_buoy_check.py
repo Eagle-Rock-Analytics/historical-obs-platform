@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on spurious buoy issues within the NDBC and MARITIME networks are flagged. 
+This is a script where Stage 3: QA/QC function(s) on spurious buoy issues within the NDBC and MARITIME networks are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
@@ -19,7 +19,7 @@ except Exception as e:
 
 ## NDBC and MARITIME only
 # -----------------------------------------------------------------------------
-def spurious_buoy_check(df, qc_vars):
+def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
     If station reports data past disestablishment date, data records are flagged as suspect.
