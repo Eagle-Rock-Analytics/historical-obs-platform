@@ -36,9 +36,9 @@ from IPython.display import display
 
 
 # ============================================================================================================
-# All plots helper plotting function for labeling, units, min, maxes
-def _plot_format_helper(var):
-    """Helper function for unusual large jumps plots.
+def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
+    """
+    Helper function for unusual large jumps plots.
 
     Parameters
     ----------
@@ -192,9 +192,9 @@ def _plot_format_helper(var):
 
 
 # ============================================================================================================
-## flagged timeseries plot helper
-def id_flag(flag_to_id):
-    """Identifies flag based on numerical value assigned for plotting.
+def id_flag(flag_to_id: int) -> str:
+    """
+    Identifies flag based on numerical value assigned for plotting.
 
     Parameters
     ----------
@@ -216,9 +216,11 @@ def id_flag(flag_to_id):
 
 
 # ============================================================================================================
-## flagged timeseries plot
-def flagged_timeseries_plot(df, var, dpi=300, savefig=True):
-    """Produces timeseries of variables that have flags placed.
+def flagged_timeseries_plot(
+    df: pd.DataFrame, var: str, dpi: int = 300, savefig: bool = True
+):
+    """
+    Produces timeseries of variables that have flags placed.
 
     Parameters
     ----------
@@ -234,7 +236,6 @@ def flagged_timeseries_plot(df, var, dpi=300, savefig=True):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     # first check if var has flags, only produce plots of vars with flags
@@ -316,9 +317,17 @@ def flagged_timeseries_plot(df, var, dpi=300, savefig=True):
 
 
 # ============================================================================================================
-## frequent values plotting functions
-def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300):
-    """Plotting helper with common plotting elements for all 3 versions of this plot.
+def frequent_plot_helper(
+    df: pd.DataFrame,
+    var: str,
+    bins: list,
+    flag: int,
+    yr: int,
+    rad_scheme: str,
+    dpi: int = 300,
+):
+    """
+    Plotting helper with common plotting elements for all 3 versions of this plot.
 
     Parameters
     ----------
@@ -340,7 +349,6 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     # plot all valid data within year/season
@@ -414,7 +422,7 @@ def frequent_plot_helper(df, var, bins, flag, yr, rad_scheme, dpi=300):
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_vals_plot(df, var, rad_scheme):
+def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
     """
     Produces a histogram of the diagnostic histogram per variable,
     and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test
@@ -432,7 +440,6 @@ def frequent_vals_plot(df, var, rad_scheme):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     bins = create_bins_frequent(df, var)
@@ -558,8 +565,9 @@ def frequent_vals_plot(df, var, rad_scheme):
 
 
 # -----------------------------------------------------------------------------------------
-def frequent_precip_plot(df, var, flag, dpi=300):
-    """Plot frequent values for precipitation.
+def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
+    """
+    Plot frequent values for precipitation.
 
     Parameters
     ----------
@@ -575,7 +583,6 @@ def frequent_precip_plot(df, var, flag, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
     # valid precipitation variables
 
@@ -642,9 +649,17 @@ def frequent_precip_plot(df, var, flag, dpi=300):
 
 
 # ============================================================================================================
-## distribution gap plotting functions
-def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=300):
-    """Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
+def dist_gap_part1_plot(
+    df: pd.DataFrame,
+    month: int,
+    var: str,
+    flagval: int,
+    iqr_thresh: int,
+    network: str,
+    dpi: int = 300,
+):
+    """
+    Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
 
     Parameters
     ----------
@@ -666,7 +681,6 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     # grab data by months
@@ -750,8 +764,11 @@ def dist_gap_part1_plot(df, month, var, flagval, iqr_thresh, network, dpi=300):
 
 
 # -----------------------------------------------------------------------------------------
-def dist_gap_part2_plot(df, month, var, network, dpi=300):
-    """Produces a histogram of the monthly standardized distribution
+def dist_gap_part2_plot(
+    df: pd.DataFrame, month: int, var: str, network: str, dpi: int = 300
+):
+    """
+    Produces a histogram of the monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
 
     Parameters
@@ -770,7 +787,6 @@ def dist_gap_part2_plot(df, month, var, network, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     # select month
@@ -870,9 +886,9 @@ def dist_gap_part2_plot(df, month, var, network, dpi=300):
 
 
 # ============================================================================================================
-## unusual large jumps plotting functions
-def unusual_jumps_plot(df, var, flagval=23, dpi=300):
-    """Plots unusual large jumps qaqc.
+def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int = 300):
+    """
+    Plots unusual large jumps qaqc.
 
     Parameters
     ----------
@@ -888,7 +904,6 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     fig, ax = plt.subplots(figsize=(10, 3))
@@ -954,7 +969,14 @@ def unusual_jumps_plot(df, var, flagval=23, dpi=300):
 
 
 # ============================================================================================================
-def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=300):
+def clim_outlier_plot(
+    series: pd.DataFrame,
+    month: int,
+    hour: int,
+    bin_size: int = 0.1,
+    station: str = None,
+    dpi: int = 300,
+):
     """Produces a histogram of monthly standardized distribution
     with PDF overlay and threshold lines where pdf falls below y=0.1.
     Differs from dist_gap_part2_plot for the climatological outlier
@@ -978,7 +1000,6 @@ def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
 
     var = series._name
@@ -1087,8 +1108,9 @@ def clim_outlier_plot(series, month, hour, bin_size=0.1, station=None, dpi=300):
 
 
 # ============================================================================================================
-def climatological_precip_plot(df, var, flag, dpi=300):
-    """Plot frequent values for precipitation.
+def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
+    """
+    Plot frequent values for precipitation.
 
     Parameters
     -----------
@@ -1104,7 +1126,6 @@ def climatological_precip_plot(df, var, flag, dpi=300):
     Returns
     -------
     None
-        This function does not return a value
     """
     # Copy df to avoid pandas warning
     df = df.copy()
@@ -1177,8 +1198,15 @@ def climatological_precip_plot(df, var, flag, dpi=300):
 
 
 # ============================================================================================================
-def unusual_streaks_plot(df, var, flagvals=(27, 28, 29), station=None, dpi=300):
-    """Plots unusual large jumps qaqc result.
+def unusual_streaks_plot(
+    df: pd.DataFrame,
+    var: str,
+    flagvals: int = (27, 28, 29),
+    station: str = None,
+    dpi: int = 300,
+):
+    """
+    Plots unusual large jumps qaqc result.
 
     Parameters
     ----------
@@ -1188,13 +1216,14 @@ def unusual_streaks_plot(df, var, flagvals=(27, 28, 29), station=None, dpi=300):
         variable name
     flagval : int, optional
         flag value to plot (27, 28, 29 for unusual streaks)
+    station : str
+        station name
     dpi : int, optional
         resolution for png plots
 
     Returns
     -------
     None
-        This function does not return a value
     """
     # Copy df to avoid pandas warning
     df = df.copy()
@@ -1303,8 +1332,9 @@ def unusual_streaks_plot(df, var, flagvals=(27, 28, 29), station=None, dpi=300):
 
 
 # ============================================================================================================
-## precip de-accumulation plot
-def precip_deaccumulation_plot(df, flags, var="pr", dpi=300):
+def precip_deaccumulation_plot(
+    df: pd.DataFrame, flags, var: str = "pr", dpi: int = 300
+):
     """
     Generate and save a precipitation de-accumulation plot with flagged data points.
 
@@ -1319,6 +1349,8 @@ def precip_deaccumulation_plot(df, flags, var="pr", dpi=300):
         de-accumulated precipitation (`pr`), timestamps (`time`), and station information (`station`).
     flags : pandas.Series (bool)
         A boolean Series indicating flagged data points that exhibit oscillating or ringing behavior.
+    var : str, optional
+        written as pr
     dpi : int, optional
         Resolution of the saved figure in dots per inch (default is 300).
 
@@ -1419,9 +1451,12 @@ def precip_deaccumulation_plot(df, flags, var="pr", dpi=300):
 
 
 # ============================================================================================================
-## V2 research: these should live in qaqc_unusual_gaps.py but running into some circular import issues
-def standardized_median_bounds(df, var, iqr_thresh):
-    """Part 1: Calculates the standardized median.
+def standardized_median_bounds(
+    df: pd.DataFrame, var: str, iqr_thresh: int
+) -> tuple[float, float, float]:
+    """
+    Part 1: Calculates the standardized median.
+    V2 research: these should live in qaqc_unusual_gaps.py but running into some circular import issues
 
     Parameters
     ----------
@@ -1454,8 +1489,9 @@ def standardized_median_bounds(df, var, iqr_thresh):
     return (std_med, lower_bnd, upper_bnd)
 
 
-def iqr_range(df, var):
-    """Part 1: Calculates the monthly interquartile range.
+def iqr_range(df: pd.DataFrame, var: str) -> float:
+    """
+    Part 1: Calculates the monthly interquartile range.
 
     Parameters
     ----------
@@ -1473,8 +1509,9 @@ def iqr_range(df, var):
     return range_to_return
 
 
-def standardized_iqr(df, var):
-    """Part 2: Standardizes data against the interquartile range.
+def standardized_iqr(df: pd.DataFrame, var: str) -> pd.DataFrame:
+    """
+    Part 2: Standardizes data against the interquartile range.
 
     Parameters
     ----------
