@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged. 
+This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
@@ -26,7 +26,7 @@ except Exception as e:
 
 # -----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
+def qaqc_unusual_gaps(df: pd.DataFrame, iqr_thresh: int = 5, plots: bool = True):
     """
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -109,8 +109,11 @@ def qaqc_unusual_gaps(df, iqr_thresh=5, plots=True):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
-    """Identifies suspect months and flags all obs within month
+def qaqc_dist_gap_part1(
+    df: pd.DataFrame, vars_to_check: list[str], iqr_thresh: int, plot: bool = True
+) -> pd.DataFrame:
+    """
+    Identifies suspect months and flags all obs within month
 
     Parameters
     ----------
@@ -217,8 +220,11 @@ def qaqc_dist_gap_part1(df, vars_to_check, iqr_thresh, plot=True):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
-    """Identifies individual suspect observations and flags the entire month
+def qaqc_dist_gap_part2(
+    df: pd.DataFrame, vars_to_check: list[str], plot: bool = True
+) -> pd.DataFrame:
+    """
+    Identifies individual suspect observations and flags the entire month
 
     Parameters
     -----------
@@ -355,8 +361,9 @@ def qaqc_dist_gap_part2(df, vars_to_check, plot=True):
 
 
 # -----------------------------------------------------------------------------
-def monthly_med(df):
-    """Part 1: Calculates the monthly median.
+def monthly_med(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Part 1: Calculates the monthly median.
 
     Parameters
     ----------
@@ -365,14 +372,14 @@ def monthly_med(df):
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         resampled dataframe of monthly medians
     """
     return df.resample("M", on="time").median(numeric_only=True)
 
 
 # #-----------------------------------------------------------------------------
-def iqr_range(df, var):
+def iqr_range(df: pd.DataFrame, var: str) -> pd.DataFrame:
     """Part 1: Calculates the monthly interquartile range
 
     Parameters
@@ -384,14 +391,14 @@ def iqr_range(df, var):
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         interquartile range
     """
     return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
 
 
 # -----------------------------------------------------------------------------
-def standardized_iqr(df, var):
+def standardized_iqr(df: pd.DataFrame, var: str) -> pd.DataFrame:
     """Part 2: Standardizes data against the interquartile range
 
     Parameters
@@ -403,14 +410,14 @@ def standardized_iqr(df, var):
 
     Returns
     -------
-    pd.DataFrame
+    df : pd.DataFrame
         standardized interquartile range
     """
     return (df[var].values - df[var].median()) / iqr_range(df, var)
 
 
 # -----------------------------------------------------------------------------
-def median_clim(df, var):
+def median_clim(df: pd.DataFrame, var: str) -> float:
     """Part 2: Calculate climatological median for a specific month and variable
 
     Parameters
@@ -422,7 +429,7 @@ def median_clim(df, var):
 
     Returns
     -------
-    clim : pd.DataFrame
+    clim : float
         climatological median
     """
     clim = df[var].median(numeric_only=True)
@@ -430,7 +437,7 @@ def median_clim(df, var):
 
 
 # -----------------------------------------------------------------------------
-def standardized_anom(df, month, var):
+def standardized_anom(df: pd.DataFrame, month: int, var: str) -> np.array:
     """
     Part 1: Calculates the monthly anomalies standardized by IQR range
 
@@ -461,8 +468,9 @@ def standardized_anom(df, month, var):
 
 
 # -----------------------------------------------------------------------------
-def check_differences(series, threshold):
-    """Computes pairwise absolute differences between each day and all other days in series
+def check_differences(series: pd.Series, threshold: int) -> pd.Series:
+    """
+    Computes pairwise absolute differences between each day and all other days in series
 
     Parameters
     ----------
@@ -495,7 +503,9 @@ def check_differences(series, threshold):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_unusual_gaps_precip(df, var, threshold):
+def qaqc_unusual_gaps_precip(
+    df: pd.DataFrame, var: str, threshold: int
+) -> pd.DataFrame:
     """
     Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
     This is a modification of a HadISD / GHCN-daily test, in which sub-hourly data is aggregated to daily to identify flagged data,
