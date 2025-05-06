@@ -57,12 +57,17 @@ for d in dirs:
 
 
 # ----------------------------------------------------------------------------
-def setup_error_handling():
-    """Sets-up error handling.
+def setup_error_handling() -> tuple[dict[str, list], str, str]:
+    """
+    Sets-up error handling.
+
+    Params
+    ------
+    None
 
     Returns
     -------
-    errors : dict
+    errors : dict[str, list]
         dictionary of file, timing, and error message
     end_api : datetime
         time at beginnging of data download
@@ -78,8 +83,15 @@ def setup_error_handling():
 
 
 # ----------------------------------------------------------------------------
-def print_qaqc_failed(errors, station=None, end_api=None, message=None, test=None):
-    """QAQC failure messaging
+def print_qaqc_failed(
+    errors: dict[str, list],
+    station: str | None = None,
+    end_api: str | None = None,
+    message: str | None = None,
+    test: str | None = None,
+) -> dict[str, list]:
+    """
+    QAQC failure messaging
 
     Parameters
     ----------
@@ -93,6 +105,11 @@ def print_qaqc_failed(errors, station=None, end_api=None, message=None, test=Non
         error message
     test : str, optional
         QAQC test name to include in error message
+
+    Returns
+    -------
+    errors : dict[str, list]
+        updated error dictionary with failure entry appended
     """
     logger.info(
         "{0} {1}".format(station, message),
@@ -105,8 +122,9 @@ def print_qaqc_failed(errors, station=None, end_api=None, message=None, test=Non
 
 # ----------------------------------------------------------------------------
 ## Check if network files are in s3 bucket
-def file_on_s3(df, zarr):
-    """Check if network files are in s3 bucket
+def file_on_s3(df: pd.DataFrame, zarr: bool) -> pd.Series:
+    """
+    Check if network files are in s3 bucket
 
     Parameters
     ----------
@@ -145,8 +163,9 @@ def file_on_s3(df, zarr):
 
 # ----------------------------------------------------------------------------
 ## Read network nc files
-def read_network_files(network, zarr):
-    """Read files for a network from AWS
+def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
+    """
+    Read files for a network from AWS
 
     Parameters
     ----------
@@ -264,14 +283,14 @@ def read_network_files(network, zarr):
 # ----------------------------------------------------------------------------
 ## Assign ds attributes and save
 def process_output_ds(
-    df,
-    attrs,
-    var_attrs,
-    network,
-    timestamp,
-    station,
-    qaqcdir,
-    zarr,
+    df: pd.DataFrame,
+    attrs: dict[str],
+    var_attrs: dict[str],
+    network: str,
+    timestamp: datetime,
+    station: str,
+    qaqcdir: str,
+    zarr: bool,
 ):
     """
     Processes the final dataset for export to AWS.
@@ -298,7 +317,6 @@ def process_output_ds(
     Returns
     -------
     None
-        This function does not return a value
     """
     # Convert back to dataset
     with warnings.catch_warnings():
@@ -381,7 +399,9 @@ def process_output_ds(
 
 
 # --------------------------------------------------------------------------------
-def qaqc_ds_to_df(ds):
+def qaqc_ds_to_df(
+    ds: xr.Dataset,
+) -> tuple[pd.DataFrame, pd.Index, list[str], list[str], list[str]]:
     """Converts xarray ds for a station to pandas df in the format needed for the pipeline
 
     Parameters
@@ -516,16 +536,16 @@ def qaqc_ds_to_df(ds):
 
 
 # ----------------------------------------------------------------------------
-## Run full QA/QC pipeline
 def run_qaqc_pipeline(
-    ds,
-    network,
-    errors,
-    station,
-    end_api,
-    rad_scheme,
-):
-    """Runs all QAQC functions.
+    ds: xr.Dataset,
+    network: str,
+    errors: dict,
+    station: str,
+    end_api: datetime,
+    rad_scheme: str,
+) -> tuple[pd.DataFrame, list[str], list[str], list[str]]:
+    """
+    Runs all QAQC functions.
 
     Parameters
     ----------
@@ -1007,7 +1027,9 @@ def run_qaqc_pipeline(
 
 
 # ==============================================================================
-def run_qaqc_one_station(station, verbose=False, rad_scheme="remove_zeros"):
+def run_qaqc_one_station(
+    station: str, verbose: bool = False, rad_scheme: str = "remove_zeros"
+):
     """
     Runs the full QA/QC pipeline on a single weather station dataset.
 

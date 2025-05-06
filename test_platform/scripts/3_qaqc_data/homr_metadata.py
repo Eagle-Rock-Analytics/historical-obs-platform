@@ -20,9 +20,22 @@ s3_cl = boto3.client("s3")
 bucket_name = "wecc-historical-wx"
 
 
-# This function flattens multi-level nested JSONs, splitting columns composed of both lists and dictionaries.
-# Borrowed from: https://gist.github.com/davidwarshaw/8d4c74c31371f8f8d5eb00cccb86dd08
-def flatten_data(y):
+def flatten_data(y: dict | list) -> dict:
+    """
+    Flattens multi-level nested JSONs, splitting columns composed of both lists and dictionaries.
+    Borrowed from: https://gist.github.com/davidwarshaw/8d4c74c31371f8f8d5eb00cccb86dd08
+
+    Parameters
+    ----------
+    y : (dict | list)
+        the nested JSON data to flatten
+
+    Returns
+    -------
+    out :  dict
+        a flattened dictionary with combined keys
+    """
+
     out = {}
 
     def flatten(x, name=""):
@@ -41,7 +54,35 @@ def flatten_data(y):
     return out
 
 
-def get_homr_metadata(id):
+def get_homr_metadata(
+    id: str,
+) -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
+    """
+    Gets metadata for a given NCDC ID from the HOMR API
+
+    Parameters
+    ----------
+    id : str
+        The NCDC ID
+
+    Returns
+    -------
+    names : pd.DataFrame
+        station names
+    identifiers : pd.DataFrame
+        station identification codes
+    platforms : pd.DataFrame
+        platform
+    locations : pd.DataFrame
+        geographic location details
+    remarks : pd.DataFrame
+        any remarks listed (may be empty)
+    updates : pd.DataFrame
+        any updates listed (may be empty)
+    """
+
     # This function takes one NCDC ID (string) as input and returns the station's names, identifiers, platforms, location, remarks, and updates
     # as distinct objects.
     testurl = f"https://www.ncei.noaa.gov/access/homr/services/station/{id}"
@@ -89,9 +130,21 @@ def get_homr_metadata(id):
     return names, identifiers, platforms, location, remarks, updates
 
 
-def get_all_homr_ids(bucket_name, savedir):
-    # Function to iterate through all WECC states and save header HOMR metadata for all stations.
-    # Saves homr_ids.csv to the QAQC folder in AWS.
+def get_all_homr_ids(bucket_name: str, savedir: str):
+    """
+    Iterates through all WECC states and save header HOMR metadata for all stations.
+
+    Parameters
+    ----------
+    bucket_name : str
+        name of the S3 bucket where HOMR metadata will be stored
+    savedir : str
+        directory path in the bucket where 'homr_ids.csv' file is saved to QAQC folder
+
+    Returns
+    -------
+    None
+    """
 
     dfs = []
     states = [
@@ -132,9 +185,21 @@ def get_all_homr_ids(bucket_name, savedir):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir + "homr_ids.csv")
 
 
-def get_all_homr_metadata(bucket_name, savedir):
-    # This function takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates
-    # to save to the AWS bucket and directory provided as input.
+def get_all_homr_metadata(bucket_name: str, savedir: str):
+    """
+    Takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates.
+
+    Parameters
+    ----------
+    bucket_name : str
+        S3 bucket where files will be saved
+    savedir : str
+        Directory path in the bucket
+
+    Returns
+    -------
+    None
+    """
 
     # initialize dfs
     namedf = []

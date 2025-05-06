@@ -1,5 +1,5 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusual large jumps / spikes with data observations are flagged. 
+This is a script where Stage 3: QA/QC function(s) on unusual large jumps / spikes with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
@@ -140,17 +140,18 @@ def qaqc_unusual_large_jumps(
 def potential_spike_check(
     potential_spike: pd.Series, diff: pd.Series, crit: pd.Series, hours_diff: pd.Series
 ) -> pd.DataFrame:
-    """Checks for neccessary conditions for a potential spike to be an actual spike.
+    """
+    Checks for neccessary conditions for a potential spike to be an actual spike.
 
     Parameters
     ----------
-    potential_spike : pandas series
+    potential_spike : pd.Series
         bool pd.Series with True on potential spike location
-    diff : pandas series
+    diff : pd.Series
         float pd.Series with differences in the test variable
-    crit : pandas series
+    crit : pd.Series
         float pd.Series with the critical value for the differences in the test variable
-    hours_diff : pandas series
+    hours_diff : pd.Series
         float pd.Series with the hour differences between data points in the test variable
 
     Returns

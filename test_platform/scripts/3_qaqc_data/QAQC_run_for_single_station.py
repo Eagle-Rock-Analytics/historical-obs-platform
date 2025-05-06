@@ -13,7 +13,7 @@ Overview:
    - Missing data and gap detection
    - Climatological outlier detection
    - Cross-variable sanity checks
-4. (Optional) Perform case study analysis for accuracy 
+4. (Optional) Perform case study analysis for accuracy
    [Note: This can be separated into a standalone script if needed]
 
 Inputs:
@@ -36,6 +36,18 @@ from QAQC_pipeline import run_qaqc_one_station
 
 
 def main():
+    """
+    This function is designed to create an argument parser, define the arguments for the script, parse the argument, and then run the QAQC pipeline for the specified station.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+
+    """
     # Create argument parser
     parser = argparse.ArgumentParser(
         prog="QAQC_run_for_single_station",  # Program name

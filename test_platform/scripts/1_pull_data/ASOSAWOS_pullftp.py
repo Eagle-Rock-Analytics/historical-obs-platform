@@ -8,8 +8,8 @@ parameter to only download changed files (optional)
 Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
 
 Notes:
-1. The file for each station-year is updated daily for the current year. 
-To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
+1. The file for each station-year is updated daily for the current year.
+To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only.
 This is a separate function/branch.
 2. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
@@ -99,11 +99,23 @@ states = [
 ]
 
 
-# Function to write FTP data directly to AWS S3 folder.
-# Inputs: ftp is the current ftp connection,
-# file is the filename,
-# directory is the desired path (set of folders) in AWS
-def ftp_to_aws(ftp, file, directory):
+def ftp_to_aws(ftp: FTP, file: str, directory: str):
+    """
+    Writes FTP data directly to AWS S3 folder.
+
+    Parameters
+    ----------
+    ftp : ftplib.FTP
+        The current FTP connection.
+    file : str
+        The filename to be downloaded.
+    directory : str
+        The desired path (set of folders) in AWS
+
+    Returns
+    -------
+    None
+    """
     r = BytesIO()
     ftp.retrbinary("RETR " + file, r.write)
     r.seek(0)
@@ -112,12 +124,34 @@ def ftp_to_aws(ftp, file, directory):
     r.close()  # Close file
 
 
-# Function to download and parse ASOS and AWOS station lists (.txt).
-# Source: https://www.ncei.noaa.gov/access/homr/reports/platforms
-# Inputs: none.
-# Outputs: one asosawos-stations.csv file and a stations object.
-# This function is called internally in get_wecc_stations().
-def get_asosawos_stations():
+def get_asosawos_stations() -> tuple[str, list[dict[str, str]]]:
+    """
+    Downloads and parses ASOS and AWOS station lists (.txt).
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+        tuple[str, list[dict[str, str]]]:
+            str  one asos-awos-stations.csv file
+            list[dict[str, str]] : list of stations, each represented as a dictionary.
+            All the keys are strings :
+                ndcid,
+                wban,
+                coopid,
+                call,
+                name,
+                country,
+                st,
+                county,
+                lat,
+                lon,
+                elev,
+                utc,
+                stntype
+    """
     # Get AWOS stations.
     awosurl = "https://www.ncei.noaa.gov/access/homr/file/awos-stations.txt"
     awosr = requests.get(awosurl)
@@ -268,11 +302,24 @@ def get_asosawos_stations():
     return asosawosstations
 
 
-# Function to get up to date station list of ASOS AWOS stations in WECC.
-# Pulls in ISD station list and ASOSAWOS station list (two separate csvs), joins by WBAN and returns list of station IDs.
-# Inputs: S3 path to terrestrial WECC shapefile, S3 path to marine WECC file.
-# Outputs: saves 2 sets of metadata to AWS, returns filtered ISD station object for use in get_asosawos_data_ftp().
-def get_wecc_stations(terrpath, marpath):
+def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
+    """
+    Gets up to date station list of ASOS AWOS stations in WECC. Pulls in ISD station and ASOSAWOS stations.
+
+    Parameters
+    ----------
+    terrpath : str
+        S3 path to terrestrial WECC shapefile
+    marpath : str
+        S3 path to marine WECC file
+
+    Returns
+    -------
+    weccstations : pd.DataFrame
+        Filtered ISD station object for use in get_asosawos_data_ftp()
+
+    """
+
     ## Login.
     ## using ftplib, get list of stations as csv
     filename = "isd-history.csv"
@@ -389,18 +436,36 @@ def get_wecc_stations(terrpath, marpath):
     return weccstations
 
 
-# Function: query ftp server for ASOS-AWOS data and download zipped files.
-# Run this one time to get all historical data, update changed files for all years, or get files for a subset of years.
-# Inputs:
-# Station_list: Returned from get_wecc_stations() function.
-# bucket_name: name of AWS bucket
-# directory: folder path within bucket
-# Start date: format 'YYYY-MM-DD" (optional)
-# get_all: True or False. If False, only download files whose last edit date is newer than
-#  the most recent files downloaded in the save folder. Only use to update a complete set of files.
 def get_asosawos_data_ftp(
-    station_list, bucket_name, directory, start_date=None, get_all=True
+    station_list: pd.DataFrame,
+    bucket_name: str,
+    directory: str,
+    start_date: str | None = None,
+    get_all: bool = True,
 ):
+    """
+    Queries ftp server for ASOS-AWOS data and download zipped files.
+    Run this one time to get all historical data, update changed files for all years, or get files for a subset of years.
+
+    Parameters
+    ----------
+        station_list : pd.DataFrame
+            DataFrame from get_wecc_stations()
+        bucket_name : str
+            name of AWS bucket
+        directory : str
+            folder path within bucket
+        start-date : str
+            optional cutoff date in 'YYYY-MM-DD' format
+        get_all : bool
+            only download files whose last edit date is newer than recent files downloaded in the save folder. Only use to update a complete set of files.
+
+    Returns
+    -------
+    None
+
+    """
+
     # Set up error handling
     errors = {"Date": [], "Time": [], "Error": []}
     end_api = datetime.now().strftime(
