@@ -109,10 +109,8 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values if QAQC is successful, otherwise None
     """
 
     logger.info("Running: qaqc_missing_vals")
@@ -200,10 +198,8 @@ def qaqc_missing_latlon(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values if QAQC is successful, otherwise None
     """
     logger.info("Running: qaqc_missing_latlon")
 
@@ -235,10 +231,8 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged valueACH1370maninof
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged value ACH1370maninof if QAQC is successful, otherwise None
     """
     logger.info("Running: qaqc_within_wecc")
 
@@ -330,10 +324,8 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values (see below for flag meaning) if QAQC is successful, otherwise None
 
     Notes:
     1. All elevation values are checked, not just in-filled values. Some ASOSAWOS stations have substantial changes in elevation.
@@ -417,10 +409,8 @@ def qaqc_elev_infill(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values (see below for flag meaning) if QAQC is successful, otherwise None
 
     Notes
     -----
@@ -563,10 +553,8 @@ def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values if QAQC is successful, otherwise None
 
     Notes
     -----
@@ -615,10 +603,8 @@ def qaqc_sensor_height_t(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values (see below for flag meaning) if QAQC is successful, otherwise None
 
     Notes
     ------
@@ -675,10 +661,8 @@ def qaqc_sensor_height_w(df: pd.DataFrame) -> pd.DataFrame | None:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values (see below for flag meaning) if QAQC is successful, otherwise None
 
     Notes
     ------
@@ -737,10 +721,8 @@ def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns
     -------
-    df : pd.DataFrame
-        If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    None
-        If QAQC fails, returns None
+    df : pd.DataFrame | None
+        Returns a dataframe with flagged values (see below for flag meaning) if QAQC is successful, otherwise None
 
     Notes
     ------
