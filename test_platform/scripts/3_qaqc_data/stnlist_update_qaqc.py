@@ -22,8 +22,9 @@ s3_cl = boto3.client("s3")
 
 
 # ----------------------------------------------------------------------
-def get_station_list(network):
-    """Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
+def get_station_list(network: str) -> pd.DataFrame:
+    """
+    Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
     Intentionally grabbing the cleaned version of the stationlist to retain information about whether a station was cleaned going into QA/QC process.
 
     Parameters
@@ -48,8 +49,9 @@ def get_station_list(network):
 
 
 # ----------------------------------------------------------------------
-def get_qaqc_stations(network):
-    """Given a network name, return a pandas dataframe of all stations that pass QA/QC in
+def get_qaqc_stations(network: str) -> pd.DataFrame:
+    """
+    Given a network name, return a pandas dataframe of all stations that pass QA/QC in
     the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
 
     Parameters
@@ -60,6 +62,7 @@ def get_qaqc_stations(network):
     Returns
     -------
     pd.DataFrame
+        pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
     """
     df = {"ID": [], "Time_QAQC": []}
     network_prefix = qaqc_wx + network + "/"
@@ -81,8 +84,9 @@ def get_qaqc_stations(network):
 
 
 # ----------------------------------------------------------------------
-def parse_error_csv(network):
-    """Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
+def parse_error_csv(network: str) -> pd.DataFrame:
+    """
+    Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
 
     Parameters
     ----------
@@ -116,8 +120,9 @@ def parse_error_csv(network):
 
 
 # ----------------------------------------------------------------------
-def qaqc_qa(network):
-    """Update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
+def qaqc_qa(network: str):
+    """
+    Update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
 
     Parameters
     ----------
@@ -127,7 +132,6 @@ def qaqc_qa(network):
     Returns
     -------
     None
-        This function does not return a value
     """
     if "otherisd" in network:  # Fixing capitalization issues
         network = "OtherISD"
