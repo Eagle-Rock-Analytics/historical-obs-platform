@@ -26,7 +26,9 @@ except Exception as e:
 
 # -----------------------------------------------------------------------------
 ## distributional gap (unusual gap) + helper functions
-def qaqc_unusual_gaps(df: pd.DataFrame, iqr_thresh: int = 5, plots: bool = True):
+def qaqc_unusual_gaps(
+    df: pd.DataFrame, iqr_thresh: int = 5, plots: bool = True
+) -> pd.DataFrame | None:
     """
     Runs all parts of the unusual gaps function, with a whole station bypass check first.
 
@@ -41,8 +43,10 @@ def qaqc_unusual_gaps(df: pd.DataFrame, iqr_thresh: int = 5, plots: bool = True)
 
     Returns
     -------
-    If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
-    If QAQC fails, returns None
+    df : pd.DataFrame
+     If QAQC is successful, returns a dataframe with flagged values (see below for flag meaning)
+    None
+        If QAQC fails, returns None
 
     Notes
     ------
