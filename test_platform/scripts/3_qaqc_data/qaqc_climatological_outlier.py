@@ -33,8 +33,8 @@ except Exception as e:
 # ----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(
-    df : pd.DataFrame,
-    winsorize : bool = True,
+    df: pd.DataFrame,
+    winsorize: bool = True,
     winz_limits: list[float] = [0.05, 0.05],
     bin_size: float = 0.25,
     plot: bool = True,
@@ -344,7 +344,9 @@ def flag_clim_outliers(series: pd.Series, bin_size: float = 0.25) -> pd.DataFram
 
 
 # ----------------------------------------------------------------------
-def fit_normal(series: pd.Series, bin_size: float = 0.25, plot: bool = False) -> tuple[list, list, list, int, int]:
+def fit_normal(
+    series: pd.Series, bin_size: float = 0.25, plot: bool = False
+) -> tuple[list, list, list, int, int]:
     """Fits a guassian distribution to the series.
 
     Parameters
@@ -479,7 +481,9 @@ def gap_search(freq: list, left: int, right: int) -> int:
 
 
 # ----------------------------------------------------------------------
-def qaqc_climatological_outlier_precip(df: pd.DataFrame, var: str, factor: int = 9) -> pd.DataFrame:
+def qaqc_climatological_outlier_precip(
+    df: pd.DataFrame, var: str, factor: int = 9
+) -> pd.DataFrame:
     """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
     least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
     This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,

@@ -19,6 +19,7 @@ import boto3
 s3_cl = boto3.client("s3")
 bucket_name = "wecc-historical-wx"
 
+
 # -----------------------------------------------------------------------------
 def flatten_data(y: dict | list) -> dict:
     """

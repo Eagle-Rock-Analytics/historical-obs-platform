@@ -281,7 +281,9 @@ def consecutive_months(series: pd.Series) -> pd.Series:
 
 
 # ---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df: pd.DataFrame, min_sequence_length: int =10, plot: bool=True) -> pd.DataFrame | None:
+def qaqc_unusual_repeated_streaks(
+    df: pd.DataFrame, min_sequence_length: int = 10, plot: bool = True
+) -> pd.DataFrame | None:
     """Test for repeated streaks/unusual spell frequency.
 
     Parameters
@@ -509,8 +511,8 @@ def find_date_clusters(dates: pd.Series, threshold: int) -> np.array:
 
     Returns
     -------
-    If success, returns cluster_list 
-    If failure, returns np.nan 
+    If success, returns cluster_list
+    If failure, returns np.nan
     """
     # Ensure the dates are sorted
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
@@ -537,7 +539,12 @@ def find_date_clusters(dates: pd.Series, threshold: int) -> np.array:
 
 
 # ---------------------------------------------------------------------------------------------------
-def hourly_repeats(df: pd.DataFrame, var: str, threshold: int | None=None, min_value: float | None=None) -> pd.Series:
+def hourly_repeats(
+    df: pd.DataFrame,
+    var: str,
+    threshold: int | None = None,
+    min_value: float | None = None,
+) -> pd.Series:
     """
     Identifies timestamps of hourly repeating streak values.
 
@@ -592,7 +599,13 @@ def hourly_repeats(df: pd.DataFrame, var: str, threshold: int | None=None, min_v
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_repeats(df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None, min_sequence_length: int = 10) -> np.array:
+def consecutive_repeats(
+    df: pd.DataFrame,
+    var: str,
+    threshold: int,
+    min_value: float | None = None,
+    min_sequence_length: int = 10,
+) -> np.array:
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 
@@ -701,7 +714,7 @@ def is_consecutive(group: pd.Series) -> bool:
     ----------
     group : pd.Series
         group of potential repeat values to check
-    
+
     Returns
     -------
     bool
@@ -715,7 +728,7 @@ def is_consecutive(group: pd.Series) -> bool:
 # ---------------------------------------------------------------------------------------------------
 def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
     """
-    Compares two daily obs series to determine matching or mismatched streaks. 
+    Compares two daily obs series to determine matching or mismatched streaks.
 
     Parameters
     ----------
@@ -726,7 +739,7 @@ def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
 
     Returns
     -------
-    groups : np.array 
+    groups : np.array
         Matching array pairs for matching and mismatched obs
     """
 
@@ -749,7 +762,9 @@ def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_fullDay_repeats(df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None) -> np.array:
+def consecutive_fullDay_repeats(
+    df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None
+) -> np.array:
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 

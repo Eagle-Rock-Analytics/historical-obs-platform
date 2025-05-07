@@ -8,7 +8,9 @@ import os
 
 
 # Configure the logger
-def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False) -> logging.logger:
+def setup_logger(
+    log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False
+) -> logging.logger:
     """Configures logger for more efficient tracing of QAQC processes and errors.
 
     Parameters
@@ -49,6 +51,7 @@ def setup_logger(log_file=f"{os.getcwd()}/default_qaqc_log.log", verbose=False) 
         logger.addHandler(console_handler)
 
     return logger
+
 
 # -----------------------------------------------------------------------------
 def remove_file_handler_by_filename(logger: logging.logger, filename: str):

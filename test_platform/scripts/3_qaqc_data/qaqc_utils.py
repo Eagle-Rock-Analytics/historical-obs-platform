@@ -66,7 +66,9 @@ def get_bin_size_by_var(var: str) -> float:
 
 
 # -----------------------------------------------------------------------------
-def create_bins_frequent(df: pd.DataFrame, var: str, bin_size: float | None = None) -> np.array:
+def create_bins_frequent(
+    df: pd.DataFrame, var: str, bin_size: float | None = None
+) -> np.array:
     """Create bins from data covering entire data range
     Used in frequent value check and qaqc plot of frequent values
 
@@ -140,7 +142,9 @@ def create_bins(data: pd.DataFrame, bin_size: float = 0.25) -> list:
 
 
 # -----------------------------------------------------------------------------
-def pdf_bounds(df: pd.DataFrame, mu: float, sigma: float, bins: list) -> tuple[np.array, float, float]:
+def pdf_bounds(
+    df: pd.DataFrame, mu: float, sigma: float, bins: list
+) -> tuple[np.array, float, float]:
     """Calculate pdf distribution, return pdf and threshold bounds.
 
     Parameters
@@ -196,7 +200,9 @@ def pdf_bounds(df: pd.DataFrame, mu: float, sigma: float, bins: list) -> tuple[n
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_whole_stn_bypass_check(df: pd.DataFrame, vars_to_check: list, min_num_months: int=5) -> tuple[pd.DataFrame, int]:
+def qaqc_dist_whole_stn_bypass_check(
+    df: pd.DataFrame, vars_to_check: list, min_num_months: int = 5
+) -> tuple[pd.DataFrame, int]:
     """
     Checks the number of valid observation months in order to proceed through monthly distribution checks.
     Identifies whether a station record has too few months and produces a fail pass flag.
@@ -251,7 +257,9 @@ def qaqc_dist_whole_stn_bypass_check(df: pd.DataFrame, vars_to_check: list, min_
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_var_bypass_check(df: pd.DataFrame, var: str, min_num_months: int=5) -> pd.DataFrame:
+def qaqc_dist_var_bypass_check(
+    df: pd.DataFrame, var: str, min_num_months: int = 5
+) -> pd.DataFrame:
     """
     Checks the number of valid observation months in order to proceed through monthly distribution checks.
     Identifies whether a station record has too few months and produces a fail pass flag.
@@ -319,7 +327,9 @@ def qaqc_var_length_bypass_check(df: pd.DataFrame, var: str) -> pd.DataFrame:
 
 # -----------------------------------------------------------------------------
 # Red vs. Yellow flagging
-def grab_valid_obs(df: pd.DataFrame, var: str, var2: str | None = None, kind: str="keep") -> pd.DataFrame:
+def grab_valid_obs(
+    df: pd.DataFrame, var: str, var2: str | None = None, kind: str = "keep"
+) -> pd.DataFrame:
     """Observations that have been flagged by QA/QC test should not proceed through any
     other QA/QC test.
 
@@ -374,7 +384,7 @@ def grab_valid_obs(df: pd.DataFrame, var: str, var2: str | None = None, kind: st
 
 ## QA/QC other helper functions
 # -----------------------------------------------------------------------------
-def progressbar(it: int, prefix: str="", size: int=60, out: str=sys.stdout):
+def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout):
     """Print a progress bar to console
 
     Parameters
@@ -502,7 +512,9 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list:
 
 
 # -----------------------------------------------------------------------------
-def get_wecc_poly(terrpath: str, marpath:str) -> tuple[gp.polygon, gp.polygon, gp.polygon]:
+def get_wecc_poly(
+    terrpath: str, marpath: str
+) -> tuple[gp.polygon, gp.polygon, gp.polygon]:
     """Identifies a bbox of WECC area to filter stations against.
 
     Parameters
