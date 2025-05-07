@@ -34,7 +34,7 @@ wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 ## QA/QC statistical helper functions
 # -----------------------------------------------------------------------------
 # fns to return histogram bins
-def get_bin_size_by_var(var):
+def get_bin_size_by_var(var: str) -> float:
     """Get bin size for a given variable
 
     Parameters
@@ -45,7 +45,7 @@ def get_bin_size_by_var(var):
     Returns
     -------
     float
-
+        bin size per variable
     """
     # bin sizes: using 1 degC for tas/tdps, and 1 hPa for ps vars
     # all of our pressure vars are in Pa, convert to 100 Pa bin size
@@ -66,7 +66,7 @@ def get_bin_size_by_var(var):
 
 
 # -----------------------------------------------------------------------------
-def create_bins_frequent(df, var, bin_size=None):
+def create_bins_frequent(df: pd.DataFrame, var: str, bin_size: float | None = None) -> np.array:
     """Create bins from data covering entire data range
     Used in frequent value check and qaqc plot of frequent values
 
@@ -83,6 +83,7 @@ def create_bins_frequent(df, var, bin_size=None):
     Returns
     -------
     bins : np.array
+        binsizes per variable, frequent qaqc test
     """
 
     # Get bin size per variable
@@ -110,12 +111,12 @@ def create_bins_frequent(df, var, bin_size=None):
 
 
 # -----------------------------------------------------------------------------
-def create_bins(data, bin_size=0.25):
+def create_bins(data: pd.DataFrame, bin_size: float = 0.25) -> list:
     """Create bins from data covering entire data range.
 
     Parameters
     ----------
-    data : pd.DataFrame (I think -- could be a series)
+    data : pd.DataFrame
         QAQC data to check
     bin_size : float, optional
         size of bin width
@@ -139,24 +140,24 @@ def create_bins(data, bin_size=0.25):
 
 
 # -----------------------------------------------------------------------------
-def pdf_bounds(df, mu, sigma, bins):
+def pdf_bounds(df: pd.DataFrame, mu: float, sigma: float, bins: list) -> tuple[np.array, float, float]:
     """Calculate pdf distribution, return pdf and threshold bounds.
 
     Parameters
     ----------
     df : pd.DataFrame
         input QAQC dataframe
-    mu :
+    mu : float
         mean
-    sigma :
+    sigma : float
         standard deviation
     bins : list of floats
         histogram bins
 
     Returns
     -------
-    y : [?]
-        pdf distribution
+    y : list
+        pdf distribution values
     left_bnd : float
         leftmost bin
     right_bnd : float
@@ -195,7 +196,7 @@ def pdf_bounds(df, mu, sigma, bins):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
+def qaqc_dist_whole_stn_bypass_check(df: pd.DataFrame, vars_to_check: list, min_num_months: int=5) -> tuple[pd.DataFrame, int]:
     """
     Checks the number of valid observation months in order to proceed through monthly distribution checks.
     Identifies whether a station record has too few months and produces a fail pass flag.
@@ -213,8 +214,8 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
     -------
     df : pd.DataFrame
         QAQC dataframe with flagged values (see below for flag meaning)
-    stn_length : [?]
-        [?]
+    stn_length : int
+        length of station obs record to determine if bypass is required
 
     Notes
     -----
@@ -250,7 +251,7 @@ def qaqc_dist_whole_stn_bypass_check(df, vars_to_check, min_num_months=5):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_dist_var_bypass_check(df, var, min_num_months=5):
+def qaqc_dist_var_bypass_check(df: pd.DataFrame, var: str, min_num_months: int=5) -> pd.DataFrame:
     """
     Checks the number of valid observation months in order to proceed through monthly distribution checks.
     Identifies whether a station record has too few months and produces a fail pass flag.
@@ -294,8 +295,8 @@ def qaqc_dist_var_bypass_check(df, var, min_num_months=5):
 
 
 # -----------------------------------------------------------------------------
-def qaqc_var_length_bypass_check(df, var):
-    """DOCUMENTATION UPDATE REQUIRED
+def qaqc_var_length_bypass_check(df: pd.DataFrame, var: str) -> pd.DataFrame:
+    """Bypass function based on variable obs record length
 
     Parameters
     ----------
@@ -318,7 +319,7 @@ def qaqc_var_length_bypass_check(df, var):
 
 # -----------------------------------------------------------------------------
 # Red vs. Yellow flagging
-def grab_valid_obs(df, var, var2=None, kind="keep"):
+def grab_valid_obs(df: pd.DataFrame, var: str, var2: str | None = None, kind: str="keep") -> pd.DataFrame:
     """Observations that have been flagged by QA/QC test should not proceed through any
     other QA/QC test.
 
@@ -373,19 +374,21 @@ def grab_valid_obs(df, var, var2=None, kind="keep"):
 
 ## QA/QC other helper functions
 # -----------------------------------------------------------------------------
-def progressbar(it, prefix="", size=60, out=sys.stdout):
+def progressbar(it: int, prefix: str="", size: int=60, out: str=sys.stdout):
     """Print a progress bar to console
 
     Parameters
     ----------
     it : int
         iternation of list
+    prefix : str
+        idk
     size : int, optional
         size (length) of progress bar
 
     Returns
     -------
-    progress bar printed to console
+    None
 
     Example
     -------
@@ -420,7 +423,7 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
 
 
 # -----------------------------------------------------------------------------
-def get_file_paths(network):
+def get_file_paths(network: str) -> tuple[str, str, str, str]:
     """Returns AWS filepaths for historical data platform bucket.
 
     Parameters
@@ -447,7 +450,7 @@ def get_file_paths(network):
 
 
 # -----------------------------------------------------------------------------
-def get_filenames_in_s3_folder(bucket, folder):
+def get_filenames_in_s3_folder(bucket: str, folder: str) -> list:
     """Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
     See example in the function docstrings for more details.
@@ -499,7 +502,7 @@ def get_filenames_in_s3_folder(bucket, folder):
 
 
 # -----------------------------------------------------------------------------
-def get_wecc_poly(terrpath, marpath):
+def get_wecc_poly(terrpath: str, marpath:str) -> tuple[gp.polygon, gp.polygon, gp.polygon]:
     """Identifies a bbox of WECC area to filter stations against.
 
     Parameters

@@ -64,7 +64,6 @@ def remove_file_handler_by_filename(logger: logging.logger, filename: str):
     Returns
     -------
     None
-
     """
 
     # set up logger handler
