@@ -106,8 +106,7 @@ for pr_var in pr_variables:
     day_repeat_criteria[pr_var] = day_repeat_criteria["tas"]
 
 # ----------------------------------------------------------------------
-# Min wind value for straight repeat test
-# TODO: HadISD thresholds: does it make sense to change them in future versions?
+# Min value for straight repeat test
 # More analysis needs to be done to ensure what is a good threshold for calm wind conditions for this test
 # For now, precipitation min value for streaks is set to 2 mm, which means that very low precip repeated values shoold not be flagged
 MIN_VALUE = {
@@ -136,8 +135,9 @@ check_vars = [
 
 
 # ----------------------------------------------------------------------
-def infere_freq(df):
-    """DOCUMENTATION UPDATE REQUIRED.
+def infere_freq(df: pd.DataFrame) -> dict[float, float]:
+    """
+    Infers common time step frequencies.
 
     Parameters
     ----------
@@ -146,8 +146,8 @@ def infere_freq(df):
 
     Returns
     -------
-    frequencies : [?]
-        [?]
+    frequencies : dict[float]
+        Dict of fractional freq to corresponding time delta
     """
     # Calculate time differences in data
     time_diff = pd.Series(df["time"]).diff()
@@ -165,8 +165,9 @@ def infere_freq(df):
 
 
 # ----------------------------------------------------------------------
-def infere_res_var(df, var):
-    """DOCUMENTATION UPDATE REQUIRED.
+def infere_res_var(df: pd.DataFrame, var: str) -> float:
+    """
+    Infers resolution for a specific variable.
 
     Parameters
     ----------
@@ -178,7 +179,7 @@ def infere_res_var(df, var):
     Returns
     -------
     mode : float
-        [?]
+        resolution of variable data, rounded to 0.1 or 0.5 for precision
     """
 
     # Extract var data
@@ -219,8 +220,9 @@ def infere_res_var(df, var):
 
 
 # ----------------------------------------------------------------------
-def infere_res(df):
-    """DOCUMENTATION UPDATE REQUIRED.
+def infere_res(df: pd.DataFrame) -> dict:
+    """
+    Infers value resolution for all variables in a QC dataframe.
 
     Parameters
     ----------
@@ -229,8 +231,8 @@ def infere_res(df):
 
     Returns
     -------
-    resolutions : [?]
-        [?]
+    resolutions : dict
+        Dict of var names to inferred resolutions
     """
     variables = [var for var in check_vars if var in df.columns]
 
@@ -254,18 +256,19 @@ def infere_res(df):
 
 # ---------------------------------------------------------------------------------------------------
 # Function to create a new column for consecutive months
-def consecutive_months(series):
-    """DOCUMENTATION UPDATE REQUIRED.
+def consecutive_months(series: pd.Series) -> pd.Series:
+    """
+    Assigns group labels to consecutive months.
 
     Parameters
     ----------
     series : pd.Series
-        [?]
+        month indices
 
     Returns
     -------
     pd.Series
-        [?]
+        unique sets of consecutive months
     """
     indices = np.where(np.diff(series.values) > 1)[0] + 1
     clusters = np.split(series.values, indices)
@@ -278,7 +281,7 @@ def consecutive_months(series):
 
 
 # ---------------------------------------------------------------------------------------------------
-def qaqc_unusual_repeated_streaks(df, min_sequence_length=10, plot=True):
+def qaqc_unusual_repeated_streaks(df: pd.DataFrame, min_sequence_length: int =10, plot: bool=True) -> pd.DataFrame | None:
     """Test for repeated streaks/unusual spell frequency.
 
     Parameters
@@ -286,7 +289,7 @@ def qaqc_unusual_repeated_streaks(df, min_sequence_length=10, plot=True):
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
     min_sequence_length : int, optional
-        [?]
+        min number of consecutive repeating values to determine streak
     plot : bool, optional
         if True, produces plot and uploads it to AWS
 
@@ -493,19 +496,21 @@ def qaqc_unusual_repeated_streaks(df, min_sequence_length=10, plot=True):
 
 
 # ---------------------------------------------------------------------------------------------------
-def find_date_clusters(dates, threshold):
-    """DOCUMENTATION UPDATE REQUIRED.
+def find_date_clusters(dates: pd.Series, threshold: int) -> np.array:
+    """
+    Identifies clusters of dates to evaluate 3 kinds of unusual streaks.
 
     Parameters
     ----------
     dates : pd.Series
-        [?]
-    threshold : [?]
+        dates to evaluate for clusters
+    threshold : int
+        number of hours or days to check for repeats
 
     Returns
     -------
-    If success, returns cluster_list [?]
-    If failure, returns np.nan [?]
+    If success, returns cluster_list 
+    If failure, returns np.nan 
     """
     # Ensure the dates are sorted
     dates = pd.Series(dates).sort_values().reset_index(drop=True)
@@ -532,8 +537,9 @@ def find_date_clusters(dates, threshold):
 
 
 # ---------------------------------------------------------------------------------------------------
-def hourly_repeats(df, var, threshold=None, min_value=None):
-    """DOCUMENTAITON UPDATE REQUIRED.
+def hourly_repeats(df: pd.DataFrame, var: str, threshold: int | None=None, min_value: float | None=None) -> pd.Series:
+    """
+    Identifies timestamps of hourly repeating streak values.
 
     Parameters
     ----------
@@ -541,17 +547,19 @@ def hourly_repeats(df, var, threshold=None, min_value=None):
         QAQC dataframe to check
     var : str
         variable name
-    threshold : [?]
-        [?]
+    threshold : int
+        Number of hours (or days) to check for repeats
+    min_value : float
+        min value to proceed through test
 
     Returns
     -------
     pd.Series
-        [?]
+        timestamps of observations that are hourly repeating streaks
     """
     ##########################################################################################
     ## NOTE for V2:
-    ## when selectin original data for a specific hour, it is possible that that series
+    ## when selecting original data for a specific hour, it is possible that that series
     ## will have small (or large, which are not a concern here, although how large is large)
     ## gaps in the time. For now, this hourly test will consider same hour consecutive
     ## streaks as data separated by 1 day. IF there is a gap (for example:
@@ -584,7 +592,7 @@ def hourly_repeats(df, var, threshold=None, min_value=None):
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_repeats(df, var, threshold, min_value=None, min_sequence_length=10):
+def consecutive_repeats(df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None, min_sequence_length: int = 10) -> np.array:
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 
@@ -596,10 +604,10 @@ def consecutive_repeats(df, var, threshold, min_value=None, min_sequence_length=
         variable name
     threshold : int
         comes from straight_repeat_criteria[var][res]
-    min_value : [?], optional
-        [?]
-    min_sequence_length : [?], optional
-        [?]
+    min_value : float, optional
+        min value to proceed through test
+    min_sequence_length : int, optional
+        min number of consecutive repeating values to determine streak
 
     Returns
     -------
@@ -680,7 +688,7 @@ def consecutive_repeats(df, var, threshold, min_value=None, min_sequence_length=
 
 # ---------------------------------------------------------------------------------------------------
 # Function to check consecutive indices
-def is_consecutive(group):
+def is_consecutive(group: pd.Series) -> bool:
     """
     Since consecutive repeats are dropping elements below the min_value,
     there are spurious 'repeated' series. If a value<min_value is removed,
@@ -688,27 +696,40 @@ def is_consecutive(group):
     as repeated streak. To solve this, we need to filter the repeated bad series from
     `consecutive_repeats` and filter. Only groups/repeated streaks that have
     consecutive indices will be considered true streaks
+
+    Parameters
+    ----------
+    group : pd.Series
+        group of potential repeat values to check
+    
+    Returns
+    -------
+    bool
+        True if all differences are consecutive (streak); False if not
     """
+
+    # checks for consecutive integers
     return (group.index.to_series().diff().dropna() == 1).all()
 
 
 # ---------------------------------------------------------------------------------------------------
-def full_day_compare(series0, series1):
-    """DOCUMENTAITON UPDATE REQUIRED.
+def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
+    """
+    Compares two daily obs series to determine matching or mismatched streaks. 
 
     Parameters
     ----------
-    series0 : [?]
-        [?]
-    series1 : [?]
-        [?]
+    series0 : pd.Series
+        First set of daily data
+    series1 : pd.Series
+        Second set of daily data to compare
 
     Returns
     -------
-    np.array(groups) : [?]
-        [?]
+    groups : np.array 
+        Matching array pairs for matching and mismatched obs
     """
-    ind = []
+
     groups = []
     g = 0
     for a, b in zip(series0.values, series1.values):
@@ -728,7 +749,7 @@ def full_day_compare(series0, series1):
 
 
 # ---------------------------------------------------------------------------------------------------
-def consecutive_fullDay_repeats(df, var, threshold, min_value):
+def consecutive_fullDay_repeats(df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None) -> np.array:
     """Consecutive observation replication (either using a threshold of a certain number of observations,
     or for sparser records, a number of days during which all the observations have the same value)
 
@@ -740,6 +761,8 @@ def consecutive_fullDay_repeats(df, var, threshold, min_value):
         variable to test
     threshold : int
         comes from straight_repeat_criteria[var][res]
+    min_value : int
+        min value to proceed through test
 
     Returns
     -------

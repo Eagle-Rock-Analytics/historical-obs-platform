@@ -4,7 +4,6 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 """
 
 ## Import Libraries
-import boto3
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -34,13 +33,14 @@ except Exception as e:
 # ----------------------------------------------------------------------
 ## climatological outlier check
 def qaqc_climatological_outlier(
-    df,
-    winsorize=True,
-    winz_limits=[0.05, 0.05],
-    bin_size=0.25,
-    plot=True,
-):
-    """Flags individual gross outliers from climatological distribution
+    df : pd.DataFrame,
+    winsorize : bool = True,
+    winz_limits: list[float] = [0.05, 0.05],
+    bin_size: float = 0.25,
+    plot: bool = True,
+) -> pd.DataFrame | None:
+    """
+    Flags individual gross outliers from climatological distribution
 
     Parameters
     -----------
@@ -259,28 +259,26 @@ def qaqc_climatological_outlier(
 
 
 # ----------------------------------------------------------------------
-def flag_clim_outliers(series, bin_size=0.25):
+def flag_clim_outliers(series: pd.Series, bin_size: float = 0.25) -> pd.DataFrame:
     """Identifies climatological outliers to flag.
 
     Parameters
     ----------
-    series : pd.DataFrame
-        QAQC dataframe
+    series : pd.Series
+        QAQC data per variable
     bin_size : float
         bin size for distribution
 
     Returns
     -------
     clim_outliers : pd.DataFrame
-        QAQC dataframe with flags [?]
+        QAQC dataframe with flags
     """
     # If series is small (less than 5 years) skip to next month/hour
     if len(series) <= 5:
         return np.ones_like(series) * np.nan
 
     # Calculate frequency, normal fit, and boumdaries for clim outliers
-    # freq, bins, p, left, right = fit_normal(series, bin_size=0.10, plot=True)
-    # import pdb; pdb.set_trace();
     freq, bins, p, left, right = fit_normal(series, bin_size=bin_size, plot=False)
 
     # Calculate bins for frequency checks
@@ -346,13 +344,13 @@ def flag_clim_outliers(series, bin_size=0.25):
 
 
 # ----------------------------------------------------------------------
-def fit_normal(series, bin_size=0.25, plot=False):
+def fit_normal(series: pd.Series, bin_size: float = 0.25, plot: bool = False) -> tuple[list, list, list, int, int]:
     """Fits a guassian distribution to the series.
 
     Parameters
     ----------
-    series : pd.DataFrame
-        QAQC dataframe
+    series : pd.Series
+        QAQC data per variable
     bin_size : float
         bin size for distribution
     plot : bool, optional
@@ -360,9 +358,9 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
     Returns
     -------
-    freq : list of ?
-        frequency [?]
-    bins : list of ints/floats ?
+    freq : list of float
+        frequency of values
+    bins : list of float
         bins for distribution
     p : list of floats
         pdf of distribution
@@ -406,7 +404,7 @@ def fit_normal(series, bin_size=0.25, plot=False):
     except:
         right = len(bins) - 2
 
-    if plot:  ## why is this here?
+    if plot:  #! why is this here?
         # Plot the histogram of the series
         fig, ax = plt.subplots()
         ax.hist(series, bins=bins, density=False, alpha=0.35, label="Histogram")
@@ -430,13 +428,15 @@ def fit_normal(series, bin_size=0.25, plot=False):
 
 
 # ----------------------------------------------------------------------
-def gap_search(freq, left, right):
-    """DOCUMENTATION NEEDED.
+def gap_search(freq: list, left: int, right: int) -> int:
+    """
+    Flags observations outside of the central range of the hitsogram,
+    as determined by the left and right bins, and frequency counts.
 
-    Inputs
-    ------
-    freq : list of ?
-        frequency [?]
+    Parameters
+    ----------
+    freq : list of float
+        frequency counts for histogram bins
     left : int
         leftmost bin for distribution
     right : int
@@ -444,9 +444,11 @@ def gap_search(freq, left, right):
 
     Returns
     -------
-    flag : int [?]
-        [?]
-
+    flag : int
+        Array of same length as `freq` where:
+            -1 indicates flagged obs with low freq (<0.1)
+            0 indicates non-flagged obs oustide central range
+            1 indicates central region between left and right bin
     """
     left_freq = freq[0:left]
     left_flag = np.zeros_like(
@@ -477,7 +479,7 @@ def gap_search(freq, left, right):
 
 
 # ----------------------------------------------------------------------
-def qaqc_climatological_outlier_precip(df, var, factor=9):
+def qaqc_climatological_outlier_precip(df: pd.DataFrame, var: str, factor: int = 9) -> pd.DataFrame:
     """Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
     least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
     This is a modification of a HadISD / GHCN-daily test, in which sub-daily data is aggregated to daily to identify flagged data,
