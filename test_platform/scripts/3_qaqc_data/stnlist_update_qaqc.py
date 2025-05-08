@@ -69,14 +69,18 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     for item in s3.Bucket(bucket_name).objects.filter(
         Prefix=network_prefix + network + "_"
     ):
-        if (
-            network == "CW3E"
-        ):  # need to handle CW3E data differently in terms of qaqc check
+        # Skip any files that are not .nc or .zarr
+        if network == "CW3E":
             print("forthcoming")
-        else:  # all other networks
-            qaqc_id = item.key.split("/")[-1].replace(
-                ".nc", ""
-            )  # Get ID from file name
+            continue
+
+        file_path = item.key.split("/")[-1]
+        if file_path.endswith(".nc"):
+            qaqc_id = file_path.replace(".nc", "")  # get ID from file name
+        elif file_path.endswith(".zarr"):
+            qaqc_id = file_path.replace(".zarr", "")  # get ID from file name
+        else:
+            print(f"WARNING ::: File not in expected format: {item.key}")
             time_mod = item.last_modified
         df["ID"].append(qaqc_id)
         df["Time_QAQC"].append(time_mod)
@@ -99,7 +103,7 @@ def parse_error_csv(network: str) -> pd.DataFrame:
         dataframe of all errors produced during QAQC
     """
     errordf = []
-    errors_prefix = qaqc_wx + network + "/" + "errors"
+    errors_prefix = f"{qaqc_wx}{network}/qaqc_errs/errors"
     for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
         obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
         errors = pd.read_csv(obj["Body"])
