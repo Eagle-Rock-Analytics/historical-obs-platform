@@ -17,7 +17,6 @@ import boto3
 
 ## Set AWS credentials
 s3_cl = boto3.client("s3")
-bucket_name = "wecc-historical-wx"
 
 
 # -----------------------------------------------------------------------------
@@ -133,7 +132,7 @@ def get_homr_metadata(
 
 
 # -----------------------------------------------------------------------------
-def get_all_homr_ids(bucket_name: str, savedir: str):
+def get_all_homr_ids(BUCKET_NAME: str, savedir: str):
     """
     Iterates through all WECC states and save header HOMR metadata for all stations.
 
@@ -185,11 +184,11 @@ def get_all_homr_ids(bucket_name: str, savedir: str):
     homr_df.to_csv(csv_buffer, index=False)
     content = csv_buffer.getvalue()
 
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir + "homr_ids.csv")
+    s3_cl.put_object(Bucket=BUCKET_NAME, Body=content, Key=savedir + "homr_ids.csv")
 
 
 # -----------------------------------------------------------------------------
-def get_all_homr_metadata(bucket_name: str, savedir: str):
+def get_all_homr_metadata(BUCKET_NAME: str, savedir: str):
     """
     Takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates.
 
@@ -214,7 +213,7 @@ def get_all_homr_metadata(bucket_name: str, savedir: str):
     updatedf = []
 
     # Read in homr_ids.csv
-    obj = s3_cl.get_object(Bucket=bucket_name, Key=savedir + "homr_ids.csv")
+    obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=savedir + "homr_ids.csv")
     homr_ids = pd.read_csv(BytesIO(obj["Body"].read()))
     count = 0
     for i in homr_ids["ncdcStnId"]:
@@ -254,13 +253,13 @@ def get_all_homr_metadata(bucket_name: str, savedir: str):
             csv_buffer = StringIO()
             val.to_csv(csv_buffer, index=False)
             content = csv_buffer.getvalue()
-            s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir + key)
+            s3_cl.put_object(Bucket=BUCKET_NAME, Body=content, Key=savedir + key)
 
 
 if __name__ == "__main__":
-    bucket_name = "wecc-historical-wx"
+    BUCKET_NAME = "wecc-historical-wx"
     savedir = "3_qaqc_wx/HOMR-Metadata/"
 
     # get_all_homr_ids(bucket_name, savedir) # Only run periodically.
     # get_homr_metadata('20027492') # Run for one station
-    get_all_homr_metadata(bucket_name, savedir)  # Only run periodically.
+    get_all_homr_metadata(BUCKET_NAME, savedir)  # Only run periodically.

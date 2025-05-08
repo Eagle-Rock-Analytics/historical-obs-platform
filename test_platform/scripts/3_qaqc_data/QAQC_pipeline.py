@@ -47,7 +47,7 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
 ## Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
+BUCKET_NAME = "wecc-historical-wx"
 
 # Make local directories to save files temporarily and save timing,
 dirs = ["./qaqc_logs/"]
@@ -140,7 +140,7 @@ def file_on_s3(df: pd.DataFrame, zarr: bool) -> pd.Series:
     """
 
     files = []  # Get files
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=df["cleandir"].iloc[0]):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=df["cleandir"].iloc[0]):
         file = str(item.key)
         files += [file]
 
@@ -241,7 +241,7 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
         return df
     else:
         df["file_size"] = df["key"].apply(
-            lambda row: s3_cl.head_object(Bucket=bucket_name, Key=row)["ContentLength"]
+            lambda row: s3_cl.head_object(Bucket=BUCKET_NAME, Key=row)["ContentLength"]
         )
         df = df.sort_values(by=["file_size", "network", "era-id"]).drop(columns="exist")
 
@@ -375,13 +375,13 @@ def process_output_ds(
     t0 = time.time()
     logger.info(
         "Saving/pushing {0} with dims {1} to {2}".format(
-            filename, ds.dims, bucket_name + "/" + qaqcdir
+            filename, ds.dims, BUCKET_NAME + "/" + qaqcdir
         ),
     )
     if zarr == False:  # Upload as netcdf
-        s3.Bucket(bucket_name).upload_file(filename, filepath)
+        s3.Bucket(BUCKET_NAME).upload_file(filename, filepath)
     elif zarr == True:
-        filepath_s3 = "s3://{0}/{1}{2}".format(bucket_name, qaqcdir, filename)
+        filepath_s3 = "s3://{0}/{1}{2}".format(BUCKET_NAME, qaqcdir, filename)
         ds.to_zarr(
             filepath_s3,
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
@@ -1094,7 +1094,7 @@ def run_qaqc_one_station(
     fs = s3fs.S3FileSystem()
 
     # Define path to file using correct file extension
-    aws_url_no_extension = f"s3://{bucket_name}/{cleaned_data_dir}{station}"
+    aws_url_no_extension = f"s3://{BUCKET_NAME}/{cleaned_data_dir}{station}"
     aws_url = aws_url_no_extension + ".zarr" if zarr else aws_url_no_extension + ".nc"
 
     # Open the file
@@ -1193,7 +1193,7 @@ def run_qaqc_one_station(
         # Convert errors to DataFrame and
         errors_df = pd.DataFrame(errors)
         errors_s3_filepath = (
-            f"s3://{bucket_name}/{qaqc_dir}qaqc_errs/errors_{station}_{end_api}.csv"
+            f"s3://{BUCKET_NAME}/{qaqc_dir}qaqc_errs/errors_{station}_{end_api}.csv"
         )
         errors_df.to_csv(errors_s3_filepath)
 
@@ -1201,11 +1201,11 @@ def run_qaqc_one_station(
         logger.info("errors saved to {0}\n".format(errors_s3_filepath))
 
         # Save log file to s3 bucket
-        logfile_s3_filepath = f"s3://{bucket_name}/{qaqc_dir}{log_fname}"
+        logfile_s3_filepath = f"s3://{BUCKET_NAME}/{qaqc_dir}{log_fname}"
         logger.info(
             "Saving log file to {0}\n".format(logfile_s3_filepath),
         )
-        s3.Bucket(bucket_name).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
+        s3.Bucket(BUCKET_NAME).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
 
         # Close logging handlers manually
         for handler in logger.handlers:

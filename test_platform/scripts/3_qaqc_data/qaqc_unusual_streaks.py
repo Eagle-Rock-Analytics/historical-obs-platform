@@ -26,11 +26,8 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
 ## Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+BUCKET_NAME = "wecc-historical-wx"
+
 
 # CONSTANTS
 # ----------------------------------------------------------------------
