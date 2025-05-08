@@ -38,7 +38,6 @@ from IPython.display import display
 BUCKET_NAME = "wecc-historical-wx"
 
 
-
 # ============================================================================================================
 def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
     """
