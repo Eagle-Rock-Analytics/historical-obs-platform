@@ -83,8 +83,6 @@ def qaqc_unusual_gaps(
 
         # Calculate the number of years for each variable
         # It uses the month with the most (max) number of years (or should it be the min?)
-        # TODO: Discuss with Victoria this threshold
-        # df is already flagged, just bybass station?
         nYears = np.array([v.max() for k, v in stn_length.items()])
         if (
             nYears < 5
