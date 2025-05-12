@@ -10,7 +10,7 @@ import os
 # Configure the logger
 def setup_logger(
     log_file: str = f"{os.getcwd()}/default_qaqc_log.log", verbose: bool = False
-) -> logging.logger:
+) -> logging.Logger:
     """Configures logger for more efficient tracing of QAQC processes and errors.
 
     Parameters
@@ -22,7 +22,7 @@ def setup_logger(
 
     Returns
     -------
-    logger : logging.logger
+    logger : logging.Logger
         Information to be sent to logger / log file
     """
 
@@ -54,12 +54,12 @@ def setup_logger(
 
 
 # -----------------------------------------------------------------------------
-def remove_file_handler_by_filename(logger: logging.logger, filename: str):
+def remove_file_handler_by_filename(logger: logging.Logger, filename: str):
     """Remove a specific FileHandler from the logger by matching the filename.
 
     Parameters
     ----------
-    logger : logging.logger
+    logger : logging.Logger
         Input logger handler
     filename : str
         Filename of logger handler

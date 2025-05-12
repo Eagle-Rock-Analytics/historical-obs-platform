@@ -388,7 +388,7 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout
     it : int
         iternation of list
     prefix : str
-        idk
+        string prefix for tidy progress bar
     size : int, optional
         size (length) of progress bar
 
@@ -510,7 +510,7 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list:
 # -----------------------------------------------------------------------------
 def get_wecc_poly(
     terrpath: str, marpath: str
-) -> tuple[gp.polygon, gp.polygon, gp.polygon]:
+) -> tuple[gp.GeoDataFrame, gp.GeoDataFrame, pd.DataFrame]:
     """Identifies a bbox of WECC area to filter stations against.
 
     Parameters
@@ -522,11 +522,11 @@ def get_wecc_poly(
 
     Returns
     -------
-    t : gp.polygon
+    t : gp.GeoDataFrame
         spatial object for terrestrial boundary
-    m : gp.polygon
+    m : gp.GeoDataFrame
         spatial object for maritime boudary
-    bbox : gp.polygon
+    bbox : pd.DataFrame
         bounding box for union of t and m
     """
     t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
