@@ -10,7 +10,7 @@ import os
 # Configure the logger
 def setup_logger(
     log_file: str = f"{os.getcwd()}/default_qaqc_log.log", verbose: bool = False
-) -> logging.logger:
+) -> logging.Logger:
     """Configures logger for more efficient tracing of QAQC processes and errors.
 
     Parameters
