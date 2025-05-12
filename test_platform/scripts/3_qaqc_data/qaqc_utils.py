@@ -388,7 +388,7 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout
     it : int
         iternation of list
     prefix : str
-        string prefix for tidy progress bar 
+        string prefix for tidy progress bar
     size : int, optional
         size (length) of progress bar
 
