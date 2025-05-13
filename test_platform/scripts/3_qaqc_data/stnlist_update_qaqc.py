@@ -7,10 +7,11 @@ Note that because errors.csv are parsed, very old errors.csv may want to be remo
 (removing those produced during code testing)
 """
 
-import boto3
+print("hi")
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
+import boto3
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -19,6 +20,8 @@ clean_wx = "2_clean_wx/"
 qaqc_wx = "3_qaqc_wx/"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
+
+print(bucket_name)
 
 
 # ----------------------------------------------------------------------
@@ -52,7 +55,7 @@ def get_station_list(network: str) -> pd.DataFrame:
 def get_qaqc_stations(network: str) -> pd.DataFrame:
     """
     Given a network name, return a pandas dataframe of all stations that pass QA/QC in
-    the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
+    the 3_qaqc_wx AWS bucket, with the date that the file was last modified, and a column that states whether or not it has a .zarr file.
 
     Parameters
     ----------
@@ -64,7 +67,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     pd.DataFrame
         pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
     """
-    df = {"ID": [], "Time_QAQC": []}
+    df = {"ID": [], "Time_QAQC": [], "Has_Zarr": []}
     network_prefix = qaqc_wx + network + "/"
     for item in s3.Bucket(bucket_name).objects.filter(
         Prefix=network_prefix + network + "_"
@@ -77,13 +80,19 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
         file_path = item.key.split("/")[-1]
         if file_path.endswith(".nc"):
             qaqc_id = file_path.replace(".nc", "")  # get ID from file name
+            has_zarr = "N"  # Default to N for .nc files
         elif file_path.endswith(".zarr"):
             qaqc_id = file_path.replace(".zarr", "")  # get ID from file name
+            has_zarr = "Y"  # confirms station has zarr file
         else:
             print(f"WARNING ::: File not in expected format: {item.key}")
             time_mod = item.last_modified
+
+        if has_zarr == "N":
+            has_zarr = _station_has_zarr(network, qaqc_id)
         df["ID"].append(qaqc_id)
         df["Time_QAQC"].append(time_mod)
+        df["Has_Zarr"].append(has_zarr)
     return pd.DataFrame(df)
 
 
@@ -270,3 +279,29 @@ if __name__ == "__main__":
 
     # Note: OtherISD only runs as "otherisd"
     # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+def _station_has_zarr(network: str, station_id: str) -> str:
+    """
+    Check if a station has a corresponding .zarr file in the QAQC bucket.
+
+    Parameters
+    ----------
+    network : str
+        Name of network
+    station_id : str
+        Station ID to check
+
+    Returns
+    -------
+    str
+        "Y" if .zarr file exists, "N" otherwise
+    """
+    prefix = f"{qaqc_wx}{network}/{station_id}"
+    response = s3_cl.list_objects_v2(
+        Bucket=bucket_name,
+        Prefix=prefix,
+        MaxKeys=1,  # We only need to know if at least one exists
+    )
+    return "Y" if response.get("KeyCount", 0) > 0 else "N"
