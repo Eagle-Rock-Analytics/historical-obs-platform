@@ -7,13 +7,13 @@ is not meant to in-fill potential valid missing observations.
 Variables that can be derived if observations are missing
 - Dewpoint temperature: requires air temperature, relative humidity; or vapor pressure (not kept)
 - Relative humidity: requires air temperature, dewpoint temperature
-- Pressure: air temperature, elevation, sea level pressure
 - Air temperature: requires dewpoint temperature, relative humidity
 
 Variables that cannot be derived if observations are missing
 - Wind speed, direction: requires u and v components (not kept)
 - Surface radiation
 - Precipitation
+- Pressure: air temperature, elevation, sea level pressure (not ideal, tricky calculation)
 """
 
 # Import libraries
@@ -23,11 +23,10 @@ import xarray as xr
 import logging
 
 
-
 ## Identify vars that can be derived
 def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     """
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -40,9 +39,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     # vars that can be derived
-    derive_vars = ['tdps', 'hurs', 'ps', 'tas'] # pressure is funky; what about tdps_derived
-
-    vars_to_check = df.columns
+    derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
 
     # first check if station has any vars that can be derived
     for item in derive_vars:
@@ -50,15 +47,43 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
             print(f"{item} is available!")
             continue
 
-        else: # var is missing
+        else:  # var is missing
             # check if required inputs are available
-            if item == "tdps":
-                print('hello dewpoint')
+            if item == "tdps" and _input_var_check(df, var1="tas", var2="hurs") == True:
+                print("Calculating tdps...")
+                df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
+
+            elif (
+                item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True
+            ):
+                print("Calculating hurs...")
+                df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
+
+            elif (
+                item == "hurs"
+                and _input_var_check(df, var1="tas", var2="tdps_derived") == True
+            ):
+                print("Calculating hurs 2...")
+                df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
+
+            elif (
+                item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
+            ):
+                print("Calculating tas...")
+                df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
+
+            elif (
+                item == "tas"
+                and _input_var_check(df, var1="hurs", var2="tdps_derived") == True
+            ):
+                print("Calculating tas 2 ....")
+                df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
 
     return None
 
+
 # --------------------------------------------------
-def input_var_check(df: pd.DataFrame, var1: str, var2: str, var3: str | None = None) -> bool:
+def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
     """
     Flexible check if required secondary input variables are available to derive a primary variable.
 
@@ -70,8 +95,6 @@ def input_var_check(df: pd.DataFrame, var1: str, var2: str, var3: str | None = N
         name of secondary input var 1
     var2 : str
         name of secondary input var 2
-    var3 : str
-        name of secondary input var 3; optional, only applicable for air pressure
 
     Returns
     -------
@@ -79,16 +102,10 @@ def input_var_check(df: pd.DataFrame, var1: str, var2: str, var3: str | None = N
         True if all required input vars present; False if not
     """
 
-    if var3 == None:
-        if var1 in df.columns and var2 in df.columns:
-            return True
-        else: 
-            return False
+    if var1 in df.columns and var2 in df.columns:
+        return True
     else:
-        if var1 in df.columns and var2 in df.columns and var3 in df.columns:
-            return True
-        else:
-            return False
+        return False
 
 
 ## Derived variable calculations
@@ -119,6 +136,42 @@ def _calc_dewpointtemp(tas: pd.Series, hurs: pd.Series) -> pd.Series:
     return tdps
 
 
+def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
+    """Calculate air temperature
+
+    Parameters
+    ----------
+    hurs : pd.Series
+        relative humidity, % or 0-100
+    tdps : pd.Series
+        dewpoint temperature, K
+
+    Returns
+    -------
+    tas : pd.Series
+        air temperature, K
+
+    Notes
+    ------
+    [1] August-Roche-Magnus Approximation
+    """
+
+    # tdps must be in degC, not K for this equation
+    tdps_degC = tdps - 273.15
+
+    # apply approximation to calculate tas in degC
+    tas_degC = (
+        243.04
+        * (((17.625 * tdps_degC) / (243.04 + tdps_degC)) - np.log(hurs / 100))
+        / (17.625 + np.log(hurs / 100) - ((17.625 * tdps_degC) / (243.04 + tdps_degC)))
+    )
+
+    # convert back to K
+    tas_K = tas_degC + 273.15
+
+    return tas_K
+
+
 def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
     """Calculate relative humidity
 
@@ -143,71 +196,3 @@ def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
     )  # calculates vapor pressure using dew point temp
     hurs = 100 * (e_vap / es)
     return hurs
-
-
-def _calc_ps(psl: pd.Series, elev: pd.Series, temp: pd.Series) -> pd.Series:
-    """Calculates station air pressure from sea level air pressure, if station pressure is not available
-
-    Parameters
-    -----------
-    psl : pd.Series
-        sea level pressure, Pa
-    elev : pd.Series
-        elevation, m
-    temp : pd.Series
-        air temperature, K
-
-    Returns
-    -------
-    ps : pd.Series
-        surface pressure, Pa
-
-    Notes
-    -----
-    1. This calculation checks with this formula, with differences due to rounding in the decimal place:
-    https://keisan.casio.com/exec/system/1224575267
-    """
-    ps = psl / ((1 - ((0.0065 * elev) / (temp + 0.0065 * elev))) ** -5.257)
-    return ps
-
-
-def _calc_ps_alt(alt: pd.Series, elev: pd.Series) -> pd.Series:
-    """Calculates station air pressure from altimeter setting and station elevation, if station pressure is not available
-
-    Parameters
-    ----------
-    alt : pd.Series
-        altimeter setting, Pa
-    elev : pd.Series
-        elevation, m
-
-    Returns
-    -------
-    ps : pd.Series
-        air pressure, Pa
-
-    References
-    ----------
-    [1] This calculation uses the following formula: https://www.weather.gov/media/epz/wxcalc/stationPressure.pdf
-    """
-
-    def _unit_pres_inHg_to_pa(data: pd.Series) -> pd.Series:
-        """Converts air pressure from inHg to hectopascals
-
-        Parameters
-        ----------
-        data : float
-            input data to convert
-
-        Returns
-        -------
-        data : float
-            data converted to Pa
-        """
-        data = data * 3386.39
-        return data
-
-    alt = alt / 3386.39  # Convert altimeter from Pa to inHg for use in formula
-    ps = alt * ((288 - 0.0065 * elev) / 288) ** 5.2561
-    ps = _unit_pres_inHg_to_pa(ps)  # Convert back to Pa from inHg
-    return ps
