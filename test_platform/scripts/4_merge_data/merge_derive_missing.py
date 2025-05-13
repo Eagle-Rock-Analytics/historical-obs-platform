@@ -79,6 +79,9 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
                 print("Calculating tas 2 ....")
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
 
+
+        # TODO: attribute modification to denote it was derived
+
     return None
 
 
@@ -161,9 +164,7 @@ def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
 
     # apply approximation to calculate tas in degC
     tas_degC = (
-        243.04
-        * (((17.625 * tdps_degC) / (243.04 + tdps_degC)) - np.log(hurs / 100))
-        / (17.625 + np.log(hurs / 100) - ((17.625 * tdps_degC) / (243.04 + tdps_degC)))
+        243.04 * (((17.625 * tdps_degC) / (243.04 + tdps_degC)) - np.log(hurs / 100)) / (17.625 + np.log(hurs / 100) - ((17.625 * tdps_degC) / (243.04 + tdps_degC)))
     )
 
     # convert back to K
