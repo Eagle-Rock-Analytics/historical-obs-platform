@@ -22,10 +22,6 @@ import numpy as np
 import xarray as xr
 import logging
 
-# Import relevant merge util functions
-from merge_utils import get_file_paths
-
-# why breaking???? working?
 
 
 ## Identify vars that can be derived
