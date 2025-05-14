@@ -70,7 +70,7 @@ except:
 
 
 # -------------------------------------------------------------------------
-def merge_station_lists(key_asosawos, key_isd, cleandir):
+def merge_station_lists(key_asosawos: str, key_isd: str, cleandir: str) -> pd.DataFrame:
     """Merges the ASOS/AWOS and ISD station lists.
 
     Parameters
@@ -147,7 +147,7 @@ def merge_station_lists(key_asosawos, key_isd, cleandir):
 
 
 # -------------------------------------------------------------------------
-def clean_asosawos(rawdir, cleandir):
+def clean_asosawos(rawdir: str, cleandir: str):
     """Clean ASOS/AWOS data.
 
     Parameters
@@ -1131,3 +1131,4 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("ASOSAWOS")
     print(rawdir, cleandir, qaqcdir)
     clean_asosawos(rawdir, cleandir)
+
