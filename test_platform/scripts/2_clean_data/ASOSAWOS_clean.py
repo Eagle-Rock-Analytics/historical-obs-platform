@@ -1131,4 +1131,3 @@ if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("ASOSAWOS")
     print(rawdir, cleandir, qaqcdir)
     clean_asosawos(rawdir, cleandir)
-
