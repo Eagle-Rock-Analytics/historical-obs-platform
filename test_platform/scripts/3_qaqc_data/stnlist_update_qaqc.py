@@ -21,6 +21,7 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 
+
 # ----------------------------------------------------------------------
 def get_station_list(network: str) -> pd.DataFrame:
     """
@@ -73,13 +74,13 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
         #     print("forthcoming")
         #     continue
 
-        # file_path = item.key.split("/")[-2]
+        #file_path = item.key.split("/")[-2]
         if key.endswith(".nc"):
             station_id = key.split("/")[-1].replace(".nc", "")
             df["ID"].append(station_id)
             df["Time_QAQC"].append(item.last_modified)
             df["QAQC"].append("N")
-        elif key.endswith(".zarr"):  # .zarr folders often end in "/"
+        elif key.endswith(".zarr"):  
             station_id = key.split("/")[-2]  # folder name before trailing slash
             df["ID"].append(station_id)
             df["Time_QAQC"].append(item.last_modified)
@@ -300,7 +301,6 @@ def _station_has_zarr(network: str, station_id: str) -> str:
     )
     return "Y" if response.get("KeyCount", 0) > 0 else "N"
 
-
 # -------------------------------------------------------------------------------------------------------------------
 # def _list_zarr_files(bucket_name, prefix=""):
 #     objects = []
@@ -317,3 +317,6 @@ def _station_has_zarr(network: str, station_id: str) -> str:
 #     all_objects = _list_zarr_files(bucket_name, prefix)
 #     zarr_files = [obj for obj in all_objects if obj.endswith('.zarr')]
 #     return zarr_files
+
+
+
