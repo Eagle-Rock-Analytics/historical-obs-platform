@@ -36,7 +36,7 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir, mergedir
 
 
-## Standardization hlper functions
+## Standardization helper functions
 # -----------------------------------------------------------------------------
 def custom_sum(df):
     return df.apply(lambda x: np.nan if x.isna().all() else x.sum())
@@ -183,3 +183,6 @@ def merge_hourly_standardization(df):
         )
         # conver to logger version
         return None
+
+
+# -----------------------------------------------------------------------------
