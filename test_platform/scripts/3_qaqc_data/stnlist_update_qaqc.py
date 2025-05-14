@@ -7,7 +7,6 @@ Note that because errors.csv are parsed, very old errors.csv may want to be remo
 (removing those produced during code testing)
 """
 
-print("hi")
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
@@ -21,7 +20,6 @@ qaqc_wx = "3_qaqc_wx/"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
-print(bucket_name)
 
 
 # ----------------------------------------------------------------------
@@ -67,32 +65,29 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     pd.DataFrame
         pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
     """
-    df = {"ID": [], "Time_QAQC": [], "Has_Zarr": []}
-    network_prefix = qaqc_wx + network + "/"
-    for item in s3.Bucket(bucket_name).objects.filter(
-        Prefix=network_prefix + network + "_"
-    ):
+    df = {"ID": [], "Time_QAQC": [], "QAQC": []}
+    network_prefix = f"{qaqc_wx}{network}/"
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix=network_prefix):
+        key = item.key
         # Skip any files that are not .nc or .zarr
-        if network == "CW3E":
-            print("forthcoming")
-            continue
+        # if network == "CW3E":
+        #     print("forthcoming")
+        #     continue
 
-        file_path = item.key.split("/")[-1]
-        if file_path.endswith(".nc"):
-            qaqc_id = file_path.replace(".nc", "")  # get ID from file name
-            has_zarr = "N"  # Default to N for .nc files
-        elif file_path.endswith(".zarr"):
-            qaqc_id = file_path.replace(".zarr", "")  # get ID from file name
-            has_zarr = "Y"  # confirms station has zarr file
+        #file_path = item.key.split("/")[-2]
+        if key.endswith(".nc"):
+            station_id = key.split("/")[-1].replace(".nc", "")
+            df["ID"].append(station_id)
+            df["Time_QAQC"].append(item.last_modified)
+            df["QAQC"].append("N")
+        elif key.endswith(".zarr"):  # .zarr folders often end in "/"
+            station_id = key.split("/")[-2]  # folder name before trailing slash
+            df["ID"].append(station_id)
+            df["Time_QAQC"].append(item.last_modified)
+            df["QAQC"].append("Y")
         else:
-            print(f"WARNING ::: File not in expected format: {item.key}")
-            time_mod = item.last_modified
+            continue  # skip non-nc/zarr keys
 
-        if has_zarr == "N":
-            has_zarr = _station_has_zarr(network, qaqc_id)
-        df["ID"].append(qaqc_id)
-        df["Time_QAQC"].append(time_mod)
-        df["Has_Zarr"].append(has_zarr)
     return pd.DataFrame(df)
 
 
@@ -305,3 +300,23 @@ def _station_has_zarr(network: str, station_id: str) -> str:
         MaxKeys=1,  # We only need to know if at least one exists
     )
     return "Y" if response.get("KeyCount", 0) > 0 else "N"
+
+# -------------------------------------------------------------------------------------------------------------------
+# def _list_zarr_files(bucket_name, prefix=""):
+#     objects = []
+#     paginator = s3_client.get_paginator("list_objects_v2")
+#     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+
+#     for page in page_iterator:
+#         for obj in page.get("Contents", []):
+#             objects.append(obj["Key"])
+
+#     return objects
+
+# def _get_zarr_files(bucket_name, prefix=""):
+#     all_objects = _list_zarr_files(bucket_name, prefix)
+#     zarr_files = [obj for obj in all_objects if obj.endswith('.zarr')]
+#     return zarr_files
+
+
+
