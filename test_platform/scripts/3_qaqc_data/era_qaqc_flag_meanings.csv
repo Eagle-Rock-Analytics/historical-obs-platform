@@ -36,3 +36,4 @@
 35,qaqc_deaccumulate_precip,Original precipitation data; deaccumulation process has been applied
 36,qaqc_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/-50m are flagged
 37,VALLEYWATER_qaqc_custom,Lone peak identified in precipitation (single observation >= 5.08mm with no other precip obs in +/- 6hr window); VALLEYWATER network flag only
+38,merge_derive_missing,At least one input variable to derived variable has a flag placed. Input variable and derived variable are synergistically flagged

@@ -34,7 +34,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns
     -------
-    df : pd.DataFrame
+    df_flag : pd.DataFrame
         dataframe with newly added derived variable
     """
 
@@ -52,25 +52,33 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
             if item == "tdps" and _input_var_check(df, var1="tas", var2="hurs") == True:
                 print("Calculating tdps...")
                 df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
+                # synergistic flag check
+                df_flag = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
 
             elif (
                 item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True
             ):
                 print("Calculating hurs...")
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
-
+                # synergistic flag check
+                df_flag = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
+  
             elif (
                 item == "hurs"
                 and _input_var_check(df, var1="tas", var2="tdps_derived") == True
             ):
                 print("Calculating hurs 2...")
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
+                # synergistic flag check
+                df_flag = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
 
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
             ):
                 print("Calculating tas...")
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
+                # synergistic flag check
+                df_flag = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
 
             elif (
                 item == "tas"
@@ -78,11 +86,13 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
             ):
                 print("Calculating tas 2 ....")
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
+                # synergistic flag check
+                df_flag = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
 
 
         # TODO: attribute modification to denote it was derived
 
-    return None
+    return df_flag
 
 
 # --------------------------------------------------
@@ -109,6 +119,36 @@ def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
         return True
     else:
         return False
+
+
+def derive_synergistic_flag(df: pd.DataFrame, var_to_flag: str, var1: str, var2: str) -> pd.DataFrame:
+    """Synergistically flags the derived variable if the input variables also have flags.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input df to identify flags
+    var_to_flag : str
+        name of variable to check and flag
+    var1 : str
+        name of secondary input var 1
+    var2 : str
+        name of secondary input var 2
+    
+    Returns
+    -------
+    df : pd.DataFrame
+        df with synergistic flags applied, if applicable
+    """
+
+    # identify if var 1 has flags
+    # if so, flag derived var
+
+    # identify if var 2 has flags
+    # if so, flag derived var
+
+
+    return df
 
 
 ## Derived variable calculations
@@ -164,7 +204,9 @@ def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
 
     # apply approximation to calculate tas in degC
     tas_degC = (
-        243.04 * (((17.625 * tdps_degC) / (243.04 + tdps_degC)) - np.log(hurs / 100)) / (17.625 + np.log(hurs / 100) - ((17.625 * tdps_degC) / (243.04 + tdps_degC)))
+        243.04
+        * (((17.625 * tdps_degC) / (243.04 + tdps_degC)) - np.log(hurs / 100))
+        / (17.625 + np.log(hurs / 100) - ((17.625 * tdps_degC) / (243.04 + tdps_degC)))
     )
 
     # convert back to K
