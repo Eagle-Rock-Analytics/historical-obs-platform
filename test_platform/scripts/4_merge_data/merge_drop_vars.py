@@ -48,5 +48,14 @@ def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
     if failure:
         None
     """
+    drop_vars_key = ["qaqc_process", "pr_duration", "pr_depth","PREC_flag", "rsds_duration", "rsds_flag","_qc"]
 
-    return df, var_attrs 
+    # Select variables with names that start with those in "desired_order"
+    drop_vars = [
+        i for keyword in drop_vars_key for i in df.columns if keyword in i
+    ]
+
+    # Use that list to reorder the columns in "df"
+    df = df[~drop_vars_key]
+
+    return df
