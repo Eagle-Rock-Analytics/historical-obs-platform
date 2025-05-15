@@ -145,7 +145,7 @@ def merge_hourly_standardization(df,var_attrs):
                 log_file=log_file,
                 flush=True,
             )
-            return df
+            return df, var_attrs
         else:
             result_list = []
 
