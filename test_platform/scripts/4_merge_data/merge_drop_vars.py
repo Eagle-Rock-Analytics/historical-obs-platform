@@ -20,7 +20,7 @@ BUCKET_NAME = "wecc-historical-wx"
 
 
 # ----------------------------------------------------------------------
-def delete_vars(df: pd.DataFrame, var_attrs: dict[str,str]) -> pd.DataFrame, dict[str,str]:
+def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
 
 
 
