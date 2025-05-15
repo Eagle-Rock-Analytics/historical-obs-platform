@@ -43,7 +43,7 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df):
+def merge_hourly_standardization(df: pd.DataFrame, attrs) -> pd.DataFrame:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
@@ -53,8 +53,8 @@ def merge_hourly_standardization(df):
 
     Returns
     -------
-    If standardization is successful, returns a dataframe with all columns resampled to one hour (column name retained)
-    If standardization fails, returns None
+    pd.DataFrame | None
+        returns a dataframe with all columns resampled to one hour (column name retained)
 
     Notes
     -----
@@ -172,7 +172,24 @@ def merge_hourly_standardization(df):
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
             )
-            return result
+
+            # Update 'history' attribute
+            timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
+            attrs["history"] = attrs[
+                "history"
+            ] + " \n VALLEYWATER_merge.ipynb run on {} UTC".format(timestamp)
+
+            # Update 'comment' attribute
+            attrs["comment"] = (
+                "Final v1 data product. This data has been subjected to cleaning, QA/QC, and standardization."
+            )
+
+            # add comment about names of variables that indicate sub-hourly collection
+            attrs["comment"] = (
+                "Variables ."
+            )
+
+            return result, attrs
 
     except Exception as e:
         printf(
@@ -181,5 +198,40 @@ def merge_hourly_standardization(df):
             log_file=log_file,
             flush=True,
         )
-        # conver to logger version
+        # convert to logger version
         return None
+
+
+# -----------------------------------------------------------------------------
+def update_attrs_standardization(attrs): # what IS attrs?
+    """Resamples meteorological variables to hourly timestep according to standard conventions.
+
+    Parameters
+    -----------
+    df : pd.DataFrame
+        station dataset converted to dataframe through QAQC pipeline
+
+    Returns
+    -------
+    pd.DataFrame | None
+        returns a dataframe with all columns resampled to one hour (column name retained)
+
+    Notes
+    -----
+    Rules:
+    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
+    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
+    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
+    """
+    # Update 'history' attribute
+    timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
+    processed_ds.attrs["history"] = ds.attrs[
+        "history"
+    ] + " \nVALLEYWATER_merge.ipynb run on {} UTC".format(timestamp)
+
+    # Update 'comment' attribute
+    processed_ds.attrs["comment"] = (
+        "Final v1 data product. This data has been subjected to cleaning, QA/QC, and standardization."
+    )
+    
+    return attrs

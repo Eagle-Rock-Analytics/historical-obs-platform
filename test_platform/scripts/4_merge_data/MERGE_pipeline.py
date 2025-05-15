@@ -268,6 +268,7 @@ def run_merge_pipeline(
         return [None]
     else:
         stn_to_merge = new_df
+        attrs = update_attributes()
         logger.info("pass merge_hourly_standardization")
 
     # ----------------------------------------------------------
