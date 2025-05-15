@@ -57,7 +57,7 @@ def merge_hourly_standardization(df,var_attrs):
     -------
     df : pd.DataFrame | None
         returns a dataframe with all columns resampled to one hour (column name retained)
-    var_attrs : dict[str,str] | None
+    var_attrs : dict | None
         returns variable attributes dictionary updated to note that sub-hourly variables are now hourly
 
     Notes
