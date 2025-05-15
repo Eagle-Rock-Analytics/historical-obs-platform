@@ -50,11 +50,15 @@ def merge_hourly_standardization(df,var_attrs):
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
+    var_attrs: library
+        attributes for sub-hourly variables
 
     Returns
     -------
-    pd.DataFrame | None
+    df : pd.DataFrame | None
         returns a dataframe with all columns resampled to one hour (column name retained)
+    var_attrs : dict[str,str] | None
+        returns variable attributes dictionary updated to note that sub-hourly variables are now hourly
 
     Notes
     -----
@@ -182,7 +186,7 @@ def merge_hourly_standardization(df,var_attrs):
                     )
                 )
 
-            return result, attrs
+            return result, var_attrs
 
     except Exception as e:
         printf(
@@ -193,38 +197,3 @@ def merge_hourly_standardization(df,var_attrs):
         )
         # convert to logger version
         return None
-
-
-# -----------------------------------------------------------------------------
-def update_attrs_standardization(attrs): # what IS attrs?
-    """Resamples meteorological variables to hourly timestep according to standard conventions.
-
-    Parameters
-    -----------
-    df : pd.DataFrame
-        station dataset converted to dataframe through QAQC pipeline
-
-    Returns
-    -------
-    pd.DataFrame | None
-        returns a dataframe with all columns resampled to one hour (column name retained)
-
-    Notes
-    -----
-    Rules:
-    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
-    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
-    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
-    """
-    # Update 'history' attribute
-    timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-    processed_ds.attrs["history"] = ds.attrs[
-        "history"
-    ] + " \nVALLEYWATER_merge.ipynb run on {} UTC".format(timestamp)
-
-    # Update 'comment' attribute
-    processed_ds.attrs["comment"] = (
-        "Final v1 data product. This data has been subjected to cleaning, QA/QC, and standardization."
-    )
-    
-    return attrs
