@@ -176,8 +176,11 @@ def merge_hourly_standardization(df,var_attrs):
             # Update attributes for sub-hourly variables
             sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
             for var in sub_hourly_vars:
-                var_attrs[var]['new_comment'] = '{} has been standardized to an hourly timestep, but will retain its original name'.format(var)
-
+                var_attrs[var]["standardization"] = (
+                    "{} has been standardized to an hourly timestep, but will retain its original name".format(
+                        var
+                    )
+                )
 
             return result, attrs
 
