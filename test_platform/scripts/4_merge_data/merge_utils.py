@@ -43,7 +43,7 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df: pd.DataFrame, attrs) -> pd.DataFrame:
+def merge_hourly_standardization(df,var_attrs):
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
@@ -173,21 +173,11 @@ def merge_hourly_standardization(df: pd.DataFrame, attrs) -> pd.DataFrame:
                 result_list,
             )
 
-            # Update 'history' attribute
-            timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-            attrs["history"] = attrs[
-                "history"
-            ] + " \n VALLEYWATER_merge.ipynb run on {} UTC".format(timestamp)
+            # Update attributes for sub-hourly variables
+            sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
+            for var in sub_hourly_vars:
+                var_attrs[var]['new_comment'] = '{} has been standardized to an hourly timestep, but will retain its original name'.format(var)
 
-            # Update 'comment' attribute
-            attrs["comment"] = (
-                "Final v1 data product. This data has been subjected to cleaning, QA/QC, and standardization."
-            )
-
-            # add comment about names of variables that indicate sub-hourly collection
-            attrs["comment"] = (
-                "Variables ."
-            )
 
             return result, attrs
 
