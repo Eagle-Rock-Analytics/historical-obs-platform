@@ -1,28 +1,17 @@
 """
-This is a script where Stage 3: QA/QC related common functions, conversions, and operations is stored for ease of use
-for the Historical Observations Platform.
+This is a script where unwanted variables are dropped, for step 6 of the merge pipeline
 """
 
 ## Import Libraries
-import boto3
-import numpy as np
 import pandas as pd
 
 # New logger function
 from merge_log_config import logger
 
-## Set AWS credentials
-s3 = boto3.resource("s3")
-s3_cl = boto3.client("s3")  # for lower-level processes
-
-## Set relative paths to other folders and objects in repository.
-BUCKET_NAME = "wecc-historical-wx"
-
-
 # ----------------------------------------------------------------------
-def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
+def delete_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
     """
-    Drop the following variables
+    Keep “_eraqc” vars and drop the following variables
         - qaqc_process
         - pr_duration
         - pr_depth
@@ -30,7 +19,7 @@ def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
         - rsds_duration
         - rsds_flag
         - q_code
-        - any “_qc” variable, but keep “_eraqc” vars
+        - any "_qc" or "method "variable
 
     Parameters
     ------
@@ -48,14 +37,28 @@ def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
     if failure:
         None
     """
-    drop_vars_key = ["qaqc_process", "pr_duration", "pr_depth","PREC_flag", "rsds_duration", "rsds_flag","_qc"]
-
-    # Select variables with names that start with those in "desired_order"
-    drop_vars = [
-        i for keyword in drop_vars_key for i in df.columns if keyword in i
+    drop_vars_keywords = [
+        "qaqc_process",
+        "pr_duration",
+        "pr_depth",
+        "PREC_flag",
+        "rsds_duration",
+        "rsds_flag",
+        "_qc",
+        "method",
     ]
 
-    # Use that list to reorder the columns in "df"
-    df = df[~drop_vars_key]
+    # Select variables that contain the keywords defined above
+    drop_vars = [
+        i for keyword in drop_vars_keywords for i in df.columns if keyword in i
+    ]
 
-    return df
+    # Remove those variables
+    df = df.drop(columns=drop_vars)
+
+    # Remove the attributes of the dropped variables
+    for key in drop_vars_keywords:
+        if key in var_attrs:
+            del var_attrs[key]
+
+    return df, var_attrs
