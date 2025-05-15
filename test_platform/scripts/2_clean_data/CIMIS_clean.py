@@ -60,7 +60,7 @@ except:
     pass
 
 
-def clean_cimis(rawdir: str, cleandir: str):
+def clean_cimis(rawdir, cleandir):
     """Clean CIMIS data
 
     Parameters
