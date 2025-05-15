@@ -11,6 +11,7 @@ import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
 import boto3
+import s3fs
 
 # Set environment variables
 bucket_name = "wecc-historical-wx"
@@ -66,37 +67,29 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     """
     df = {"ID": [], "Time_QAQC": [], "QAQC": []}
     network_prefix = f"{qaqc_wx}{network}/"
-
-    zarr_folders = [
-        f"{network_prefix}"
-        for path in network_prefix
-        if path.endswith(".zarr")
-        and (
-            any(prefix in path.split("/")[-1] for prefix in network_prefix)
-            if network_prefix
-            else print(len(zarr_folders))
-        )
-    ]
-
+    print("karma is a cat")
+    parent_s3_path = f"{bucket_name}/{qaqc_wx}{network}"
+    print(parent_s3_path)
+    print("purring in my lap cuz it loves me")
+    s3_fs = s3fs.S3FileSystem(anon=False)
+    all_paths = s3_fs.ls(parent_s3_path)
+    print("does this work 1")
+    zarr_folders = [f"{path}" for path in all_paths if path.endswith(".zarr")]
+    print("does this work 2")
     print(len(zarr_folders))
     for item in zarr_folders:
-        key = item.key
-        # Skip any files that are not .nc or .zarr
-        # if network == "CW3E":
-        #     print("forthcoming")
-        #     continue
-
-        # file_path = item.key.split("/")[-2]
-        if key.endswith(".nc"):
-            station_id = key.split("/")[-1].replace(".nc", "")
+        if item.endswith(".nc"):
+            station_id = item.split(".")[-2].replace(".nc", "")
             df["ID"].append(station_id)
             df["Time_QAQC"].append(item.last_modified)
             df["QAQC"].append("N")
-        elif key.endswith(".zarr"):
-            station_id = key.split("/")[-2]  # folder name before trailing slash
+            print("I don't know about you")
+        elif item.endswith(".zarr"):
+            station_id = item.split(".")[-2].replace(".zarr", "")
             df["ID"].append(station_id)
             df["Time_QAQC"].append(item.last_modified)
             df["QAQC"].append("Y")
+            print("but I'm feeling 22")
         else:
             continue  # skip non-nc/zarr keys
 
