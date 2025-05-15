@@ -21,8 +21,32 @@ BUCKET_NAME = "wecc-historical-wx"
 
 # ----------------------------------------------------------------------
 def delete_vars(df: pd.DataFrame, var_attrs: dict) ->tuple[pd.DataFrame, dict]:
+    """
+    Drop the following variables
+        - qaqc_process
+        - pr_duration
+        - pr_depth
+        - PREC_flag
+        - rsds_duration
+        - rsds_flag
+        - q_code
+        - any “_qc” variable, but keep “_eraqc” vars
 
+    Parameters
+    ------
+    df: pd.DataFrame
+        station data
+    var_attrs: dict
+        variable attributes
 
+    Returns
+    -------
+    if success:
+        df: pd.DataFrame
+        var_attrs: dict
 
+    if failure:
+        None
+    """
 
     return df, var_attrs 
