@@ -29,7 +29,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     Identifies if any variables can be derived with other input variables.
     If success, variable is derived in the correct unit, attribtues are updated,
     and any flags from the input variables are synergistically flagged.
-    If failure, variable is not derived. 
+    If failure, variable is not derived.
 
     Parameters
     ----------
@@ -41,7 +41,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     df_flag : pd.DataFrame
         dataframe with newly added derived variable
     """
-    print("Running merge_derive_missing_vars...") # conver to logger when ready
+    print("Running merge_derive_missing_vars...")  # conver to logger when ready
 
     # vars that can be derived
     derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
@@ -49,14 +49,18 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     # first check if station has any vars that can be derived
     for item in derive_vars:
         if item in df.columns:
-            print(f"{item} is present in station, no derivation necessary.") # convert to logger when set-up
+            print(
+                f"{item} is present in station, no derivation necessary."
+            )  # convert to logger when set-up
             continue
-       
+
         else:  # var is missing
             # check if required inputs are available
             if item == "tdps" and "tdps_derived" not in df.columns:
                 if _input_var_check(df, var1="tas", var2="hurs") == True:
-                    print(f"Calculating {item}_derived...") # convert to logger when set-up
+                    print(
+                        f"Calculating {item}_derived..."
+                    )  # convert to logger when set-up
                     df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
                     # synergistic flag check
                     df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
@@ -64,19 +68,19 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
                 print("tdps_derived is present in station, no derivation necessary.")
                 continue
 
-            if (
-                item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True
-            ):
-                print(f"Calculating {item}_derived...") # convert to logger when set-up
+            if item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True:
+                print(f"Calculating {item}_derived...")  # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
-  
+
             elif (
                 item == "hurs"
                 and _input_var_check(df, var1="tas", var2="tdps_derived") == True
             ):
-                print(f"Calculating {item}_derived ...") # convert to logger when set-up
+                print(
+                    f"Calculating {item}_derived ..."
+                )  # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
@@ -84,7 +88,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
             ):
-                print(f"Calculating {item}_derived...") # convert to logger when set-up
+                print(f"Calculating {item}_derived...")  # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
@@ -93,12 +97,16 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
                 item == "tas"
                 and _input_var_check(df, var1="hurs", var2="tdps_derived") == True
             ):
-                print(f"Calculating {item}_derived ....") # convert to logger when set-up
+                print(
+                    f"Calculating {item}_derived ...."
+                )  # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
             else:
-                print(f"{item} is missing the required input variables. {item}_derived not calculated.") # convert to logger when set-up
+                print(
+                    f"{item} is missing the required input variables. {item}_derived not calculated."
+                )  # convert to logger when set-up
 
         # TODO: attribute modification to denote it was derived
 
@@ -130,7 +138,9 @@ def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
         return False
 
 
-def derive_synergistic_flag(df: pd.DataFrame, var_to_flag: str, var1: str, var2: str) -> pd.DataFrame:
+def derive_synergistic_flag(
+    df: pd.DataFrame, var_to_flag: str, var1: str, var2: str
+) -> pd.DataFrame:
     """Synergistically flags the derived variable if the input variables also have flags.
 
     Parameters
@@ -143,7 +153,7 @@ def derive_synergistic_flag(df: pd.DataFrame, var_to_flag: str, var1: str, var2:
         name of secondary input var 1
     var2 : str
         name of secondary input var 2
-    
+
     Returns
     -------
     df : pd.DataFrame
@@ -155,10 +165,14 @@ def derive_synergistic_flag(df: pd.DataFrame, var_to_flag: str, var1: str, var2:
     # identify if var 1 has flags
     if len(df[var1 + "_eraqc"].unique()) > 1:
         # flags are present
-        df.loc[df[var1 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = 38 # see qaqc flag meanings
+        df.loc[df[var1 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
+            38  # see qaqc flag meanings
+        )
 
     if len(df[var2 + "_eraqc"].unique()) > 1:
-        df.loc[df[var2 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = 38 # see qaqc flag meanings
+        df.loc[df[var2 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
+            38  # see qaqc flag meanings
+        )
 
     return df
 

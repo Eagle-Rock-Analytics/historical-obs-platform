@@ -261,7 +261,6 @@ def run_merge_pipeline(
         stn_to_merge = new_df
         logger.info("pass merge_hourly_standardization")
 
-
     # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
     new_df = merge_hourly_standardization(df, verbose=verbose)
@@ -295,7 +294,6 @@ def run_merge_pipeline(
         stn_to_merge = new_df
         logger.info("pass merge_concat_jump_stns")
 
-
     # ----------------------------------------------------------
     # Part 4: Re-orders variables into final preferred order
     # Not started
@@ -313,6 +311,5 @@ def run_merge_pipeline(
     # Close and save log file
     # Write errors to csv
     # Make sure error files save to correct directory
-
 
     return None
