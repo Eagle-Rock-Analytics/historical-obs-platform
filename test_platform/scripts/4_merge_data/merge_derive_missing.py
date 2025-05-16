@@ -41,6 +41,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     df_flag : pd.DataFrame
         dataframe with newly added derived variable
     """
+    print("Running merge_derive_missing_vars...") # conver to logger when ready
 
     # vars that can be derived
     derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
@@ -50,54 +51,58 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
         if item in df.columns:
             print(f"{item} is present in station, no derivation necessary.") # convert to logger when set-up
             continue
-
+       
         else:  # var is missing
             # check if required inputs are available
-            if item == "tdps" and _input_var_check(df, var1="tas", var2="hurs") == True:
-                print("Calculating tdps...")
-                df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
-                # synergistic flag check
-                df_flag = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
+            if item == "tdps" and "tdps_derived" not in df.columns:
+                if _input_var_check(df, var1="tas", var2="hurs") == True:
+                    print(f"Calculating {item}_derived...") # convert to logger when set-up
+                    df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
+                    # synergistic flag check
+                    df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
+            else:
+                print("tdps_derived is present in station, no derivation necessary.")
+                continue
 
-            elif (
+            if (
                 item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True
             ):
-                print("Calculating hurs...")
+                print(f"Calculating {item}_derived...") # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
                 # synergistic flag check
-                df_flag = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
+                df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
   
             elif (
                 item == "hurs"
                 and _input_var_check(df, var1="tas", var2="tdps_derived") == True
             ):
-                print("Calculating hurs 2...")
+                print(f"Calculating {item}_derived ...") # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
                 # synergistic flag check
-                df_flag = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
+                df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
 
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
             ):
-                print("Calculating tas...")
+                print(f"Calculating {item}_derived...") # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
                 # synergistic flag check
-                df_flag = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
+                df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
 
             elif (
                 item == "tas"
                 and _input_var_check(df, var1="hurs", var2="tdps_derived") == True
             ):
-                print("Calculating tas 2 ....")
+                print(f"Calculating {item}_derived ....") # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
                 # synergistic flag check
-                df_flag = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
+                df = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
             else:
                 print(f"{item} is missing the required input variables. {item}_derived not calculated.") # convert to logger when set-up
 
         # TODO: attribute modification to denote it was derived
 
-    return df_flag
+    return df
 
 
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
@@ -144,13 +149,16 @@ def derive_synergistic_flag(df: pd.DataFrame, var_to_flag: str, var1: str, var2:
     df : pd.DataFrame
         df with synergistic flags applied, if applicable
     """
+    # set up _eraqc variable for new derived variable
+    df[var_to_flag + "_eraqc"] = np.nan
 
     # identify if var 1 has flags
-    # if so, flag derived var
+    if len(df[var1 + "_eraqc"].unique()) > 1:
+        # flags are present
+        df.loc[df[var1 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = 38 # see qaqc flag meanings
 
-    # identify if var 2 has flags
-    # if so, flag derived var
-
+    if len(df[var2 + "_eraqc"].unique()) > 1:
+        df.loc[df[var2 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = 38 # see qaqc flag meanings
 
     return df
 
@@ -180,7 +188,7 @@ def _calc_dewpointtemp(tas: pd.Series, hurs: pd.Series) -> pd.Series:
     tdps = (
         (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
     ) ** -1  # calculates dew point temperature, units = K
-    return tdps
+    return np.round(tdps, decimals=3)
 
 
 def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
@@ -216,7 +224,7 @@ def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
     # convert back to K
     tas_K = tas_degC + 273.15
 
-    return tas_K
+    return np.round(tas_K, decimals=3)
 
 
 def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
@@ -242,4 +250,4 @@ def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
         5423 * ((1 / 273) - (1 / tdps))
     )  # calculates vapor pressure using dew point temp
     hurs = 100 * (e_vap / es)
-    return hurs
+    return np.round(hurs, decimals=3)
