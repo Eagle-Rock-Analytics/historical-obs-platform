@@ -43,7 +43,7 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df,var_attrs):
+def merge_hourly_standardization(df, var_attrs):
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
