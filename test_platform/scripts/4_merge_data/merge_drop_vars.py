@@ -40,12 +40,11 @@ def delete_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
     """
     drop_vars_keywords = [
         "qaqc_process",
-        "pr_duration",
         "pr_depth",
         "PREC_flag",
-        "rsds_duration",
         "rsds_flag",
         "_qc",
+        "duration",
         "method",
     ]
 

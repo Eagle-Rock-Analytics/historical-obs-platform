@@ -1,5 +1,5 @@
 """
-This is a script where columns are reordered into a standard order, for consistency.
+This is a script where columns are reordered into a standard order.
 """
 
 ## Import Libraries
@@ -41,7 +41,6 @@ def reorder_variables(df: pd.DataFrame) -> pd.DataFrame:
         "hurs",
         "rsds",
         "sfcWind",
-        # "sfcWind_dir", # This is a repeat of "sfcwind"
         "pvp",
         "svp",
     ]
@@ -59,13 +58,7 @@ def reorder_variables(df: pd.DataFrame) -> pd.DataFrame:
     rest_of_vars = [i for i in list(df.columns) if i not in new_order]
 
     # Generate the complete list of variables, in the correct order
-
     final_order = nonqaqc_vars + qaqc_vars + rest_of_vars
-
-    # Remove 'method' and 'duration' vars
-    final_order = [
-        i for i in final_order if not any(sub in i for sub in ["duration", "method"])
-    ]
 
     # Use that list to reorder the columns in "df"
     df = df[final_order]
