@@ -75,7 +75,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     df = {"ID": [], "Time_QAQC": [], "QAQC": []}  # Initialize results dictionary
 
     # Construct the S3 path prefix for the network inside the QAQC folder
-    network_prefix = f"{qaqc_wx}{network}/"
+
     parent_s3_path = f"{bucket_name}/{qaqc_wx}{network}"
 
     # Use s3fs to list all items under this path
@@ -296,47 +296,3 @@ if __name__ == "__main__":
 
     # Note: OtherISD only runs as "otherisd"
     # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
-
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------
-def _station_has_zarr(network: str, station_id: str) -> str:
-    """
-    Check if a station has a corresponding .zarr file in the QAQC bucket.
-
-    Parameters
-    ----------
-    network : str
-        Name of network
-    station_id : str
-        Station ID to check
-
-    Returns
-    -------
-    str
-        "Y" if .zarr file exists, "N" otherwise
-    """
-    prefix = f"{qaqc_wx}{network}/{station_id}"
-    response = s3_cl.list_objects_v2(
-        Bucket=bucket_name,
-        Prefix=prefix,
-        MaxKeys=1,  # We only need to know if at least one exists
-    )
-    return "Y" if response.get("KeyCount", 0) > 0 else "N"
-
-
-# -------------------------------------------------------------------------------------------------------------------
-# def _list_zarr_files(bucket_name, prefix=""):
-#     objects = []
-#     paginator = s3_client.get_paginator("list_objects_v2")
-#     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
-
-#     for page in page_iterator:
-#         for obj in page.get("Contents", []):
-#             objects.append(obj["Key"])
-
-#     return objects
-
-# def _get_zarr_files(bucket_name, prefix=""):
-#     all_objects = _list_zarr_files(bucket_name, prefix)
-#     zarr_files = [obj for obj in all_objects if obj.endswith('.zarr')]
-#     return zarr_files
