@@ -11,12 +11,6 @@ import pandas as pd
 # New logger function
 from merge_log_config import logger
 
-## Set AWS credentials
-s3 = boto3.resource("s3")
-s3_cl = boto3.client("s3")  # for lower-level processes
-
-## Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
 
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
