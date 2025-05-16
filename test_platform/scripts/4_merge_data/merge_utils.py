@@ -43,7 +43,9 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame,dict]:
+def merge_hourly_standardization(
+    df: pd.DataFrame, var_attrs: dict
+) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
