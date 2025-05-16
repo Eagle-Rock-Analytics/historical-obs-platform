@@ -268,6 +268,8 @@ def run_merge_pipeline(
         return [None]
     else:
         stn_to_merge = new_df
+        # Update attributes
+
         logger.info("pass merge_hourly_standardization")
 
     # ----------------------------------------------------------
@@ -297,7 +299,20 @@ def run_merge_pipeline(
     # ----------------------------------------------------------
     # Part 5: Re-orders variables into final preferred order
     # TODO:
-    # Not started
+    # In progress
+    new_df = reorder_variables(df, verbose=verbose)
+    if new_df is None:
+        errors = print_merge_failed(
+            errors,
+            station,
+            end_api,
+            message="variable reordering failed",
+            test="reorder_variables",
+        )
+        return [None]
+    else:
+        stn_to_merge = new_df
+        logger.info("pass reorder_variables")
 
     # ----------------------------------------------------------
     # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
