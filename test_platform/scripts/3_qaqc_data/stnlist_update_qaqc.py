@@ -81,13 +81,13 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
         if item.endswith(".nc"):
             station_id = item.split(".")[-2].replace(".nc", "")
             df["ID"].append(station_id)
-            df["Time_QAQC"].append(item.last_modified)
+            df["Time_QAQC"].append("")
             df["QAQC"].append("N")
             print("I don't know about you")
         elif item.endswith(".zarr"):
             station_id = item.split(".")[-2].replace(".zarr", "")
             df["ID"].append(station_id)
-            df["Time_QAQC"].append(item.last_modified)
+            df["Time_QAQC"].append("")
             df["QAQC"].append("Y")
             print("but I'm feeling 22")
         else:
