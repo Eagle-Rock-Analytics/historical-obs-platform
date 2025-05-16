@@ -36,25 +36,31 @@ def get_file_paths(network):
     return rawdir, cleandir, qaqcdir, mergedir
 
 
-## Standardization hlper functions
+## Standardization helper functions
 # -----------------------------------------------------------------------------
 def custom_sum(df):
     return df.apply(lambda x: np.nan if x.isna().all() else x.sum())
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df):
+def merge_hourly_standardization(
+    df: pd.DataFrame, var_attrs: dict
+) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
+    var_attrs: library
+        attributes for sub-hourly variables
 
     Returns
     -------
-    If standardization is successful, returns a dataframe with all columns resampled to one hour (column name retained)
-    If standardization fails, returns None
+    df : pd.DataFrame | None
+        returns a dataframe with all columns resampled to one hour (column name retained)
+    var_attrs : dict | None
+        returns variable attributes dictionary updated to note that sub-hourly variables are now hourly
 
     Notes
     -----
@@ -141,7 +147,7 @@ def merge_hourly_standardization(df):
                 log_file=log_file,
                 flush=True,
             )
-            return df
+            return df, var_attrs
         else:
             result_list = []
 
@@ -172,7 +178,17 @@ def merge_hourly_standardization(df):
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
             )
-            return result
+
+            # Update attributes for sub-hourly variables
+            sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
+            for var in sub_hourly_vars:
+                var_attrs[var]["standardization"] = (
+                    "{} has been standardized to an hourly timestep, but will retain its original name".format(
+                        var
+                    )
+                )
+
+            return result, var_attrs
 
     except Exception as e:
         printf(
@@ -181,5 +197,69 @@ def merge_hourly_standardization(df):
             log_file=log_file,
             flush=True,
         )
-        # conver to logger version
+        # convert to logger version
         return None
+
+
+# -----------------------------------------------------------------------------
+def reorder_variables(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Reorders input dataframe columns
+
+    Rules
+    ------
+        1.) Non-qaqc variables that start with the strings in "desired_order" come first,
+            followed by their associated qaqc variables, followed by all remaining variables
+
+    Parameters
+    ------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    df : pd.DataFrame | None
+        Returns a dataframe with reordered columns
+
+    Notes
+    -------
+
+    """
+    ##### Reorder variables
+    desired_order = [
+        "ps",
+        "tas",
+        "tdps",
+        "pr",
+        "hurs",
+        "rsds",
+        "sfcWind",
+        # "sfcWind_dir", # This is a repeat of "sfcwind"
+        "pvp",
+        "svp",
+    ]
+
+    # Select variables with names that start with those in "desired_order"
+    new_order = [
+        i for keyword in desired_order for i in df.columns if i.startswith(keyword)
+    ]
+
+    # Now split them into qaqc and non-qaqc variables
+    qaqc_vars = [i for i in new_order if "qc" in i]
+    nonqaqc_vars = [i for i in new_order if i not in qaqc_vars]
+
+    # Now store all remaining columns
+    rest_of_vars = [i for i in list(df.columns) if i not in new_order]
+
+    # Generate the complete list of variables, in the correct order
+
+    final_order = nonqaqc_vars + qaqc_vars + rest_of_vars
+
+    # Remove 'method' and 'duration' vars
+    final_order = [
+        i for i in final_order if not any(sub in i for sub in ["duration", "method"])
+    ]
+
+    # Use that list to reorder the columns in "df"
+    df = df[final_order]
+
+    return df
