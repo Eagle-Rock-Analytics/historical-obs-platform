@@ -34,6 +34,9 @@ except Exception as e:
 
 from IPython.display import display
 
+# s3 set-up
+BUCKET_NAME = "wecc-historical-wx"
+
 
 # ============================================================================================================
 def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
@@ -289,14 +292,14 @@ def flagged_timeseries_plot(
 
         # save to AWS
         if savefig:
-            bucket_name = "wecc-historical-wx"
-            directory = "3_qaqc_wx"
+            BUCKET_NAME = "wecc-historical-wx"
+            SAVE_DIR = "3_qaqc_wx"
             img_data = BytesIO()
             plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
             img_data.seek(0)
 
             s3 = boto3.resource("s3")
-            bucket = s3.Bucket(bucket_name)
+            bucket = s3.Bucket(BUCKET_NAME)
             network = df["station"].unique()[0].split("_")[0]
             figname = "flagged_timeseries_{0}_{1}".format(
                 df["station"].unique()[0], var
@@ -304,7 +307,7 @@ def flagged_timeseries_plot(
             bucket.put_object(
                 Body=img_data,
                 ContentType="image/png",
-                Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+                Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
             )
 
             # close figure to save memory
@@ -400,19 +403,19 @@ def frequent_plot_helper(
     # save figure to AWS
     network = df["station"].unique()[0].split("_")[0]
 
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_frequent_{0}_{1}_{2}".format(df["station"].unique()[0], var, yr)
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figure to save memory
@@ -626,20 +629,20 @@ def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     )
 
     # save figure to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_frequent_value_check_{0}_{1}".format(df["station"].unique()[0], var)
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figure to save memory
@@ -740,21 +743,21 @@ def dist_gap_part1_plot(
     )
 
     # save figure to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_dist_gap_check_part1_{0}_{1}_{2}".format(
         df["station"].unique()[0], var, month
     )
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figure to save memory
@@ -862,21 +865,21 @@ def dist_gap_part2_plot(
     plt.ylabel("Frequency (obs)")
 
     # save figure to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_dist_gap_check_part2_{0}_{1}_{2}".format(
         df["station"].unique()[0], var, month
     )
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figure to save memory
@@ -948,18 +951,18 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
     ax.set_title(title, fontsize=10)
 
     # save to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     figname = "qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}-{3}".format(
         station, var, year, month
     )
 
-    key = "{0}/{1}/{2}.png".format(directory, network, figname)
+    key = "{0}/{1}/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
 
     # close figure to save memory
@@ -1083,22 +1086,22 @@ def clim_outlier_plot(
     plt.ylabel("Frequency (obs)")
 
     # save figure to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     network = station.split("_")[0]
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_climatological_outlier_{0}_{1}_{2}_{3}".format(
         station, var, month, hour
     )
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figures to save memory
@@ -1173,22 +1176,22 @@ def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int =
     )
 
     # save figure to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     figname = "qaqc_climatological_outlier_{0}_{1}".format(
         df["station"].unique()[0], var
     )
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname),
+        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
     )
 
     # close figure to save memory
@@ -1312,17 +1315,17 @@ def unusual_streaks_plot(
     year = df.year.unique()[0]
 
     # save to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     figname = "qaqc_unusual_repeated_streaks_{0}_{1}_{2}-{3}".format(
         station, var, year, month
     )
-    key = "{0}/{1}/qaqc_figs/{2}.png".format(directory, network, figname)
+    key = "{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
 
     # close figure to save memory
@@ -1432,16 +1435,16 @@ def precip_deaccumulation_plot(
         legend = ax.legend(loc=0, prop={"size": 8})
 
     # save to AWS
-    bucket_name = "wecc-historical-wx"
-    directory = "3_qaqc_wx"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVE_DIR = "3_qaqc_wx"
     figname = "qaqc_figs/qaqc_precip_deaccumulation_{0}".format(station)
 
-    key = "{0}/{1}/{2}.png".format(directory, network, figname)
+    key = "{0}/{1}/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
 
     # close figure to save memory

@@ -17,9 +17,9 @@ import boto3
 
 ## Set AWS credentials
 s3_cl = boto3.client("s3")
-bucket_name = "wecc-historical-wx"
 
 
+# -----------------------------------------------------------------------------
 def flatten_data(y: dict | list) -> dict:
     """
     Flattens multi-level nested JSONs, splitting columns composed of both lists and dictionaries.
@@ -54,6 +54,7 @@ def flatten_data(y: dict | list) -> dict:
     return out
 
 
+# -----------------------------------------------------------------------------
 def get_homr_metadata(
     id: str,
 ) -> tuple[
@@ -130,6 +131,7 @@ def get_homr_metadata(
     return names, identifiers, platforms, location, remarks, updates
 
 
+# -----------------------------------------------------------------------------
 def get_all_homr_ids(bucket_name: str, savedir: str):
     """
     Iterates through all WECC states and save header HOMR metadata for all stations.
@@ -185,6 +187,7 @@ def get_all_homr_ids(bucket_name: str, savedir: str):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir + "homr_ids.csv")
 
 
+# -----------------------------------------------------------------------------
 def get_all_homr_metadata(bucket_name: str, savedir: str):
     """
     Takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates.
@@ -254,9 +257,8 @@ def get_all_homr_metadata(bucket_name: str, savedir: str):
 
 
 if __name__ == "__main__":
-    bucket_name = "wecc-historical-wx"
-    savedir = "3_qaqc_wx/HOMR-Metadata/"
+    BUCKET_NAME = "wecc-historical-wx"
+    SAVEDIR = "3_qaqc_wx/HOMR-Metadata/"
 
-    # get_all_homr_ids(bucket_name, savedir) # Only run periodically.
     # get_homr_metadata('20027492') # Run for one station
-    get_all_homr_metadata(bucket_name, savedir)  # Only run periodically.
+    get_all_homr_metadata(BUCKET_NAME, SAVEDIR)  # Only run periodically.

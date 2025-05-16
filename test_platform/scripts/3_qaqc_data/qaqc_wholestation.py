@@ -27,12 +27,12 @@ except Exception as e:
     logger.debug("Error importing flagged_timeseries_plot: {}".format(e))
 
 # if __name__ == "__main__":
-wecc_terr = (
+WECC_TERR = (
     "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 )
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
-ascc = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
-mro = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+ASCC = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
+MRO = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
 
 
 # ======================================================================
@@ -236,10 +236,10 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     logger.info("Running: qaqc_within_wecc")
 
-    t = gp.read_file(wecc_terr).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(wecc_mar).iloc[0].geometry  ## Read in marine WECC shapefile.
+    t = gp.read_file(WECC_TERR).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
+    m = gp.read_file(WECC_MAR).iloc[0].geometry  ## Read in marine WECC shapefile.
     ak_t = (
-        gp.read_file(ascc).iloc[9].geometry
+        gp.read_file(ASCC).iloc[9].geometry
     )  ## Read in Alaska boundaries shapefile -- Southeast region.
     lat = df["lat"].iloc[0]
     lon = df["lon"].iloc[0]

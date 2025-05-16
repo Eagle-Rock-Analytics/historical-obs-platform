@@ -13,10 +13,10 @@ from io import BytesIO, StringIO
 import numpy as np
 
 # Set environment variables
-bucket_name = "wecc-historical-wx"
-raw_wx = "1_raw_wx/"
-clean_wx = "2_clean_wx/"
-qaqc_wx = "3_qaqc_wx/"
+BUCKET_NAME = "wecc-historical-wx"
+RAW_WX = "1_raw_wx/"
+CLEAN_WX = "2_clean_wx/"
+QAQC_WX = "3_qaqc_wx/"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
@@ -41,9 +41,9 @@ def get_station_list(network: str) -> pd.DataFrame:
     -----
     Can be updated to read directly from AWS
     """
-    network_prefix = clean_wx + network + "/"
+    network_prefix = CLEAN_WX + network + "/"
     station_list = f"stationlist_{network}_cleaned.csv"
-    obj = s3_cl.get_object(Bucket=bucket_name, Key=network_prefix + station_list)
+    obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=network_prefix + station_list)
     station_list = pd.read_csv(obj["Body"])
     return station_list
 
@@ -65,8 +65,8 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
         pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
     """
     df = {"ID": [], "Time_QAQC": []}
-    network_prefix = qaqc_wx + network + "/"
-    for item in s3.Bucket(bucket_name).objects.filter(
+    network_prefix = QAQC_WX + network + "/"
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(
         Prefix=network_prefix + network + "_"
     ):
         if (
@@ -99,9 +99,9 @@ def parse_error_csv(network: str) -> pd.DataFrame:
         dataframe of all errors produced during QAQC
     """
     errordf = []
-    errors_prefix = qaqc_wx + network + "/" + "errors"
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
+    errors_prefix = QAQC_WX + network + "/" + "errors"
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=errors_prefix):
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
         errors = pd.read_csv(obj["Body"])
         if errors.empty:  # If file empty
             continue
@@ -249,9 +249,9 @@ def qaqc_qa(network: str):
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
     s3_cl.put_object(
-        Bucket=bucket_name,
+        Bucket=BUCKET_NAME,
         Body=content,
-        Key=qaqc_wx + network + "/stationlist_{}_qaqc.csv".format(network),
+        Key=QAQC_WX + network + "/stationlist_{}_qaqc.csv".format(network),
     )
 
 
