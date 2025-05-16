@@ -10,7 +10,7 @@ from merge_log_config import logger
 
 
 # -----------------------------------------------------------------------------
-def reorder_variables(df: pd.DataFrame) -> pd.DataFrame:
+def merge_reorder_vars(df: pd.DataFrame) -> pd.DataFrame:
     """
     Reorders input dataframe columns
 
