@@ -8,6 +8,7 @@ import pandas as pd
 # New logger function
 from merge_log_config import logger
 
+
 # ----------------------------------------------------------------------
 def delete_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
     """
