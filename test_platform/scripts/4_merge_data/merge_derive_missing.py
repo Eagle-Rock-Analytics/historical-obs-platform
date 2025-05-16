@@ -26,6 +26,10 @@ import logging
 ## Identify vars that can be derived
 def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     """
+    Identifies if any variables can be derived with other input variables.
+    If success, variable is derived in the correct unit, attribtues are updated,
+    and any flags from the input variables are synergistically flagged.
+    If failure, variable is not derived. 
 
     Parameters
     ----------
@@ -44,7 +48,7 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
     # first check if station has any vars that can be derived
     for item in derive_vars:
         if item in df.columns:
-            print(f"{item} is available!")
+            print(f"{item} is present in station, no derivation necessary.") # convert to logger when set-up
             continue
 
         else:  # var is missing
@@ -88,14 +92,14 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
                 # synergistic flag check
                 df_flag = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
-
+            else:
+                print(f"{item} is missing the required input variables. {item}_derived not calculated.") # convert to logger when set-up
 
         # TODO: attribute modification to denote it was derived
 
     return df_flag
 
 
-# --------------------------------------------------
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
     """
     Flexible check if required secondary input variables are available to derive a primary variable.
