@@ -14,10 +14,10 @@ import boto3
 import s3fs
 
 # Set environment variables
-bucket_name = "wecc-historical-wx"
-raw_wx = "1_raw_wx/"
-clean_wx = "2_clean_wx/"
-qaqc_wx = "3_qaqc_wx/"
+BUCKET_NAME = "wecc-historical-wx"
+RAW_WX = "1_raw_wx/"
+CLEAN_WX = "2_clean_wx/"
+QAQC_WX = "3_qaqc_wx/"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
@@ -42,9 +42,9 @@ def get_station_list(network: str) -> pd.DataFrame:
     -----
     Can be updated to read directly from AWS
     """
-    network_prefix = clean_wx + network + "/"
+    network_prefix = CLEAN_WX + network + "/"
     station_list = f"stationlist_{network}_cleaned.csv"
-    obj = s3_cl.get_object(Bucket=bucket_name, Key=network_prefix + station_list)
+    obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=network_prefix + station_list)
     station_list = pd.read_csv(obj["Body"])
     return station_list
 
@@ -279,9 +279,9 @@ def qaqc_qa(network: str):
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
     s3_cl.put_object(
-        Bucket=bucket_name,
+        Bucket=BUCKET_NAME,
         Body=content,
-        Key=qaqc_wx + network + "/stationlist_{}_qaqc.csv".format(network),
+        Key=QAQC_WX + network + "/stationlist_{}_qaqc.csv".format(network),
     )
 
 
