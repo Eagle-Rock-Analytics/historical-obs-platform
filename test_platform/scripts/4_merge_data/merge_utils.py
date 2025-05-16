@@ -43,18 +43,24 @@ def custom_sum(df):
 
 
 # -----------------------------------------------------------------------------
-def merge_hourly_standardization(df):
+def merge_hourly_standardization(
+    df: pd.DataFrame, var_attrs: dict
+) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
     -----------
     df : pd.DataFrame
         station dataset converted to dataframe through QAQC pipeline
+    var_attrs: library
+        attributes for sub-hourly variables
 
     Returns
     -------
-    If standardization is successful, returns a dataframe with all columns resampled to one hour (column name retained)
-    If standardization fails, returns None
+    df : pd.DataFrame | None
+        returns a dataframe with all columns resampled to one hour (column name retained)
+    var_attrs : dict | None
+        returns variable attributes dictionary updated to note that sub-hourly variables are now hourly
 
     Notes
     -----
@@ -141,7 +147,7 @@ def merge_hourly_standardization(df):
                 log_file=log_file,
                 flush=True,
             )
-            return df
+            return df, var_attrs
         else:
             result_list = []
 
@@ -172,7 +178,17 @@ def merge_hourly_standardization(df):
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
             )
-            return result
+
+            # Update attributes for sub-hourly variables
+            sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
+            for var in sub_hourly_vars:
+                var_attrs[var]["standardization"] = (
+                    "{} has been standardized to an hourly timestep, but will retain its original name".format(
+                        var
+                    )
+                )
+
+            return result, var_attrs
 
     except Exception as e:
         printf(
@@ -181,7 +197,7 @@ def merge_hourly_standardization(df):
             log_file=log_file,
             flush=True,
         )
-        # conver to logger version
+        # convert to logger version
         return None
 
 
