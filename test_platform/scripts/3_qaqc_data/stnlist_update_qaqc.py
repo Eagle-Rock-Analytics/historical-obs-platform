@@ -52,8 +52,12 @@ def get_station_list(network: str) -> pd.DataFrame:
 # ----------------------------------------------------------------------
 def get_qaqc_stations(network: str) -> pd.DataFrame:
     """
-    Given a network name, return a pandas dataframe of all stations that pass QA/QC in
-    the 3_qaqc_wx AWS bucket, with the date that the file was last modified, and a column that states whether or not it has a .zarr file.
+    Retrieves a list of all stations in a given network that have passed the QA/QC process.
+
+    This function scans the `3_qaqc_wx` folder in the AWS S3 bucket for the specified network,
+    identifying which stations have successfully completed QA/QC based on the presence of `.zarr` files.
+    It returns a DataFrame containing the station ID, a placeholder for the timestamp when QA/QC occurred,
+    and a binary indicator ('Y/N') showing whether the `.zarr` file exists for that station.
 
     Parameters
     ----------
@@ -63,35 +67,40 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
+        A DataFrame with three columns:
+        - 'ID': Station identifier
+        - 'Time_QAQC': (currently empty; placeholder for QA/QC timestamp)
+        - 'QAQC': 'Y' if a .zarr file exists (passed QA/QC), 'N' otherwise
     """
-    df = {"ID": [], "Time_QAQC": [], "QAQC": []}
+    df = {"ID": [], "Time_QAQC": [], "QAQC": []}  # Initialize results dictionary
+
+    # Construct the S3 path prefix for the network inside the QAQC folder
     network_prefix = f"{qaqc_wx}{network}/"
-    print("karma is a cat")
     parent_s3_path = f"{bucket_name}/{qaqc_wx}{network}"
-    print(parent_s3_path)
-    print("purring in my lap cuz it loves me")
+
+    # Use s3fs to list all items under this path
     s3_fs = s3fs.S3FileSystem(anon=False)
     all_paths = s3_fs.ls(parent_s3_path)
-    print("does this work 1")
+
+    # Filter to only .zarr folders
     zarr_folders = [f"{path}" for path in all_paths if path.endswith(".zarr")]
-    print("does this work 2")
-    print(len(zarr_folders))
+
     for item in zarr_folders:
-        if item.endswith(".nc"):
+        if item.endswith(".nc"):  # Handle .nc files (non-zarr)
             station_id = item.split(".")[-2].replace(".nc", "")
             df["ID"].append(station_id)
-            df["Time_QAQC"].append("")
-            df["QAQC"].append("N")
-            print("I don't know about you")
+            df["Time_QAQC"].append("")  # Placeholder, to be resolved
+            df["QAQC"].append("N")  # Not QA/QC passed
+
         elif item.endswith(".zarr"):
+            # Extract the station ID from the folder name, which is usually the last part of the path
             station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
             df["ID"].append(station_id)
-            df["Time_QAQC"].append("")
-            df["QAQC"].append("Y")
-            print("but I'm feeling 22")
+            df["Time_QAQC"].append("")  # Placeholder, to be resolved
+            df["QAQC"].append("Y")  # QA/QC passed
+
         else:
-            continue  # skip non-nc/zarr keys
+            continue  # Skip any other unexpected formats
 
     return pd.DataFrame(df)
 
