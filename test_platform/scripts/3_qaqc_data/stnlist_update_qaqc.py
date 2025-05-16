@@ -120,8 +120,12 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     errordf : pd.Dataframe
         dataframe of all errors produced during QAQC
     """
-    errordf = []
+    errordf = []  # List to store all non-empty error DataFrames found
+
+    # Define the path prefix in the S3 bucket for error CSVs
     errors_prefix = f"{qaqc_wx}{network}/qaqc_errs/errors"
+
+    # Loop over all objects in the specified S3 prefix
     for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
         obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
         errors = pd.read_csv(obj["Body"])
@@ -129,12 +133,16 @@ def parse_error_csv(network: str) -> pd.DataFrame:
             continue
         else:
             errors = errors[["File", "Time", "Error"]]
-            errordf.append(errors)
+            errordf.append(errors)  # Add to list of error records
     if not errordf:  # If no errors in cleaning
         return pd.DataFrame()
     else:
         errordf = pd.concat(errordf)
+
+        # Drop duplicate error messages for the same file
         errordf = errordf.drop_duplicates(subset=["File", "Error"])
+
+        # Remove general network-wide errors, keeping only station-specific ones
         errordf = errordf[
             errordf.File != "Whole network"
         ]  # Drop any whole network errors
