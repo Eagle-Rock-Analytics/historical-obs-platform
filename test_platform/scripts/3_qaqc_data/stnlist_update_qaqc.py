@@ -85,7 +85,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
             df["QAQC"].append("N")
             print("I don't know about you")
         elif item.endswith(".zarr"):
-            station_id = item.split(".")[-2].replace(".zarr", "")
+            station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
             df["ID"].append(station_id)
             df["Time_QAQC"].append("")
             df["QAQC"].append("Y")
@@ -270,7 +270,7 @@ def qaqc_qa(network: str):
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    qaqc_qa("NDBC")
+    qaqc_qa("CIMIS")
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
