@@ -66,8 +66,11 @@ except:
     pass
 
 
-def get_qaqc_flags(token, bucket_name, qaqcdir, network):
-    """Get MADIS QA/QC raw flag data and parse into a csv for reference.
+def get_qaqc_flags(
+    token: str, bucket_name: str, qaqcdir: str, network: str
+) -> list[str]:
+    """
+    Get MADIS QA/QC raw flag data and parse into a csv for reference.
     Parameters
     ----------
     token : str
@@ -111,8 +114,9 @@ def get_qaqc_flags(token, bucket_name, qaqcdir, network):
     return ids
 
 
-def parse_madis_headers(file):
-    """Parsing the header of MADIS csv files.
+def parse_madis_headers(file: str) -> dict[str]:
+    """
+    Parsing the header of MADIS csv files.
     Parameters
     ----------
     file : str
@@ -228,8 +232,11 @@ def parse_madis_headers(file):
     return headers
 
 
-def parse_madis_to_pandas(file, headers, errors, removedvars):
-    """Take csv headers and clean MADIS data.
+def parse_madis_to_pandas(
+    file: str, headers: dict[str], errors: dict[str], removedvars: list[str]
+) -> pd.DataFrame | None:
+    """
+    Take csv headers and clean MADIS data.
 
     Parameters
     ----------
@@ -382,7 +389,9 @@ def parse_madis_to_pandas(file, headers, errors, removedvars):
     return df
 
 
-def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
+def clean_madis(
+    bucket_name: str, rawdir: str, cleandir: str, network: str, cwop_letter: str = None
+):
     """Cleans MADIS data for a variety of networks.
 
     Paramters
@@ -391,7 +400,7 @@ def clean_madis(bucket_name, rawdir, cleandir, network, cwop_letter=None):
         s3 bucket
     rawdir : str
         path to raw data bucket
-    cleandir :
+    cleandir : str
         path to cleaned data bucket
     network : str
         name of network
