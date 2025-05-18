@@ -1,20 +1,16 @@
-"""
+"""merge_hourly_standardization.py 
+
 This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
+
 """
 
-## Import Libraries
 from functools import reduce
-import boto3
 import numpy as np
 import pandas as pd
+import logging 
 
-# New logger function
-from merge_log_config import logger
-
-
-# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
-    df: pd.DataFrame, var_attrs: dict
+    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
@@ -24,6 +20,8 @@ def merge_hourly_standardization(
         station dataset converted to dataframe through QAQC pipeline
     var_attrs: library
         attributes for sub-hourly variables
+    logger : logging.Logger
+        Logger instance for recording messages during processing.
 
     Returns
     -------
@@ -40,12 +38,7 @@ def merge_hourly_standardization(
     3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
 
-    printf(
-        "Running: hourly_standardization",
-        verbose=verbose,
-        log_file=log_file,
-        flush=True,
-    )
+    logger.info(f"Running merge_hourly_standardization")
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -110,12 +103,7 @@ def merge_hourly_standardization(
     try:
         # If station does not report any variable, bypass
         if len(df.columns) == 0:
-            printf(
-                "Empty dataset - bypassing hourly aggregation",
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
-            )
+            logger.info("Empty dataset - bypassing hourly aggregation")
             return df, var_attrs
         else:
             result_list = []
@@ -156,15 +144,9 @@ def merge_hourly_standardization(
                         var
                     )
                 )
-
+            logger.info("Pass merge_hourly_standardization")
             return result, var_attrs
 
     except Exception as e:
-        printf(
-            "hourly_standardization failed with Exception: {0}".format(e),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
-        )
-        # convert to logger version
-        return None
+        logger.error(f"hourly_standardization failed with Exception: {e}")
+        raise e
