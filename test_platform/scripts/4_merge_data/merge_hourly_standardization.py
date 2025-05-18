@@ -40,7 +40,7 @@ def merge_hourly_standardization(
     Aggregation rules:
     1. Top of the hour: first value in the hour (e.g., temperature, dewpoint).
     2. Summation across the hour: sum values in each hour (e.g., precipitation).
-    3. Constant across the hour: first value in the hour (e.g., location, elevation).
+    3. Constant across the hour: first value in the hour. Applies to variables that do not change (e.g., location, elevation).
     """
 
     logger.info(f"Running merge_hourly_standardization")
