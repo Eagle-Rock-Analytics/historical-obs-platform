@@ -1,49 +1,76 @@
 """
-This is a script setting up Stage 4: Merge runtime logging for error tracing and timing. 
-For use within the PIR-19-006 Historical Obsevations Platform.
+merge_log_config.py
+
+Provides a function to configure a timestamped logger that writes to a file
+and optionally to the console.
+
+This logger is intended for QAQC routines, data processing workflows, or general
+debugging where timestamped and structured logs are helpful.
+
+Logging Behavior
+----------------
+The logger is set to level DEBUG, so all log messages are captured. Handlers
+(file, console) can filter what gets recorded using their own level settings:
+
+- File handler logs DEBUG and above.
+- Console handler logs DEBUG and above if `verbose=True`.
+
+Log Format
+----------
+Each log entry is formatted as:
+
+    %(asctime)s - %(levelname)s - %(message)s
+
+Example
+-------
+>>> from merge_log_config import init_logger
+>>> logger = init_logger("logger.log", logs_dir="qaqc_logs", verbose=True)
+>>> logger.info("Logger initialized")
 """
 
 import logging
 import os
+from datetime import datetime
 
 
-# Configure the logger
-def setup_logger(log_file=f"{os.getcwd()}/default_merge_log.log", verbose=False):
-    """Configures logger for more efficient tracing of QAQC processes and errors.
+def _configure_logger(log_file: str, verbose: bool) -> logging.Logger:
+    """
+    Configures a logger to write to a file, with optional console output.
 
     Parameters
     ----------
     log_file : str
-        Path to QAQC log file
-    verbose : boolean, optional
-        Prints script progress to local terminal. Default is False.
+        Full path to the log file. Will overwrite existing file if present.
+    verbose : bool
+        If True, logs are also printed to the console.
 
     Returns
     -------
-    logger : [?]
-        Information to be sent to logger / log file
+    logging.Logger
+        Configured logger instance.
     """
-
-    # Retrieve the existing logger (or create a new one if it doesn't exist)
+    # Create or retrieve a logger instance named "sharedLogger"
     logger = logging.getLogger("sharedLogger")
+
+    # If the logger is already configured with handlers, return it as-is
+    if logger.hasHandlers():
+        return logger
+
+    # Set the logger to capture all messages at DEBUG level and above
     logger.setLevel(logging.DEBUG)
 
-    ## Check if the logger already has handlers to avoid duplication
-
-    # Create a file handler that logs to a file
-    file_handler = logging.FileHandler(log_file)
+    # Create a file handler in overwrite mode
+    file_handler = logging.FileHandler(log_file, mode="w")  # Overwrite if file exists
     file_handler.setLevel(logging.DEBUG)
 
-    # Create a formatter and attach it to the handler
-    formatter = logging.Formatter(
-        "%(asctime)s - %(rank)s - %(levelname)s - %(message)s"
-    )
+    # Define log message format
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
 
     # Add the file handler to the logger
     logger.addHandler(file_handler)
 
-    # Optionally, add a stream handler to log to console
+    # Optionally, also add console logging if verbose is True
     if verbose:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.DEBUG)
@@ -53,40 +80,34 @@ def setup_logger(log_file=f"{os.getcwd()}/default_merge_log.log", verbose=False)
     return logger
 
 
-def remove_file_handler_by_filename(logger, filename):
-    """Remove a specific FileHandler from the logger by matching the filename.
+def init_logger(
+    log_fname: str, logs_dir: str = "qaqc_logs", verbose: bool = True
+) -> logging.Logger:
+    """
+    Initializes a timestamped logger with optional console output.
 
     Parameters
     ----------
-    logger : [?]
-        Input logger handler
-    filename : str
-        Filename of logger handler
+    log_fname : str
+        Log filename (e.g., station name, script name).
+    logs_dir : str, optional
+        Directory to store log files. Defaults to "qaqc_logs".
+    verbose : bool, optional
+        If True, also logs to the console. Defaults to True.
 
     Returns
     -------
-    None
-        This function does not return a value
-
+    logging.Logger
+        Configured logger instance.
     """
-    ## NEEDS DOCUMENTATION IMPROVEMENT
 
-    for handler in logger.handlers:
-        if isinstance(handler, logging.FileHandler):
-            # Check if the handler's baseFilename matches the specified filename
-            if handler.baseFilename == filename:
-                logger.removeHandler(handler)
-                handler.close()  # Close the handler after removing it
-                # print(f"Removed FileHandler for {filename}")
-                break  # Exit after removing the first matching handler
-    else:
-        print(f"No FileHandler found for {filename}")
+    # Create the logs directory if it does not exist
+    if not os.path.isdir(logs_dir):
+        os.makedirs(logs_dir, exist_ok=True)
+        print(f"Created directory: {logs_dir}")
 
-    return None
+    # Construct the full path to the log file
+    log_path = os.path.join(logs_dir, log_fname)
 
-
-# Call this to initialize the logger
-logger = setup_logger()
-
-# Now, let's remove the handler for default log file to avoid duplication in printing to console (verbose=True)
-remove_file_handler_by_filename(logger, f"{os.getcwd()}/default_merge_log.log")
+    # Configure and return the logger
+    return _configure_logger(log_path, verbose=verbose)
