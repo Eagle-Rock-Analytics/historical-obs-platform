@@ -7,7 +7,8 @@ This is a script where meteorological variables are resampled to an hourly times
 from functools import reduce
 import numpy as np
 import pandas as pd
-import logging 
+import logging
+
 
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
