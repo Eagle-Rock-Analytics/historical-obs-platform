@@ -14,6 +14,10 @@ import boto3
 from merge_log_config import init_logger
 from merge_hourly_standardization import merge_hourly_standardization
 
+# These will eventually be deleted because they are command line inputs to the main function
+STATION = "ASOSAWOS_69007093217"
+VERBOSE = True
+
 
 def setup_logger(
     station: str, logs_dir: str = "qaqc_logs", verbose: bool = True
@@ -342,8 +346,6 @@ def main() -> None:
     """
     Main entry point for running the merge pipeline for a single station.
     """
-    STATION = "ASOSAWOS_69007093217"
-    VERBOSE = True
 
     bucket_name = "wecc-historical-wx"
     stations_csv_path = f"s3://{bucket_name}/2_clean_wx/temp_clean_all_station_list.csv"
