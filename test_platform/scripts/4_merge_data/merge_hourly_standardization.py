@@ -2,50 +2,48 @@
 This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
 """
 
-## Import Libraries
 from functools import reduce
-import boto3
+from typing import Tuple, Any
+import logging
 import numpy as np
 import pandas as pd
-
-# New logger function
-from merge_log_config import logger
 
 
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
-    df: pd.DataFrame, var_attrs: dict
-) -> tuple[pd.DataFrame, dict]:
-    """Resamples meteorological variables to hourly timestep according to standard conventions.
+    df: pd.DataFrame, var_attrs: dict[str, dict[str, Any]], logger: logging.Logger
+) -> Tuple[pd.DataFrame, dict[str, dict[str, Any]]]:
+    """
+    Resamples meteorological variables to hourly timestep according to standard conventions.
 
     Parameters
-    -----------
+    ----------
     df : pd.DataFrame
-        station dataset converted to dataframe through QAQC pipeline
-    var_attrs: library
-        attributes for sub-hourly variables
+        Station dataset converted to a dataframe through the merge pipeline.
+    var_attrs : dict[str, dict[str, Any]]
+        Dictionary of attributes for each variable in the dataset.
+        Each key is a variable name; each value is a dictionary of metadata attributes.
+    logger : logging.Logger
+        Logger instance for recording messages during processing.
 
     Returns
     -------
-    df : pd.DataFrame | None
-        returns a dataframe with all columns resampled to one hour (column name retained)
-    var_attrs : dict | None
-        returns variable attributes dictionary updated to note that sub-hourly variables are now hourly
+    Tuple[pd.DataFrame, dict[str, dict[str, Any]]]
+        A tuple containing:
+        - df: pd.DataFrame
+            Dataframe with all columns resampled to an hourly timestep.
+        - var_attrs: dict[str, dict[str, Any]]
+            Updated attributes noting that sub-hourly variables are now hourly.
 
     Notes
     -----
-    Rules:
-    1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
-    2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
-    3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
+    Aggregation rules:
+    1. Top of the hour: first value in the hour (e.g., temperature, dewpoint).
+    2. Summation across the hour: sum values in each hour (e.g., precipitation).
+    3. Constant across the hour: first value in the hour (e.g., location, elevation).
     """
 
-    printf(
-        "Running: hourly_standardization",
-        verbose=verbose,
-        log_file=log_file,
-        flush=True,
-    )
+    logger.info(f"Running merge_hourly_standardization")
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -108,63 +106,48 @@ def merge_hourly_standardization(
     instant_df = df[[col for col in instant_vars if col in df.columns]]
 
     try:
-        # If station does not report any variable, bypass
-        if len(df.columns) == 0:
-            printf(
-                "Empty dataset - bypassing hourly aggregation",
-                verbose=verbose,
-                log_file=log_file,
-                flush=True,
+        result_list = []
+    
+        # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
+        # This is to account for input dataframes that do not contain all subsets of variables defined above.
+        if len(constant_df.columns) > 1:
+            constant_result = constant_df.resample("1h", on="time").first()
+            result_list.append(constant_result)
+
+        if len(instant_df.columns) > 1:
+            instant_result = instant_df.resample("1h", on="time").first()
+            result_list.append(instant_result)
+
+        if len(sum_df.columns) > 1:
+            sum_result = sum_df.resample("1h", on="time").apply(
+                lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
             )
-            return df, var_attrs
-        else:
-            result_list = []
+            result_list.append(sum_result)
 
-            # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
-            # This is to account for input dataframes that do not contain all subsets of variables defined above.
-            if len(constant_df.columns) > 1:
-                constant_result = constant_df.resample("1h", on="time").first()
-                result_list.append(constant_result)
+        if len(qaqc_df.columns) > 1:
+            qaqc_result = qaqc_df.resample("1h", on="time").apply(
+                lambda x: ",".join(x.unique())
+            )  # adding unique flags
+            result_list.append(qaqc_result)
 
-            if len(instant_df.columns) > 1:
-                instant_result = instant_df.resample("1h", on="time").first()
-                result_list.append(instant_result)
+        # Aggregating and outputting reduced dataframe
+        result = reduce(
+            lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
+            result_list,
+        )
 
-            if len(sum_df.columns) > 1:
-                sum_result = sum_df.resample("1h", on="time").apply(
-                    lambda x: np.nan if x.isna().all() else x.sum(skipna=True)
+        # Update attributes for sub-hourly variables
+        sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
+        for var in sub_hourly_vars:
+            var_attrs[var]["standardization"] = (
+                "{} has been standardized to an hourly timestep, but will retain its original name".format(
+                    var
                 )
-                result_list.append(sum_result)
-
-            if len(qaqc_df.columns) > 1:
-                qaqc_result = qaqc_df.resample("1h", on="time").apply(
-                    lambda x: ",".join(x.unique())
-                )  # adding unique flags
-                result_list.append(qaqc_result)
-
-            # Aggregating and outputting reduced dataframe
-            result = reduce(
-                lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
-                result_list,
             )
-
-            # Update attributes for sub-hourly variables
-            sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
-            for var in sub_hourly_vars:
-                var_attrs[var]["standardization"] = (
-                    "{} has been standardized to an hourly timestep, but will retain its original name".format(
-                        var
-                    )
-                )
-
-            return result, var_attrs
+            
+        logger.info("Pass merge_hourly_standardization")
+        return result, var_attrs
 
     except Exception as e:
-        printf(
-            "hourly_standardization failed with Exception: {0}".format(e),
-            verbose=verbose,
-            log_file=log_file,
-            flush=True,
-        )
-        # convert to logger version
-        return None
+        logger.error(f"hourly_standardization failed with Exception: {e}")
+        raise e
