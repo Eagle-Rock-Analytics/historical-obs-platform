@@ -10,7 +10,7 @@ import pandas as pd
 import logging
 
 
-def merge_hourly_standardization(
+def merge_hourly_standardization_test(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
@@ -75,20 +75,15 @@ def merge_hourly_standardization(
         "ps_altimeter",
         "ps_derived",
         "hurs",
-        "sfcwind",
-        "sfcwind_dir",
+        "sfcWind",
+        "sfcWind_dir",
     ]
 
     # QAQC flags, which remain constants within each hour
     vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
     qaqc_vars = [
-        var
-        for var in df.columns
-        if not any(True for item in vars_to_remove if item in var)
+        var for var in df.columns if any(True for item in vars_to_remove if item in var)
     ]
-
-    # All variables, necessary for producing columns with hourly counts for each variable
-    # all_vars = constant_vars + sum_vars + instant_vars + qaqc_vars
 
     # Subset the dataframe according to rules
     constant_df = df[[col for col in constant_vars if col in df.columns]]
@@ -98,6 +93,8 @@ def merge_hourly_standardization(
     qaqc_df.insert(0, "time", df["time"])
 
     sum_df = df[[col for col in sum_vars if col in df.columns]]
+
+    print(df.columns)
 
     instant_df = df[[col for col in instant_vars if col in df.columns]]
 
@@ -109,8 +106,8 @@ def merge_hourly_standardization(
         else:
             result_list = []
 
-            # Performing hourly aggregation, only if subset contains more than one (ie 'time') column
-            # This is to account for input dataframes that do not contain all subsets of variables defined above.
+            # Performing hourly aggregation, only if subset contains more than one (ie more than the 'time' time) column
+            # This is to account for input dataframes that do not contain ALL subsets of variables defined above - just a subset of them.
             if len(constant_df.columns) > 1:
                 constant_result = constant_df.resample("1h", on="time").first()
                 result_list.append(constant_result)
@@ -131,7 +128,7 @@ def merge_hourly_standardization(
                 )  # adding unique flags
                 result_list.append(qaqc_result)
 
-            # Aggregating and outputting reduced dataframe
+            # Aggregate and output reduced dataframe - this merges all dataframes defined
             result = reduce(
                 lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
                 result_list,
@@ -146,6 +143,7 @@ def merge_hourly_standardization(
                     )
                 )
             logger.info("Pass merge_hourly_standardization")
+
             return result, var_attrs
 
     except Exception as e:
