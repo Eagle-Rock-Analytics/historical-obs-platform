@@ -52,8 +52,9 @@ except:
     pass
 
 
-def get_elevs(url):
-    """Generate list of station and instrument elevations.
+def get_elevs(url: str) -> pd.DataFrame:
+    """
+    Generate list of station and instrument elevations.
     Generates a dataframe of station elevations and instrument elevations from
     the NDBC website, as this data is frequently missing from the data source.
 
@@ -138,8 +139,9 @@ def get_elevs(url):
     return df
 
 
-def clean_buoys(rawdir, cleandir, network):
-    """Clean MARITIME and NDBC buoy data.
+def clean_buoys(rawdir: str, cleandir: str, network: str):
+    """
+    Clean MARITIME and NDBC buoy data.
 
     Parameters
     ----------

@@ -1,11 +1,11 @@
 """
 This script performs data cleaning for networks pulled through Valley Water API for historical observational analysis
-in AR pattern recognition. These stations may be ingested into the Historical Data Platform in a future iteration, but 
+in AR pattern recognition. These stations may be ingested into the Historical Data Platform in a future iteration, but
 processing conforms to the HDP standard of quality.
 
 Approach:
 (1) Read through variables and drop unnecessary variables
-(2) Infill mis-timed timesteps at the correct 15 min interval with NaN in precipitation record 
+(2) Infill mis-timed timesteps at the correct 15 min interval with NaN in precipitation record
 (3) Add empty elevation variable, to be infilled via DEM
 (4) Converts station metadata to standard format, with unique identifier
 (5) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
@@ -18,15 +18,15 @@ Outputs: Cleaned data for an individual network, priority variables, all times. 
 Modification History:
 - 11/26/2024: Converted from a python notebook to a python script
 - 11/30/2024: Added empty elevation variable with proper attributes
-- 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.  
+- 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.
 - 12/12/2024: Change datetime conversion from using tz_localize and tz_convert to a simple +8 hr following advice from Valley Water team
 - 01/14/2025:
-    - Modified to work with new VW data that contains information about gaps. 
-    - Missing timesteps are filled with NaN instead of 0. 
-    - Time conversion removed because the new data contains a time column in UTC timezone  
-    - Data read in using pd.read_csv() instead of tempfile method 
+    - Modified to work with new VW data that contains information about gaps.
+    - Missing timesteps are filled with NaN instead of 0.
+    - Time conversion removed because the new data contains a time column in UTC timezone
+    - Data read in using pd.read_csv() instead of tempfile method
 - 01/20/2025: Add check for station in API json file csv due to VW sending data that didn't exist in the API and error being raised in script (station ID 6053)
-- 04/08/2025: Remove part of script that merge VW station list with existing full station list. This is now done via another script. 
+- 04/08/2025: Remove part of script that merge VW station list with existing full station list. This is now done via another script.
 
 """
 
@@ -292,15 +292,16 @@ def main():
     print("SCRIPT COMPLETE")
 
 
-def get_filenames_in_s3_folder(bucket, folder):
-    """Get a list of files in s3 bucket.
+def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
+    """
+    Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
     See example in the function docstrings for more details.
 
     Parameters
     ---------
     bucket: str
-        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc...
+        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc.
     folder: str
         Folder within the bucket that you want the filenames from
 
@@ -341,7 +342,7 @@ def get_filenames_in_s3_folder(bucket, folder):
     return filenames_with_uri
 
 
-def progressbar(it, prefix="", size=60, out=sys.stdout):
+def progressbar(it: int, prefix: str = "", size: int = 60, out=sys.stdout):
     """
     Print a progress bar to console
 
