@@ -7,10 +7,11 @@ Note that because errors.csv are parsed, very old errors.csv may want to be remo
 (removing those produced during code testing)
 """
 
-import boto3
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
+import boto3
+import s3fs
 
 # Set environment variables
 BUCKET_NAME = "wecc-historical-wx"
@@ -51,8 +52,12 @@ def get_station_list(network: str) -> pd.DataFrame:
 # ----------------------------------------------------------------------
 def get_qaqc_stations(network: str) -> pd.DataFrame:
     """
-    Given a network name, return a pandas dataframe of all stations that pass QA/QC in
-    the 3_qaqc_wx AWS bucket, with the date that the file was last modified.
+    Retrieves a list of all stations in a given network that have passed the QA/QC process.
+
+    This function scans the `3_qaqc_wx` folder in the AWS S3 bucket for the specified network,
+    identifying which stations have successfully completed QA/QC based on the presence of `.zarr` files.
+    It returns a DataFrame containing the station ID, a placeholder for the timestamp when QA/QC occurred,
+    and a binary indicator ('Y/N') showing whether the `.zarr` file exists for that station.
 
     Parameters
     ----------
@@ -62,24 +67,41 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        pandas dataframe of all stations that pass QA/QC in the 3_qaqc_wx AWS bucket
+        A DataFrame with three columns:
+        - 'ID': Station identifier
+        - 'Time_QAQC': (currently empty; placeholder for QA/QC timestamp)
+        - 'QAQC': 'Y' if a .zarr file exists (passed QA/QC), 'N' otherwise
     """
-    df = {"ID": [], "Time_QAQC": []}
-    network_prefix = QAQC_WX + network + "/"
-    for item in s3.Bucket(BUCKET_NAME).objects.filter(
-        Prefix=network_prefix + network + "_"
-    ):
-        if (
-            network == "CW3E"
-        ):  # need to handle CW3E data differently in terms of qaqc check
-            print("forthcoming")
-        else:  # all other networks
-            qaqc_id = item.key.split("/")[-1].replace(
-                ".nc", ""
-            )  # Get ID from file name
-            time_mod = item.last_modified
-        df["ID"].append(qaqc_id)
-        df["Time_QAQC"].append(time_mod)
+    df = {"ID": [], "Time_QAQC": [], "QAQC": []}  # Initialize results dictionary
+
+    # Construct the S3 path prefix for the network inside the QAQC folder
+
+    parent_s3_path = f"{bucket_name}/{qaqc_wx}{network}"
+
+    # Use s3fs to list all items under this path
+    s3_fs = s3fs.S3FileSystem(anon=False)
+    all_paths = s3_fs.ls(parent_s3_path)
+
+    # Filter to only .zarr folders
+    zarr_folders = [f"{path}" for path in all_paths if path.endswith(".zarr")]
+
+    for item in zarr_folders:
+        if item.endswith(".nc"):  # Handle .nc files (non-zarr)
+            station_id = item.split(".")[-2].replace(".nc", "")
+            df["ID"].append(station_id)
+            df["Time_QAQC"].append("")  # Placeholder, to be resolved
+            df["QAQC"].append("N")  # Not QA/QC passed
+
+        elif item.endswith(".zarr"):
+            # Extract the station ID from the folder name, which is usually the last part of the path
+            station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
+            df["ID"].append(station_id)
+            df["Time_QAQC"].append("")  # Placeholder, to be resolved
+            df["QAQC"].append("Y")  # QA/QC passed
+
+        else:
+            continue  # Skip any other unexpected formats
+
     return pd.DataFrame(df)
 
 
@@ -98,21 +120,29 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     errordf : pd.Dataframe
         dataframe of all errors produced during QAQC
     """
-    errordf = []
-    errors_prefix = QAQC_WX + network + "/" + "errors"
-    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=errors_prefix):
-        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
+    errordf = []  # List to store all non-empty error DataFrames found
+
+    # Define the path prefix in the S3 bucket for error CSVs
+    errors_prefix = f"{qaqc_wx}{network}/qaqc_errs/errors"
+
+    # Loop over all objects in the specified S3 prefix
+    for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
+        obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
         errors = pd.read_csv(obj["Body"])
         if errors.empty:  # If file empty
             continue
         else:
             errors = errors[["File", "Time", "Error"]]
-            errordf.append(errors)
+            errordf.append(errors)  # Add to list of error records
     if not errordf:  # If no errors in cleaning
         return pd.DataFrame()
     else:
         errordf = pd.concat(errordf)
+
+        # Drop duplicate error messages for the same file
         errordf = errordf.drop_duplicates(subset=["File", "Error"])
+
+        # Remove general network-wide errors, keeping only station-specific ones
         errordf = errordf[
             errordf.File != "Whole network"
         ]  # Drop any whole network errors
@@ -257,7 +287,7 @@ def qaqc_qa(network: str):
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    qaqc_qa("NDBC")
+    qaqc_qa("CIMIS")
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
