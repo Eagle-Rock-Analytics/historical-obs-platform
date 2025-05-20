@@ -137,7 +137,9 @@ def parse_error_csv(network: str) -> pd.DataFrame:
         return errordf
 
 
-def clean_qa(network: str, clean_var_add: bool = False, cwop_letter: str = None):
+def clean_qa(
+    network: str, clean_var_add: bool = False, cwop_letter: str = None
+) -> None:
     """
     Updates station list and saves to AWS, adding cleaned status, time of clean, and relevant errors
 
