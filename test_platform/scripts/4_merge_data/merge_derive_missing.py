@@ -275,7 +275,6 @@ def _add_derived_var_attrs(
 
     # add new var dictionary to existing var_attrs dict
     var_attrs[derived_var] = derived_var_dict
-
     return var_attrs
 
 
