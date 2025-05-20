@@ -268,10 +268,10 @@ def _add_derived_var_attrs(
 
     # add new attributes -- var_attrs are stored as dict of each var dict
     derived_var_dict = {
-        "long_name" : long_name,
-        "units" : units,
+        "long_name": long_name,
+        "units": units,
         "ancillary_variables": f"{input_vars[0]}, {input_vars[1]}",
-        "comment" : "Derived in merge_derive_missing_vars."
+        "comment": "Derived in merge_derive_missing_vars.",
     }
 
     # add new var dictionary to existing var_attrs dict
