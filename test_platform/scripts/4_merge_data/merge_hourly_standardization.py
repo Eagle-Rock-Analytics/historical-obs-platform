@@ -139,7 +139,7 @@ def merge_hourly_standardization(
                     var
                 )
             )
-        logger.info(f"{inspect.currentframe().f_code.co_name}: Pass")
+        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
         return result, var_attrs
 
