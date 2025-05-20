@@ -1,54 +1,39 @@
-"""MERGE_pipeline.py
+"""
+MERGE_pipeline.py
 
-Run merge functions for a single station.
+This script runs the full merge pipeline for a single weather station dataset.
+It processes cleaned QA/QC output and applies a sequence of standardization,
+homogenization, and export operations to generate a finalized station file.
+
+Input:
+    - Cleaned station Zarr file from S3 (from 3_qaqc_wx/ directory)
+    - Station metadata CSV from S3
+
+Output:
+    - Final merged and standardized Zarr file written to S3 (4_merge_wx/ directory)
+    - Logfile documenting processing steps (also uploaded to S3)
+
+Example:
+    Run from command line or as part of a larger batch process for all stations.
+
 """
 
 from datetime import datetime, timedelta, timezone
 import time
+import inspect
+from typing import Dict
 
 import pandas as pd
 import xarray as xr
 import logging
-import boto3
 
-from merge_log_config import init_logger
+from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
+from merge_clean_vars import merge_reorder_vars, merge_drop_vars
 
 # These will eventually be deleted because they are command line inputs to the main function
 STATION = "ASOSAWOS_69007093217"
 VERBOSE = True
-
-
-def setup_logger(
-    station: str, logs_dir: str = "qaqc_logs", verbose: bool = True
-) -> tuple[logging.Logger, str]:
-    """
-    Initialize a timestamped logger for the current station.
-
-    Parameters
-    ----------
-    station : str
-        Station identifier for log file naming.
-    logs_dir : str
-        Directory to save logs. Defaults to "qaqc_logs".
-    verbose : bool
-        If True, also logs to console.
-
-    Returns
-    -------
-    logger : logging.Logger
-        Configured logger instance.
-    log_filepath : str
-        Full path to the created log file.
-    """
-    timestamp = datetime.now().strftime("%Y%m%d%H%M")
-    log_filename = f"merge_{station}.{timestamp}.log"
-    log_filepath = f"{logs_dir}/{log_filename}"
-
-    logger = init_logger(log_filename, logs_dir=logs_dir, verbose=verbose)
-    logger.info(f"Starting merge script for station: {station}")
-
-    return logger, log_filepath
 
 
 def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
@@ -75,7 +60,9 @@ def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
     try:
         return pd.read_csv(s3_path)
     except Exception as e:
-        logger.error(f"Could not read file: {s3_path}")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Could not read file: {s3_path}"
+        )
         raise e
 
 
@@ -143,7 +130,51 @@ def read_zarr_dataset(
     try:
         return xr.open_zarr(s3_uri)
     except Exception as e:
-        logger.error(f"Could not open Zarr dataset at {s3_uri}")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Could not open Zarr dataset at {s3_uri}"
+        )
+        raise e
+
+
+def get_var_attrs(
+    ds: xr.Dataset, network: str, logger: logging.Logger
+) -> Dict[str, dict]:
+    """
+    Extracts variable attributes from all data variables in an xarray Dataset.
+
+    For the "ASOSAWOS" network, if the "pr" variable is present, its "units"
+    attribute is explicitly set to "mm".
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Input dataset containing climate variables.
+    network : str
+        Network identifier (e.g., "ASOSAWOS").
+    logger : logging.Logger
+        Logger instance used for logging.
+
+    Returns
+    -------
+    var_attrs : dict[str, dict]
+        A dictionary mapping variable names to their attribute dictionaries.
+    """
+
+    try:
+        var_attrs = {var: ds[var].attrs.copy() for var in ds.data_vars}
+
+        if network == "ASOSAWOS" and "pr" in ds.data_vars:
+            var_attrs["pr"]["units"] = "mm"
+            logger.info(
+                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network to resolve error in units attribute."
+            )
+
+        return var_attrs
+
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to retrieve variable attributes from xr.Dataset."
+        )
         raise e
 
 
@@ -175,7 +206,9 @@ def convert_to_dataframe(
         df.reset_index(inplace=True)  # Flatten to remove MultiIndex
         return df
     except Exception as e:
-        logger.error("Failed to convert xarray Dataset to DataFrame.")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert xarray Dataset to DataFrame."
+        )
         raise e
 
 
@@ -211,14 +244,16 @@ def convert_df_to_xr(
         df.set_index(["station", "time"], inplace=True)
     except Exception as e:
         logger.error(
-            "Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct cooridnates."
+            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct cooridnates."
         )
         raise e
 
     try:
         ds = df.to_xarray()
     except Exception as e:
-        logger.error("Failed to convert pd.DataFrame to xr.Dataset.")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert pd.DataFrame to xr.Dataset."
+        )
         raise e
 
     try:
@@ -231,7 +266,9 @@ def convert_df_to_xr(
         for var, attrs in var_attrs.items():
             ds[var] = ds[var].assign_attrs(attrs)
     except Exception as e:
-        logger.error("Failed to assign attributes to final xr.Dataset object.")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to assign attributes to final xr.Dataset object."
+        )
         raise e
 
     return ds
@@ -277,69 +314,10 @@ def write_zarr_to_s3(
         )
         logger.info(f"Uploaded Zarr to: {zarr_s3_path}")
     except Exception as e:
-        logger.error("Failed to write dataset to Zarr format on S3")
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to write dataset to Zarr format on S3"
+        )
         raise e
-
-
-def upload_log_to_s3(
-    bucket_name: str,
-    merge_dir: str,
-    network: str,
-    logfile_fpath: str,
-    logger: logging.Logger,
-) -> None:
-    """
-    Upload a local log file to an S3 bucket and log the operation.
-
-    Parameters
-    ----------
-    bucket_name : str
-        Name of the S3 bucket.
-    merge_dir : str
-        Prefix (directory path) inside the bucket to store the log file.
-    network: str
-        Name of network. Used to construct upload path for logfile
-    logfile_fpath : str
-        Path to local logfile
-    logger : logging.Logger
-        Logger instance for logging actions and errors.
-
-    Raises
-    ------
-    Exception
-        If upload to S3 fails, the original exception is raised.
-    """
-
-    # Ensure all log data is flushed to disk before uploading
-    close_logger(logger)
-
-    # Construct full S3 URI for logging
-    s3_key = f"{merge_dir}/{network}/{logfile_fpath}"
-    logfile_s3_uri = f"s3://{bucket_name}/{s3_key}"
-
-    # Upload to s3
-    s3 = boto3.resource("s3")
-    try:
-        s3.Bucket(bucket_name).upload_file(logfile_fpath, s3_key)
-    except Exception as e:
-        logger.error(f"Failed to upload log file to S3: {e}")
-        raise
-
-    logger.info(f"Saved log file to {logfile_s3_uri}")
-
-
-def close_logger(logger: logging.Logger) -> None:
-    """
-    Closes all handlers associated with the given logger.
-
-    Parameters
-    ----------
-    logger : logging.Logger
-        The logger instance to close.
-    """
-    for handler in logger.handlers[:]:  # Copy the list to avoid modification issues
-        handler.close()
-        logger.removeHandler(handler)
 
 
 def main() -> None:
@@ -356,38 +334,65 @@ def main() -> None:
     start_time = time.time()
 
     try:
+
+        ## ======== SETUP ========
+
         # Set up logger
         logger, log_filepath = setup_logger("ASOSAWOS_690070932172", verbose=VERBOSE)
 
         # Load station metadata
-        stations_df: pd.DataFrame = read_station_metadata(stations_csv_path, logger)
+        stations_df = read_station_metadata(stations_csv_path, logger)
 
         # Validate station and get network name
-        network: str = validate_station(STATION, stations_df, logger)
+        network_name = validate_station(STATION, stations_df, logger)
 
         # Load Zarr dataset from S3
-        ds = read_zarr_dataset(bucket_name, qaqc_dir, network, STATION, logger)
-        var_attrs = {
-            var: ds[var].attrs for var in list(ds.data_vars.keys())
-        }  # Attributes from each variable
+        ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, STATION, logger)
+
+        # Get variable attributes from dataset
+        var_attrs = get_var_attrs(ds, network_name, logger)
 
         # Convert dataset to DataFrame
         df = convert_to_dataframe(ds, logger)
 
-        # Perform hourly standardization
-        # df, var_attrs = merge_hourly_standardization(df, var_attrs, logger)
+        # ======== MERGE FUNCTIONS ========
+
+        # Part 1: Construct and export table of raw QAQC counts per variable
+        # For success report
+        # ----- INCOMPLETE -----
+
+        # Part 2: Derive any missing variables
+        # ----- INCOMPLETE -----
+
+        # Part 3: Standardize sub-hourly observations to hourly
+        df, var_attrs = merge_hourly_standardization(df, var_attrs, logger)
+
+        # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
+        # For HDP project documentation and final report
+        # ----- INCOMPLETE -----
+
+        # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
+        df, var_attrs = merge_drop_vars(df, var_attrs)
+
+        # Part 5: Re-orders variables into final preferred order
+        df = merge_reorder_vars(df)
+
+        # ======== CLEANUP & UPLOAD DATA TO S3 ========
 
         # Convert the cleaned DataFrame to an xarray.Dataset and assign global + variable-level metadata
         ds_merged = convert_df_to_xr(df, ds.attrs, var_attrs, logger)
 
         # Write the xarray Dataset as a Zarr file to the specified S3 path
-        write_zarr_to_s3(ds_merged, bucket_name, merge_dir, network, STATION, logger)
+        write_zarr_to_s3(
+            ds_merged, bucket_name, merge_dir, network_name, STATION, logger
+        )
 
         # Done! Print elapsed time
         logger.info(f"Finished processing station: {STATION}")
 
     except Exception as e:
-        logger.error(f"Terminating merge script.")
+        logger.info(f"Error traceback: {type(e).__name__}: {e}")
+        logger.info(f"Terminating merge script.")
 
     finally:  # Even in case of failure, upload logfile to s3
 
@@ -397,7 +402,7 @@ def main() -> None:
         logger.info(f"Elapsed time: {formatted_elapsed}")
 
         # Save log file to s3 bucket
-        upload_log_to_s3(bucket_name, merge_dir, network, log_filepath, logger)
+        upload_log_to_s3(bucket_name, merge_dir, network_name, log_filepath, logger)
 
         print("Script complete.")
         print(f"Elapsed time: {formatted_elapsed}")
