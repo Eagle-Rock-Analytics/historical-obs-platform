@@ -51,6 +51,9 @@ def merge_derive_missing_vars(
     # vars that can be derived
     derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
 
+    # initialize update vars dictionary
+    new_var_attrs = var_attrs.copy()
+
     try:
 
         # first check if station has any vars that can be derived
@@ -76,7 +79,7 @@ def merge_derive_missing_vars(
                         derived_var="tdps_derived",
                         source_var="tdps",
                         input_vars=["tas", "hurs"],
-                        var_attrs=var_attrs,
+                        var_attrs=new_var_attrs,
                     )
 
             else:
@@ -93,7 +96,7 @@ def merge_derive_missing_vars(
                     derived_var="hurs_derived",
                     source_var="hurs",
                     input_vars=["tas", "tdps"],
-                    var_attrs=var_attrs,
+                    var_attrs=new_var_attrs,
                 )
 
             elif (
@@ -111,7 +114,7 @@ def merge_derive_missing_vars(
                     derived_var="tdps_derived",
                     source_var="tdps",
                     input_vars=["tas", "hurs"],
-                    var_attrs=var_attrs,
+                    var_attrs=new_var_attrs,
                 )
 
             elif (
@@ -126,7 +129,7 @@ def merge_derive_missing_vars(
                     derived_var="tas_derived",
                     source_var="tas",
                     input_vars=["hurs", "tdps"],
-                    var_attrs=var_attrs,
+                    var_attrs=new_var_attrs,
                 )
 
             elif (
@@ -144,7 +147,7 @@ def merge_derive_missing_vars(
                     derived_var="tas_derived",
                     source_var="tas",
                     input_vars=["hurs", "tdps_derived"],
-                    var_attrs=var_attrs,
+                    var_attrs=new_var_attrs,
                 )
 
             else:
@@ -263,13 +266,16 @@ def _add_derived_var_attrs(
         long_name = "derived_relative_humidity"
         units = "percent"
 
-    # add new attributes
-    var_attrs[derived_var].attrs["long_name"] = long_name
-    var_attrs[derived_var].attrs["units"] = units
-    var_attrs[derived_var].attrs[
-        "ancillary_variables"
-    ] = f"{input_vars[0]}, {input_vars[1]}"
-    var_attrs[derived_var].attrs["comment"] = "Derived in merge_derive_missing_vars."
+    # add new attributes -- var_attrs are stored as dict of each var dict
+    derived_var_dict = {
+        "long_name" : long_name,
+        "units" : units,
+        "ancillary_variables": f"{input_vars[0]}, {input_vars[1]}",
+        "comment" : "Derived in merge_derive_missing_vars."
+    }
+
+    # add new var dictionary to existing var_attrs dict
+    var_attrs[derived_var] = derived_var_dict
 
     return var_attrs
 
