@@ -25,7 +25,9 @@ import logging
 
 
 ## Identify vars that can be derived
-def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict] | None:
+def merge_derive_missing_vars(
+    df: pd.DataFrame, var_attrs: dict
+) -> tuple[pd.DataFrame, dict] | None:
     """
     Identifies if any variables can be derived with other input variables.
     If success, variable is derived in the correct unit, attribtues are updated,
@@ -70,7 +72,12 @@ def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.Dat
                     # synergistic flag check
                     df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
                     # add new variable attributes
-                    new_var_attrs = _add_derived_var_attrs(derived_var="tdps_derived", source_var="tdps", input_vars = ["tas", "hurs"], var_attrs = var_attrs)
+                    new_var_attrs = _add_derived_var_attrs(
+                        derived_var="tdps_derived",
+                        source_var="tdps",
+                        input_vars=["tas", "hurs"],
+                        var_attrs=var_attrs,
+                    )
 
             else:
                 print("tdps_derived is present in station, no derivation necessary.")
@@ -82,7 +89,12 @@ def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.Dat
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
                 # add new variable attributes
-                new_var_attrs = _add_derived_var_attrs(derived_var="hurs_derived", source_var="hurs", input_vars = ["tas", "tdps"], var_attrs = var_attrs)
+                new_var_attrs = _add_derived_var_attrs(
+                    derived_var="hurs_derived",
+                    source_var="hurs",
+                    input_vars=["tas", "tdps"],
+                    var_attrs=var_attrs,
+                )
 
             elif (
                 item == "hurs"
@@ -95,7 +107,12 @@ def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.Dat
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
                 # add new variable attributes
-                new_var_attrs = _add_derived_var_attrs(derived_var="tdps_derived", source_var="tdps", input_vars = ["tas", "hurs"], var_attrs = var_attrs)
+                new_var_attrs = _add_derived_var_attrs(
+                    derived_var="tdps_derived",
+                    source_var="tdps",
+                    input_vars=["tas", "hurs"],
+                    var_attrs=var_attrs,
+                )
 
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
@@ -105,7 +122,12 @@ def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.Dat
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
                 # add new variable attributes
-                new_var_attrs = _add_derived_var_attrs(derived_var="tas_derived", source_var="tas", input_vars = ["hurs", "tdps"], var_attrs = var_attrs)
+                new_var_attrs = _add_derived_var_attrs(
+                    derived_var="tas_derived",
+                    source_var="tas",
+                    input_vars=["hurs", "tdps"],
+                    var_attrs=var_attrs,
+                )
 
             elif (
                 item == "tas"
@@ -118,7 +140,12 @@ def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.Dat
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
                 # add new variable attributes
-                new_var_attrs = _add_derived_var_attrs(derived_var="tas_derived", source_var="tas", input_vars = ["hurs", "tdps_derived"], var_attrs = var_attrs)
+                new_var_attrs = _add_derived_var_attrs(
+                    derived_var="tas_derived",
+                    source_var="tas",
+                    input_vars=["hurs", "tdps_derived"],
+                    var_attrs=var_attrs,
+                )
 
             else:
                 print(
@@ -202,8 +229,11 @@ def derive_synergistic_flag(
 
     return df
 
-def _add_derived_var_attrs(derived_var: str, source_var: str, input_vars: list[str], var_attrs: dict) -> dict:
-    """Creates data attributes for new derived variable and adds to var_attrs. 
+
+def _add_derived_var_attrs(
+    derived_var: str, source_var: str, input_vars: list[str], var_attrs: dict
+) -> dict:
+    """Creates data attributes for new derived variable and adds to var_attrs.
 
     Parameters
     ----------
@@ -236,7 +266,9 @@ def _add_derived_var_attrs(derived_var: str, source_var: str, input_vars: list[s
     # add new attributes
     var_attrs[derived_var].attrs["long_name"] = long_name
     var_attrs[derived_var].attrs["units"] = units
-    var_attrs[derived_var].attrs["ancillary_variables"] = f"{input_vars[0]}, {input_vars[1]}"
+    var_attrs[derived_var].attrs[
+        "ancillary_variables"
+    ] = f"{input_vars[0]}, {input_vars[1]}"
     var_attrs[derived_var].attrs["comment"] = "Derived in merge_derive_missing_vars."
 
     return var_attrs
