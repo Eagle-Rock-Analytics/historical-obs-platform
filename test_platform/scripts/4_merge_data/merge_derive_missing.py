@@ -49,12 +49,33 @@ def merge_derive_missing_vars(
     print("Running merge_derive_missing_vars...")  # conver to logger when ready
 
     # vars that can be derived
-    derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
+    derive_vars = [
+        "hurs",
+        "tas",
+    ]  # tdps not included here, kept separate because of tdps_derived
 
     # initialize update vars dictionary
     new_var_attrs = var_attrs.copy()
 
     try:
+        # var is missing
+        # check if required inputs are available
+        if item == "tdps" and "tdps_derived" not in df.columns:
+            if _input_var_check(df, var1="tas", var2="hurs") == True:
+                print(f"Calculating {item}_derived...")  # convert to logger when set-up
+                df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
+                # synergistic flag check
+                df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
+                # add new variable attributes
+                new_var_attrs = _add_derived_var_attrs(
+                    derived_var="tdps_derived",
+                    source_var="tdps",
+                    input_vars=["tas", "hurs"],
+                    var_attrs=new_var_attrs,
+                )
+
+        else:
+            print("tdps_derived is present in station, no derivation necessary.")
 
         # first check if station has any vars that can be derived
         for item in derive_vars:
@@ -62,28 +83,6 @@ def merge_derive_missing_vars(
                 print(
                     f"{item} is present in station, no derivation necessary."
                 )  # convert to logger when set-up
-                continue
-
-            # var is missing
-            # check if required inputs are available
-            if item == "tdps" and "tdps_derived" not in df.columns:
-                if _input_var_check(df, var1="tas", var2="hurs") == True:
-                    print(
-                        f"Calculating {item}_derived..."
-                    )  # convert to logger when set-up
-                    df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
-                    # synergistic flag check
-                    df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
-                    # add new variable attributes
-                    new_var_attrs = _add_derived_var_attrs(
-                        derived_var="tdps_derived",
-                        source_var="tdps",
-                        input_vars=["tas", "hurs"],
-                        var_attrs=new_var_attrs,
-                    )
-
-            else:
-                print("tdps_derived is present in station, no derivation necessary.")
                 continue
 
             if item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True:
