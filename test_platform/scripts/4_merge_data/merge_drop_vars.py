@@ -10,7 +10,7 @@ from merge_log_config import logger
 
 
 # ----------------------------------------------------------------------
-def delete_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
+def merge_drop_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
     """
     Keep “_eraqc” vars and drop the following variables
         - qaqc_process
@@ -40,12 +40,11 @@ def delete_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict]:
     """
     drop_vars_keywords = [
         "qaqc_process",
-        "pr_duration",
         "pr_depth",
         "PREC_flag",
-        "rsds_duration",
         "rsds_flag",
         "_qc",
+        "duration",
         "method",
     ]
 
