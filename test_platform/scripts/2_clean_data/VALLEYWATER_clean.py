@@ -53,6 +53,19 @@ folder_clean = (
 
 
 def main():
+    """
+    Main function that processes Valley Water precipitation data.
+
+    This function:
+    1. Reads raw precipitation data from S3
+    2. Cleans and standardizes the data format
+    3. Converts units and handles missing values
+    4. Adds metadata and quality control flags
+    5. Saves cleaned data as zarr files to S3
+    6. Generates a station metadata CSV file
+
+    """
+
     # For attributes of exported file
     timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
 
@@ -342,7 +355,7 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
     return filenames_with_uri
 
 
-def progressbar(it: int, prefix: str = "", size: int = 60, out=sys.stdout):
+def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout):
     """
     Print a progress bar to console
 
@@ -350,12 +363,16 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out=sys.stdout):
     ----------
     it: int
         iternation of list
+    prefix: str
+        Text to display before progress bar (default "")
     size: int, optional
-        size (length) of progress bar
-
+        size (length) of progress bar (default 60)
+    out: str
+        Output stream to write to (default sys.stdout)
     Returns
     -------
-    progress bar printed to console
+    None
+        This function does not return a value
 
     Example
     -------
