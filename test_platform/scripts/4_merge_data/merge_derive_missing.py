@@ -113,11 +113,12 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
             # TODO: attribute modification to denote it was derived
 
             return df
-        
-    except Exception as e:
-        print(f"merge_derive_missing_vars failed with exception: {e}") # convert to logger version when ready
-        return None
 
+    except Exception as e:
+        print(
+            f"merge_derive_missing_vars failed with exception: {e}"
+        )  # convert to logger version when ready
+        return None
 
 
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
