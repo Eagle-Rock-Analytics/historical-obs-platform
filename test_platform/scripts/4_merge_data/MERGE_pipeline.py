@@ -278,7 +278,6 @@ def run_merge_pipeline(
 
         logger.info("pass merge_hourly_standardization")
 
-
     # ----------------------------------------------------------
     # Part 3: Re-orders variables into final preferred order
     # Not started
