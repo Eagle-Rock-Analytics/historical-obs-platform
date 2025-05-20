@@ -1,4 +1,5 @@
-"""
+"""merge_derive_missing.py
+
 This script performs merge protocols for deriving any missing variables for ingestion into the Historical Observations Platform, 
 and is independent of network. Missing variables are defined as variables that can be calculated for which there are the 
 required sensors to calculate a variable. Observed and calculated data are not mixed, i.e., the missing variable derivation 
@@ -24,7 +25,7 @@ import logging
 
 
 ## Identify vars that can be derived
-def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
+def merge_derive_missing_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, dict] | None:
     """
     Identifies if any variables can be derived with other input variables.
     If success, variable is derived in the correct unit, attribtues are updated,
@@ -35,10 +36,12 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
     ----------
     df : pd.DataFrame
         input dataframe
+    var_attrs : dict
+        attributes of input variables
 
     Returns
     -------
-    If success: pd.DataFrame with newly added derived variable, if applicable
+    If success: pd.DataFrame with newly added derived variable, and updated variable attributes
     If failure: None
     """
     print("Running merge_derive_missing_vars...")  # conver to logger when ready
@@ -66,6 +69,9 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
                     df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
                     # synergistic flag check
                     df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
+                    # add new variable attributes
+                    new_var_attrs = _add_derived_var_attrs(derived_var="tdps_derived", source_var="tdps", input_vars = ["tas", "hurs"], var_attrs = var_attrs)
+
             else:
                 print("tdps_derived is present in station, no derivation necessary.")
                 continue
@@ -75,6 +81,8 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
+                # add new variable attributes
+                new_var_attrs = _add_derived_var_attrs(derived_var="hurs_derived", source_var="hurs", input_vars = ["tas", "tdps"], var_attrs = var_attrs)
 
             elif (
                 item == "hurs"
@@ -86,6 +94,8 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
+                # add new variable attributes
+                new_var_attrs = _add_derived_var_attrs(derived_var="tdps_derived", source_var="tdps", input_vars = ["tas", "hurs"], var_attrs = var_attrs)
 
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
@@ -94,6 +104,8 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
+                # add new variable attributes
+                new_var_attrs = _add_derived_var_attrs(derived_var="tas_derived", source_var="tas", input_vars = ["hurs", "tdps"], var_attrs = var_attrs)
 
             elif (
                 item == "tas"
@@ -105,14 +117,15 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
+                # add new variable attributes
+                new_var_attrs = _add_derived_var_attrs(derived_var="tas_derived", source_var="tas", input_vars = ["hurs", "tdps_derived"], var_attrs = var_attrs)
+
             else:
                 print(
                     f"{item} is missing the required input variables. {item}_derived not calculated."
                 )  # convert to logger when set-up
 
-            #! TODO: attribute modification to denote it was derived
-
-            return df
+        return df, new_var_attrs
 
     except Exception as e:
         print(
@@ -188,6 +201,45 @@ def derive_synergistic_flag(
         )
 
     return df
+
+def _add_derived_var_attrs(derived_var: str, source_var: str, input_vars: list[str], var_attrs: dict) -> dict:
+    """Creates data attributes for new derived variable and adds to var_attrs. 
+
+    Parameters
+    ----------
+    derived_var : str
+        variable name of new derived variable
+    source_var : str
+        variable name of the variable it "derives"
+    input_vars : list[str]
+        variable names of input variable
+    var_attrs : dict
+        attributes for all variables
+
+    Returns
+    -------
+    var_attrs : dict
+        updated variable attributes dictionary with new vars
+    """
+
+    # support for naming, units
+    if source_var == "tdps":
+        long_name = "derived_dew_point_temperature"
+        units = "K"
+    elif source_var == "tas":
+        long_name = "derived_air_temperature"
+        units = "K"
+    elif source_var == "hurs":
+        long_name = "derived_relative_humidity"
+        units = "percent"
+
+    # add new attributes
+    var_attrs[derived_var].attrs["long_name"] = long_name
+    var_attrs[derived_var].attrs["units"] = units
+    var_attrs[derived_var].attrs["ancillary_variables"] = f"{input_vars[0]}, {input_vars[1]}"
+    var_attrs[derived_var].attrs["comment"] = "Derived in merge_derive_missing_vars."
+
+    return var_attrs
 
 
 ## Derived variable calculations
