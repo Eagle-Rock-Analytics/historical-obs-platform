@@ -24,7 +24,7 @@ import logging
 
 
 ## Identify vars that can be derived
-def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
+def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Identifies if any variables can be derived with other input variables.
     If success, variable is derived in the correct unit, attribtues are updated,
@@ -38,23 +38,25 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns
     -------
-    df_flag : pd.DataFrame
-        dataframe with newly added derived variable
+    If success: pd.DataFrame with newly added derived variable, if applicable
+    If failure: None
     """
     print("Running merge_derive_missing_vars...")  # conver to logger when ready
 
     # vars that can be derived
     derive_vars = ["tdps", "hurs", "tas"]  # only tdps, not tdps_derived
 
-    # first check if station has any vars that can be derived
-    for item in derive_vars:
-        if item in df.columns:
-            print(
-                f"{item} is present in station, no derivation necessary."
-            )  # convert to logger when set-up
-            continue
+    try:
 
-        else:  # var is missing
+        # first check if station has any vars that can be derived
+        for item in derive_vars:
+            if item in df.columns:
+                print(
+                    f"{item} is present in station, no derivation necessary."
+                )  # convert to logger when set-up
+                continue
+
+            # var is missing
             # check if required inputs are available
             if item == "tdps" and "tdps_derived" not in df.columns:
                 if _input_var_check(df, var1="tas", var2="hurs") == True:
@@ -108,9 +110,14 @@ def merge_derive_missing_vars(df: pd.DataFrame) -> pd.DataFrame:
                     f"{item} is missing the required input variables. {item}_derived not calculated."
                 )  # convert to logger when set-up
 
-        # TODO: attribute modification to denote it was derived
+            # TODO: attribute modification to denote it was derived
 
-    return df
+            return df
+        
+    except Exception as e:
+        print(f"merge_derive_missing_vars failed with exception: {e}") # convert to logger version when ready
+        return None
+
 
 
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
@@ -158,6 +165,11 @@ def derive_synergistic_flag(
     -------
     df : pd.DataFrame
         df with synergistic flags applied, if applicable
+
+    Notes
+    -----
+    Flag meaning : 38,derive_synergistic_flag,At least one input variable to derived variable has a flag placed. Input variable and derived variable are synergistically flagged
+
     """
     # set up _eraqc variable for new derived variable
     df[var_to_flag + "_eraqc"] = np.nan
@@ -166,12 +178,12 @@ def derive_synergistic_flag(
     if len(df[var1 + "_eraqc"].unique()) > 1:
         # flags are present
         df.loc[df[var1 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
-            38  # see qaqc flag meanings
+            38  # see 3_qaqc_data/era_qaqc_flag_meanings.csv
         )
 
     if len(df[var2 + "_eraqc"].unique()) > 1:
         df.loc[df[var2 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
-            38  # see qaqc flag meanings
+            38  # see 3_qaqc_data/era_qaqc_flag_meanings.csv
         )
 
     return df
@@ -192,6 +204,10 @@ def _calc_dewpointtemp(tas: pd.Series, hurs: pd.Series) -> pd.Series:
     -------
     tdps : pd.Series
         dewpoint temperature, K
+
+    Notes
+    -----
+    Rounded to 3 decimal places to be consistent with input raw data sig figs
     """
     es = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / tas))
@@ -220,9 +236,13 @@ def _calc_airtemp(hurs: pd.Series, tdps: pd.Series) -> pd.Series:
     tas : pd.Series
         air temperature, K
 
-    Notes
-    ------
+    References
+    ----------
     [1] August-Roche-Magnus Approximation
+
+    Notes
+    -----
+    Rounded to 3 decimal places to be consistent with input raw data sig figs
     """
 
     # tdps must be in degC, not K for this equation
@@ -255,6 +275,10 @@ def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
     -------
     hurs : pd.Series
         relative humidity, % (0-100)
+
+    Notes
+    -----
+    Rounded to 3 decimal places to be consistent with input raw data sig figs
     """
 
     es = 0.611 * np.exp(

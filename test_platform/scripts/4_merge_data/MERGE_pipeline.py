@@ -240,14 +240,13 @@ def run_merge_pipeline(
     ## Merge Functions: Order of operations
     # Part 1: Derive any missing variables
     # Part 2: Standardize sub-hourly observations to hourly
-    # Part 3: Homogenize ASOSAWOS, VALLEYWATER, NDBC stations where there are historical jumps
-    # Part 4: Re-orders variables into final preferred order
-    # Part 5: Drops raw _qc variables
-    # Part 6: Exports final station file as a .zarr
+    # Part 3: Re-orders variables into final preferred order
+    # Part 4: Drops raw _qc variables
+    # Part 5: Exports final station file as a .zarr
 
     # =========================================================
     # Part 1: Derive any missing variables
-    new_df = merge_derive_missing_vars(df)
+    new_df = merge_derive_missing_vars(stn_to_merge)
     if new_df is None:
         errors = print_merge_failed(
             errors,
@@ -256,7 +255,7 @@ def run_merge_pipeline(
             message="derived missing variables failed",
             test="merge_derive_missing_vars",
         )
-        return [None]
+        return
     else:
         stn_to_merge = new_df
         logger.info("pass merge_derive_missing_vars")
@@ -279,45 +278,18 @@ def run_merge_pipeline(
 
         logger.info("pass merge_hourly_standardization")
 
-    # ----------------------------------------------------------
-    # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
-    # In progress -- need to read in csv file of suspect stations
-    new_df = merge_concat_jump_stns(df, verbose=verbose)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="station concatenation failed",
-            test="merge_concat_jump_stns",
-        )
-        return [None]
-    else:
-        stn_to_merge = new_df
-        logger.info("pass merge_concat_jump_stns")
 
     # ----------------------------------------------------------
-    # Part 4: Re-orders variables into final preferred order
-    new_df = reorder_variables(df, verbose=verbose)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="variable reordering failed",
-            test="reorder_variables",
-        )
-        return [None]
-    else:
-        stn_to_merge = new_df
-        logger.info("pass reorder_variables")
-
-    # ----------------------------------------------------------
-    # Part 5: Drops raw _qc variables
+    # Part 3: Re-orders variables into final preferred order
     # Not started
 
     # ----------------------------------------------------------
-    # Part 6: Exports final station file as a .zarr file
+    # Part 4: Drops raw _qc variables
+    # Not started
+
+    # ----------------------------------------------------------
+    # Part 5: Exports final station file as a .zarr file (or .nc)
+    # Not started
     # Assign ds attributes and save .zarr
     # process output ds
     # ensure that each variable is the right datatype!!
