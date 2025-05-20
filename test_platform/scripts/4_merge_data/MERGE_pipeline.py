@@ -29,6 +29,7 @@ from merge_log_config import logger
 try:
     from merge_utils import merge_hourly_standardization
     from merge_derive_missing import merge_derive_missing_vars
+    from merge_reorder_vars import merge_reorder_vars
 except Exception as e:
     logger.debug("Error importing merge script: ".format(e))
 
@@ -262,7 +263,7 @@ def run_merge_pipeline(
 
     # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
-    new_df = merge_hourly_standardization(df, verbose=verbose)
+    new_df = merge_hourly_standardization(stn_to_merge)
     if new_df is None:
         errors = print_merge_failed(
             errors,
@@ -280,7 +281,19 @@ def run_merge_pipeline(
 
     # ----------------------------------------------------------
     # Part 3: Re-orders variables into final preferred order
-    # Not started
+    new_df = merge_reorder_vars(stn_to_merge)
+    if new_df is None:
+        errors = print_merge_failed(
+            errors,
+            station,
+            end_api,
+            message="variable reordering failed",
+            test="reorder_variables",
+        )
+        return [None]
+    else:
+        stn_to_merge = new_df
+        logger.info("pass reorder_variables")
 
     # ----------------------------------------------------------
     # Part 4: Drops raw _qc variables
