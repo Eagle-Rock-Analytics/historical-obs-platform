@@ -64,6 +64,15 @@ def main():
     5. Saves cleaned data as zarr files to S3
     6. Generates a station metadata CSV file
 
+    Parameters
+    ----------
+
+    None
+
+    Returns
+    -------
+
+    None
     """
 
     # For attributes of exported file
