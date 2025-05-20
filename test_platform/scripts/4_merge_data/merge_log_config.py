@@ -1,16 +1,19 @@
 """
 merge_log_config.py
 
-Provides a function to configure a timestamped logger that writes to a file
-and optionally to the console.
+Logging utility functions for QAQC workflows and data processing scripts.
 
-This logger is intended for QAQC routines, data processing workflows, or general
-debugging where timestamped and structured logs are helpful.
+Provides functions to:
+- Configure a timestamped file-based logger (`setup_logger`)
+- Upload a log file to S3 (`upload_log_to_s3`)
+
+These functions are intended to be imported into other scripts. Internal-use
+functions (prefixed with underscores) handle logger configuration logic.
 
 Logging Behavior
 ----------------
-The logger is set to level DEBUG, so all log messages are captured. Handlers
-(file, console) can filter what gets recorded using their own level settings:
+The logger captures all log levels (`DEBUG` and above). Handlers filter what
+actually gets recorded:
 
 - File handler logs DEBUG and above.
 - Console handler logs DEBUG and above if `verbose=True`.
@@ -21,16 +24,114 @@ Each log entry is formatted as:
 
     %(asctime)s - %(levelname)s - %(message)s
 
-Example
--------
->>> from merge_log_config import init_logger
->>> logger = init_logger("logger.log", logs_dir="qaqc_logs", verbose=True)
->>> logger.info("Logger initialized")
+Usage Example
+-------------
+>>> from merge_log_config import setup_logger
+>>> logger, log_path = setup_logger("station123", logs_dir="logs", verbose=True)
+>>> logger.info("Logger initialized.")
 """
 
 import logging
 import os
+import inspect
 from datetime import datetime
+
+import boto3
+
+
+def setup_logger(
+    station: str, logs_dir: str = "qaqc_logs", verbose: bool = True
+) -> tuple[logging.Logger, str]:
+    """
+    Initialize a timestamped logger for the current station.
+
+    Parameters
+    ----------
+    station : str
+        Station identifier for log file naming.
+    logs_dir : str
+        Directory to save logs. Defaults to "qaqc_logs".
+    verbose : bool
+        If True, also logs to console.
+
+    Returns
+    -------
+    logger : logging.Logger
+        Configured logger instance.
+    log_filepath : str
+        Full path to the created log file.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d%H%M")
+    log_filename = f"merge_{station}.{timestamp}.log"
+    log_filepath = f"{logs_dir}/{log_filename}"
+
+    logger = _init_logger(log_filename, logs_dir=logs_dir, verbose=verbose)
+    logger.info(f"Starting merge script for station: {station}")
+
+    return logger, log_filepath
+
+
+def upload_log_to_s3(
+    bucket_name: str,
+    merge_dir: str,
+    network: str,
+    logfile_fpath: str,
+    logger: logging.Logger,
+) -> None:
+    """
+    Upload a local log file to an S3 bucket and log the operation.
+
+    Parameters
+    ----------
+    bucket_name : str
+        Name of the S3 bucket.
+    merge_dir : str
+        Prefix (directory path) inside the bucket to store the log file.
+    network: str
+        Name of network. Used to construct upload path for logfile
+    logfile_fpath : str
+        Path to local logfile
+    logger : logging.Logger
+        Logger instance for logging actions and errors.
+
+    Raises
+    ------
+    Exception
+        If upload to S3 fails, the original exception is raised.
+    """
+
+    # Ensure all log data is flushed to disk before uploading
+    _close_logger(logger)
+
+    # Construct full S3 URI for logging
+    s3_key = f"{merge_dir}/{network}/{logfile_fpath}"
+    logfile_s3_uri = f"s3://{bucket_name}/{s3_key}"
+
+    # Upload to s3
+    s3 = boto3.resource("s3")
+    try:
+        s3.Bucket(bucket_name).upload_file(logfile_fpath, s3_key)
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to upload log file to S3: {e}"
+        )
+        raise
+
+    logger.info(f"Saved log file to {logfile_s3_uri}")
+
+
+def _close_logger(logger: logging.Logger) -> None:
+    """
+    Closes all handlers associated with the given logger.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        The logger instance to close.
+    """
+    for handler in logger.handlers[:]:  # Copy the list to avoid modification issues
+        handler.close()
+        logger.removeHandler(handler)
 
 
 def _configure_logger(log_file: str, verbose: bool) -> logging.Logger:
@@ -80,7 +181,7 @@ def _configure_logger(log_file: str, verbose: bool) -> logging.Logger:
     return logger
 
 
-def init_logger(
+def _init_logger(
     log_fname: str, logs_dir: str = "qaqc_logs", verbose: bool = True
 ) -> logging.Logger:
     """
