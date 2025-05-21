@@ -21,6 +21,7 @@ from datetime import datetime, date
 import re
 import numpy as np
 import warnings
+from typing import Any
 
 warnings.filterwarnings(
     action="ignore", category=FutureWarning
@@ -114,7 +115,7 @@ def get_qaqc_flags(
     return ids
 
 
-def parse_madis_headers(file: str) -> dict[str]:
+def parse_madis_headers(file: str) -> dict[str, Any]:
     """
     Parsing the header of MADIS csv files.
     Parameters
@@ -233,7 +234,7 @@ def parse_madis_headers(file: str) -> dict[str]:
 
 
 def parse_madis_to_pandas(
-    file: str, headers: dict[str], errors: dict[str], removedvars: list[str]
+    file: str, headers: dict[str, Any], errors: dict[str, Any], removedvars: list[str]
 ) -> pd.DataFrame | None:
     """
     Take csv headers and clean MADIS data.
@@ -254,6 +255,13 @@ def parse_madis_to_pandas(
     pd.DataFrame or None
         If successfully parsed, return pd.DataFrame
         If raw file is empty, does not report data within v1 period, or has a mismatched metadata header, return None
+
+    Note
+    ----
+
+    Headers is created in parse_madis_headers function for a list of keys, please go check the headers dictionary at the end of that function.
+
+    Errors is created HERE and for a list of keys go check HERE.
     """
 
     ### TEMPORARY MISMATCH METADATA FIX
