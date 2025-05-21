@@ -261,7 +261,7 @@ def parse_madis_to_pandas(
 
     Headers is created in parse_madis_headers function for a list of keys, please go check the headers dictionary at the end of that function.
 
-    Errors is created HERE and for a list of keys go check HERE.
+    Errors is created in parse_madis_headers function, please check how it is utilized in the parse_madis_to_pandas function.
     """
 
     ### TEMPORARY MISMATCH METADATA FIX
