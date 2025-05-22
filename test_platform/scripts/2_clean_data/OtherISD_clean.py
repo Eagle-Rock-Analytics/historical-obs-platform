@@ -67,8 +67,9 @@ except:
     pass
 
 
-def clean_otherisd(rawdir, cleandir):
-    """Clean non-ASOSAWOS ISD stations.
+def clean_otherisd(rawdir: str, cleandir: str):
+    """
+    Clean non-ASOSAWOS ISD stations.
 
     Parameters
     ----------

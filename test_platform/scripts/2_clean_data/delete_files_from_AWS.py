@@ -1,4 +1,4 @@
-"""This script deletes files in batch from AWS. Options for which files to delete are provided. """
+"""This script deletes files in batch from AWS. Options for which files to delete are provided."""
 
 import pandas as pd
 import s3fs
@@ -8,7 +8,7 @@ from cleaning_helpers import get_file_paths
 s3 = boto3.resource("s3")
 
 
-def delete_files_from_AWS(network, which_to_delete):
+def delete_files_from_AWS(network: str, which_to_delete: str):
     """
     This function should be used CAREFULLY as it will PERMANENTLY batch delete files from AWS!!!
 

@@ -59,8 +59,9 @@ except:
     pass
 
 
-def clean_scansnotel(rawdir, cleandir):
-    """Clean SCAN and SNOTEL data.
+def clean_scansnotel(rawdir: str, cleandir: str):
+    """
+    Clean SCAN and SNOTEL data.
 
     Parameters
     ----------

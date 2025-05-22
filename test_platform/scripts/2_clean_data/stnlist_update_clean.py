@@ -29,8 +29,9 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 
-def get_station_list(network):
-    """Retrieves network station list
+def get_station_list(network: str) -> pd.DataFrame:
+    """
+    Retrieves network station list
 
     Parameters
     ----------
@@ -62,8 +63,9 @@ def get_station_list(network):
     return station_list
 
 
-def get_cleaned_stations(network):
-    """Adds a new column to station list with bool "Y" or "N" status upon cleaning
+def get_cleaned_stations(network: str) -> pd.DataFrame:
+    """
+    Adds a new column to station list with bool "Y" or "N" status upon cleaning
 
     Parameters
     ----------
@@ -98,8 +100,9 @@ def get_cleaned_stations(network):
 
 
 # Function: Given a network name, return a pandas dataframe containing all errors reported for the network in the cleaning stage.
-def parse_error_csv(network):
-    """Retrieves error csv file for a network
+def parse_error_csv(network: str) -> pd.DataFrame:
+    """
+    Retrieves error csv file for a network
 
     Parameters
     ----------
@@ -134,8 +137,11 @@ def parse_error_csv(network):
         return errordf
 
 
-def clean_qa(network, clean_var_add=False, cwop_letter=None):
-    """Updates station list and saves to AWS, adding cleaned status, time of clean, and relevant errors
+def clean_qa(
+    network: str, clean_var_add: bool = False, cwop_letter: str = None
+) -> None:
+    """
+    Updates station list and saves to AWS, adding cleaned status, time of clean, and relevant errors
 
     Parameters
     ----------
@@ -566,8 +572,9 @@ def clean_qa(network, clean_var_add=False, cwop_letter=None):
     return None
 
 
-def cwop_stnlist_merge(network):
-    """Merges CWOP stationlists together, overwrites full stationlist file for CWOP
+def cwop_stnlist_merge(network: str):
+    """
+    Merges CWOP stationlists together, overwrites full stationlist file for CWOP
     Parameters
     ----------
     network : str
