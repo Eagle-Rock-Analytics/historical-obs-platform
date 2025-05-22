@@ -20,7 +20,6 @@ Variables that cannot be derived if observations are missing
 # Import libraries
 import pandas as pd
 import numpy as np
-import xarray as xr
 import logging
 
 
@@ -60,9 +59,9 @@ def merge_derive_missing_vars(
     try:
         # var is missing
         # check if required inputs are available
-        if item == "tdps" and "tdps_derived" not in df.columns:
+        if "tdps" not in df.columns and "tdps_derived" not in df.columns:
             if _input_var_check(df, var1="tas", var2="hurs") == True:
-                print(f"Calculating {item}_derived...")  # convert to logger when set-up
+                print(f"Calculating tdps_derived...")  # convert to logger when set-up
                 df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
