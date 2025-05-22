@@ -42,6 +42,7 @@ import boto3
 from datetime import datetime, timezone
 from pathlib import Path  # to get file suffix
 import time
+from typing import TypeIO
 
 # Set name of bucket and folder containing data
 bucket = "wecc-historical-wx"
@@ -353,6 +354,54 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
     filenames_with_uri = ["s3://{}/{}".format(bucket, file) for file in files_in_s3]
 
     return filenames_with_uri
+
+
+def progressbar(it: int, prefix: str = "", size: int = 60, out: TypeIO = sys.stdout):
+    """
+    Print a progress bar to console
+
+    Parameters
+    ----------
+    it: int
+        iternation of list
+    size: int, optional
+        size (length) of progress bar
+
+    Returns
+    -------
+    progress bar printed to console
+
+    Example
+    -------
+    >>> for i in progressbar(10): # Progress bar of length 10 is printed after each iteration i
+    >>> # Loop does something
+
+    References
+    ----------
+    https://stackoverflow.com/questions/3160699/python-progress-bar
+
+    """
+    count = len(it)
+    start = time.time()  # time estimate start
+
+    def show(j):
+        x = int(size * j / count)
+        # time estimate calculation and string
+        remaining = ((time.time() - start) / j) * (count - j)
+        mins, sec = divmod(remaining, 60)  # limited to minutes
+        time_str = f"{int(mins):02}:{sec:03.1f}"
+        print(
+            f"{prefix}[{u'█'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
+            end="\r",
+            file=out,
+            flush=True,
+        )
+
+    show(0.1)  # avoid div/0
+    for i, item in enumerate(it):
+        yield item
+        show(i + 1)
+    print("\n", flush=True, file=out)
 
 
 if __name__ == "__main__":
