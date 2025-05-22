@@ -32,7 +32,7 @@ from merge_hourly_standardization import merge_hourly_standardization
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
 
 # These will eventually be deleted because they are command line inputs to the main function
-STATION = "ASOSAWOS_69007093217"
+STATION = "HNXWFO_AAWC1"
 VERBOSE = True
 
 
@@ -333,18 +333,20 @@ def main() -> None:
     # Log start time
     start_time = time.time()
 
+    ## ======== SETUP ========
+
+    # Set up logger
+    logger, log_filepath = setup_logger(STATION, verbose=VERBOSE)
+
+    # Load station metadata
+    stations_df = read_station_metadata(stations_csv_path, logger)
+
+    # Validate station and get network name
+    network_name = validate_station(STATION, stations_df, logger)
+
     try:
 
-        ## ======== SETUP ========
-
-        # Set up logger
-        logger, log_filepath = setup_logger("ASOSAWOS_690070932172", verbose=VERBOSE)
-
-        # Load station metadata
-        stations_df = read_station_metadata(stations_csv_path, logger)
-
-        # Validate station and get network name
-        network_name = validate_station(STATION, stations_df, logger)
+        ## ======== READ IN AND REFORMAT DATA ========
 
         # Load Zarr dataset from S3
         ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, STATION, logger)
