@@ -76,7 +76,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
 
     # Construct the S3 path prefix for the network inside the QAQC folder
 
-    parent_s3_path = f"{bucket_name}/{qaqc_wx}{network}"
+    parent_s3_path = f"{BUCKET_NAME}/{QAQC_WX}{network}"
 
     # Use s3fs to list all items under this path
     s3_fs = s3fs.S3FileSystem(anon=False)
@@ -123,11 +123,11 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     errordf = []  # List to store all non-empty error DataFrames found
 
     # Define the path prefix in the S3 bucket for error CSVs
-    errors_prefix = f"{qaqc_wx}{network}/qaqc_errs/errors"
+    errors_prefix = f"{QAQC_WX}{network}/qaqc_errs/errors"
 
     # Loop over all objects in the specified S3 prefix
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=errors_prefix):
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=errors_prefix):
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
         errors = pd.read_csv(obj["Body"])
         if errors.empty:  # If file empty
             continue
@@ -287,7 +287,7 @@ def qaqc_qa(network: str):
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    qaqc_qa("CIMIS")
+    qaqc_qa("ASOSAWOS")
 
     # List of all stations for ease of use here:
     # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
