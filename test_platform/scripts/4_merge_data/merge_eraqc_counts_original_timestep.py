@@ -1,5 +1,5 @@
 """
-This function generates and exports a dataframe with counts of unique QAQC flag values per variable.
+This function generates and exports a dataframe with counts of unique QAQC flag values per variable - in their native timestep, before hourly standardization.
 These tables are used to produce QAQC flag statistics for the QAQC success report.
 
 """
@@ -26,7 +26,8 @@ def eraqc_counts_original_timestep(
     df: pd.DataFrame, network: str, station: str
 ) -> None:
     """
-    Generates a dataframe of raw qaqc flag value counts for every variable those are generated for.
+    Generates a dataframe of raw qaqc flag value counts for every variable, 
+    in their native timestep, before hourly standardization.
     Exports the dataframe as a csv to AWS.
 
     Parameters
