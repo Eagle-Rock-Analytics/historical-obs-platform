@@ -123,7 +123,7 @@ def merge_drop_vars(df: pd.DataFrame, var_attrs: dict) -> tuple[pd.DataFrame, di
     df = df.drop(columns=drop_vars)
 
     # Remove the attributes of the dropped variables
-    for key in drop_vars_keywords:
+    for key in drop_vars:
         if key in var_attrs:
             del var_attrs[key]
 

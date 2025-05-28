@@ -100,9 +100,6 @@ def upload_log_to_s3(
         If upload to S3 fails, the original exception is raised.
     """
 
-    # Ensure all log data is flushed to disk before uploading
-    _close_logger(logger)
-
     # Construct full S3 URI for logging
     s3_key = f"{merge_dir}/{network}/{logfile_fpath}"
     logfile_s3_uri = f"s3://{bucket_name}/{s3_key}"
@@ -111,13 +108,14 @@ def upload_log_to_s3(
     s3 = boto3.resource("s3")
     try:
         s3.Bucket(bucket_name).upload_file(logfile_fpath, s3_key)
+        logger.info(f"Saved log file to {logfile_s3_uri}")
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to upload log file to S3: {e}"
         )
         raise
 
-    logger.info(f"Saved log file to {logfile_s3_uri}")
+    _close_logger(logger)
 
 
 def _close_logger(logger: logging.Logger) -> None:
