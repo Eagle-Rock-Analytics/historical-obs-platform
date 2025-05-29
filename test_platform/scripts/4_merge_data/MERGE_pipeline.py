@@ -31,6 +31,7 @@ from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
+from merge_eraqc_counts_original_timestep import eraqc_counts_original_timestep
 
 # These will eventually be deleted because they are command line inputs to the main function
 STATION = "ASOSAWOS_69007093217"
@@ -362,7 +363,7 @@ def main() -> None:
 
         # Part 1: Construct and export table of raw QAQC counts per variable
         # For success report
-        # ----- INCOMPLETE -----
+        eraqc_counts_original_timestep(df, network_name, STATION, logger)
 
         # Part 2: Derive any missing variables
         df, var_attrs = merge_derive_missing_vars(df, var_attrs, logger)
