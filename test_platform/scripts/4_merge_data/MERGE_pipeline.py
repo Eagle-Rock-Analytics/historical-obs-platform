@@ -28,12 +28,14 @@ from merge_log_config import logger
 # Import all merge script functions
 try:
     from merge_utils import merge_hourly_standardization
+    from merge_derive_missing import merge_derive_missing_vars
+    from merge_reorder_vars import merge_reorder_vars
 except Exception as e:
     logger.debug("Error importing merge script: ".format(e))
 
 # Set up directory to save files temporarily and save timing, if it doesn't already exist.
 # TODO: Decide if we also merge all log files into a single one too
-dirs = ["./temp/", "./local_merged_files/", "./merge_logs/"]
+dirs = ["./local_merged_files/", "./merge_logs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
@@ -195,7 +197,6 @@ def run_merge_pipeline(
     errors,
     station,
     end_api,
-    verbose=verbose,
     log_file=None,
 ):
     """Runs all final merge standardization functions, and exports final station file.
@@ -222,7 +223,7 @@ def run_merge_pipeline(
     """
 
     # Convert to working dataframe
-    df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds, verbose=verbose)
+    df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds)
 
     # Close ds file, netCDF, HDF5 unclosed files can cause issues during mpi4py run
     ds.close()
@@ -240,23 +241,29 @@ def run_merge_pipeline(
     ## Merge Functions: Order of operations
     # Part 1: Derive any missing variables
     # Part 2: Standardize sub-hourly observations to hourly
-    # Part 3: Homogenize ASOSAWOS, VALLEYWATER, NDBC stations where there are historical jumps
-    # Part 4: Remove duplicate stations
-    # Part 5: Re-orders variables into final preferred order
-    # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
-    # Part 7: Exports final station file as a .nc file (or .zarr)
+    # Part 3: Re-orders variables into final preferred order
+    # Part 4: Drops raw _qc variables
+    # Part 5: Exports final station file as a .zarr
 
     # =========================================================
     # Part 1: Derive any missing variables
-    # TODO: Do this only for variables which the station has no sensor for (do not mix observed & calculated values)
-    # Will require meteorological formulae -- some in calc_clean.py, some in climakitae?
-    # dew point temperature
-    # relative humidity
-    # Not started
+    new_df = merge_derive_missing_vars(stn_to_merge)
+    if new_df is None:
+        errors = print_merge_failed(
+            errors,
+            station,
+            end_api,
+            message="derived missing variables failed",
+            test="merge_derive_missing_vars",
+        )
+        return
+    else:
+        stn_to_merge = new_df
+        logger.info("pass merge_derive_missing_vars")
 
     # ----------------------------------------------------------
     # Part 2: Standardize sub-hourly observations to hourly
-    new_df = merge_hourly_standardization(df, verbose=verbose)
+    new_df = merge_hourly_standardization(stn_to_merge)
     if new_df is None:
         errors = print_merge_failed(
             errors,
@@ -273,34 +280,8 @@ def run_merge_pipeline(
         logger.info("pass merge_hourly_standardization")
 
     # ----------------------------------------------------------
-    # Part 3: Homogenize ASOSAWOS stations where there are historical jumps
-    # In progress -- need to read in csv file of suspect stations
-    new_df = merge_concat_jump_stns(df, verbose=verbose)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="station concatenation failed",
-            test="merge_concat_jump_stns",
-        )
-        return [None]
-    else:
-        stn_to_merge = new_df
-        logger.info("pass merge_concat_jump_stns")
-
-    # ----------------------------------------------------------
-    # Part 4: Remove duplicate stations
-    # TODO:
-    # name string matching
-    # stations within a certain distance (vs. lat-lon matching)
-    # Not started
-
-    # ----------------------------------------------------------
-    # Part 5: Re-orders variables into final preferred order
-    # TODO:
-    # In progress
-    new_df = reorder_variables(df, verbose=verbose)
+    # Part 3: Re-orders variables into final preferred order
+    new_df = merge_reorder_vars(stn_to_merge)
     if new_df is None:
         errors = print_merge_failed(
             errors,
@@ -315,13 +296,11 @@ def run_merge_pipeline(
         logger.info("pass reorder_variables")
 
     # ----------------------------------------------------------
-    # Part 6: Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
-    # TODO: Decision needs to be made as to whether we keep raw qc variables and/or eraqc variables in final data product
+    # Part 4: Drops raw _qc variables
     # Not started
 
     # ----------------------------------------------------------
-    # Part 7: Exports final station file as a .zarr file (or .nc)
-    # AE preference would be zarrs
+    # Part 5: Exports final station file as a .zarr file (or .nc)
     # Not started
     # Assign ds attributes and save .zarr
     # process output ds
@@ -330,5 +309,4 @@ def run_merge_pipeline(
     # Write errors to csv
     # Make sure error files save to correct directory
 
-    # for testing!
     return None
