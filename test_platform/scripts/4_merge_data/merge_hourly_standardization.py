@@ -40,6 +40,8 @@ def merge_hourly_standardization(
     3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
 
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
     # Variables that remain constant within each hour
     constant_vars = [
         "time",
@@ -65,8 +67,10 @@ def merge_hourly_standardization(
 
     # Top of the hour variables, standard meteorological convention: temperature, dewpoint temperature, pressure, humidity, winds
     instant_vars = [
+        "hurs_derived", 
         "time",
         "tas",
+        "tas_derived",
         "tdps",
         "tdps_derived",
         "ps",
