@@ -1,312 +1,415 @@
 """
-This script performs the final merge protocols for cleaned and quality controlled station data for ingestion into the Historical Observations Platform, 
-and is independent of network. 
-Approach:
-(1) Derive any missing variables
-(2) Standardize sub-hourly observations to hourly
-(3) Homogenize ASOSAWOS stations where there are historical jumps
-(4) Remove duplicate stations
-(5) Re-orders variables into final preferred order
-(6) Drops raw _qc variables (DECISION TO MAKE) OR PROVIDE CODE TO FILTER
-(7) Exports final station file as a .nc file (or .zarr)
+MERGE_pipeline.py
 
-Inputs: QA/QC-processed data for an individual network
-Outputs: Merged data for an individual network, priority variables, all times. Organized by station as .nc file.
+This script runs the full merge pipeline for a single weather station dataset.
+It processes cleaned QA/QC output and applies a sequence of standardization,
+homogenization, and export operations to generate a finalized station file.
+
+Input:
+    - Cleaned station Zarr file from S3 (from 3_qaqc_wx/ directory)
+    - Station metadata CSV from S3
+
+Output:
+    - Final merged and standardized Zarr file written to S3 (4_merge_wx/ directory)
+    - Logfile documenting processing steps (also uploaded to S3)
+
+Example:
+    Run from command line or as part of a larger batch process for all stations.
+
 """
 
-# Import libraries
-import os
-import datetime
-import xarray as xr
-import boto3
-import s3fs
-from io import BytesIO, StringIO
+from datetime import datetime, timedelta, timezone
 import time
-import tempfile
-from merge_log_config import logger
+import inspect
+from typing import Dict
 
-# Import all merge script functions
-try:
-    from merge_utils import merge_hourly_standardization
-    from merge_derive_missing import merge_derive_missing_vars
-    from merge_reorder_vars import merge_reorder_vars
-except Exception as e:
-    logger.debug("Error importing merge script: ".format(e))
+import pandas as pd
+import xarray as xr
+import logging
 
-# Set up directory to save files temporarily and save timing, if it doesn't already exist.
-# TODO: Decide if we also merge all log files into a single one too
-dirs = ["./local_merged_files/", "./merge_logs/"]
-for d in dirs:
-    if not os.path.exists(d):
-        os.makedirs(d)
+from merge_log_config import setup_logger, upload_log_to_s3
+from merge_hourly_standardization import merge_hourly_standardization
+from merge_derive_missing import merge_derive_missing_vars
+from merge_clean_vars import merge_reorder_vars, merge_drop_vars
 
-# Set AWS credentials
-s3 = boto3.resource("s3")
-s3_cl = boto3.client("s3")  # for lower-level processes
-
-# Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
-
-# ----------------------------------------------------------------------------
-# Global functions and variables
+# These will eventually be deleted because they are command line inputs to the main function
+STATION = "ASOSAWOS_69007093217"
+VERBOSE = True
 
 
-# POTENTIALLY MOVE INTO UTILS
-def setup_error_handling():
-    """DOCUMETNATION NEEDED"""
-
-    errors = {"File": [], "Time": [], "Error": []}  # Set up error handling
-    end_api = datetime.datetime.now().strftime(
-        "%Y%m%d%H%M"
-    )  # Set end time to be current time at beginning of download: for error handling csv
-
-    timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-
-    return errors, end_api, timestamp
-
-
-# ----------------------------------------------------------------------------
-def print_merge_failed(
-    errors, station=None, end_api=None, message=None, test=None, verbose=False
-):
-    """DOCUMETNATION NEEDED"""
-    logger.info("{0} {1}, skipping station".format(station, message))
-    errors["File"].append(station)
-    errors["Time"].append(end_api)
-    errors["Error"].append("Failure on {}".format(test))
-    return errors
-
-
-# ----------------------------------------------------------------------------
-## Check if network files are in s3 bucket
-def file_on_s3(df, zarr):
-    """Check if network files are in s3 bucket
+def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
+    """
+    Read station metadata from a CSV file located on S3.
 
     Parameters
     ----------
-    df: pd.DataFrame
-        Table with information about each network and station
-    zarr: boolean
-        Search the folder for zarr stores (zarr=True) or netcdfs (zarr=False)?
+    s3_path : str
+        Full S3 URI to the CSV metadata file.
+    logger : logging.Logger
+        Logger instance for logging errors.
 
     Returns
     -------
-    substring_in_filepath: boolean
-        True/False: Is the file in the s3 bucket?
+    pd.DataFrame
+        Station metadata as a DataFrame.
+
+    Raises
+    ------
+    Exception
+        If the file cannot be read.
     """
-
-    files = []  # Get files
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=df["qaqcdir"].iloc[0]):
-        file = str(item.key)
-        files += [file]
-
-    # Depending on file type, modify the filepaths differently
-    # The goal is to check if the era-id is contained in each substring
-    if zarr == False:  # Get netcdf files
-        file_st = [f.split(".nc")[0].split("/")[-1] for f in files if f.endswith(".nc")]
-    elif zarr == True:  # Get zarrs
-        # We just want to get the top directory for each station, i.e. "VALLEYWATER_6001.zarr/"
-        # Since each station has a bunch of individual zarr stores, the split() function returns many copies of the same string
-        # We just want one filename per station
-        file_st = [
-            file.split(".zarr/")[0].split("/")[-1] for file in files if ".zarr/" in file
-        ]
-        file_st = [x for i, x in enumerate(file_st) if x not in file_st[:i]]
-
-    substring_in_filepath = df["era-id"].isin(file_st)
-    return substring_in_filepath
+    try:
+        return pd.read_csv(s3_path)
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Could not read file: {s3_path}"
+        )
+        raise e
 
 
-# ----------------------------------------------------------------------------
-## COULD BE PUT IN UTILS
-def merge_ds_to_df(ds, verbose=verbose):
-    """Converts xarray ds for a station to pandas df in the format needed for processing.
+def validate_station(
+    station: str, stations_df: pd.DataFrame, logger: logging.Logger
+) -> str:
+    """
+    Validate that the station exists in the metadata and return its network.
 
     Parameters
     ----------
-    ds: xr.Dataset
-        Data object with information about each network and station
-    verbose: boolean
-        Flag as to whether to print runtime statements to terminal. Default is False. Set in ALLNETWORKS_merge.py run.
+    station : str
+        Station identifier to check.
+    stations_df : pd.DataFrame
+        DataFrame containing station metadata.
+    logger : logging.Logger
+        Logger for reporting errors.
 
     Returns
     -------
-    df: pd.DataFrame
-        Table object with information about each network and station
-    MultiIndex: pd.DataFrame (I think)
-        Original multi-index of station and time, to be used on conversion back to ds
-    attrs:
-        Save ds attributes to inherent to the final merged file
-    var_attrs:
-        Save variable attributes to inherent to the final merged file
+    str
+        Network name associated with the station.
+
+    Raises
+    ------
+    ValueError
+        If the station is not found.
+    """
+    if station not in stations_df["era-id"].values:
+        logger.error(f"Station {station} not found in station list.")
+        raise ValueError(f"Station {station} not found in station list.")
+    return stations_df.loc[stations_df["era-id"] == station, "network"].item()
+
+
+def read_zarr_dataset(
+    bucket: str, qaqc_dir: str, network: str, station: str, logger: logging.Logger
+) -> xr.Dataset:
+    """
+    Load a Zarr dataset from S3.
+
+    Parameters
+    ----------
+    bucket : str
+        Name of the S3 bucket.
+    qaqc_dir : str
+        Directory within the bucket containing QAQC datasets.
+    network : str
+        Network name for the station.
+    station : str
+        Station identifier.
+    logger : logging.Logger
+        Logger for error reporting.
+
+    Returns
+    -------
+    xr.Dataset
+        Loaded xarray dataset.
+
+    Raises
+    ------
+    Exception
+        If the dataset cannot be opened.
+    """
+    s3_uri: str = f"s3://{bucket}/{qaqc_dir}/{network}/{station}.zarr/"
+    try:
+        return xr.open_zarr(s3_uri)
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Could not open Zarr dataset at {s3_uri}"
+        )
+        raise e
+
+
+def get_var_attrs(
+    ds: xr.Dataset, network: str, logger: logging.Logger
+) -> Dict[str, dict]:
+    """
+    Extracts variable attributes from all data variables in an xarray Dataset.
+
+    For the "ASOSAWOS" network, if the "pr" variable is present, its "units"
+    attribute is explicitly set to "mm".
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Input dataset containing climate variables.
+    network : str
+        Network identifier (e.g., "ASOSAWOS").
+    logger : logging.Logger
+        Logger instance used for logging.
+
+    Returns
+    -------
+    var_attrs : dict[str, dict]
+        A dictionary mapping variable names to their attribute dictionaries.
     """
 
-    # Save attributes to inherent them to the final merged file
-    attrs = ds.attrs
-    var_attrs = {var: ds[var].attrs for var in list(ds.data_vars.keys())}
+    try:
+        var_attrs = {var: ds[var].attrs.copy() for var in ds.data_vars}
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        if network == "ASOSAWOS" and "pr" in ds.data_vars:
+            var_attrs["pr"]["units"] = "mm"
+            logger.info(
+                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network to resolve error in units attribute."
+            )
+
+        return var_attrs
+
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to retrieve variable attributes from xr.Dataset."
+        )
+        raise e
+
+
+def convert_xr_to_df(
+    ds: xr.Dataset, logger: logging.Logger
+) -> tuple[pd.DataFrame, pd.MultiIndex]:
+    """
+    Convert an xarray Dataset into a flat pandas DataFrame, while preserving the original MultiIndex.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input xarray Dataset.
+    logger : logging.Logger
+        Logger for error reporting.
+
+    Returns
+    -------
+    pd.DataFrame
+        The flattened DataFrame with index reset.
+
+    Raises
+    ------
+    Exception
+        If the conversion from xarray to pandas DataFrame fails.
+    """
+    try:
         df = ds.to_dataframe()
-
-    # Save instrumentation heights
-    if "anemometer_height_m" not in df.columns:
-        try:
-            df["anemometer_height_m"] = (
-                np.ones(ds["time"].shape) * ds.anemometer_height_m
-            )
-        except:
-            logger.info("Filling anemometer_height_m with NaN.")
-            df["anemometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
-    if "thermometer_height_m" not in df.columns:
-        try:
-            df["thermometer_height_m"] = (
-                np.ones(ds["time"].shape) * ds.thermometer_height_m
-            )
-        except:
-            logger.info("Filling thermometer_height_m with NaN.")
-            df["thermometer_height_m"] = np.ones(len(df)) * np.nan
-        finally:
-            pass
-
-    # De-duplicate time axis
-    df = df[~df.index.duplicated()].sort_index()
-
-    # Save station/time multiindex
-    MultiIndex = df.index
-    station = df.index.get_level_values(0)
-    df["station"] = station
-
-    # Station pd.Series to str
-    station = station.unique().values[0]
-
-    # Convert time/station index to columns and reset index
-    df = df.droplevel(0).reset_index()
-
-    return df, MultiIndex, attrs, var_attrs
+        df.reset_index(inplace=True)  # Flatten to remove MultiIndex
+        return df
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert xarray Dataset to DataFrame."
+        )
+        raise e
 
 
-# ----------------------------------------------------------------------------
-# Run full merge pipeline
-def run_merge_pipeline(
-    ds,
-    network,
-    file_name,
-    errors,
-    station,
-    end_api,
-    log_file=None,
-):
-    """Runs all final merge standardization functions, and exports final station file.
+def convert_df_to_xr(
+    df: pd.DataFrame, ds_attrs: dict, var_attrs: dict, logger: logging.Logger
+) -> xr.Dataset:
+    """
+    Converts a DataFrame to an xarray Dataset and assigns global and variable attributes.
 
     Parameters
     ----------
-    ds: xr.Dataset
-        Data object with information about each network and station
-    network: str
-        Network identifier
-    file_name: str
-        Station filename
-    errors: str
-        Path to the errors file location -- CHECK
-    station: str
-        Staiton identifier
-    end_api: str
-        Script end time, for error handling csv
+    df : pd.DataFrame
+        Input DataFrame to convert.
+    ds_attrs : dict
+        Global attributes to assign to the resulting Dataset.
+    var_attrs : dict
+        Dictionary mapping variable names to their attributes.
+    logger : logging.Logger
+        Logger for error and info reporting.
 
     Returns
     -------
-    None
-        This function does not return a value
+    xr.Dataset
+        Dataset with assigned global and variable-level attributes.
+
+    Raises
+    ------
+    Exception
+        If setting the index, conversion, or attribute assignment fails.
+    """
+    try:
+        df.to_csv("test.csv")
+        df.set_index(["station", "time"], inplace=True)
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct cooridnates."
+        )
+        raise e
+
+    try:
+        ds = df.to_xarray()
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert pd.DataFrame to xr.Dataset."
+        )
+        raise e
+
+    try:
+        # Add history into Dataset attributes
+        timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
+        ds_attrs["history"] += f"\nMERGE_pipeline run on {timestamp} UTC"
+        ds = ds.assign_attrs(ds_attrs)
+
+        # Assign attributes for each variable
+        for var, attrs in var_attrs.items():
+            ds[var] = ds[var].assign_attrs(attrs)
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to assign attributes to final xr.Dataset object."
+        )
+        raise e
+
+    return ds
+
+
+def write_zarr_to_s3(
+    ds: xr.Dataset,
+    bucket_name: str,
+    merge_dir: str,
+    network: str,
+    station: str,
+    logger: logging.Logger,
+) -> None:
+    """
+    Writes the xarray Dataset to a Zarr file and uploads to S3.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to write.
+    bucket_name : str
+        S3 bucket name.
+    merge_dir : str
+        S3 directory prefix.
+    network : str
+        Network identifier.
+    station : str
+        Station identifier.
+    logger : logging.Logger
+        Logger for status and errors.
+
+    Raises
+    ------
+    Exception
+        If writing to Zarr fails.
+    """
+    zarr_s3_path = f"s3://{bucket_name}/{merge_dir}/{network}/{station}.zarr"
+    try:
+        ds.to_zarr(
+            zarr_s3_path,
+            consolidated=True,
+            mode="w",
+        )
+        logger.info(f"Uploaded Zarr to: {zarr_s3_path}")
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to write dataset to Zarr format on S3"
+        )
+        raise e
+
+
+def main() -> None:
+    """
+    Main entry point for running the merge pipeline for a single station.
     """
 
-    # Convert to working dataframe
-    df, MultiIndex, attrs, var_attrs = merge_ds_to_df(ds)
+    bucket_name = "wecc-historical-wx"
+    stations_csv_path = f"s3://{bucket_name}/2_clean_wx/temp_clean_all_station_list.csv"
+    qaqc_dir = "3_qaqc_wx"
+    merge_dir = "4_merge_wx"
 
-    # Close ds file, netCDF, HDF5 unclosed files can cause issues during mpi4py run
-    ds.close()
-    del ds
+    # Log start time
+    start_time = time.time()
 
-    # =========================================================
-    # Set up timing and logging for script runtime
-    t0 = time.time()
-    logger.info("Beginning final merge step...")
+    ## ======== SETUP ========
 
-    # Set up final dataframe, in case
-    stn_to_merge = df.copy()
+    # Set up logger
+    logger, log_filepath = setup_logger(STATION, verbose=VERBOSE)
 
-    ##########################################################
-    ## Merge Functions: Order of operations
-    # Part 1: Derive any missing variables
-    # Part 2: Standardize sub-hourly observations to hourly
-    # Part 3: Re-orders variables into final preferred order
-    # Part 4: Drops raw _qc variables
-    # Part 5: Exports final station file as a .zarr
+    # Load station metadata
+    stations_df = read_station_metadata(stations_csv_path, logger)
 
-    # =========================================================
-    # Part 1: Derive any missing variables
-    new_df = merge_derive_missing_vars(stn_to_merge)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="derived missing variables failed",
-            test="merge_derive_missing_vars",
+    # Validate station and get network name
+    network_name = validate_station(STATION, stations_df, logger)
+
+    try:
+
+        ## ======== READ IN AND REFORMAT DATA ========
+
+        # Load Zarr dataset from S3
+        ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, STATION, logger)
+
+        # Get variable attributes from dataset
+        var_attrs = get_var_attrs(ds, network_name, logger)
+
+        # Convert dataset to DataFrame
+        df = convert_xr_to_df(ds, logger)
+
+        # ======== MERGE FUNCTIONS ========
+
+        # Part 1: Construct and export table of raw QAQC counts per variable
+        # For success report
+        # ----- INCOMPLETE -----
+
+        # Part 2: Derive any missing variables
+        df, var_attrs = merge_derive_missing_vars(df, var_attrs, logger)
+
+        # Part 3: Standardize sub-hourly observations to hourly
+        df, var_attrs = merge_hourly_standardization(df, var_attrs, logger)
+
+        # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
+        # For HDP project documentation and final report
+        # ----- INCOMPLETE -----
+
+        # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
+        df, var_attrs = merge_drop_vars(df, var_attrs)
+
+        # Part 5: Re-orders variables into final preferred order
+        df = merge_reorder_vars(df)
+
+        # ======== CLEANUP & UPLOAD DATA TO S3 ========
+
+        # Convert the cleaned DataFrame to an xarray.Dataset and assign global + variable-level metadata
+        ds_merged = convert_df_to_xr(df, ds.attrs, var_attrs, logger)
+
+        # Write the xarray Dataset as a Zarr file to the specified S3 path
+        write_zarr_to_s3(
+            ds_merged, bucket_name, merge_dir, network_name, STATION, logger
         )
-        return
-    else:
-        stn_to_merge = new_df
-        logger.info("pass merge_derive_missing_vars")
 
-    # ----------------------------------------------------------
-    # Part 2: Standardize sub-hourly observations to hourly
-    new_df = merge_hourly_standardization(stn_to_merge)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="hourly standardization failed",
-            test="merge_hourly_standardization",
-        )
-        return [None]
-    else:
-        stn_to_merge = new_df
-        # Update attributes
+        # Done! Print elapsed time
+        logger.info(f"Finished processing station: {STATION}")
 
-        logger.info("pass merge_hourly_standardization")
+    except Exception as e:
+        logger.info(f"Error traceback: {type(e).__name__}: {e}")
+        logger.info(f"Terminating merge script.")
 
-    # ----------------------------------------------------------
-    # Part 3: Re-orders variables into final preferred order
-    new_df = merge_reorder_vars(stn_to_merge)
-    if new_df is None:
-        errors = print_merge_failed(
-            errors,
-            station,
-            end_api,
-            message="variable reordering failed",
-            test="reorder_variables",
-        )
-        return [None]
-    else:
-        stn_to_merge = new_df
-        logger.info("pass reorder_variables")
+    finally:  # Even in case of failure, upload logfile to s3
 
-    # ----------------------------------------------------------
-    # Part 4: Drops raw _qc variables
-    # Not started
+        # Compute elapsed time
+        elapsed_time_seconds = time.time() - start_time
+        formatted_elapsed = str(timedelta(seconds=round(elapsed_time_seconds)))
+        logger.info(f"Elapsed time: {formatted_elapsed}")
 
-    # ----------------------------------------------------------
-    # Part 5: Exports final station file as a .zarr file (or .nc)
-    # Not started
-    # Assign ds attributes and save .zarr
-    # process output ds
-    # ensure that each variable is the right datatype!!
-    # Close and save log file
-    # Write errors to csv
-    # Make sure error files save to correct directory
+        # Save log file to s3 bucket
+        upload_log_to_s3(bucket_name, merge_dir, network_name, log_filepath, logger)
 
-    return None
+        print("Script complete.")
+        print(f"Elapsed time: {formatted_elapsed}")
+
+
+if __name__ == "__main__":
+    main()
