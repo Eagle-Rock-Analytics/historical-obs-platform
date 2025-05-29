@@ -5,17 +5,7 @@ These tables are used to produce QAQC flag statistics for the QAQC success repor
 """
 
 ## Import Libraries
-from functools import reduce
-import boto3
 import pandas as pd
-from io import BytesIO, StringIO
-
-# New logger function
-from merge_log_config import logger
-
-# Set AWS credentials
-s3 = boto3.resource("s3")
-s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
 bucket_name = "wecc-historical-wx"
@@ -63,15 +53,7 @@ def eraqc_counts_original_timestep(
     flag_counts = flag_counts.rename_axis("eraqc_flag_values").reset_index()
 
     # send file to AWS
-    new_buffer = StringIO()
-    flag_counts.to_csv(new_buffer, index=False)
-    content = new_buffer.getvalue()
-    key = f"4_merge_wx/{network}/eraqc_counts/original_timestep_{station}.csv"
-
-    s3_cl.put_object(
-        Bucket=bucket_name,
-        Body=content,
-        Key=key,
-    )
+    csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_native_timestep.csv"
+    flag_counts.to_csv(csv_s3_filepath, index=False)  
 
     return None
