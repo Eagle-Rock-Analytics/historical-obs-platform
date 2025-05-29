@@ -54,6 +54,6 @@ def eraqc_counts_original_timestep(
 
     # send file to AWS
     csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_native_timestep.csv"
-    flag_counts.to_csv(csv_s3_filepath, index=False)  
+    flag_counts.to_csv(csv_s3_filepath, index=False)
 
     return None
