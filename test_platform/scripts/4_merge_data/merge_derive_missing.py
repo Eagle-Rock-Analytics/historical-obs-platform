@@ -147,6 +147,7 @@ def merge_derive_missing_vars(
                     input_vars=["hurs", "tdps_derived"],
                     var_attrs=new_var_attrs,
                 )
+                print(f"Successfully calculated {item}_derived")
 
             else:
                 print(
@@ -159,7 +160,6 @@ def merge_derive_missing_vars(
         print(
             f"merge_derive_missing_vars failed with exception: {e}"
         )  # convert to logger version when ready
-        return None
 
 
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
@@ -215,6 +215,17 @@ def derive_synergistic_flag(
     """
     # set up _eraqc variable for new derived variable
     df[var_to_flag + "_eraqc"] = np.nan
+
+    # Convert string qaqc column to float
+    # This column shouldn't have been strings in the first place, but oh well.
+    for var in [var1, var2]:
+        col = var + "_eraqc"
+        df[col] = df[col].replace(
+            ["nan", ""], np.nan
+        )  # Replace string "nan" and empty string "" to np.nan
+        df[col] = pd.to_numeric(
+            df[col], errors="coerce"
+        )  # Convert string integers ("28") to actual integers (28)
 
     # identify if var 1 has flags
     if len(df[var1 + "_eraqc"].unique()) > 1:
