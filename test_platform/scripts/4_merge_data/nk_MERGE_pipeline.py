@@ -29,10 +29,11 @@ import logging
 
 from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
+from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
 
 # These will eventually be deleted because they are command line inputs to the main function
-STATION = "HNXWFO_AAWC1"
+STATION = "ASOSAWOS_69007093217"
 VERBOSE = True
 
 
@@ -178,7 +179,7 @@ def get_var_attrs(
         raise e
 
 
-def convert_to_dataframe(
+def convert_xr_to_df(
     ds: xr.Dataset, logger: logging.Logger
 ) -> tuple[pd.DataFrame, pd.MultiIndex]:
     """
@@ -355,7 +356,7 @@ def main() -> None:
         var_attrs = get_var_attrs(ds, network_name, logger)
 
         # Convert dataset to DataFrame
-        df = convert_to_dataframe(ds, logger)
+        df = convert_xr_to_df(ds, logger)
 
         # ======== MERGE FUNCTIONS ========
 
@@ -364,7 +365,7 @@ def main() -> None:
         # ----- INCOMPLETE -----
 
         # Part 2: Derive any missing variables
-        # ----- INCOMPLETE -----
+        df, var_attrs = merge_derive_missing_vars(df, var_attrs, logger)
 
         # Part 3: Standardize sub-hourly observations to hourly
         df, var_attrs = merge_hourly_standardization(df, var_attrs, logger)
