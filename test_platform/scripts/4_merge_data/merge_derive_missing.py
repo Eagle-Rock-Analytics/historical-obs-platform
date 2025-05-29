@@ -1,4 +1,5 @@
-"""merge_derive_missing.py
+"""
+merge_derive_missing.py
 
 This script performs merge protocols for deriving any missing variables for ingestion into the Historical Observations Platform, 
 and is independent of network. Missing variables are defined as variables that can be calculated for which there are the 
@@ -21,11 +22,12 @@ Variables that cannot be derived if observations are missing
 import pandas as pd
 import numpy as np
 import logging
+import inspect
 
 
 ## Identify vars that can be derived
 def merge_derive_missing_vars(
-    df: pd.DataFrame, var_attrs: dict
+    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict] | None:
     """
     Identifies if any variables can be derived with other input variables.
@@ -45,7 +47,7 @@ def merge_derive_missing_vars(
     If success: pd.DataFrame with newly added derived variable, and updated variable attributes
     If failure: None
     """
-    print("Running merge_derive_missing_vars...")  # conver to logger when ready
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     # vars that can be derived
     derive_vars = [
@@ -61,7 +63,9 @@ def merge_derive_missing_vars(
         # check if required inputs are available
         if "tdps" not in df.columns and "tdps_derived" not in df.columns:
             if _input_var_check(df, var1="tas", var2="hurs") == True:
-                print(f"Calculating tdps_derived...")  # convert to logger when set-up
+                logger.info(
+                    "Calculating tdps_derived..."
+                )  # convert to logger when set-up
                 df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
@@ -72,20 +76,23 @@ def merge_derive_missing_vars(
                     input_vars=["tas", "hurs"],
                     var_attrs=new_var_attrs,
                 )
+                logger.info("Successfully calculated tdps_derived")
 
         else:
-            print("tdps_derived is present in station, no derivation necessary.")
+            logger.info("tdps_derived is present in station, no derivation necessary.")
 
         # first check if station has any vars that can be derived
         for item in derive_vars:
             if item in df.columns:
-                print(
+                logger.info(
                     f"{item} is present in station, no derivation necessary."
                 )  # convert to logger when set-up
                 continue
 
             if item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True:
-                print(f"Calculating {item}_derived...")  # convert to logger when set-up
+                logger.info(
+                    f"Calculating {item}_derived..."
+                )  # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
@@ -96,12 +103,13 @@ def merge_derive_missing_vars(
                     input_vars=["tas", "tdps"],
                     var_attrs=new_var_attrs,
                 )
+                logger.info(f"Successfully calculated {item}_derived")
 
             elif (
                 item == "hurs"
                 and _input_var_check(df, var1="tas", var2="tdps_derived") == True
             ):
-                print(
+                logger.info(
                     f"Calculating {item}_derived ..."
                 )  # convert to logger when set-up
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
@@ -114,11 +122,14 @@ def merge_derive_missing_vars(
                     input_vars=["tas", "hurs"],
                     var_attrs=new_var_attrs,
                 )
+                logger.info(f"Successfully calculated {item}_derived")
 
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
             ):
-                print(f"Calculating {item}_derived...")  # convert to logger when set-up
+                logger.info(
+                    f"Calculating {item}_derived..."
+                )  # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
@@ -129,12 +140,13 @@ def merge_derive_missing_vars(
                     input_vars=["hurs", "tdps"],
                     var_attrs=new_var_attrs,
                 )
+                logger.info(f"Successfully calculated {item}_derived")
 
             elif (
                 item == "tas"
                 and _input_var_check(df, var1="hurs", var2="tdps_derived") == True
             ):
-                print(
+                logger.info(
                     f"Calculating {item}_derived ...."
                 )  # convert to logger when set-up
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
@@ -147,19 +159,19 @@ def merge_derive_missing_vars(
                     input_vars=["hurs", "tdps_derived"],
                     var_attrs=new_var_attrs,
                 )
-                print(f"Successfully calculated {item}_derived")
+                logger.info(f"Successfully calculated {item}_derived")
 
             else:
-                print(
+                logger.info(
                     f"{item} is missing the required input variables. {item}_derived not calculated."
                 )  # convert to logger when set-up
 
+        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
         return df, new_var_attrs
 
     except Exception as e:
-        print(
-            f"merge_derive_missing_vars failed with exception: {e}"
-        )  # convert to logger version when ready
+        logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
+        raise e
 
 
 def _input_var_check(df: pd.DataFrame, var1: str, var2: str) -> bool:
