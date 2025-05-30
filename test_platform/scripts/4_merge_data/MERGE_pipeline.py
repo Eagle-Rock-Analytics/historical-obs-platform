@@ -322,7 +322,7 @@ def write_zarr_to_s3(
         raise e
 
 
-def main() -> None:
+def run_merge_one_station() -> None:
     """
     Main entry point for running the merge pipeline for a single station.
     """
@@ -410,7 +410,3 @@ def main() -> None:
 
         print("Script complete.")
         print(f"Elapsed time: {formatted_elapsed}")
-
-
-if __name__ == "__main__":
-    main()
