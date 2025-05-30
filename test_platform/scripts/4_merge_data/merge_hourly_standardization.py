@@ -10,7 +10,29 @@ import pandas as pd
 import logging
 import inspect
 
+# -----------------------------------------------------------------------------
+def qaqc_flag_fcn(x:str) -> str:
+    """
+    Used for resampling QAQC flag columns. Ensures that the final standardized dataframe
+    does not contain any empty strings by returning 'nan' when given an empty input (i.e. in time gaps).
 
+    Parameters
+    -----------
+    x : array_like
+        sub-hourly timestep data
+
+    Returns
+    -------
+    str : final flag value
+        
+    """
+    if len(x) == 0:
+        return "nan"
+    else:
+        return ",".join(x.unique())
+
+
+# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
@@ -123,8 +145,8 @@ def merge_hourly_standardization(
 
         if len(qaqc_df.columns) > 1:
             qaqc_result = qaqc_df.resample("1h", on="time").apply(
-                lambda x: ",".join(x.unique())
-            )  # adding unique flags
+                lambda x: qaqc_flag_fcn(x)
+            )  # concatenating unique flags
             result_list.append(qaqc_result)
 
         # Aggregate and output reduced dataframe - this merges all dataframes defined
