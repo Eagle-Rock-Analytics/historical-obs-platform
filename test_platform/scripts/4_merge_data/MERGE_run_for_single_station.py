@@ -12,7 +12,7 @@ Outputs:
 
 Example usage:
 --------------
-python MERGE_run_for_single_station.py --station="LOXWFO_CBGC1"
+python MERGE_run_for_single_station.py --station="ASOSAWOS_69007093217" --verbose=True
 
 """
 
@@ -47,7 +47,7 @@ def main():
         "-s",
         "--station",
         required=True,
-        help="The Station ID to process (required). This corresponds to a cleaned file in either zarr or netCDF format.",
+        help="The Station ID to process (required). This corresponds to a QAQC'd zarr store in the s3 bucket for the HDP project.",
         type=str,
     )
     parser.add_argument(
