@@ -33,32 +33,57 @@ def qaqc_flag_fcn(x:str) -> str:
 
 
 # -----------------------------------------------------------------------------
-def _infill(result: pd.DataFrame) -> pd.DataFrame:
+# -----------------------------------------------------------------------------
+def _infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
-    
+    This function does two things:
+    1. Flags rows that were infilled by resampling in the hourly standardization process, where
+        there were time gaps in the input dataframe. These infilled rows will NOT count towards
+        the total observations count when calculating flag rates for the success report
+    2. Infills constant variables (ie those in "constant_vars") observations that were left empty because
+        they were in a time gap. They are infilled with the first non-nan value of each column, and set to
+        np.nan if there are no non-nan values.
 
     Parameters
     -----------
-    result : pd.Dataframe
+    df : pd.Dataframe
         hourly standardized dataframe
+    constant_vars: list
+        variables that are constant throughout time
 
     Returns
     -------
-    result : pd.Dataframe
-
+    df : pd.Dataframe
+        dataframe with updates added to rows infilled by hourly standardization
 
     """
+    # Mask for rows where station is None (or np.nan)
+    mask = df["station"].isnull()
 
-    first_values = result.apply(lambda x: x.first())
+    # Initialize dict to hold first non-NaN values
+    first_valids = {}
 
+    # Populate first_valids only for existing columns
+    for col in constant_vars:
+        if col in df.columns and col != "time":
+            first_valids[col] = (
+                df[col].dropna().iloc[0] if df[col].notna().any() else np.nan
+            )
 
-    
+    # Update values in masked rows for existing columns
+    for col, val in first_valids.items():
+        df.loc[mask, col] = val
 
-    return result
+    # Add or update 'standardized_infill' column
+    df["standardized_infill"] = np.where(mask, "y", "n")
+
+    return df
+
 
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
-    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
+    df: pd.DataFrame, var_attrs: dict
 ) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
@@ -85,8 +110,6 @@ def merge_hourly_standardization(
     2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
     3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
-
-    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -129,14 +152,14 @@ def merge_hourly_standardization(
     ]
 
     # QAQC flags, which remain constants within each hour
-    qaqc_var_pieces = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
+    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
 
     try:
 
         qaqc_vars = [
             var
             for var in df.columns
-            if any(True for item in qaqc_var_pieces if item in var)
+            if any(True for item in vars_to_remove if item in var)
         ]
 
         # Subset the dataframe according to rules
@@ -179,12 +202,10 @@ def merge_hourly_standardization(
             lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
             result_list,
         )
+        result.reset_index(inplace=True)  # Convert time index --> column
 
         # Infill constant values and flag rows added through resampling
-
-        result = _infill(result, )
-
-        result.reset_index(inplace=True)  # Convert time index --> column
+        result = _infill(result, constant_vars)
 
         # Update attributes for sub-hourly variables
         sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
@@ -194,10 +215,9 @@ def merge_hourly_standardization(
                     var
                 )
             )
-        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
         return result, var_attrs
 
     except Exception as e:
-        logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
+        print("Failed")
         raise e
