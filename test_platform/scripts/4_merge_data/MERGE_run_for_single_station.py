@@ -22,16 +22,21 @@ from MERGE_pipeline import run_merge_one_station
 
 def main():
     """
-    This function is designed to create an argument parser, define the arguments for the script, parse the argument, and then run the QAQC pipeline for the specified station.
+    Parses command-line arguments and runs the MERGE pipeline for a single weather station.
 
-    Parameters
-    ----------
-    None
+    The script expects a station ID corresponding to a QAQC'd dataset and optionally enables verbose logging.
+    It triggers the QAQC merge pipeline to generate a finalized, standardized output.
+
+    Command-line Arguments
+    ----------------------
+    --station : str
+        Station ID corresponding to the cleaned input file (required).
+    --verbose : bool, optional
+        Whether to enable verbose logging (default is False).
 
     Returns
     -------
     None
-
     """
     # Create argument parser
     parser = argparse.ArgumentParser(
