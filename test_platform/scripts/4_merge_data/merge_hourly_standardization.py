@@ -33,6 +33,30 @@ def qaqc_flag_fcn(x:str) -> str:
 
 
 # -----------------------------------------------------------------------------
+def _infill(result: pd.DataFrame) -> pd.DataFrame:
+    """
+    
+
+    Parameters
+    -----------
+    result : pd.Dataframe
+        hourly standardized dataframe
+
+    Returns
+    -------
+    result : pd.Dataframe
+
+
+    """
+
+    first_values = result.apply(lambda x: x.first())
+
+    
+    
+
+    return result
+
+# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
@@ -155,6 +179,11 @@ def merge_hourly_standardization(
             lambda left, right: pd.merge(left, right, on=["time"], how="outer"),
             result_list,
         )
+
+        # Infill constant values and flag rows added through resampling
+
+        result = _infill(result, )
+
         result.reset_index(inplace=True)  # Convert time index --> column
 
         # Update attributes for sub-hourly variables
