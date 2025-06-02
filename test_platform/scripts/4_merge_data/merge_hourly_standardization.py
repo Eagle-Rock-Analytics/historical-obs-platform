@@ -51,7 +51,7 @@ def _infill(result: pd.DataFrame) -> pd.DataFrame:
 
     first_values = result.apply(lambda x: x.first())
 
-    
+
     
 
     return result
@@ -129,14 +129,14 @@ def merge_hourly_standardization(
     ]
 
     # QAQC flags, which remain constants within each hour
-    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
+    qaqc_var_pieces = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
 
     try:
 
         qaqc_vars = [
             var
             for var in df.columns
-            if any(True for item in vars_to_remove if item in var)
+            if any(True for item in qaqc_var_pieces if item in var)
         ]
 
         # Subset the dataframe according to rules
