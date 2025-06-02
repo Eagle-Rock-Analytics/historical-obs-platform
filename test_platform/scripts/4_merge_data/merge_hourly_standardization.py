@@ -90,7 +90,7 @@ def merge_hourly_standardization(
         qaqc_vars = [
             var
             for var in df.columns
-            if any(True for item in vars_to_remove if item in var)
+            if any(item in var for item in vars_to_remove)
         ]
 
         # Subset the dataframe according to rules
