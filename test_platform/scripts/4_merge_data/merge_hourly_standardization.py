@@ -1,4 +1,4 @@
-"""merge_hourly_standardization.py 
+"""merge_hourly_standardization.py
 
 This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
 
