@@ -12,14 +12,14 @@ import inspect
 
 
 # -----------------------------------------------------------------------------
-def qaqc_flag_fcn(x: str) -> str:
+def qaqc_flag_fcn(flags: str) -> str:
     """
     Used for resampling QAQC flag columns. Ensures that the final standardized dataframe
     does not contain any empty strings by returning 'nan' when given an empty input (i.e. in time gaps).
 
     Parameters
     -----------
-    x : array_like
+    flags : array_like
         sub-hourly timestep data
 
     Returns
@@ -27,10 +27,10 @@ def qaqc_flag_fcn(x: str) -> str:
     str : final flag value
 
     """
-    if len(x) == 0:
+    if len(flags) == 0:
         return "nan"
     else:
-        return ",".join(x.unique())
+        return ",".join(flags.unique())
 
 
 # -----------------------------------------------------------------------------
@@ -66,13 +66,13 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
 
     # Populate first_valids only for existing columns
     for col in constant_vars:
-        if col not in df.columns or col == "time":  
-            # skip if constant var not in df cols or if var == "time"  
-            continue  
+        if col not in df.columns or col == "time":
+            # skip if constant var not in df cols or if var == "time"
+            continue
 
-        first_valids[col] = (  
-            df[col].dropna().iloc[0] if df[col].notna().any() else np.nan  
-        )  
+        first_valids[col] = (
+            df[col].dropna().iloc[0] if df[col].notna().any() else np.nan
+        )
 
     # Update values in masked rows for existing columns
     for col, val in first_valids.items():
@@ -157,15 +157,24 @@ def merge_hourly_standardization(
         "sfcWind_dir",
     ]
 
-    # QAQC flags, which remain constants within each hour
-    qaqc_var_pieces = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
+    # QAQC variable suffixes
+    # the QAQC variables contain these words (ex: ps_eraqc)
+    qaqc_var_suffixes = [
+        "qc",
+        "eraqc",
+        "duration",
+        "method",
+        "flag",
+        "depth",
+        "process",
+    ]
+
+    # QAQC variables, which we will concatenate within each hour
+    qaqc_vars = [
+        var for var in df.columns if any(item in var for item in qaqc_var_suffixes)
+    ]
 
     try:
-
-        qaqc_vars = [
-            var for var in df.columns if any(item in var for item in qaqc_var_pieces)
-        ]
-
         # Subset the dataframe according to rules
         constant_df = df[[col for col in constant_vars if col in df.columns]]
 
@@ -224,5 +233,4 @@ def merge_hourly_standardization(
 
     except Exception as e:
         logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
-        print("Failed")
         raise e
