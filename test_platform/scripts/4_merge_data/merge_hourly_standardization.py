@@ -1,6 +1,6 @@
 """merge_hourly_standardization.py
 
-This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
+Resamples data to an hourly timestep according to standard conventions.
 
 """
 
@@ -32,8 +32,6 @@ def qaqc_flag_fcn(flags: str) -> str:
     else:
         return ",".join(flags.unique())
 
-
-# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
@@ -83,8 +81,6 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
 
     return df
 
-
-# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
