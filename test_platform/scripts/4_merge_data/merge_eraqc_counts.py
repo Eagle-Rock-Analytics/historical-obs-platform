@@ -68,7 +68,7 @@ def eraqc_counts_original_timestep(
         csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_native_timestep.csv"
         flag_counts.to_csv(csv_s3_filepath, index=False)
 
-        # Update logger :)
+        # Update logger
         logger.info(f"Uploaded file to: {csv_s3_filepath}")
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
@@ -140,7 +140,7 @@ def eraqc_counts_hourly_timestep(
         csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_hourly_standardized.csv"
         flag_counts.to_csv(csv_s3_filepath, index=True)
 
-        # Update logger :)
+        # Update logger
         logger.info(f"Uploaded file to: {csv_s3_filepath}")
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 

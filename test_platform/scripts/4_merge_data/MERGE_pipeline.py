@@ -31,8 +31,7 @@ from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
-from merge_eraqc_counts_original_timestep import eraqc_counts_original_timestep
-
+from merge_eraqc_counts import eraqc_counts_original_timestep, eraqc_counts_hourly_timestep
 
 def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
     """
@@ -383,8 +382,7 @@ def run_merge_one_station(
         df, var_attrs = merge_hourly_standardization(df, var_attrs, logger)
 
         # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
-        # For HDP project documentation and final report
-        # ----- INCOMPLETE -----
+        eraqc_counts_hourly_timestep(df, network_name, station, logger)
 
         # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
         df, var_attrs = merge_drop_vars(df, var_attrs)
