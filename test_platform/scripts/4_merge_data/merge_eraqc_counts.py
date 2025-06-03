@@ -18,6 +18,7 @@ import pandas as pd
 import logging
 import inspect
 
+
 # -----------------------------------------------------------------------------
 def eraqc_counts_original_timestep(
     df: pd.DataFrame, network: str, station: str, logger: logging.Logger
@@ -75,6 +76,7 @@ def eraqc_counts_original_timestep(
     except Exception as e:
         logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
         raise e
+
 
 # -----------------------------------------------------------------------------
 def eraqc_counts_hourly_timestep(
