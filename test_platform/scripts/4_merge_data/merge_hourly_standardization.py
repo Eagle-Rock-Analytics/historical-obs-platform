@@ -1,4 +1,4 @@
-"""merge_hourly_standardization.py 
+"""merge_hourly_standardization.py
 
 This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
 
@@ -11,6 +11,81 @@ import logging
 import inspect
 
 
+# -----------------------------------------------------------------------------
+def qaqc_flag_fcn(flags: str) -> str:
+    """
+    Used for resampling QAQC flag columns. Ensures that the final standardized dataframe
+    does not contain any empty strings by returning 'nan' when given an empty input (i.e. in time gaps).
+
+    Parameters
+    -----------
+    flags : array_like
+        sub-hourly timestep data
+
+    Returns
+    -------
+    str : final flag value
+
+    """
+    if len(flags) == 0:
+        return "nan"
+    else:
+        return ",".join(flags.unique())
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
+    """
+    This function does two things:
+    1. Flags rows that were infilled by resampling in the hourly standardization process, where
+        there were time gaps in the input dataframe. These infilled rows will NOT count towards
+        the total observations count when calculating flag rates for the success report
+    2. Infills constant variables (ie those in "constant_vars") observations that were left empty because
+        they were in a time gap. They are infilled with the first non-nan value of each column, and set to
+        np.nan if there are no non-nan values.
+
+    Parameters
+    -----------
+    df : pd.Dataframe
+        hourly standardized dataframe
+    constant_vars: list
+        variables that are constant throughout time
+
+    Returns
+    -------
+    df : pd.Dataframe
+        dataframe with updates added to rows infilled by hourly standardization
+
+    """
+    # Mask for rows where station is None (or np.nan)
+    mask = df["station"].isnull()
+
+    # Initialize dict to hold first non-NaN values
+    first_valids = {}
+
+    # Populate first_valids only for existing columns
+    for col in constant_vars:
+        if col not in df.columns or col == "time":
+            # skip if constant var not in df cols or if var == "time"
+            continue
+
+        first_valids[col] = (
+            df[col].dropna().iloc[0] if df[col].notna().any() else np.nan
+        )
+
+    # Update values in masked rows for existing columns
+    for col, val in first_valids.items():
+        df.loc[mask, col] = val
+
+    # Add or update 'standardized_infill' column
+    df["standardized_infill"] = np.where(mask, "y", "n")
+
+    return df
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
@@ -82,17 +157,24 @@ def merge_hourly_standardization(
         "sfcWind_dir",
     ]
 
-    # QAQC flags, which remain constants within each hour
-    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
+    # QAQC variable suffixes
+    # the QAQC variables contain these words (ex: ps_eraqc)
+    qaqc_var_suffixes = [
+        "qc",
+        "eraqc",
+        "duration",
+        "method",
+        "flag",
+        "depth",
+        "process",
+    ]
+
+    # QAQC variables, which we will concatenate within each hour
+    qaqc_vars = [
+        var for var in df.columns if any(item in var for item in qaqc_var_suffixes)
+    ]
 
     try:
-
-        qaqc_vars = [
-            var
-            for var in df.columns
-            if any(True for item in vars_to_remove if item in var)
-        ]
-
         # Subset the dataframe according to rules
         constant_df = df[[col for col in constant_vars if col in df.columns]]
 
@@ -123,8 +205,8 @@ def merge_hourly_standardization(
 
         if len(qaqc_df.columns) > 1:
             qaqc_result = qaqc_df.resample("1h", on="time").apply(
-                lambda x: ",".join(x.unique())
-            )  # adding unique flags
+                lambda x: qaqc_flag_fcn(x)
+            )  # concatenating unique flags
             result_list.append(qaqc_result)
 
         # Aggregate and output reduced dataframe - this merges all dataframes defined
@@ -135,6 +217,9 @@ def merge_hourly_standardization(
         )
         result.reset_index(inplace=True)  # Convert time index --> column
 
+        # Infill constant values and flag rows added through resampling
+        result = _modify_infill(result, constant_vars)
+
         # Update attributes for sub-hourly variables
         sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
         for var in sub_hourly_vars:
@@ -144,7 +229,6 @@ def merge_hourly_standardization(
                 )
             )
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
-
         return result, var_attrs
 
     except Exception as e:
