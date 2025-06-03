@@ -34,7 +34,7 @@ def qaqc_flag_fcn(x:str) -> str:
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-def _infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
+def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
     This function does two things:
     1. Flags rows that were infilled by resampling in the hourly standardization process, where
@@ -152,12 +152,12 @@ def merge_hourly_standardization(
     ]
 
     # QAQC flags, which remain constants within each hour
-    vars_to_remove = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
+    qaqc_var_pieces = ["qc", "eraqc", "duration", "method", "flag", "depth", "process"]
 
     try:
 
         qaqc_vars = [
-            var for var in df.columns if any(item in var for item in vars_to_remove)
+            var for var in df.columns if any(item in var for item in qaqc_var_pieces)
         ]
 
         # Subset the dataframe according to rules
@@ -203,7 +203,7 @@ def merge_hourly_standardization(
         result.reset_index(inplace=True)  # Convert time index --> column
 
         # Infill constant values and flag rows added through resampling
-        result = _infill(result, constant_vars)
+        result = _modify_infill(result, constant_vars)
 
         # Update attributes for sub-hourly variables
         sub_hourly_vars = [i for i in df.columns if "min" in i and "qc" not in i]
