@@ -32,6 +32,7 @@ def qaqc_flag_fcn(flags: str) -> str:
     else:
         return ",".join(flags.unique())
 
+
 # -----------------------------------------------------------------------------
 def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
@@ -80,6 +81,7 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     df["standardized_infill"] = np.where(mask, "y", "n")
 
     return df
+
 
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
