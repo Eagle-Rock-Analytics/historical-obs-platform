@@ -31,10 +31,7 @@ from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
-
-# These will eventually be deleted because they are command line inputs to the main function
-STATION = "ASOSAWOS_69007093217"
-VERBOSE = True
+from merge_eraqc_counts_original_timestep import eraqc_counts_original_timestep
 
 
 def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
@@ -321,9 +318,24 @@ def write_zarr_to_s3(
         raise e
 
 
-def main() -> None:
+def run_merge_one_station(
+    station: str,
+    verbose: bool = False,
+) -> None:
     """
     Main entry point for running the merge pipeline for a single station.
+
+    Parameters
+    ----------
+    station : str
+        Unique identifier for the weather station (e.g., "LOXWFO_CBGC1").
+    verbose : bool, optional
+        If True, enables verbose logging. Default is False.
+
+    Returns
+    -------
+    None
+
     """
 
     bucket_name = "wecc-historical-wx"
@@ -337,20 +349,20 @@ def main() -> None:
     ## ======== SETUP ========
 
     # Set up logger
-    logger, log_filepath = setup_logger(STATION, verbose=VERBOSE)
+    logger, log_filepath = setup_logger(station, verbose=verbose)
 
     # Load station metadata
     stations_df = read_station_metadata(stations_csv_path, logger)
 
     # Validate station and get network name
-    network_name = validate_station(STATION, stations_df, logger)
+    network_name = validate_station(station, stations_df, logger)
 
     try:
 
         ## ======== READ IN AND REFORMAT DATA ========
 
         # Load Zarr dataset from S3
-        ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, STATION, logger)
+        ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, station, logger)
 
         # Get variable attributes from dataset
         var_attrs = get_var_attrs(ds, network_name, logger)
@@ -362,7 +374,7 @@ def main() -> None:
 
         # Part 1: Construct and export table of raw QAQC counts per variable
         # For success report
-        # ----- INCOMPLETE -----
+        eraqc_counts_original_timestep(df, network_name, station, logger)
 
         # Part 2: Derive any missing variables
         df, var_attrs = merge_derive_missing_vars(df, var_attrs, logger)
@@ -387,11 +399,11 @@ def main() -> None:
 
         # Write the xarray Dataset as a Zarr file to the specified S3 path
         write_zarr_to_s3(
-            ds_merged, bucket_name, merge_dir, network_name, STATION, logger
+            ds_merged, bucket_name, merge_dir, network_name, station, logger
         )
 
         # Done! Print elapsed time
-        logger.info(f"Finished processing station: {STATION}")
+        logger.info(f"Finished processing station: {station}")
 
     except Exception as e:
         logger.info(f"Error traceback: {type(e).__name__}: {e}")
@@ -409,7 +421,3 @@ def main() -> None:
 
         print("Script complete.")
         print(f"Elapsed time: {formatted_elapsed}")
-
-
-if __name__ == "__main__":
-    main()
