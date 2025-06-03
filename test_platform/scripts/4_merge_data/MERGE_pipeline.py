@@ -124,14 +124,18 @@ def read_zarr_dataset(
     Exception
         If the dataset cannot be opened.
     """
-    s3_uri: str = f"s3://{bucket}/{qaqc_dir}/{network}/{station}.zarr/"
+
     try:
-        return xr.open_zarr(s3_uri)
+        s3_uri: str = f"s3://{bucket}/{qaqc_dir}/{network}/{station}.zarr/"
+        station_ds = xr.open_zarr(s3_uri)
+
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Could not open Zarr dataset at {s3_uri}"
         )
         raise e
+
+    return station_ds
 
 
 def get_var_attrs(
@@ -199,15 +203,19 @@ def convert_xr_to_df(
     Exception
         If the conversion from xarray to pandas DataFrame fails.
     """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
     try:
         df = ds.to_dataframe()
         df.reset_index(inplace=True)  # Flatten to remove MultiIndex
-        return df
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to convert xarray Dataset to DataFrame."
         )
         raise e
+
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
+    return df
 
 
 def convert_df_to_xr(
@@ -237,6 +245,8 @@ def convert_df_to_xr(
     Exception
         If setting the index, conversion, or attribute assignment fails.
     """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
     try:
         df.to_csv("test.csv")
         df.set_index(["station", "time"], inplace=True)
@@ -269,6 +279,7 @@ def convert_df_to_xr(
         )
         raise e
 
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
     return ds
 
 
@@ -303,6 +314,7 @@ def write_zarr_to_s3(
     Exception
         If writing to Zarr fails.
     """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
     zarr_s3_path = f"s3://{bucket_name}/{merge_dir}/{network}/{station}.zarr"
     try:
         ds.to_zarr(
@@ -310,6 +322,7 @@ def write_zarr_to_s3(
             consolidated=True,
             mode="w",
         )
+        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
         logger.info(f"Uploaded Zarr to: {zarr_s3_path}")
     except Exception as e:
         logger.error(
@@ -387,10 +400,10 @@ def run_merge_one_station(
         # ----- INCOMPLETE -----
 
         # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
-        df, var_attrs = merge_drop_vars(df, var_attrs)
+        df, var_attrs = merge_drop_vars(df, var_attrs, logger)
 
         # Part 5: Re-orders variables into final preferred order
-        df = merge_reorder_vars(df)
+        df = merge_reorder_vars(df, logger)
 
         # ======== CLEANUP & UPLOAD DATA TO S3 ========
 
