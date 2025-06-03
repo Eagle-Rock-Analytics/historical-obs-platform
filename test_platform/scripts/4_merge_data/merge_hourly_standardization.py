@@ -66,10 +66,13 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
 
     # Populate first_valids only for existing columns
     for col in constant_vars:
-        if col in df.columns and col != "time":
-            first_valids[col] = (
-                df[col].dropna().iloc[0] if df[col].notna().any() else np.nan
-            )
+        if col not in df.columns or col == "time":  
+            # skip if constant var not in df cols or if var == "time"  
+            continue  
+
+        first_valids[col] = (  
+            df[col].dropna().iloc[0] if df[col].notna().any() else np.nan  
+        )  
 
     # Update values in masked rows for existing columns
     for col, val in first_valids.items():
@@ -84,7 +87,7 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
-    df: pd.DataFrame, var_attrs: dict, logger: logger.Logger
+    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
