@@ -18,7 +18,7 @@ Import into merge workflows to clean and organize station-level climate data.
 """
 
 import pandas as pd
-import inspect 
+import inspect
 import logging
 
 
@@ -46,7 +46,7 @@ def merge_reorder_vars(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame
     """
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
-    try: 
+    try:
         desired_order = [
             "ps",
             "tas",
@@ -80,13 +80,15 @@ def merge_reorder_vars(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
         return df
-    
+
     except Exception as e:
         logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
         raise e
 
 
-def merge_drop_vars(df: pd.DataFrame, var_attrs: dict, logger: logging.Logger) -> tuple[pd.DataFrame, dict]:
+def merge_drop_vars(
+    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
+) -> tuple[pd.DataFrame, dict]:
     """
     Keep “_eraqc” vars and drop the following variables
         - qaqc_process
@@ -117,7 +119,7 @@ def merge_drop_vars(df: pd.DataFrame, var_attrs: dict, logger: logging.Logger) -
 
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
-    try: 
+    try:
         drop_vars_keywords = [
             "qaqc_process",
             "pr_depth",
