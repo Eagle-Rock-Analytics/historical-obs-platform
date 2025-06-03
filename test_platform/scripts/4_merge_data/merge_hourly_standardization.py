@@ -1,4 +1,4 @@
-"""merge_hourly_standardization.py 
+"""merge_hourly_standardization.py
 
 This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
 
@@ -10,8 +10,9 @@ import pandas as pd
 import logging
 import inspect
 
+
 # -----------------------------------------------------------------------------
-def qaqc_flag_fcn(x:str) -> str:
+def qaqc_flag_fcn(x: str) -> str:
     """
     Used for resampling QAQC flag columns. Ensures that the final standardized dataframe
     does not contain any empty strings by returning 'nan' when given an empty input (i.e. in time gaps).
@@ -24,7 +25,7 @@ def qaqc_flag_fcn(x:str) -> str:
     Returns
     -------
     str : final flag value
-        
+
     """
     if len(x) == 0:
         return "nan"
