@@ -84,7 +84,7 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
-    df: pd.DataFrame, var_attrs: dict
+    df: pd.DataFrame, var_attrs: dict, logger: logger.Logger
 ) -> tuple[pd.DataFrame, dict]:
     """Resamples meteorological variables to hourly timestep according to standard conventions.
 
@@ -111,6 +111,8 @@ def merge_hourly_standardization(
     2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
     3. Constant across the hour: take the first value in each hour. This applied to variables that do not change.
     """
+
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     # Variables that remain constant within each hour
     constant_vars = [
@@ -214,9 +216,10 @@ def merge_hourly_standardization(
                     var
                 )
             )
-
+        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
         return result, var_attrs
 
     except Exception as e:
+        logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
         print("Failed")
         raise e
