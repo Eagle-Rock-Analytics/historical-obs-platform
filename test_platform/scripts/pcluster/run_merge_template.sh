@@ -1,12 +1,12 @@
 #!/bin/bash -l
 
 ################################################################################
-# SLURM Batch Script Template: run_qaqc_{NETWORK}.sh
+# SLURM Batch Script Template: run_merge_{NETWORK}.sh
 #
 # Description:
-#   Launches the QA/QC pipeline for historical weather station data.
+#   Launches the merge pipeline for historical weather station data.
 #   Each SLURM array task processes a single station using the script:
-#       ../3_qaqc_data/QAQC_run_for_single_station.py
+#       ../4_merge_data/MERGE_run_for_single_station.py
 #
 #   This is an embarrassingly parallel workload: 
 #   - Each task is independent and processes one station
@@ -15,7 +15,7 @@
 #
 # Inputs:
 #   - Station list: stations_input/{NETWORK}-input.dat
-#   - Python script: ../3_qaqc_data/QAQC_run_for_single_station.py
+#   - Python script: ../4_merge_data/MERGE_run_for_single_station.py
 #   - Conda environment: hist-obs
 #
 # SLURM Configuration:
@@ -85,10 +85,10 @@ log_file="$NEW_OUT"
 } >> "$log_file"
 
 # Change to the directory containing the script
-cd ../3_qaqc_data/ || { echo "Directory change failed"; exit 1; }
+cd ../4_merge_data/ || { echo "Directory change failed"; exit 1; }
 
 # Define the path to your Python script
-PYSCRIPT="QAQC_run_for_single_station.py"
+PYSCRIPT="MERGE_run_for_single_station.py"
 
 # Start time tracking
 start_time=$(date +%s)
