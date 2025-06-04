@@ -63,11 +63,14 @@ def eraqc_counts_original_timestep(
         flag_counts.columns = flag_counts.columns.str.replace("_eraqc", "", regex=True)
 
         # rename index (i.e. eraqc values) and then reset index
-        flag_counts = flag_counts.rename_axis("eraqc_flag_values").reset_index()
+        flag_counts = flag_counts.rename_axis("eraqc_flag_values")
+
+        # set all counts to integers, for readability
+        flag_counts = flag_counts.astype(int)
 
         # send file to AWS
         csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_native_timestep.csv"
-        flag_counts.to_csv(csv_s3_filepath, index=False)
+        flag_counts.to_csv(csv_s3_filepath, index=True)
 
         # Update logger
         logger.info(f"Uploaded file to: {csv_s3_filepath}")
@@ -133,7 +136,8 @@ def eraqc_counts_hourly_timestep(
         flag_counts = flag_counts.rename(index={"nan": "no_flag"})
 
         # add row with total observation count
-        flag_counts.loc["total_obs_count"] = [sum] * flag_counts.shape[1]
+        total_obs_count = len(df)
+        flag_counts.loc["total_obs_count"] = [total_obs_count] * flag_counts.shape[1]
 
         # set all counts to integers, for readability
         flag_counts = flag_counts.astype(int)
