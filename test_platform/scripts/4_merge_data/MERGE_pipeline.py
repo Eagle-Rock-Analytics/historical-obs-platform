@@ -248,7 +248,6 @@ def convert_df_to_xr(
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     try:
-        df.to_csv("test.csv")
         df.set_index(["station", "time"], inplace=True)
     except Exception as e:
         logger.error(
