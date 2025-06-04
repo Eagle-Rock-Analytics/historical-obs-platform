@@ -5,6 +5,12 @@ Reads a SLURM batch script template and fills in the network name and number
 of stations to set up an embarrassingly parallel array job. Updates the header
 comment to reflect the specific network.
 
+This script was used in both the QAQC and the merge steps; to change the template used 
+by the script, simply modify the following paths in the script to point to the appropriate file: 
+
+template_file = Path("run_merge_template.sh")
+output_file = Path(f"run_merge_{network}.sh")
+
 Example usage:
 ---------------
 python generate_batch_script.py --network=LOXWFO
@@ -29,8 +35,8 @@ def main():
 
     # Paths
     input_file = Path(f"stations_input/{network}-input.dat")
-    template_file = Path("run_qaqc_template.sh")
-    output_file = Path(f"run_qaqc_{network}.sh")
+    template_file = Path("run_merge_template.sh")
+    output_file = Path(f"run_merge_{network}.sh")
 
     if not input_file.exists():
         raise FileNotFoundError(f"Missing input file: {input_file}")
