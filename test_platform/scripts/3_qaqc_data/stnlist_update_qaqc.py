@@ -76,10 +76,11 @@ def get_zarr_last_mod(fn: str) -> str:
     """
 
     path_no_ext = fn.split(".")[0]  # Grab only path name without extension
+    path_no_bucket = path_no_ext.split(BUCKET_NAME)[-1][1:]  # Grab only part without bucket name
 
     # idenitfy last_modified date from metadata date within .zarr
     mod_list = []
-    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix = path_no_ext):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix = path_no_bucket):
         mod_list.append(str(item.last_modified))
 
     # return most recent datetime value
@@ -314,7 +315,7 @@ def qaqc_qa(network: str):
 
 
 if __name__ == "__main__":
-    qaqc_qa("ASOSAWOS")
+    qaqc_qa("VCAPCD")
 
 # List of all stations for ease of use here:
 # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
