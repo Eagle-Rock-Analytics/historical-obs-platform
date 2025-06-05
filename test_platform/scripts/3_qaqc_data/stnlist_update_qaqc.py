@@ -1,10 +1,23 @@
 """
+stnlist_update_qaqc.py
+
 This script iterates through a specified network and checks to see what stations have been successfully passed quality control,
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files do not pass QA/QC, or if the errors occur during or after the QA/QC process.
 
 Note that because errors.csv are parsed, very old errors.csv may want to be removed manually from AWS or thresholded below
-(removing those produced during code testing)
+(removing those produced during code testing). 
+
+Functions
+---------
+- get_station_list:
+- get_qaqc_stations:
+- parse_error_csv: 
+- qaqc_qa: 
+
+Intended Use
+------------
+Run this script after QAQC has been completed for a network (via pcluster run) to update the network stationlist for QA/QC success rate tracking.
 """
 
 import pandas as pd
@@ -22,7 +35,6 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 
-# ----------------------------------------------------------------------
 def get_station_list(network: str) -> pd.DataFrame:
     """
     Given a network name, return a pandas dataframe containing the network's station list from the clean bucket.
@@ -49,7 +61,33 @@ def get_station_list(network: str) -> pd.DataFrame:
     return station_list
 
 
-# ----------------------------------------------------------------------
+def get_zarr_last_mod(fn: str) -> str:
+    """Identifies the "last_modified" date within a .zarr file.
+
+    Parameters
+    ----------
+    fn : str
+        filename of a station
+
+    Returns
+    -------
+    last_mod : str
+        last modified date from within zarr
+    """
+
+    path_no_ext = fn.split(".")[0]  # Grab only path name without extension
+
+    # idenitfy last_modified date from metadata date within .zarr
+    mod_list = []
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix = path_no_ext):
+        mod_list.append(str(item.last_modified))
+
+    # return most recent datetime value
+    last_mod = max(mod_list)
+    return last_mod
+
+
+
 def get_qaqc_stations(network: str) -> pd.DataFrame:
     """
     Retrieves a list of all stations in a given network that have passed the QA/QC process.
@@ -75,7 +113,6 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     df = {"ID": [], "Time_QAQC": [], "QAQC": []}  # Initialize results dictionary
 
     # Construct the S3 path prefix for the network inside the QAQC folder
-
     parent_s3_path = f"{BUCKET_NAME}/{QAQC_WX}{network}"
 
     # Use s3fs to list all items under this path
@@ -86,26 +123,18 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     zarr_folders = [f"{path}" for path in all_paths if path.endswith(".zarr")]
 
     for item in zarr_folders:
-        if item.endswith(".nc"):  # Handle .nc files (non-zarr)
-            station_id = item.split(".")[-2].replace(".nc", "")
-            df["ID"].append(station_id)
-            df["Time_QAQC"].append("")  # Placeholder, to be resolved
-            df["QAQC"].append("N")  # Not QA/QC passed
+        # Extract the station ID from the folder name, which is usually the last part of the path
+        station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
+        df["ID"].append(station_id)
+        df["QAQC"].append("Y")  # QA/QC passed
 
-        elif item.endswith(".zarr"):
-            # Extract the station ID from the folder name, which is usually the last part of the path
-            station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
-            df["ID"].append(station_id)
-            df["Time_QAQC"].append("")  # Placeholder, to be resolved
-            df["QAQC"].append("Y")  # QA/QC passed
-
-        else:
-            continue  # Skip any other unexpected formats
+        # Retrieving "last_modified" timestamp on a .zarr requires going into group
+        time_mod = get_zarr_last_mod(item)
+        df["Time_QAQC"].append(time_mod)
 
     return pd.DataFrame(df)
 
 
-# ----------------------------------------------------------------------
 def parse_error_csv(network: str) -> pd.DataFrame:
     """
     Given a network name, return a pandas dataframe containing all errors reported for the network in the QAQC stage.
@@ -149,7 +178,6 @@ def parse_error_csv(network: str) -> pd.DataFrame:
         return errordf
 
 
-# ----------------------------------------------------------------------
 def qaqc_qa(network: str):
     """
     Update station list and save to AWS, adding qa/qc status, time of qa/qc pass and any relevant errors.
@@ -285,14 +313,13 @@ def qaqc_qa(network: str):
     )
 
 
-# ---------------------------------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     qaqc_qa("ASOSAWOS")
 
-    # List of all stations for ease of use here:
-    # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-    # MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-    # NDBC, SCAN, SNOTEL, VALLEYWATER
+# List of all stations for ease of use here:
+# ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
+# MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
+# NDBC, SCAN, SNOTEL, VALLEYWATER
 
-    # Note: OtherISD only runs as "otherisd"
-    # Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
+# Note: OtherISD only runs as "otherisd"
+# Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
