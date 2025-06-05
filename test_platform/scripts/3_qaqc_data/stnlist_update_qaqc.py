@@ -10,10 +10,11 @@ Note that because errors.csv are parsed, very old errors.csv may want to be remo
 
 Functions
 ---------
-- get_station_list:
-- get_qaqc_stations:
-- parse_error_csv: 
-- qaqc_qa: 
+- get_station_list: Retrieves specific network stationlist from clean bucket
+- get_zarr_last_mod: Identifies the last modified date from a zarr 
+- get_qaqc_stations: Retrieves list of all stations that pass QAQC
+- parse_error_csv: Retrieves all processing error files for a network
+- qaqc_qa: Processing function that updates the stationlist with QA/QC status
 
 Intended Use
 ------------
@@ -76,17 +77,18 @@ def get_zarr_last_mod(fn: str) -> str:
     """
 
     path_no_ext = fn.split(".")[0]  # Grab only path name without extension
-    path_no_bucket = path_no_ext.split(BUCKET_NAME)[-1][1:]  # Grab only part without bucket name
+    path_no_bucket = path_no_ext.split(BUCKET_NAME)[-1][
+        1:
+    ]  # Grab only part without bucket name
 
     # idenitfy last_modified date from metadata date within .zarr
     mod_list = []
-    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix = path_no_bucket):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=path_no_bucket):
         mod_list.append(str(item.last_modified))
 
     # return most recent datetime value
     last_mod = max(mod_list)
     return last_mod
-
 
 
 def get_qaqc_stations(network: str) -> pd.DataFrame:
@@ -315,7 +317,7 @@ def qaqc_qa(network: str):
 
 
 if __name__ == "__main__":
-    qaqc_qa("VCAPCD")
+    qaqc_qa("ASOSAWOS")
 
 # List of all stations for ease of use here:
 # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
