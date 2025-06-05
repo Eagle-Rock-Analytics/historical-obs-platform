@@ -1,6 +1,6 @@
 """merge_hourly_standardization.py
 
-This is a script where meteorological variables are resampled to an hourly timestep according to standard conventions.
+Resamples data to an hourly timestep according to standard conventions.
 
 """
 
@@ -34,12 +34,11 @@ def qaqc_flag_fcn(flags: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
 def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
     This function does two things:
-    1. Flags rows that were infilled by resampling in the hourly standardization process, where
-        there were time gaps in the input dataframe. These infilled rows will NOT count towards
+    1. Flags rows ('y' under 'standardized_infill') that were infilled by resampling in the hourly standardization
+        process, where there were time gaps in the input dataframe. These infilled rows will NOT count towards
         the total observations count when calculating flag rates for the success report
     2. Infills constant variables (ie those in "constant_vars") observations that were left empty because
         they were in a time gap. They are infilled with the first non-nan value of each column, and set to
@@ -79,12 +78,13 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
         df.loc[mask, col] = val
 
     # Add or update 'standardized_infill' column
+    # 'y' indicates that the data was infilled during resampling (ie was not present in the input dataframe)
+    # 'n' indicates that the data was not infilled (ie present in the input dataframe)
     df["standardized_infill"] = np.where(mask, "y", "n")
 
     return df
 
 
-# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
