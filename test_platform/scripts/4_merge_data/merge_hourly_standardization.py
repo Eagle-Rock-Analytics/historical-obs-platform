@@ -37,8 +37,8 @@ def qaqc_flag_fcn(flags: str) -> str:
 def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
     This function does two things:
-    1. Flags rows that were infilled by resampling in the hourly standardization process, where
-        there were time gaps in the input dataframe. These infilled rows will NOT count towards
+    1. Flags rows ('y' under 'standardized_infill') that were infilled by resampling in the hourly standardization
+        process, where there were time gaps in the input dataframe. These infilled rows will NOT count towards
         the total observations count when calculating flag rates for the success report
     2. Infills constant variables (ie those in "constant_vars") observations that were left empty because
         they were in a time gap. They are infilled with the first non-nan value of each column, and set to
