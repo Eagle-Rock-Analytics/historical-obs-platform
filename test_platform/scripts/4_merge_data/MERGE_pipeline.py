@@ -31,10 +31,7 @@ from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
-from merge_eraqc_counts import (
-    eraqc_counts_original_timestep,
-    eraqc_counts_hourly_timestep,
-)
+from merge_eraqc_counts import eraqc_counts_native_timestep, eraqc_counts_hourly_timestep
 
 
 def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
@@ -377,7 +374,7 @@ def run_merge_one_station(
 
         # Part 1: Construct and export table of raw QAQC counts per variable
         # For success report
-        eraqc_counts_original_timestep(df, network_name, station, logger)
+        eraqc_counts_native_timestep(df, network_name, station, logger)
 
         # Part 2: Derive any missing variables
         df, var_attrs = merge_derive_missing_vars(df, var_attrs, logger)

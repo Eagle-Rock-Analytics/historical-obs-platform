@@ -6,7 +6,7 @@ and hourly timesteps. These counts are used to produce QAQC flag statistics for 
 
 Functions
 ---------
-- eraqc_counts_original_timestep: QAQC flag counts in the original timestep
+- eraqc_counts_native_timestep: QAQC flag counts in the original timestep
 - eraqc_counts_hourly_timestep: QAQC flag counts in the hourly (post standardization) timestep
 
 Intended Use
@@ -20,7 +20,7 @@ import inspect
 
 
 # -----------------------------------------------------------------------------
-def eraqc_counts_original_timestep(
+def eraqc_counts_native_timestep(
     df: pd.DataFrame, network: str, station: str, logger: logging.Logger
 ) -> None:
     """
@@ -64,6 +64,10 @@ def eraqc_counts_original_timestep(
 
         # rename index (i.e. eraqc values) and then reset index
         flag_counts = flag_counts.rename_axis("eraqc_flag_values")
+
+        # add row with total observation count
+        total_obs_count = len(df)
+        flag_counts.loc["total_obs_count"] = [total_obs_count] * flag_counts.shape[1]
 
         # set all counts to integers, for readability
         flag_counts = flag_counts.astype(int)
