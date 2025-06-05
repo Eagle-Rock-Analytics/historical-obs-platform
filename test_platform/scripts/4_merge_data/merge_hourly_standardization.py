@@ -78,6 +78,8 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
         df.loc[mask, col] = val
 
     # Add or update 'standardized_infill' column
+    # 'y' indicates that the data was infilled during resampling (ie was not present in the input dataframe)
+    # 'n' indicates that the data was not infilled (ie present in the input dataframe)
     df["standardized_infill"] = np.where(mask, "y", "n")
 
     return df
