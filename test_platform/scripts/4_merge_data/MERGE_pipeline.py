@@ -31,7 +31,10 @@ from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
 from merge_clean_vars import merge_reorder_vars, merge_drop_vars
-from merge_eraqc_counts import eraqc_counts_native_timestep, eraqc_counts_hourly_timestep
+from merge_eraqc_counts import (
+    eraqc_counts_native_timestep,
+    eraqc_counts_hourly_timestep,
+)
 
 
 def read_station_metadata(s3_path: str, logger: logging.Logger) -> pd.DataFrame:
