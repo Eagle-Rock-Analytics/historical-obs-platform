@@ -50,15 +50,10 @@ def get_station_list(network: str) -> pd.DataFrame:
     -------
     station_list : pd.DataFrame
         station list of all stations within a network
-
-    Notes
-    -----
-    Can be updated to read directly from AWS
     """
-    network_prefix = CLEAN_WX + network + "/"
-    station_list = f"stationlist_{network}_cleaned.csv"
-    obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=network_prefix + station_list)
-    station_list = pd.read_csv(obj["Body"])
+    station_list = pd.read_csv(
+        f"s3://wecc-historical-wx/{CLEAN_WX}{network}/stationlist_{network}_cleaned.csv"
+    )
     return station_list
 
 
@@ -151,7 +146,9 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     errordf : pd.Dataframe
         dataframe of all errors produced during QAQC
     """
-    errordf = []  # List to store all non-empty error DataFrames found
+
+    # List to store all non-empty error DataFrames found
+    errordf = []
 
     # Define the path prefix in the S3 bucket for error CSVs
     errors_prefix = f"{QAQC_WX}{network}/qaqc_errs/errors"
@@ -174,9 +171,7 @@ def parse_error_csv(network: str) -> pd.DataFrame:
         errordf = errordf.drop_duplicates(subset=["File", "Error"])
 
         # Remove general network-wide errors, keeping only station-specific ones
-        errordf = errordf[
-            errordf.File != "Whole network"
-        ]  # Drop any whole network errors
+        errordf = errordf[errordf.File != "Whole network"]
         return errordf
 
 
@@ -193,116 +188,109 @@ def qaqc_qa(network: str):
     -------
     None
     """
-    if "otherisd" in network:  # Fixing capitalization issues
+    if network == "otherisd":  # Fixing capitalization issues
         network = "OtherISD"
     else:
         network = network.upper()
 
-        # Call functions
-        stations = get_station_list(network)  # grabs stationlist_cleaned
-        qaqc_ids = get_qaqc_stations(network)  # grabs stations that pass qaqc
-        errors = parse_error_csv(network)
+    # Call functions
+    stations = get_station_list(network)  # grabs stationlist_cleaned
+    qaqc_ids = get_qaqc_stations(network)  # grabs stations that pass qaqc
+    errors = parse_error_csv(network)  # grabs station error files
 
-        if qaqc_ids.empty:
-            print(
-                "No QA/QC'd files for this network. Please run the relevant qaqc script and try again."
-            )
-            exit()
-
-        # Join cleaned columns to column list
-        stations = stations.merge(
-            qaqc_ids, left_on="ERA-ID", right_on="ID", how="outer"
+    if qaqc_ids.empty:
+        print(
+            "No QA/QC'd files for this network. Please run the relevant qaqc script and try again."
         )
-        if "ID_y" in stations.columns:
-            stations["QAQC"] = np.where(
-                stations.ID_y.isna(), "N", "Y"
-            )  # Make binary qa/qc column
-            # Drop ID column
-            stations = stations.drop(["ID_x", "ID_y"], axis=1)
-        else:
-            stations["QAQC"] = np.where(
-                stations.ID.isna(), "N", "Y"
-            )  # Make binary qa/qc column
-            # Drop ID column
-            stations = stations.drop("ID", axis=1)
+        exit()
 
-        # Move Time_Cleaned to last
-        s = stations.pop("Time_QAQC")
-        stations = pd.concat([stations, s], axis=1)
+    # Join cleaned columns to column list
+    stations = stations.merge(qaqc_ids, left_on="ERA-ID", right_on="ID", how="outer")
+    if "ID_y" in stations.columns:
+        stations["QAQC"] = np.where(
+            stations.ID_y.isna(), "N", "Y"
+        )  # Make binary qa/qc column
+        # Drop ID column
+        stations = stations.drop(["ID_x", "ID_y"], axis=1)
+    else:
+        stations["QAQC"] = np.where(
+            stations.ID.isna(), "N", "Y"
+        )  # Make binary qa/qc column
+        # Drop ID column
+        stations = stations.drop("ID", axis=1)
 
-        # Add errors to column by station - only add error if error occurred at or after file clean, if file cleaned.
-        stations["Errors_QAQC"] = np.nan
+    # Move Time_Cleaned to last
+    s = stations.pop("Time_QAQC")
+    stations = pd.concat([stations, s], axis=1)
 
-        # Remove any NAs from ERA-ID
-        stations = stations.loc[stations["ERA-ID"].notnull()]
+    # Add errors to column by station - only add error if error occurred at or after file clean, if file cleaned.
+    stations["Errors_QAQC"] = np.nan
 
-        # Get list of station IDs
-        ids = [id.split("_")[-1] for id in stations["ERA-ID"].tolist()]
+    # Remove any NAs from ERA-ID
+    stations = stations.loc[stations["ERA-ID"].notnull()]
 
-        if errors.empty:  # If no errors, stop here.
-            pass
+    # Get list of station IDs
+    ids = [id.split("_")[-1] for id in stations["ERA-ID"].tolist()]
 
-        else:
-            # Add relevant ID to errors csv
-            errors["ID"] = np.nan
-            errors.reset_index(inplace=True, drop=True)
-            errors["Time"] = pd.to_datetime(
-                errors["Time"], format="%Y%m%d%H%M", utc=True
-            )
+    if errors.empty:  # If no errors, stop here.
+        pass
 
-            for index, row in errors.iterrows():
-                id = []
-                id = [x for x in ids if x in row["File"]]
-                if id:
-                    errors.loc[index, "ID"] = network + "_" + id[-1]
+    else:
+        # Add relevant ID to errors csv
+        errors["ID"] = np.nan
+        errors.reset_index(inplace=True, drop=True)
+        errors["Time"] = pd.to_datetime(errors["Time"], format="%Y%m%d%H%M", utc=True)
 
-            for index, row in stations.iterrows():  # For each station
-                error_sta = errors.loc[errors.ID == row["ERA-ID"]]
-                if error_sta.empty:  # if no errors for station
-                    continue
-                else:
-                    if not pd.isnull(row["Time_QAQC"]):  # If file cleaned
-                        error_sta = error_sta.loc[
-                            (error_sta.Time >= row["Time_QAQC"])
-                            | (error_sta.Time.isna()),
-                            :,
-                        ]  # Only keep errors from qaqc at or after time of qaqc
+        for index, row in errors.iterrows():
+            id = []
+            id = [x for x in ids if x in row["File"]]
+            if id:
+                errors.loc[index, "ID"] = network + "_" + id[-1]
 
-                    if len(error_sta) == 1:
-                        stations.loc[index, "Errors_QAQC"] = error_sta["Error"].values[
-                            0
-                        ]
-                    elif len(error_sta) > 1:
-                        values = [
-                            f"{x.File}: {x.Error}" for index, x in error_sta.iterrows()
-                        ]
-                        value = " ".join(values)
-                        stations.loc[index, "Errors_QAQC"] = value
-
-        # Print summary
-        if "Y" in stations["QAQC"].values:
-            if (
-                "N" not in stations["QAQC"].values
-            ):  # order is important here, if no "N" is present in a qa/qc'd network, it will bark without this
-                print(
-                    "Station list updated for {} stations that pass QA/QC. All stations pass: {} stations.".format(
-                        network, stations["QAQC"].value_counts()["Y"]
-                    )
-                )
+        for index, row in stations.iterrows():  # For each station
+            error_sta = errors.loc[errors.ID == row["ERA-ID"]]
+            if error_sta.empty:  # if no errors for station
+                continue
             else:
-                print(
-                    "Station list updated for {} stations that pass QA/QC. {} stations passed QA/QC, {} stations were not QA/QC.".format(
-                        network,
-                        stations["QAQC"].value_counts()["Y"],
-                        stations["QAQC"].value_counts()["N"],
-                    )
+                if not pd.isnull(row["Time_QAQC"]):  # If file cleaned
+                    error_sta = error_sta.loc[
+                        (error_sta.Time >= row["Time_QAQC"]) | (error_sta.Time.isna()),
+                        :,
+                    ]  # Only keep errors from qaqc at or after time of qaqc
+
+                if len(error_sta) == 1:
+                    stations.loc[index, "Errors_QAQC"] = error_sta["Error"].values[0]
+                elif len(error_sta) > 1:
+                    values = [
+                        f"{x.File}: {x.Error}" for index, x in error_sta.iterrows()
+                    ]
+                    value = " ".join(values)
+                    stations.loc[index, "Errors_QAQC"] = value
+
+    # Print summary
+    if "Y" in stations["QAQC"].values:
+        if (
+            "N" not in stations["QAQC"].values
+        ):  # order is important here, if no "N" is present in a qa/qc'd network, it will bark without this
+            print(
+                "Station list updated for {} stations that pass QA/QC. All stations pass: {} stations.".format(
+                    network, stations["QAQC"].value_counts()["Y"]
                 )
+            )
         else:
             print(
-                "Station list updated for {} stations. No stations successfully pass QA/QC. {} stations do not yet pass QA/QC.".format(
-                    network, stations["QAQC"].value_counts()["N"]
+                "Station list updated for {} stations that pass QA/QC. {} stations passed QA/QC, {} stations were not QA/QC.".format(
+                    network,
+                    stations["QAQC"].value_counts()["Y"],
+                    stations["QAQC"].value_counts()["N"],
                 )
             )
+    else:
+        print(
+            "Station list updated for {} stations. No stations successfully pass QA/QC. {} stations do not yet pass QA/QC.".format(
+                network, stations["QAQC"].value_counts()["N"]
+            )
+        )
 
     # Save station file to cleaned bucket
     new_buffer = StringIO()
