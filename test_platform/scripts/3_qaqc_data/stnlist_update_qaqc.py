@@ -104,7 +104,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     pd.DataFrame
         A DataFrame with three columns:
         - 'ID': Station identifier
-        - 'Time_QAQC': (currently empty; placeholder for QA/QC timestamp)
+        - 'Time_QAQC': QA/QC timestamp
         - 'QAQC': 'Y' if a .zarr file exists (passed QA/QC), 'N' otherwise
     """
     df = {"ID": [], "Time_QAQC": [], "QAQC": []}  # Initialize results dictionary
@@ -122,6 +122,12 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     for item in zarr_folders:
         # Extract the station ID from the folder name, which is usually the last part of the path
         station_id = item.split("/")[-1].split(".")[-2].replace(".zarr", "")
+
+        # Handling for concatenated stations that were renamed (only full concatenated station kept)
+        # Example: ASOSAWOS_1 + ASOSAWOS_2 concatenated to be "new" ASOSAOWS_1
+        # Example: QA/QC'd file ASOSAWOS_2 renamed to ASOSAWOS_2_c and original ASOSAWOS_2 deleted
+        if "_c" in station_id:
+            station_id = station_id.split("_c")[0]
         df["ID"].append(station_id)
         df["QAQC"].append("Y")  # QA/QC passed
 
@@ -219,7 +225,7 @@ def qaqc_qa(network: str):
         # Drop ID column
         stations = stations.drop("ID", axis=1)
 
-    # Move Time_Cleaned to last
+    # Move Time_QAQC to last
     s = stations.pop("Time_QAQC")
     stations = pd.concat([stations, s], axis=1)
 
