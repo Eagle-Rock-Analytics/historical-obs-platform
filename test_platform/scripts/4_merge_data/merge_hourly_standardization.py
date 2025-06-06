@@ -111,7 +111,7 @@ def merge_hourly_standardization(
     -----
     Regarding "accum_pr":
     A properly standardized "accum_pr" would keep the last value within each hour. This is not how the variable is standardized
-    in this function which, rather, takes the FIRST value within each hour. This choice is inconsequantial, though, since "accum_pr" 
+    in this function which, rather, takes the FIRST value within each hour. This choice is inconsequantial, though, since "accum_pr"
     is dropped in part 4 of the merge pipeline.
 
     Rules:
