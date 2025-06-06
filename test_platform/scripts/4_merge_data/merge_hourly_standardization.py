@@ -109,6 +109,11 @@ def merge_hourly_standardization(
 
     Notes
     -----
+    Regarding "accum_pr":
+    A properly standardized "accum_pr" would keep the last value within each hour. This is not how the variable is standardized
+    in this function which, rather, takes the FIRST value within each hour. This choice is inconsequantial, though, since "accum_pr" 
+    is dropped in part 4 of the merge pipeline.
+
     Rules:
     1. Top of the hour: take the first value in each hour. Standard convention for temperature, dewpoint, wind speed, direction, relative humidity, air pressure.
     2. Summation across the hour: sum observations within each hour. Standard convention for precipitation and solar radiation.
@@ -156,6 +161,7 @@ def merge_hourly_standardization(
         "hurs",
         "sfcWind",
         "sfcWind_dir",
+        "accum_pr",  # NOT handled properly here, intentionally - see note in docstring above
     ]
 
     # QAQC variable suffixes

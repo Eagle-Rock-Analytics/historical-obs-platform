@@ -129,6 +129,7 @@ def merge_drop_vars(
             "_qc",
             "duration",
             "method",
+            "accum_pr",
         ]
 
         # Select variables that contain the keywords defined above
