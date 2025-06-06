@@ -76,10 +76,9 @@ def get_zarr_last_mod(fn: str) -> str:
         last modified date from within zarr
     """
 
-    path_no_ext = fn.split(".")[0]  # Grab only path name without extension
-    path_no_bucket = path_no_ext.split(BUCKET_NAME)[-1][
-        1:
-    ]  # Grab only part without bucket name
+    # Grab only path name without extension or bucket name
+    path_no_ext = fn.split(".")[0]  
+    path_no_bucket = path_no_ext.split(BUCKET_NAME)[-1][1:]
 
     # idenitfy last_modified date from metadata date within .zarr
     mod_list = []
