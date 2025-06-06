@@ -131,6 +131,7 @@ def merge_hourly_standardization(
     # Aggregation across hour variables, standard meteorological convention: precipitation and solar radiation
     sum_vars = [
         "time",
+        "accum_pr",
         "pr",
         "pr_localmid",
         "pr_24h",
