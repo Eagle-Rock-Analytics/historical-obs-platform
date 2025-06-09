@@ -1,44 +1,91 @@
 """
+calc_pull.py
+
 This is a script where Stage 1: Pull related common functions, conversions, and operations is stored for ease of use
 for the Historical Observations Platform.
+
+Functions
+---------
+- get_wecc_poly: Identifies a bbox of WECC area to filter stations against
+- _lat_dms_to_dd: Converts latitude from decimal-minutes-seconds to decimal degrees
+- _lon_dms_to_dd: Converts longitude from decimal-minutes-seconds to decimal degrees
 """
 
-## Process to call this script: from SCRIPT import FUNCTION
-## Example: from calc_pull import get_wecc_poly
+import geopandas as gpd
+from shapely.geometry import box
 
-## Import Libraries
-import geopandas as gp
-
-
-## Useful functions
-def get_wecc_poly(terrpath, marpath):
+def get_wecc_poly(terrpath: str, marpath: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoSeries]:
     """
     Identifies a bbox of WECC area to filter stations against
-    Input vars: shapefiles for maritime and terrestrial WECC boundaries
-    Returns: spatial objects for each shapefile, and bounding box for their union.
+
+    Parameters
+    ----------
+    terrpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+    marpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+
+    Returns
+    -------
+    t : gpd.GeoDataFrame
+        spatial object of terrestrial WECC
+    m : gpd.GeoDataFrame
+        spatial object of maritime WECC
+    bbox : gpd.GeoSeries
+        spatial object bounding box
     """
-    t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)  ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds  ## Combine polygons and get bounding box of union.
+    t = gpd.read_file(terrpath) 
+    m = gpd.read_file(marpath) 
+
+    # Combine polygons and get bounding box of union
+    combined = t.geometry.unary_union.union(m.geometry.unary_union)
+    bbox = gpd.GeoSeries([box(*combined.bounds)], crs=t.crs)  
+
     return t, m, bbox
 
 
-def _lat_dms_to_dd(data):
+def _lat_dms_to_dd(data: str) -> float:
     """
     Converts latitude from decimal-minutes-seconds to decimal degrees
-    Input: latitude (DMS) example: 39.02.33
-    Returns: latitude (dd) example: 39.16
+
+    Parameters
+    ----------
+    data : str
+        input latitude
+
+    Returns
+    -------
+    data : float
+        converted latitude
+
+    Example
+    -------
+    latitude (DMS) input: 39.02.33
+    latitude (dd) output: 39.16
     """
     data = float(data[:2]) + float(data[3:5]) / 60 + float(data[6:]) / 3600
     return data
 
 
-def _lon_dms_to_dd(data):
+def _lon_dms_to_dd(data: str) -> float:
     """
     Converts longitude from decimal-minutes-seconds to decimal degrees
     and ensures that western hemisphere lons are negative by convention
-    Input: longitude(DMS) example: 122.01.38
-    Returns: longitude (dd) example: -122.02
+
+    Parameters
+    ----------
+    data : str
+        input longitude
+
+    Returns
+    -------
+    data : float
+        converted longitude
+
+    Example
+    -------
+    longitude(DMS) output: 122.01.38
+    longitude (dd) output: -122.02
     """
     # need to check if -180 to 180, or 0 to 360
     if data[0] != "-":
