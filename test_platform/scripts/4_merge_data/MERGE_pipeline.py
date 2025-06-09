@@ -328,7 +328,6 @@ def write_zarr_to_s3(
 ) -> None:
     """
     Writes the xarray Dataset to a Zarr file and uploads to S3.
-    Writes with one chunk per variable.
 
     Parameters
     ----------
