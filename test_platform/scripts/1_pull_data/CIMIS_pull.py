@@ -240,6 +240,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
     Query ftp server for CIMIS data and download csv files. Use to update data.
 
     Parameters
+    ----------
     directory : str
         folder within bucket
     start_date : str

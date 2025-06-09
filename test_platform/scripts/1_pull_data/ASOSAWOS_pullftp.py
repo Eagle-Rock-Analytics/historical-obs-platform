@@ -281,9 +281,9 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     Parameters
     ----------
     terrpath : str
-        S3 path to terrestrial WECC shapefile
+        shapefiles for maritime and terrestrial WECC boundaries
     marpath : str
-        S3 path to marine WECC file
+        shapefiles for maritime and terrestrial WECC boundaries
 
     Returns
     -------

@@ -23,27 +23,39 @@ from io import BytesIO
 # Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
-bucket_name = "wecc-historical-wx"
-
-# Set file paths
-wecc_terr = (
+BUCKET_NAME = "wecc-historical-wx"
+WECC_TERR = (
     "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 )
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-# Set parameters
-today = datetime.now(timezone.utc).date()  # Get today's day, month and year
+today = datetime.now(timezone.utc).date()
 download_window = 45  # Preliminary data lag
 download_date = today - timedelta(days=download_window)  # Set to midnight UTC time
 
 
-# Get last download date of files in AWS folder
-def get_last_date(bucket_name, folder, file_ext=None):
+def get_last_date(bucket_name: str, folder: str, file_ext: str | None = None) -> str:
+    """Get last download date of files in AWS folder.
+
+    Parameters
+    ----------
+    bucket_name : str
+        name of AWS bucket
+    folder : str / DIRECTORY
+
+    file_ext: str, optional
+        file extension to look for (e.g. .gz, only useful if not .csv or multiple file types)
+
+    Returns
+    -------
+    str
+        last modified date
+
+    """
     # Inputs:
     # bucket_name: name of AWS bucket
     # folder: file path to relevant folder
     # n: the number of files to compare the most recent download date to (determined as a percentage of no. of stations per network)
-    # file_ext: optional, file extension to look for (e.g. .gz, only useful if not .csv or multiple file types)
     files = s3.Bucket(bucket_name).objects.filter(Prefix=folder)
     if file_ext:
         files = [
@@ -60,10 +72,10 @@ def get_last_date(bucket_name, folder, file_ext=None):
         ]
 
     # Get most recent and nth most recent time
-    last_time_modified_list = [x[1] for x in files]  # Get most recent time
-    last_time_modified = max(
-        last_time_modified_list
-    )  # most recent date of data pull from stations that require an updated data
+    last_time_modified_list = [x[1] for x in files]
+    # most recent date of data pull from stations that require an updated data
+
+    last_time_modified = max(last_time_modified_list)
     return last_time_modified.date()
 
 
@@ -225,6 +237,7 @@ def update_hads(last_time_mod: str | None):
 # Massive number of files will make this update script slower than the others.
 def update_cw3e(last_time_mod=None):
     """
+    Update script for HADS.
 
     Parameters
     ----------
@@ -234,23 +247,26 @@ def update_cw3e(last_time_mod=None):
     Returns
     -------
     None
+
+    Notes
+    -----
+    Example: get_cw3e_update(DIRECTORY, station=["FRC", "WDG"], start_date="2021-01-24", end_date="2021-01-26")
     """
     network = "CW3E"
     directory = f"1_raw_wx/{network}/"
     if last_time_mod is None:
-        last_time_mod = get_last_date(bucket_name, folder=directory, file_ext="m")
+        last_time_mod = get_last_date(BUCKET_NAME, folder=directory, file_ext="m")
 
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
         get_cw3e_metadata(
             token=config.token,
-            terrpath=wecc_terr,
-            marpath=wecc_mar,
-            bucket_name=bucket_name,
+            terrpath=WECC_TERR,
+            marpath=WECC_MAR,
             directory=directory,
         )
         get_cw3e_update(
-            bucket_name,
+            BUCKET_NAME,
             directory,
             start_date=str(last_time_mod),
             end_date=str(download_date),
@@ -339,7 +355,7 @@ def update_madis(network, last_time_mod=None):
     else:  # all other MADIS networks
         if last_time_mod is None:
             last_time_mod = get_last_date(
-                bucket_name, folder=directory, n=int(n[network]), file_ext=".csv"
+                BUCKET_NAME, folder=directory, n=int(n[network]), file_ext=".csv"
             )
 
         if last_time_mod < download_date:
@@ -358,14 +374,16 @@ def update_madis(network, last_time_mod=None):
 
 
 if __name__ == "__main__":
-    last_time_mod = None  # option to custom select start date of download (format: datetime(year, month, day).date())
-    # update_SCAN(last_time_mod)
-    # update_SNOTEL(last_time_mod)
-    # update_otherisd(last_time_mod)
-    # update_asosawos(last_time_mod)
-    update_cimis(last_time_mod)
-    # update_hads(last_time_mod)
+    # option to custom select start date of download (format: datetime(year, month, day).date())
+    last_time_mod = None
+
+    update_asosawos(last_time_mod)
+    # update_cimis(last_time_mod)
     # update_cw3e(last_time_mod)
+    # update_hads(last_time_mod)
+    # update_madis(network = 'CAHYDRO', last_time_mod) # modify station name
     # update_maritime(last_time_mod)
     # update_ndbc(last_time_mod)
-    # update_madis(network = 'CAHYDRO', last_time_mod)
+    # update_otherisd(last_time_mod)
+    # update_SCAN(last_time_mod)
+    # update_SNOTEL(last_time_mod)
