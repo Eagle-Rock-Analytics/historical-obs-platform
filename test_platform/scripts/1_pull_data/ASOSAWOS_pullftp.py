@@ -11,7 +11,7 @@ Functions
 - ftp_to_aws: Writes FTP data directly to AWS S3 folder
 - get_asosawos_stations: Downloads and parses ASOS and AWOS station lists
 - get_wecc_stations: Gets up to date station list of ASOS/AWOS, ISD stations in WECC
-- get_asosawos_data_ftp: 
+- get_asosawos_data_ftp: Gets up to date station list of ASOS AWOS stations in WECC. Pulls in ISD station and ASOSAWOS stations
 
 Intended Use
 ------------ 
@@ -314,7 +314,7 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
         Filtered ISD station object for use in get_asosawos_data_ftp()
     """
 
-    ## using ftplib, get list of stations as csv
+    # using ftplib, get list of stations as csv
     filename = "isd-history.csv"
     ftp = FTP("ftp.ncdc.noaa.gov")
     ftp.login()  # user anonymous, password anonymous
@@ -325,7 +325,7 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     ftp.retrbinary("RETR " + filename, r.write)
     r.seek(0)
 
-    ## Read in csv and only filter to include US stations
+    # Read in csv and only filter to include US stations
     stations = pd.read_csv(r)
     weccstations = stations[(stations["CTRY"] == "US")]
 
@@ -350,7 +350,9 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     # Join and remove duplicates using USAF and WBAN as combined unique identifier
     weccstations = pd.concat(
         [terwecc.iloc[:, :11], marwecc.iloc[:, :11]], ignore_index=True, sort=False
-    ).drop_duplicates(["USAF", "WBAN"], keep="first")
+    )
+
+    weccstations = weccstations.drop_duplicates(subset=["USAF", "WBAN"], keep="first")
 
     # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names
     # Add leading zeros where they are missing from WBAN stations
@@ -392,8 +394,8 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     asosawos = asosawos.sort_values("STARTDATE")
     weccstations = weccstations.sort_values("BEGIN")
 
-    # Only keep ASOS-AWOS stations in WECC.
-    # Merging creates duplicates but gives the number of stations expected.
+    # Only keep ASOS-AWOS stations in WECC
+    # Merging creates duplicates but gives the number of stations expected
     # For this stage, keep the 2 sets of station metadata separate and just filter using WBAN.
     m1 = weccstations.WBAN.isin(asosawos.WBAN)
     m2 = asosawos.WBAN.isin(weccstations.WBAN)
