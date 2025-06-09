@@ -1,21 +1,27 @@
 """
-# This function iterates through all networks and checks for missing files or stations, attempting to redownload them
+stnlist_update_pull.py
+
+This function iterates through all networks and checks for missing files or stations, attempting to redownload them
 and updating the station list to reflect station availability.
 
-# For station-based file systems (SCAN/SNOTEL, MADIS networks),
-# it does the following:
-# 1) compare station lists to all files and identify any missing station files, attempting to redownload them.
-# 2) MADIS only: opens the last line of each file to locate timeout errors, and redownloads from the last timestamp if error found.
+For station-based file systems (SCAN/SNOTEL, MADIS networks), it does the following:
+1) Compare station lists to all files and identify any missing station files, attempting to redownload them.
+2) MADIS only: opens the last line of each file to locate timeout errors, and redownloads from the last timestamp if error found.
 
-# For time-based station files (e.g. ASOSAWOS/OtherISD, MARITIME/NDBC),
-# it does the following:
-# 1) Read in station lists and file names from AWS
-# 2) Compare station lists to all files, and identify any stations that are completely missing from downloaded data.
-# 3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations,
+For time-based station files (e.g. ASOSAWOS/OtherISD, MARITIME/NDBC), it does the following:
+1) Read in station lists and file names from AWS
+2) Compare station lists to all files, and identify any stations that are completely missing from downloaded data.
+3) ISD-only: using start and end dates, identify any months of missing data for redownload for all stations,
 and update station list to remove stations whose end date precedes the time period of analysis.
 
-# For time-based files (CIMIS), no method has been developed.
-# For mixed-system files (CW3E), no method has been developed.
+For time-based files (CIMIS), no method has been developed.
+For mixed-system files (CW3E), no method has been developed.
+
+Functions
+---------
+
+Intended Use
+------------
 """
 
 # Import packages

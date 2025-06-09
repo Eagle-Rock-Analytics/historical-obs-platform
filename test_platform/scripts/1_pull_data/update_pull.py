@@ -151,14 +151,26 @@ def update_asosawos(last_time_mod=None):
         print(f"{network} station files up to date.")
 
 
-# Update script: CIMIS
-# No retry download method available.
-# This may overwrite the most recent if pull is repeated more frequently than monthly.
-def update_cimis(last_time_mod=None):
+def update_cimis(last_time_mod: str | None):
+    """
+    Update script for CIMIS. No retry download method avaialble.
+    May overwrite most recent if pull is repeated more frequently than monthly.
+
+    Parameters
+    ----------
+    last_time_mod : str, optional
+        string of last modified time
+
+    Returns
+    -------
+    None
+    """
     network = "CIMIS"
     directory = f"1_raw_wx/{network}/"
+
     if last_time_mod is None:
         last_time_mod = get_last_date(bucket_name, folder=directory, file_ext=".zip")
+
     if last_time_mod < download_date:
         print(f"Downloading {network} data from {last_time_mod} to {download_date}.")
         get_cimis_update_ftp(
@@ -170,9 +182,22 @@ def update_cimis(last_time_mod=None):
     else:
         print(f"{network} station files up to date.")
 
+    return None
 
-# Update script: HADS
-def update_hads(last_time_mod=None):
+
+def update_hads(last_time_mod: str | None):
+    """
+    Update script for HADS.
+
+    Parameters
+    ----------
+    last_time_mod : str, optional
+        string of last modified time
+
+    Returns
+    -------
+    None
+    """
     network = "HADS"
     directory = f"1_raw_wx/{network}/"
     if last_time_mod is None:
@@ -190,6 +215,8 @@ def update_hads(last_time_mod=None):
     else:
         print(f"{network} station files up to date.")
 
+    return None
+
 
 # Update script: CW3E
 # Script will download multiple byte files for each station for each day selected.
@@ -197,6 +224,17 @@ def update_hads(last_time_mod=None):
 # At this point, this station gets dropped during the cleaning phase, so this should not affect anything.
 # Massive number of files will make this update script slower than the others.
 def update_cw3e(last_time_mod=None):
+    """
+
+    Parameters
+    ----------
+    last_time_mod : str, optional
+        string of last modified time
+
+    Returns
+    -------
+    None
+    """
     network = "CW3E"
     directory = f"1_raw_wx/{network}/"
     if last_time_mod is None:

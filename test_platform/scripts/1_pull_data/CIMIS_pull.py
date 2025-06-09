@@ -162,16 +162,16 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
                 if filename in alreadysaved:
                     # If file new since last run-through, write to folder
                     if modifiedTime > last_edit_time:
-                        ftp_to_aws(ftp, filename, directory, rename=None)
+                        ftp_to_aws(ftp, filename, directory)
                     else:
                         print("{} already saved".format(filename))
                 else:
                     # Else, if filename not saved already, save
-                    ftp_to_aws(ftp, filename, directory, rename=None)
+                    ftp_to_aws(ftp, filename, directory)
 
             # If get_all is true, download all files in folder
             elif get_all is True:
-                ftp_to_aws(ftp, filename, directory, rename=None)
+                ftp_to_aws(ftp, filename, directory)
 
         # Now, repeat to download present year's data (housed in the 'hourly' folder)
         pres_year = date.today().strftime("%Y")
@@ -190,7 +190,7 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
             for filename in filenames:
                 if get_all is True:
                     # We don't save hourlyallstns.zip because it'll be less compatible with the get_all = False option or future updating runs. Instead, download all files.
-                    ftp_to_aws(ftp, filename, directory, rename=None)
+                    ftp_to_aws(ftp, filename, directory)
                 else:
                     # Returns time modified (in UTC)
                     modifiedTime = ftp.sendcmd("MDTM " + filename)[4:].strip()
@@ -205,12 +205,12 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
                         if filename in alreadysaved:
                             # If file new since last run-through, write to folder
                             if modifiedTime > last_edit_time:
-                                ftp_to_aws(ftp, filename, directory, rename=None)
+                                ftp_to_aws(ftp, filename, directory)
                             else:
                                 print("{} already saved".format(filename))
                         else:
                             # Else, if filename not saved already, save.
-                            ftp_to_aws(ftp, filename, directory, rename=None)
+                            ftp_to_aws(ftp, filename, directory)
 
     except Exception as e:
         print("Error in downloading file {}: {}".format(filename, e))
@@ -286,18 +286,18 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
                 # Only keep filenames after start year
                 filenames = [
                     str for str in filenames if int(str[-8:-4]) <= int(end_date[0:4])
-                ]  
+                ]
 
             for filename in filenames:
-                ftp_to_aws(ftp, filename, directory, rename=None)
+                ftp_to_aws(ftp, filename, directory)
 
-        if (end_date is None) or (pres_year == end_date[0:4]):  
+        if (end_date is None) or (pres_year == end_date[0:4]):
             # If years includes present year or years not specified
             ftp.cwd(pwd)
             ftp.cwd("monthlyMetric/")
 
             # Get list of all file names in folder
-            filenames = ftp.nlst()  
+            filenames = ftp.nlst()
             filenames = [i for i in filenames if i.endswith(".zip")]
             # Only keep hourly data, drop daily files
             filenames = [i for i in filenames if i.startswith("hourly")]
@@ -305,23 +305,23 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
             # Filter months by start and end dates
             if start_date is not None and start_date[0:4] == pres_year:
                 if end_date is None:
-                     # Get all months from start date to present
+                    # Get all months from start date to present
                     dates = (
                         pd.date_range(
                             start_date[0:7], date.today(), freq="MS", inclusive="both"
                         )
                         .strftime("%b")
                         .tolist()
-                    ) 
+                    )
                 else:
-                     # Get all months from start to end date
+                    # Get all months from start to end date
                     dates = (
                         pd.date_range(
                             start_date[0:7], end_date[0:7], freq="MS", inclusive="both"
                         )
                         .strftime("%b")
                         .tolist()
-                    ) 
+                    )
             elif end_date is not None:
                 # Get all months from January up through end date
                 dates = (
@@ -353,7 +353,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
             ]
 
             for filename in filenames:
-                ftp_to_aws(ftp, filename, directory, rename=None)
+                ftp_to_aws(ftp, filename, directory)
 
     except Exception as e:
         print("Error in downloading file {}: {}".format(filename, e))
@@ -381,7 +381,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
 if __name__ == "__main__":
     # Run functions
     get_cimis_stations(DIRECTORY)
-    get_cimis_data_ftp(DIRECTORY, years = None, get_all=True)
+    get_cimis_data_ftp(DIRECTORY, years=None, get_all=True)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False

@@ -1,4 +1,6 @@
 """
+SCANSNOTEL_pull.py
+
 This script scrapes SNOTEL and SCAN network data for ingestion into the Historical Observations Platform via SOAP API.
 It may in the future be extended to pull other hourly data from networks available through the platform (e.g. BOR, USGS)
 Approach:
@@ -6,73 +8,63 @@ Approach:
 (3) get_SCAN_stations identifies station ids and provides metadata for SCAN stations in WECC.
 (3) get SCAN_station_data saves a csv for each station ID, with the option to select a start date for downloads
     (defaults to station start date) and networks of interest, and primary or secondary sensors.
-Inputs: API key, paths to WECC shapefiles, networks, start date (optional).
-Outputs:
-(1) Raw data for the SCAN and/or SNOTEL networks, all variables, all times. Organized by station.
-(2) An error csv noting all station IDs where downloads failed, for each network.
+
+Functions
+---------
+- get_SCAN_stations: Get SCAN/SNOTEL station list in WECC region from SOAP API and save to AWS.
+- get_scan_station_data: Download USDA station data using SOAP API
 """
 
-# Step 0: Environment set-up
-import requests
 import pandas as pd
 from datetime import datetime
 import numpy as np
-import re
 import boto3
 from io import BytesIO, StringIO
 from zeep import Client  # For calling SOAP APIs
 from zeep.helpers import serialize_object
-import calc_pull
 
-# Debug logging - for testing only.
-# import logging.config
-# logging.config.dictConfig({
-#     'version': 1,
-#     'formatters': {
-#         'verbose': {
-#             'format': '%(name)s: %(message)s'
-#         }
-#     },
-#     'handlers': {
-#         'console': {
-#             'level': 'DEBUG',
-#             'class': 'logging.StreamHandler',
-#             'formatter': 'verbose',
-#         },
-#     },
-#     'loggers': {
-#         'zeep.transports': {
-#             'level': 'DEBUG',
-#             'propagate': True,
-#             'handlers': ['console'],
-#         },
-#     }
-# })
+# import requests # if necessary
 
-## Set AWS credentials
+try:
+    from calc_pull import get_wecc_poly
+except:
+    print("Error importing get_wecc_poly")
+
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-bucket_name = "wecc-historical-wx"
+BUCKET_NAME = "wecc-historical-wx"
+WECC_TERR = (
+    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+)
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 # Connect to SCAN API
 url = "https://wcc.sc.egov.usda.gov/awdbWebService/services?WSDL"
 client = Client(url)
 
 
-# Set envr variables
-# Set paths to WECC shapefiles in AWS bucket.
-wecc_terr = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+def get_SCAN_stations(
+    terrpath: str, marpath: str, networks: list[str]
+) -> pd.DataFrame | None:
+    """
+    Get SCAN station list in WECC region from SOAP API and save to AWS.
 
+    Parameters
+    ----------
+    terrpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+    marpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+    networks : list[str]
+        name of network(s)
 
-# Function: get SCAN station list in WECC region from SOAP API and save to AWS.
-# Inputs: path to terrestrial and marine WECC shapefiles relative to home directory, AWS bucket name.
-# Outputs: station metadata dataframe (also saved to AWS).
-def get_SCAN_stations(terrpath, marpath, bucket_name, networks=None):
+    Returns
+    -------
+    station_metadata : pd.DataFrame
+        station metadata
+    """
     try:
-        t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath)
+        t, m, bbox = get_wecc_poly(terrpath, marpath)
         bbox_api = bbox.loc[0, :].tolist()  # [lonmin,latmin,lonmax,latmax]
 
         # Format bounding box for SOAP request
@@ -95,7 +87,7 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks=None):
         metadata = serialize_object(metadata)  # Reformat object
         station_metadata = pd.DataFrame(metadata)  # Convert to pandas df
 
-        # If networks is none, set default networks.
+        # If networks is none, set default networks
         if networks is None:
             networks = ["SNTL", "SCAN"]
 
@@ -103,7 +95,8 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks=None):
             subset = station_metadata[
                 station_metadata["stationTriplet"].str.contains(i)
             ]
-            if i == "SNTL":  # Fix name differences between SNOTEL/SNTL
+            # Fix name differences between SNOTEL/SNTL
+            if i == "SNTL":
                 i = "SNOTEL"
             subdir = "1_raw_wx/{}/".format(i)
 
@@ -112,7 +105,7 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks=None):
             subset.to_csv(csv_buffer, index=False)
             content = csv_buffer.getvalue()
             s3_cl.put_object(
-                Bucket=bucket_name,
+                Bucket=BUCKET_NAME,
                 Body=content,
                 Key=subdir + "stationlist_{}.csv".format(i),
             )
@@ -121,42 +114,55 @@ def get_SCAN_stations(terrpath, marpath, bucket_name, networks=None):
 
     except Exception as e:
         print("Error: {}".format(e))
+        return None
 
 
-# Function: download USDA station data using SOAP API.
-# Data is organized by station, by sensor.
-# Inputs:
-# (1-2): path to terrestrial and marine WECC shapefiles in AWS
-# (3) bucket_name: name of AWS bucket
-# (4) start_date: If none, download data starting on 1980-01-01. Otherwise, download data after start date (format "YYYY-MM-DD").
-# (5) stations: optional. if not provided get_SCAN_stations is called.
-# # # Required to have columns named "stationTriplet" and "beginDate"
-# (6) primary: if primary is False, download secondary sensor data.
-# (7) networks: specify which network to download. If blank, get all networks: ["SNTL", "SCAN", "USGS", "BOR"]
-# Outputs: CSV for each station saved to savedir, starting at start date and ending at current date.
 def get_scan_station_data(
-    terrpath,
-    marpath,
-    bucket_name,
-    start_date=None,
-    end_date=None,
-    stations=None,
-    primary=True,
-    networks=None,
-    fileext=None,
+    terrpath: str,
+    marpath: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    stations: pd.DataFrame | None = None,
+    primary: bool = False,
+    networks: list[str] | None = ["SNTL", "SCAN"],
+    fileext: str | None = None,
 ):
+    """Download USDA station data using SOAP API. Data is organized by station, by sensor.
+
+    Parameters
+    ----------
+    terrpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+    marpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
+    start_ddate : str, optional
+        If none, download data starting on 1980-01-01. Otherwise, download data after start date (format "YYYY-MM-DD")
+    end_date : str, optional
+        If none, download data through present. Otherwise, download data after start date (format "YYYY-MM-DD") through end date
+    stations : pd.DataFrame, optional
+        station metadata to download, required in format with "stationTriplet" and "beginDate"
+    primary : bool, optional
+        download primary data only, if primary is False, download secondary sensor data.
+    networks : list[str], optional
+        specify which network to download. If None, get all networks: ["SNTL", "SCAN"]
+    fileext :
+        file extension
+
+    Returns
+    -------
+    None
+    """
+
     # Set end time to be current time at beginning of download
     end_api = datetime.now().strftime("%Y%m%d%H%M")
 
-    # Set up request parameters
-
-    # Select network data if not provided
+    # Specify default networks
     if networks is None:
-        networks = ["SNTL", "SCAN"]  # Specify default networks
+        networks = ["SNTL", "SCAN"]
 
     # Get stations metadata if not provided
     if stations is None:
-        stations = get_SCAN_stations(terrpath, marpath, bucket_name, networks)
+        stations = get_SCAN_stations(terrpath, marpath, networks)
     stationTriplets = list(stations["stationTriplet"])
 
     # Get start and end dates
@@ -191,24 +197,26 @@ def get_scan_station_data(
         "WDIRV",  # Wind direction (avg)
         "WDIR",  # Wind direction
         "WSPD",  # Wind speed
-        "WSPDV",
-    ]  # Wind speed (avg)
+        "WSPDV",  # Wind speed (avg)
+    ]
 
     for i in networks:
-        # Set up error handling df.
+        # Set up error handling df
         errors = {"Station ID": [], "Time": [], "Error": []}
 
         networkTriplets = [k for k in stationTriplets if i in k]
         if i == "SNTL":
-            directory = "1_raw_wx/SNOTEL/"  # Maintain consistency across methods
+            # Maintain consistency across methods
+            directory = "1_raw_wx/SNOTEL/"
         else:
-            directory = "1_raw_wx/" + i + "/"  # Define directory path for AWS
-        print(directory)
+            # Define directory path for AWS
+            directory = "1_raw_wx/" + i + "/"
 
         for j in networkTriplets:
             try:
-                df = pd.DataFrame()  # Set up empty pd dataframe.
-                # # For each sensor:
+                # Set up empty pd dataframe
+                df = pd.DataFrame()
+
                 for sensor in sensorcodes:
                     # Instantaneous:
                     # Required parameters:
@@ -235,18 +243,17 @@ def get_scan_station_data(
                         # Note: hourly data response not yet tested (only empty dfs returned),
                         # but should be used for non snotel/scan networks.
 
-                    data = serialize_object(inst_data[0])  # Reformat object
+                    # Reformat object and convert to pandas df
+                    data = serialize_object(inst_data[0])
+                    station_data = pd.DataFrame(data["values"])
 
-                    station_data = pd.DataFrame(data["values"])  # Convert to pandas df
-                    if (
-                        station_data.empty
-                    ):  # If no data returned for sensor, skip to next sensor
-                        # print("no variable data found {}".format(sensor)) # For testing only.
+                    # If no data returned for sensor, skip to next sensor
+                    if station_data.empty:
                         continue
                     else:
-                        station_data = station_data.add_prefix(
-                            sensor + "_"
-                        )  # Add sensor code to column titles.
+                        # Add sensor code to column titles
+                        station_data = station_data.add_prefix(sensor + "_")
+
                         if df.empty:
                             df = pd.concat([df, station_data])
                             timecol = sensor + "_time"
@@ -259,17 +266,15 @@ def get_scan_station_data(
                                 how="outer",
                             )
                             timecol = sensor + "_time"
+
+                            # If any times in timecol are na, update with times from newest data
                             df["time"] = np.where(
                                 df["time"].isnull(), df[timecol], df["time"]
-                            )  # If any times in timecol are na, update with times from newest data.
+                            )
 
                 # If df empty, skip to next station
                 if df.empty:
-                    print(
-                        "No data found for station {}. Skipping to next station.".format(
-                            j
-                        )
-                    )
+                    print(f"No data found for station {j}. Skipping to next station.")
                     continue
 
                 # Make time column first in order
@@ -280,23 +285,22 @@ def get_scan_station_data(
                 df = df.sort_values(by="time")
 
                 # Write df to csv
-                # print(df)
                 csv_buffer = StringIO()
                 df.to_csv(csv_buffer, index=False)
                 content = csv_buffer.getvalue()
                 if fileext is None:
                     s3_cl.put_object(
-                        Bucket=bucket_name,
+                        Bucket=BUCKET_NAME,
                         Body=content,
                         Key=directory + "{}.csv".format(j),
                     )
                 else:
                     s3_cl.put_object(
-                        Bucket=bucket_name,
+                        Bucket=BUCKET_NAME,
                         Body=content,
                         Key=directory + "{}_{}.csv".format(j, fileext),
                     )
-                print("Saved data for station {} in network {}".format(j, i))
+                print(f"Saved data for station {j} in network {i}")
             except Exception as e:
                 print(e)
                 errors["Station ID"].append(j)
@@ -309,28 +313,25 @@ def get_scan_station_data(
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         if i == "SNTL":
-            i == "SNOTEL"  # Fix name for errors file
+            i = "SNOTEL"  # Fix name for errors file
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
             Key=directory + "errors_{}_{}.csv".format(i, end_api),
         )
 
-    return errors
+    return None
 
 
 if __name__ == "__main__":
-    get_scan_station_data(wecc_terr, wecc_mar, bucket_name, networks=["SNTL"])
+    get_scan_station_data(WECC_TERR, WECC_MAR, BUCKET_NAME, networks=["SNTL"])
 
-
-# Note: neither BOR nor USGS have hourly data for any of our variables of interest.
-# At present, they are removed from our default networks of interest. However, they're left in the code, in the event that we
-#  want to explore other networks/frequencies of data in the future.
-
-# Note: code below downloads additional metadata lists (with different station names) for SCAN/SNOTEL stations.
+# Notes
+# 1. Neither BOR nor USGS have hourly data for any of our variables of interest.
+# 2. Code below downloads additional metadata lists (with different station names) for SCAN/SNOTEL stations.
 # Refer to if names aren't matching correctly down the line.
 
-# # SCAN
+## SCAN
 # url = 'https://wcc.sc.egov.usda.gov/nwcc/yearcount?network=scan&counttype=listwithdiscontinued&state='
 # html = requests.get(url).content
 # df_list = pd.read_html(html)
@@ -341,7 +342,7 @@ if __name__ == "__main__":
 # scandf['huccode'].replace('', np.nan, inplace=True)
 # scandf.dropna(subset = ['huccode'], inplace = True) # Dropped one station.
 
-# # SNOTEL
+## SNOTEL
 # url = 'https://wcc.sc.egov.usda.gov/nwcc/yearcount?network=sntl&counttype=listwithdiscontinued&state='
 # html = requests.get(url).content
 # df_list = pd.read_html(html)

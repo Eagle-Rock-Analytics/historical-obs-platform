@@ -111,7 +111,7 @@ def _lon_dms_to_dd(data: str) -> float:
     return data
 
 
-def ftp_to_aws(ftp: FTP, file: str, directory: str, rename: str | None):
+def ftp_to_aws(ftp: FTP, file: str, directory: str, rename: str | None = None):
     """
     Writes FTP data directly to AWS S3 folder.
 
