@@ -8,7 +8,6 @@ Approach:
 
 Functions
 ---------
-- ftp_to_aws: Writes FTP data directly to AWS S3 folder
 - get_asosawos_stations: Downloads and parses ASOS and AWOS station lists
 - get_wecc_stations: Gets up to date station list of ASOS/AWOS, ISD stations in WECC
 - get_asosawos_data_ftp: Gets up to date station list of ASOS AWOS stations in WECC. Pulls in ISD station and ASOSAWOS stations
@@ -38,6 +37,11 @@ from io import BytesIO, StringIO
 import calc_pull
 import requests
 import numpy as np
+
+try:
+    from calc_pull import ftp_to_aws
+except:
+    print("Error importing ftp_to_aws")
 
 s3 = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"
@@ -101,33 +105,6 @@ states = [
     "WV",
     "WY",
 ]
-
-
-def ftp_to_aws(ftp: FTP, file: str, directory: str):
-    """
-    Writes FTP data directly to AWS S3 folder.
-
-    Parameters
-    ----------
-    ftp : ftplib.FTP
-        The current FTP connection.
-    file : str
-        The filename to be downloaded.
-    directory : str
-        The desired path (set of folders) in AWS
-
-    Returns
-    -------
-    None
-    """
-    r = BytesIO()
-    ftp.retrbinary("RETR " + file, r.write)
-    r.seek(0)
-    s3.upload_fileobj(r, BUCKET_NAME, directory + file)
-    print("{} saved".format(file))
-    r.close()  # Close file
-
-    return None
 
 
 def get_asosawos_stations() -> pd.DataFrame:

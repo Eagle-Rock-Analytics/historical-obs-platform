@@ -10,7 +10,7 @@ Functions
 ---------
 - get_cimis_stations: Get up to date station list of CIMIS stations and downloads to AWS S3 the Stations List file from the FTP server
 - get_cimis_data_ftp: Query FTP server for CIMIS data and download raw csv files, use for the full retrieval
-- get_cimis_update_ftp:
+- get_cimis_update_ftp: Query ftp server for CIMIS data and download csv files. Use to update data.
 
 Notes
 -----
@@ -243,9 +243,9 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
     directory : str
         folder within bucket
     start_date : str
-        start date to search, optional
+        start year to search, optional
     end_date : str
-        end date to search, optional
+        end year to search, optional
 
     Returns
     -------
@@ -283,42 +283,45 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
                 ]
 
             if end_date is not None:
+                # Only keep filenames after start year
                 filenames = [
                     str for str in filenames if int(str[-8:-4]) <= int(end_date[0:4])
-                ]  # Only keep filenames after start year
+                ]  
 
             for filename in filenames:
-                ftp_to_aws(ftp, filename, directory)
+                ftp_to_aws(ftp, filename, directory, rename=None)
 
-        if (end_date is None) or (
-            pres_year == end_date[0:4]
-        ):  # If years includes present year or years not specified.
+        if (end_date is None) or (pres_year == end_date[0:4]):  
+            # If years includes present year or years not specified
             ftp.cwd(pwd)
             ftp.cwd("monthlyMetric/")
 
-            filenames = ftp.nlst()  # Get list of all file names in folder.
+            # Get list of all file names in folder
+            filenames = ftp.nlst()  
             filenames = [i for i in filenames if i.endswith(".zip")]
             # Only keep hourly data, drop daily files
             filenames = [i for i in filenames if i.startswith("hourly")]
 
-            # Filter months by start and end dates:
+            # Filter months by start and end dates
             if start_date is not None and start_date[0:4] == pres_year:
                 if end_date is None:
+                     # Get all months from start date to present
                     dates = (
                         pd.date_range(
                             start_date[0:7], date.today(), freq="MS", inclusive="both"
                         )
                         .strftime("%b")
                         .tolist()
-                    )  # Get all months from start date to present
+                    ) 
                 else:
+                     # Get all months from start to end date
                     dates = (
                         pd.date_range(
                             start_date[0:7], end_date[0:7], freq="MS", inclusive="both"
                         )
                         .strftime("%b")
                         .tolist()
-                    )  # Get all months from start to end date
+                    ) 
             elif end_date is not None:
                 # Get all months from January up through end date
                 dates = (
@@ -378,7 +381,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
 if __name__ == "__main__":
     # Run functions
     get_cimis_stations(DIRECTORY)
-    get_cimis_data_ftp(BUCKET_NAME, DIRECTORY, get_all=True)
+    get_cimis_data_ftp(DIRECTORY, years = None, get_all=True)
 
 # Note, for first full data pull, set get_all = True
 # For all subsequent data pulls/update with newer data, set get_all = False

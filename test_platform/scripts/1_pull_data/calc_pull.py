@@ -13,6 +13,12 @@ Functions
 
 import geopandas as gpd
 from shapely.geometry import box
+import boto3
+from io import BytesIO, StringIO
+from ftplib import FTP
+
+s3 = boto3.client("s3")
+BUCKET_NAME = "wecc-historical-wx"
 
 
 def get_wecc_poly(
@@ -103,3 +109,32 @@ def _lon_dms_to_dd(data: str) -> float:
         _sec = float(data[7:])
         data = -1 * (_deg + _min / 60 + _sec / 3600)
     return data
+
+
+def ftp_to_aws(ftp: FTP, file: str, directory: str, rename: str | None):
+    """
+    Writes FTP data directly to AWS S3 folder.
+
+    Parameters
+    ----------
+    ftp : ftplib.FTP
+        The current FTP connection.
+    file : str
+        The filename to be downloaded.
+    directory : str
+        The desired path (set of folders) in AWS
+    rename : str
+        Path to rename file to, default None
+
+    Returns
+    -------
+    None
+    """
+    r = BytesIO()
+    ftp.retrbinary("RETR " + file, r.write)
+    r.seek(0)
+    s3.upload_fileobj(r, BUCKET_NAME, directory + file)
+    print("{} saved".format(file))
+    r.close()  # Close file
+
+    return None
