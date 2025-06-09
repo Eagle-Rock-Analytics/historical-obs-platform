@@ -14,7 +14,10 @@ Functions
 import geopandas as gpd
 from shapely.geometry import box
 
-def get_wecc_poly(terrpath: str, marpath: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoSeries]:
+
+def get_wecc_poly(
+    terrpath: str, marpath: str
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoSeries]:
     """
     Identifies a bbox of WECC area to filter stations against
 
@@ -34,12 +37,12 @@ def get_wecc_poly(terrpath: str, marpath: str) -> tuple[gpd.GeoDataFrame, gpd.Ge
     bbox : gpd.GeoSeries
         spatial object bounding box
     """
-    t = gpd.read_file(terrpath) 
-    m = gpd.read_file(marpath) 
+    t = gpd.read_file(terrpath)
+    m = gpd.read_file(marpath)
 
     # Combine polygons and get bounding box of union
     combined = t.geometry.unary_union.union(m.geometry.unary_union)
-    bbox = gpd.GeoSeries([box(*combined.bounds)], crs=t.crs)  
+    bbox = gpd.GeoSeries([box(*combined.bounds)], crs=t.crs)
 
     return t, m, bbox
 
