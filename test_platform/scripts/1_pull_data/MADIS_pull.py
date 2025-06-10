@@ -43,7 +43,7 @@ raw_path = "1_raw_wx/"
 
 # Function calls Synoptic API to get network metadata and save to AWS.
 # Takes Synoptic API token as input.
-def get_network_metadata(token):
+def get_network_metadata(token: str) -> pd.DataFrame:
     # Produce table of station metadata from Synoptic API
     r = requests.get(
         "https://api.synopticdata.com/v2/networks?token={}".format(token)
