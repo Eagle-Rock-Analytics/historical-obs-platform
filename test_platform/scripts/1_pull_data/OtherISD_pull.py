@@ -1,13 +1,22 @@
 """
+OtherISD_pull.py
+
 This script downloads all non-ASOS/AWOS data from ISD using ftp.
 Approach:
 (1) Download ISD station list and get ASOSAWOS station list from AWS.
 (2) Download data using station list.
-Inputs: bucket name in AWS, directory to save file to (folder path), station list, start date of file pull (optional),
-parameter to only download changed files (optional)
-Outputs: Raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
 
-Notes:
+Functions
+---------
+- get_wecc_stations: Retrieves to get up to date station list of ISD stations in WECC, and remove all asos-awos stations
+- get_otherisd_data_ftp: Query ftp server for non-ASOS/AWOS ISD data and download zipped files.
+
+Intended Use
+-------------
+Retrieves raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
+
+Notes
+-----
 1. The file for each station-year is updated daily for the current year. 
 To pull real-time data, we may want to write just an API call with date ranges and stations and update the most recent year folder only. 
 This is a separate function/branch.
@@ -15,8 +24,6 @@ This is a separate function/branch.
 See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
 
-## Step 0: Environment set-up
-# Import libraries
 from ftplib import FTP
 from datetime import datetime, timezone
 import pandas as pd
@@ -26,98 +33,84 @@ import geopandas as gp
 from geopandas.tools import sjoin
 import boto3  # For AWS integration.
 from io import BytesIO, StringIO
-import calc_pull
 
-# Set envr variables
+try:
+    from calc_pull import get_wecc_poly, ftp_to_aws
+except:
+    print("Error importing calc_pull")
 
-# Set AWS credentials
 s3 = boto3.client("s3")
-bucket_name = "wecc-historical-wx"
-directory = "1_raw_wx/OtherISD/"
-
-# Set paths to WECC shapefiles in AWS bucket.
-wecc_terr = (
+BUCKET_NAME = "wecc-historical-wx"
+DIRECTORY = "1_raw_wx/OtherISD/"
+WECC_TERR = (
     "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
 )
-wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 
-# Function to write FTP data directly to AWS S3 folder.
-# Inputs: ftp is the current ftp connection,
-# file is the filename,
-# directory is the desired path (set of folders) in AWS
-def ftp_to_aws(ftp, file, directory):
-    r = BytesIO()
-    ftp.retrbinary("RETR " + file, r.write)
-    r.seek(0)
-    s3.upload_fileobj(r, bucket_name, directory + file)
-    print("{} saved".format(file))
-    r.close()  # Close file
+def get_wecc_stations(terrpath: str, marpath: str, directory: str) -> pd.DataFrame:
+    """
+    Retrieves to get up to date station list of ISD stations in WECC, and remove all asos-awos stations
 
+    Parameters
+    ----------
+    terrpath : str
 
-# Function to get up to date station list of ISD stations in WECC, and remove all asos-awos stations.
-# Pulls in ISD station list and ASOSAWOS station list (two separate csvs).
-# Inputs: path to terrestrial WECC shapefile, path to marine WECC file, aws bucket name and directory.
-# Both paths given relative to home directory for git project.
-def get_wecc_stations(
-    terrpath, marpath, bucket_name, directory
-):  # Could alter script to have shapefile as input also, if there's a use for this.
-    ## Login.
-    ## using ftplib, get list of stations as csv
+    marpath : str
+    directory : str
+        AWS path name
+
+    Returns
+    -------
+    weccstations : pd.DataFrame
+        stations within WECC
+    """
+
+    # Login using ftplib, get list of stations as csv
     filename = "isd-history.csv"
     ftp = FTP("ftp.ncdc.noaa.gov")
     ftp.login()  # user anonymous, password anonymous
-    ftp.cwd("pub/data/noaa/")  # Change WD.
+    ftp.cwd("pub/data/noaa/")
 
-    ## Read in csv and only filter to include US stations.
-
-    # Read in ISD stations.
+    # Read in ISD stations
     r = BytesIO()
     ftp.retrbinary("RETR " + filename, r.write)
     r.seek(0)
 
-    ## Read in csv and only filter to include US stations.
+    # Read in csv and only filter to include US stations
     stations = pd.read_csv(r)
     weccstations = stations[(stations["CTRY"] == "US")]
 
-    # Use spatial geometry to only keep points in wecc marine / terrestrial areas.
-    geometry = [
-        Point(xy) for xy in zip(weccstations["LON"], weccstations["LAT"])
-    ]  # Zip lat lon coords.
-    weccgeo = gp.GeoDataFrame(
-        weccstations, crs="EPSG:4326", geometry=geometry
-    )  # Convert to geodataframe.
+    # Use spatial geometry to only keep points in wecc marine / terrestrial areas
+    geometry = [Point(xy) for xy in zip(weccstations["LON"], weccstations["LAT"])]
+    weccgeo = gp.GeoDataFrame(weccstations, crs="EPSG:4326", geometry=geometry)
+    # get bbox of WECC to use to filter stations against
+    t, m, bbox = get_wecc_poly(terrpath, marpath)
 
-    ## get bbox of WECC to use to filter stations against
-    t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath)  # Call get_wecc_poly.
+    # Get terrestrial stations
+    weccgeo = weccgeo.to_crs(t.crs)
+    # Only keep stations in terrestrial WECC region
+    terwecc = sjoin(weccgeo.dropna(), t, how="left")
+    terwecc = terwecc.dropna()
 
-    # Get terrestrial stations.
-    weccgeo = weccgeo.to_crs(t.crs)  # Convert to CRS of terrestrial stations.
-    terwecc = sjoin(
-        weccgeo.dropna(), t, how="left"
-    )  # Only keep stations in terrestrial WECC region.
-    terwecc = terwecc.dropna()  # Drop empty rows.
+    # Get marine stations
+    marwecc = sjoin(weccgeo.dropna(), m, how="left")
+    marwecc = marwecc.dropna()
 
-    # Get marine stations.
-    marwecc = sjoin(
-        weccgeo.dropna(), m, how="left"
-    )  # Only keep stations in marine WECC region.
-    marwecc = marwecc.dropna()  # Drop empty rows.
-
-    # Join and remove duplicates using USAF and WBAN as combined unique identifier.
+    # Join and remove duplicates using USAF and WBAN as combined unique identifier
     weccstations = pd.concat(
         [terwecc.iloc[:, :11], marwecc.iloc[:, :11]], ignore_index=True, sort=False
     ).drop_duplicates(["USAF", "WBAN"], keep="first")
 
-    # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names.
-    # Add leading zeros where they are missing from WBAN stations.
+    # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names
+    # Add leading zeros where they are missing from WBAN stations
     weccstations["ISD-ID"] = (
         weccstations["USAF"]
         + "-"
         + weccstations["WBAN"].astype("str").str.pad(5, side="left", fillchar="0")
     )
 
-    # Reformat time strings for FTP/API call.
+    # Reformat time strings for FTP/API call
     weccstations["start_time"] = [
         datetime.strptime(str(i), "%Y%m%d").strftime("%Y-%m-%d")
         for i in weccstations["BEGIN"]
@@ -127,154 +120,161 @@ def get_wecc_stations(
         for i in weccstations["END"]
     ]
 
-    # Now, read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations.
-    # Note, this relies on having run the ASOSAWOS pull script prior.
+    # Read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations
+    # Note, this relies on having run the ASOSAWOS pull script prior
     response = s3.get_object(
-        Bucket=bucket_name, Key="1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
+        Bucket=BUCKET_NAME, Key="1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
     )
     asosawos = pd.read_csv(response["Body"])
 
-    m1 = weccstations.WBAN.isin(asosawos.WBAN)  # Create mask
-    weccstations = weccstations[~m1]  # Filter
-
+    # create mask and filter
+    m1 = weccstations.WBAN.isin(asosawos.WBAN)
+    weccstations = weccstations[~m1]
     weccstations.reset_index(inplace=True, drop=True)
 
-    # Write non-ASOS AWOS station list to CSV.
+    # Write non-ASOS AWOS station list to CSV
     csv_buffer = StringIO()
     weccstations.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
     s3.put_object(
-        Bucket=bucket_name, Body=content, Key=directory + "stationlist_OtherISD.csv"
+        Bucket=BUCKET_NAME, Body=content, Key=directory + "stationlist_OtherISD.csv"
     )
 
     return weccstations
 
 
-# Function: query ftp server for non-ASOS/AWOS ISD data and download zipped files.
-# Run this one time to get all historical data or to update changed files for all years.
-# Inputs:
-# Station_list: Returned from get_wecc_stations() function.
-# bucket_name: name of AWS bucket
-# directory: folder path within bucket
-# Start date: format 'YYYY-MM-DD" (optional)
-# get_all: True or False. If False, only download files whose last edit date is newer than
-#  the most recent files downloaded in the save folder. Only use to update a complete set of files.
 def get_otherisd_data_ftp(
-    station_list, bucket_name, directory, start_date=None, get_all=True
+    station_list: pd.DataFrame,
+    directory: str,
+    start_date: str | None = None,
+    get_all: bool = True,
 ):
+    """
+    Query ftp server for non-ASOS/AWOS ISD data and download zipped files.
+    Parameters
+    ----------
+    station_list : pd.DataFrame
+        stations to retrieve
+    directory : str
+        AWS folder to save to
+    start_date : str, optional
+        subset date start, format "YYYY-MM-DD"
+    get_all : bool, optional
+        If False, only download files whose last edit date is newer than
+        the most recent files downloaded in the save folder. Only use to update a complete set of files.
+
+    Returns
+    -------
+    None
+    """
     # Set up error handling
     errors = {"Date": [], "Time": [], "Error": []}
-    end_api = datetime.now().strftime(
-        "%Y%m%d%H%M"
-    )  # Set end time to be current time at beginning of download
+    # Set end time to be current time at beginning of download
+    end_api = datetime.now().strftime("%Y%m%d%H%M")
 
-    ## Login.
-    ## using ftplib
+    # Login using ftplib
     ftp = FTP("ftp.ncdc.noaa.gov")
     ftp.login()  # user anonymous, password anonymous
-    ftp.cwd("pub/data/noaa")  # Change WD.
-    pwd = ftp.pwd()  # Get base file path.
+    ftp.cwd("pub/data/noaa")
+    pwd = ftp.pwd()
 
-    # Get list of folders (by year) in main FTP folder.
+    # Get list of folders (by year) in main FTP folder
     years = ftp.nlst()
 
-    # Set up AWS to write to bucket.
-    s3 = boto3.client("s3")
-
-    # If no start date specified, manually set to be Jan 01 1980.
+    # If no start date specified, manually set to be Jan 01 1980
     if start_date is None:
         start_date = "1980-01-01"
 
-    # Remove depracated stations if filtering by time.
+    # Remove depracated stations if filtering by time
     if start_date is not None:
         try:
-            station_list = station_list[
-                station_list["end_time"] >= start_date
-            ]  # Filter to ensure station is not depracated before time period of interest.
+            # Filter to ensure station is not depracated before time period of interest
+            station_list = station_list[station_list["end_time"] >= start_date]
         except Exception as e:
-            print(
-                "Error:", e
-            )  # If error occurs here, function will continue without time filtering. Can add "break" to change this to stop code.
-            years = [
-                i for i in years if (len(i) < 5 and int(i) > 1979)
-            ]  # function will use years to filter station files.
+            print(f"Error:", {e})
+            # function will use years to filter station files
+            years = [i for i in years if (len(i) < 5 and int(i) > 1979)]
 
     try:
         objects = s3.list_objects(Bucket=bucket_name, Prefix=directory)
         all = objects["Contents"]
+
         # Get date of last edited file
         latest = max(all, key=lambda x: x["LastModified"])
         last_edit_time = latest["LastModified"]
+
         # Get list of all file names
         alreadysaved = []
         for item in all:
             files = item["Key"]
             alreadysaved.append(files)
         alreadysaved = [ele.replace(directory, "") for ele in alreadysaved]
-    except:
-        get_all = True  # If folder empty or there's an error with the "last downloaded" metadata, redownload all data.
 
-    for i in years:  # For each year / folder.
-        if len(i) < 5:  # If folder is the name of a year (and not metadata file)
+    except:
+        # If folder empty or there's an error with the "last downloaded" metadata, redownload all data
+        get_all = True
+
+    for i in years:
+        # If folder is the name of a year (and not metadata file)
+        if len(i) < 5:
             if (
                 start_date is not None and int(i) >= int(start_date[0:4])
             ) or start_date is None:
-                # If no start date specified or year of folder is within start date range, download folder.
+                # If no start date specified or year of folder is within start date range, download folder
                 try:
-                    ftp.cwd(pwd)  # Return to original working directory
-                    ftp.cwd(i)  # Change working directory to year.
-                    filenames = ftp.nlst()  # Get list of all file names in folder.
-                    filefiltlist = (
-                        station_list["ISD-ID"] + "-" + i + ".gz"
-                    )  # Reformat station IDs to match file names.
-                    filefiltlist = filefiltlist.tolist()  # Convert to list.
-                    fileswecc = [
-                        x for x in filenames if x in filefiltlist
-                    ]  # Only pull all file names that are contained in station_list ID column.
+                    ftp.cwd(pwd)
+                    ftp.cwd(i)
+                    # Get list of all file names in folder
+                    filenames = ftp.nlst()
+                    # Reformat station IDs to match file names
+                    filefiltlist = station_list["ISD-ID"] + "-" + i + ".gz"
+                    filefiltlist = filefiltlist.tolist()
+
+                    # Only pull all file names that are contained in station_list ID column
+                    fileswecc = [x for x in filenames if x in filefiltlist]
+
                     for filename in fileswecc:
-                        modifiedTime = ftp.sendcmd("MDTM " + filename)[
-                            4:
-                        ].strip()  # Returns time modified (in UTC)
+                        # Returns time modified (in UTC)
+                        modifiedTime = ftp.sendcmd("MDTM " + filename)[4:].strip()
+                        # Convert to datetime
                         modifiedTime = datetime.strptime(
                             modifiedTime, "%Y%m%d%H%M%S"
-                        ).replace(
-                            tzinfo=timezone.utc
-                        )  # Convert to datetime.
+                        ).replace(tzinfo=timezone.utc)
 
-                        ### If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder.
+                        # If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder
                         if get_all is False:
-                            if (
-                                filename in alreadysaved
-                            ):  # If filename already in saved bucket
-                                if (
-                                    modifiedTime > last_edit_time
-                                ):  # If file new since last run-through, write to folder.
+                            if filename in alreadysaved:
+                                # If filename already in saved bucket
+                                if modifiedTime > last_edit_time:
+                                    # If file new since last run-through, write to folder
                                     ftp_to_aws(ftp, filename, directory)
                                 else:
-                                    print("{} already saved".format(filename))
+                                    print(f"{filename} already saved")
                             else:
-                                ftp_to_aws(
-                                    ftp, filename, directory
-                                )  # Else, if filename not saved already, save.
+                                # Else, if filename not saved already, save
+                                ftp_to_aws(ftp, filename, directory)
 
-                        elif (
-                            get_all is True
-                        ):  # If get_all is true, download all files in folder.
+                        elif get_all is True:
+                            # If get_all is true, download all files in folder
                             ftp_to_aws(ftp, filename, directory)
+
                 except Exception as e:
-                    print("Error in downloading date {}: {}".format(i, e))
+                    print(f"Error in downloading date {i}: {e}")
                     errors["Date"].append(i)
                     errors["Time"].append(end_api)
                     errors["Error"].append(e)
+                    continue
 
-                    next  # Adds error handling in case of missing folder. Skip to next folder.
-            else:  # If year of folder not in start date range, skip folder.
-                next
+            else:
+                # If year of folder not in start date range, skip folder
+                continue
 
         else:
-            next  # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired.
+            # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired
+            continue
 
-    ftp.quit()  # This is the “polite” way to close a connection
+    # close connection
+    ftp.quit()
 
     # Write errors to csv
     csv_buffer = StringIO()
@@ -282,15 +282,15 @@ def get_otherisd_data_ftp(
     errors.to_csv(csv_buffer)
     content = csv_buffer.getvalue()
     s3.put_object(
-        Bucket=bucket_name,
+        Bucket=BUCKET_NAME,
         Body=content,
-        Key=directory + "errors_otherisd_{}.csv".format(end_api),
+        Key=directory + f"errors_otherisd_{end_api}.csv",
     )
+
+    return None
 
 
 if __name__ == "__main__":
     # Run functions
-    stations = get_wecc_stations(wecc_terr, wecc_mar, bucket_name, directory)
-    get_otherisd_data_ftp(
-        stations, bucket_name, directory, start_date=None, get_all=True
-    )
+    stations = get_wecc_stations(WECC_TERR, WECC_MAR, DIRECTORY)
+    get_otherisd_data_ftp(stations, DIRECTORY, start_date=None, get_all=True)
