@@ -26,9 +26,9 @@ try:
 except:
     print("Error importing calc_pull")
 
-try : 
+try:
     from MADIS_pull import get_network_metadata
-except: 
+except:
     print("Error importing get_network_metadata")
 
 try:
@@ -86,7 +86,7 @@ def madis_network_name_to_id(token: str, networks: list[str]):
     """
 
     # Get list of networks and IDs
-    networks = get_network_metadata(token)  
+    networks = get_network_metadata(token)
     shortnames = [
         name for name in networks["SHORTNAME"] if any(x in name for x in madis_networks)
     ]
@@ -97,7 +97,7 @@ def madis_network_name_to_id(token: str, networks: list[str]):
     networks["SHORTNAME"] = networks["SHORTNAME"].replace(
         to_replace="APRSWXNET/CWOP", value="CWOP"
     )
-    
+
     # space issue between "CA HYDRO"
     networks["SHORTNAME"] = networks["SHORTNAME"].replace(
         to_replace="CA HYDRO", value="CAHYDRO"
@@ -109,8 +109,8 @@ def madis_network_name_to_id(token: str, networks: list[str]):
 def get_madis_sensor_metadata(
     token: str, terrpath: str, marpath: str, networks: dict, directory: str
 ):
-    """Retrieves sensor metadata for each network. 
-    
+    """Retrieves sensor metadata for each network.
+
     Parameters
     ----------
     token : str
@@ -123,7 +123,7 @@ def get_madis_sensor_metadata(
         network names to retrieve metadata for
     directory : str
         AWS path to directory
-    
+
     Returns
     -------
     None
@@ -148,19 +148,19 @@ def get_madis_sensor_metadata(
             station_list = pd.concat(
                 [station_list, station_list["PERIOD_OF_RECORD"].apply(pd.Series)],
                 axis=1,
-            ) 
+            )
 
             # Split Period of Record column
             station_list = pd.concat(
                 [station_list, station_list["UNITS"].apply(pd.Series)], axis=1
-            )  
+            )
             station_list = pd.concat(
                 [
                     station_list,
                     station_list["SENSOR_VARIABLES"].apply(pd.Series, dtype="string"),
                 ],
                 axis=1,
-            ) 
+            )
             station_list = station_list.drop("PERIOD_OF_RECORD", axis=1)
             station_list = station_list.drop("UNITS", axis=1)
             station_list = station_list.drop("SENSOR_VARIABLES", axis=1)
@@ -192,7 +192,7 @@ def get_madis_sensor_metadata(
                     for col in station_list.columns[end_ind + 1 :]
                     if col not in coltokeep
                 ]
-            ) 
+            )
 
             # Each sensor has a column of dictionaries. For each sensor, collapse column
             cols_in_df = [i for i in coltokeep if i in station_list.columns]
