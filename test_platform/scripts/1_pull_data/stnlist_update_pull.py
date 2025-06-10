@@ -19,12 +19,21 @@ For mixed-system files (CW3E), no method has been developed.
 
 Functions
 ---------
+- madis_retry_downloads: Check for missing files or stations in MADIS networks and attempts to redownload them. 
+- before: 
+- get_timeouts: Given a list of files, generate URL, read last lines and add to timeout list for re-download if error found.
+- get_madis_station_timeouts:
+- isd_retry_downloads:
+- ids_get_missing_files:
+- update_station_list
+- maritime_retry_downloads:
+- download_comparison: Comparison of which stations downloaded, updating the station_list csv with y/n to download column.
+- retry_downloads:
 
 Intended Use
 ------------
 """
 
-# Import packages
 from MADIS_pull import get_madis_station_csv
 from SCANSNOTEL_pull import get_scan_station_data
 from ASOSAWOS_pullftp import get_asosawos_data_ftp, ftp_to_aws
@@ -40,69 +49,103 @@ from ftplib import FTP
 from io import StringIO
 import numpy as np
 
-# Set environment variables
-bucket_name = "wecc-historical-wx"
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
+BUCKET_NAME  = "wecc-historical-wx"
+WECC_TERR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
-## Define sub-functions
-# For MADIS networks
-def madis_retry_downloads(token, bucket_name, network):
+# Define lists of networks, according to type
+MADIS = [
+    "CAHYDRO",
+    "CDEC",
+    "CNRFC",
+    "CRN",
+    "CWOP",
+    "HADS",
+    "HNXWFO",
+    "HOLFUY",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "MTRWFO",
+    "NCAWOS",
+    "NOS-NWLON",
+    "NOS-PORTS",
+    "RAWS",
+    "SGXWFO",
+    "SHASAVAL",
+    "VCAPCD",
+]
+SNTL = ["SNOTEL", "SCAN"]
+ISD = ["ASOSAWOS", "OtherISD"]
+MARITIME = ["MARITIME", "NDBC"]
+
+
+def madis_retry_downloads(token: str, network: str):
+    """
+    Check for missing files or stations in MADIS networks and attempts to redownload them. 
+    
+    Parameters
+    ----------
+    token : str
+        Synoptic API token (private)
+    network : str
+        name of network
+
+    Returns
+    -------
+    None
+    """
+
     # Get list of files in folder
     prefix = "1_raw_wx/" + network
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=prefix):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=prefix):
         file = str(item.key)
         files += [file]
-    files = list(filter(lambda f: f.endswith(".csv"), files))  # Get list of file names
+    files = list(filter(lambda f: f.endswith(".csv"), files))
 
-    station_file = [
-        file for file in files if "stationlist" in file
-    ]  # ID standard station file
+    # ID standard station file
+    station_file = [file for file in files if "stationlist" in file]  
     station_file = str(station_file[0])
     files = [file for file in files if "errors" not in file]
-    files = [
-        file for file in files if "station" not in file
-    ]  # Remove error and station list files
+    # Remove error and station list files
+    files = [file for file in files if "station" not in file]
 
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
     stations = [file.replace(".csv", "") for file in stations]
 
     # Read in station list
-    station_list = s3_cl.get_object(Bucket=bucket_name, Key=station_file)
+    station_list = s3_cl.get_object(Bucket=BUCKET_NAME, Key=station_file)
     station_list = pd.read_csv(station_list["Body"])
 
     # Get list of IDs not in download folder
     missed_stations = [id for id in station_list["STID"] if id not in stations]
-    missed_ids = station_list[
-        ["STID", "start"]
-    ]  # Format list in way that MADIS_pull script wants it.
+    # Format list in way that MADIS_pull script wants it
+    missed_ids = station_list[["STID", "start"]]  
     missed_ids = missed_ids[missed_ids.STID.isin(missed_stations)]
 
     # Check for duplicate stations in station list
     dup_stations = station_list.loc[station_list.duplicated(subset="STID", keep=False)]
     dup_stations = dup_stations[["STID", "start"]]
-    dup_todownload = dup_stations.sort_values(
-        by="start", ascending=True
-    ).drop_duplicates(  # Keep first start date.
-        keep="first", subset=["STID"]
-    )
+    # Keep first start date
+    dup_todownload = dup_stations.sort_values(by="start", ascending=True).drop_duplicates(keep="first", subset=["STID"])
 
-    # If any stations duplicated, take the earlier start data and add to the redownload queue.
+    # If any stations duplicated, take the earlier start data and add to the redownload queue
     download_ids = pd.merge(missed_ids, dup_todownload, how="outer")
-    download_ids = download_ids.sort_values(by="start", ascending=True).drop_duplicates(
-        keep="first", subset=["STID"]
-    )  # If download_ids has duplicate STIDs, take first record.
+    # If download_ids has duplicate STIDs, take first record
+    download_ids = download_ids.sort_values(by="start", ascending=True).drop_duplicates( keep="first", subset=["STID"])  
 
-    # Reorganize start date to meet API specs.
+    # Reorganize start date to meet API specs
     download_ids["start"] = pd.to_datetime(
         download_ids["start"], format="%Y-%m-%dT%H:%M:%SZ"
     )
     download_ids["start"] = download_ids["start"].dt.strftime("%Y%m%d%H%M")
 
-    # Print list of stations to download.
+    # Print list of stations to download
     if download_ids.empty is False:
         print("Downloading IDs:")
         print(download_ids)
@@ -110,7 +153,6 @@ def madis_retry_downloads(token, bucket_name, network):
         # This could be changed down the road as these dates diverge.
         errors = get_madis_station_csv(
             token=token,
-            bucket_name=bucket_name,
             directory=prefix + "/",
             ids=download_ids,
             timeout=False,
@@ -120,19 +162,31 @@ def madis_retry_downloads(token, bucket_name, network):
         print(errors)
     else:
         print("No missing station files. Checking for timeout errors.")
-
-
-# Quality control: if any files return end of file errors, split request into smaller requests and re-run.
+    
+    return None
 
 
 # Function: given a file object (e.g. from f.open, smart-open's open function)
 # read byte by byte backwards to return the previous line from the current cursor position.
 # Adapted so that this only takes data in the form of bytes.
 # Inputs: self, a file object generated by an .open() function.
-# Function adapted from: https://stackoverflow.com/questions/8721040/python-read-previous-line-and-compare-against-current-line
-def before(self):
-    # get the current cursor position, then
-    # store it in memory.
+def before(self) -> str:
+    """
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    str 
+        decoded string from previous line
+    
+    References
+    ----------
+    https://stackoverflow.com/questions/8721040/python-read-previous-line-and-compare-against-current-line
+    """
+
+    # get the current cursor position, then store it in memory
     current_position = self.tell()
     _tmp = b""  # Specify data in byte form
     _rea = 0  # Set parameter
@@ -148,11 +202,8 @@ def before(self):
         # Move back one byte again
         self.seek(current_position - _rea)
 
-        # If the string in memory contains the "\n"
-        # more than once, we will return the string.
-
-        # alternatively break if the current position
-        # is zero (start of the string).
+        # If the string in memory contains the "\n" more than once, we will return the string.
+        # alternatively break if the current position is zero (start of the string).
         if _tmp.count(b"\n") == 2 or self.tell() == 0:
             break
 
@@ -160,186 +211,236 @@ def before(self):
     return _tmp[::-1].decode()
 
 
-# Timeout function: Given a list of files, generate URL, read last lines and add to timeout list for re-download if error found.
-def get_timeouts(files):
+def get_timeouts(files) -> pd.DataFrame:
+    """
+    Given a list of files, generate URL, read last lines and add to timeout list for re-download if error found.
+
+    Parameters
+    ----------
+    files : list[str]
+        list of files to check for timeouts
+    
+    Returns
+    -------
+    ids_split : pd.DataFrame
+
+    References
+    ----------
+    https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
+    """
     ids_split = []
     for file in files:
-        url = "s3://{}/{}".format(bucket_name, file)
+        url = f"s3://{BUCKET_NAME}/{file}"
 
-        with open(url, "rb") as f:  # Use the open method from smart_open
-            try:  # catch OSError in case of a one line file
-                f.seek(
-                    -2, os.SEEK_END
-                )  # Use seek here, much faster than reading entire file into memory, taken from: https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
+        # Use the open method from smart_open
+        with open(url, "rb") as f:  
+            try:  
+                # Use seek here, much faster than reading entire file into memory
+                f.seek(-2, os.SEEK_END)  
+                
                 while f.read(1) != b"\n":
                     f.seek(-2, os.SEEK_CUR)
+
             except OSError:
+                # catch OSError in case of a one line file
                 f.seek(0)
+
             last_line = f.readline().decode()
 
-            # print(last_line) # For testing
-            if (
-                "Timeout" in last_line
-            ):  # If last line is a timeout error, use f.seek to avoid reading entire file into memory.
-                print(
-                    "Timeout error in {}: processing for secondary download.".format(
-                        file
-                    )
-                )  # Useful for testing / progres, can delete.
-                # Go backwards one line.
-                bytelen = len(last_line)  # Get length of last line in bytes
-                f.seek(-bytelen, 1)  # Move to start of last line.
-                prev_line = before(
-                    f
-                )  # Use function to seek backwards byte by byte, saving file when next '\n' reached.
+            if "Timeout" in last_line:  
+                # If last line is a timeout error, use f.seek to avoid reading entire file into memory.
+                print(f"Timeout error in {file}: processing for secondary download.")
 
-                time = prev_line.split(",")[1]  # Get last completed timestamp
-                # print(prev_line) # For testing
-                station = file.split("/")[-1].replace(".csv", "")  # Get station ID.
-                ids_split.append([station, time])  # Add to dataframe
-            elif (
-                "status" in last_line
-            ):  # Otherwise, if other errors found in last line (not seen yet)
-                print(
-                    "Timeout error in {}: processing for secondary download.".format(
-                        file
-                    )
-                )  # Useful for testing / progres, can delete.
-                # Go backwards one line.
-                bytelen = len(last_line)  # Get length of last line in bytes
-                f.seek(-bytelen, 1)  # Move to start of last line.
-                prev_line = before(
-                    f
-                )  # Use function to seek backwards byte by byte, saving file when next '\n' reached.
-                # print(prev_line) # For testing.
+                # Go backwards one line
+                bytelen = len(last_line)
+                f.seek(-bytelen, 1) 
+                # Use function to seek backwards byte by byte, saving file when next '\n' reached
+                prev_line = before(f)  
 
-                # If station ID in previous line, treat as functional end point.
+                # Get last completed timestamp
+                time = prev_line.split(",")[1]
+                # Get station ID, and add to dataframe
+                station = file.split("/")[-1].replace(".csv", "")
+                ids_split.append([station, time]) 
+
+            elif ("status" in last_line):  
+                # Otherwise, if other errors found in last line (not seen yet)
+                print(f"Timeout error in {file}: processing for secondary download.")
+
+                # Go backwards one line
+                bytelen = len(last_line)  
+                f.seek(-bytelen, 1)
+                # Use function to seek backwards byte by byte, saving file when next '\n' reached
+                prev_line = before(f)  
+
+                # If station ID in previous line, treat as functional end point
+                # If there are any prefixes in file name, remove
                 stid = file.split("/")[-1]
-                stid = stid.split("_")[
-                    -1
-                ]  # If there are any prefixes in file name, remove.
+                stid = stid.split("_")[-1]  
                 stid = stid.replace(".csv", "")
-                # print(stid) # For testing
 
                 if stid in prev_line:
-                    time = prev_line.split(",")[1]  # Get last completed timestamp
-                    station = file.split("/")[-1].replace(".csv", "")  # Get station ID.
-                    ids_split.append([station, time])  # Add to dataframe
+                    # Get last completed timestamp
+                    time = prev_line.split(",")[1]  
+                      # Get station ID and add to dataframe
+                    station = file.split("/")[-1].replace(".csv", "")
+                    ids_split.append([station, time])
 
-                else:  # Otherwise, just print an error to console. The last rows will be cleaned in the next stage.
-                    print("Error: last lines of {} not parseable.".format(file))
+                else:  
+                    # Otherwise, just print an error to console. The last rows will be cleaned in the next stage.
+                    print(f"Error: last lines of {file} not parseable.")
                     continue
 
     ids_split = pd.DataFrame(ids_split, columns=["STID", "start"])
     ids_split["start"] = pd.to_datetime(ids_split["start"], format="%Y-%m-%dT%H:%M:%SZ")
     ids_split["start"] = ids_split["start"].dt.strftime("%Y%m%d%H%M")
-    # print(ids_split) # For testing
+
     return ids_split
 
 
 # Timeout function part 2: read AWS directory, generate list of files, and iterate through the get_timeouts() script until no more timeout errors found.
-def get_madis_station_timeout_csv(token, bucket_name, directory):
+def get_madis_station_timeout_csv(token, directory):
+    """
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    None
+    """
+
     round = 1
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=directory):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=directory):
         file = str(item.key)
         files += [file]
-    files = list(filter(lambda f: f.endswith(".csv"), files))  # Get list of file names
+    # Get list of file names
+    files = list(filter(lambda f: f.endswith(".csv"), files))  
 
     files = [file for file in files if "errors" not in file]
-    files = [
-        file for file in files if "station" not in file
-    ]  # Remove error and station list files
-    files = [
-        file for file in files if "2_" not in file
-    ]  # Only run on primary files first.
+    # Remove error and station list files
+    files = [file for file in files if "station" not in file]
+    # Only run on primary files first 
+    files = [file for file in files if "2_" not in file]  
 
     # Get list of timeout IDs from primary downloads
     ids_split = get_timeouts(files)
 
     # Keep running this function as long as needed
     while ids_split.empty is False:
-        round += 1  # Count round
-        print("Round {} of downloading timeout errors".format(round))
-        get_madis_station_csv(
-            token, ids_split, bucket_name, directory, timeout=True, round=str(round)
-        )  # Rerun pull script on timeout files from date of timeout.
+        round += 1
+        print(f"Round {round} of downloading timeout errors")
 
-        # Check to see if any of the split files needs to be split again.
-        # Filter by the round, checking the files just downloaded for other status errors.
+        # Rerun pull script on timeout files from date of timeout.
+        get_madis_station_csv(
+            token, ids_split, directory, timeout=True, round=str(round)
+        )  
+
+        # Check to see if any of the split files needs to be split again
+        # Filter by the round, checking the files just downloaded for other status errors
         files = []
-        for item in s3.Bucket(bucket_name).objects.filter(
-            Prefix=directory + "{}_".format(str(round))
+        for item in s3.Bucket(BUCKET_NAME).objects.filter(
+            Prefix=directory + f"{str(round)}_"
         ):
             file = str(item.key)
             files += [file]
+
+        # Get list of file names
         timeout_files = list(
             filter(lambda f: f.endswith(".csv"), files)
-        )  # Get list of file names
-        # print(timeout_files) # For testing
-        ids_split = get_timeouts(timeout_files)  # Run on timeout files
+        ) 
+        # Run on timeout files
+        ids_split = get_timeouts(timeout_files)  
 
-    print("No more timeout errors found in {} network".format(directory))
+    print(f"No more timeout errors found in {directory} network")
+    return None
 
 
 # For SCAN/SNOTEL
-def scan_retry_downloads(bucket_name, network, terrpath, marpath):
+def scan_retry_downloads(network, terrpath, marpath):
+    """
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    None
+    """
+
     prefix = "1_raw_wx/" + network[0]
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=prefix):
+
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=prefix):
         file = str(item.key)
         files += [file]
-    files = list(filter(lambda f: f.endswith(".csv"), files))  # Get list of file names
+    # Get list of file names
+    files = list(filter(lambda f: f.endswith(".csv"), files))  
 
-    station_file = [file for file in files if "station" in file]  # ID station file
+    # ID station file
+    station_file = [file for file in files if "station" in file]  
     station_file = str(station_file[0])
     files = [file for file in files if "errors" not in file]
-    files = [
-        file for file in files if "station" not in file
-    ]  # Remove error and station list files
+     # Remove error and station list files
+    files = [file for file in files if "station" not in file] 
 
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
     stations = [file.replace(".csv", "") for file in stations]
 
     # Read in station list
-    station_list = s3_cl.get_object(Bucket=bucket_name, Key=station_file)
+    station_list = s3_cl.get_object(Bucket=BUCKET_NAME, Key=station_file)
     station_list = pd.read_csv(station_list["Body"])
 
-    # # Get list of IDs not in download folder
+    # Get list of IDs not in download folder
     missed_ids = [id for id in station_list["stationTriplet"] if id not in stations]
     missed_stations = station_list.loc[station_list["stationTriplet"].isin(missed_ids)]
 
-    # # Print list of stations to download.
+    # Print list of stations to download
     print(missed_stations)
 
-    # # Note here we ignore the end date of files, since we will be trimming the last 2 months of data anyways.
+    # Note here we ignore the end date of files, since we will be trimming the last 2 months of data anyways
     errors = get_scan_station_data(
         terrpath,
         marpath,
-        bucket_name,
         start_date=None,
         stations=missed_stations,
         primary=True,
     )
 
-    # # Manually print out errors for immediate verification of success. Will also save to AWS as part of above function.
+    # Manually print out errors for immediate verification of success. Will also save to AWS as part of above function.
     print(errors)
+
+    return None
 
 
 # For ASOSAWOS / OtherISD
-def isd_retry_downloads(bucket_name, network):
+def isd_retry_downloads(network) -> tuple(pd.DataFrame, str):
+    """
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    missed_stations: pd.DataFrame
+        missing stations
+    missing_files: str
+        filepaths to missing stations
+    """
+
     # Get list of files in folder
     prefix = "1_raw_wx/" + network
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=prefix):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=prefix):
         file = str(item.key)
         files += [file]
 
-    station_file = [file for file in files if "ISD" in file]  # ID station file
+    station_file = [file for file in files if "ISD" in file]
     station_file = [file for file in station_file if "station" in file]
-
-    files = list(filter(lambda f: f.endswith(".gz"), files))  # Get list of file names
+    # Get list of file names
+    files = list(filter(lambda f: f.endswith(".gz"), files))  
 
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
@@ -347,7 +448,7 @@ def isd_retry_downloads(bucket_name, network):
     stations = [file[0:-5] for file in stations]
 
     # Read in station list
-    station_list = s3_cl.get_object(Bucket=bucket_name, Key=str(station_file[0]))
+    station_list = s3_cl.get_object(Bucket=BUCKET_NAME, Key=str(station_file[0]))
     station_list = pd.read_csv(station_list["Body"])
 
     # Get list of IDs not in download folder
@@ -361,16 +462,16 @@ def isd_retry_downloads(bucket_name, network):
         missed_stations["WBAN"].astype(str).str.pad(5, fillchar="0")
     )
 
-    # Get list of filenames where IDs have partially downloaded (years missing).
+    # Get list of filenames where IDs have partially downloaded (years missing)
     downloaded_ids = station_list[~station_list["ISD-ID"].isin(missing_ids)]
     missing_files = pd.DataFrame()
     for index, id in downloaded_ids.iterrows():
         if int(id["start_time"][0:4]) < 1980:
-            years = range(
-                1980, int(id["end_time"][0:4]) + 1
-            )  # +1 to make inclusive of current year
+            years = range(1980, int(id["end_time"][0:4]) + 1)
+
         else:
             years = range(int(id["start_time"][0:4]), int(id["end_time"][0:4]) + 1)
+
         id_files = [file for file in files if id["ISD-ID"] in file]
         id_success = [
             file for file in id_files if any(str(year) in file for year in years)
@@ -395,186 +496,170 @@ def isd_retry_downloads(bucket_name, network):
 
 # Function to take a dataframe of missing ISD files (['year', 'file_name'])
 # and download these files from the ISD server to the AWS bucket.
-def isd_get_missing_files(missing_files, bucket_name, network):
+def isd_get_missing_files(missing_files, network):
+    """
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    None
+    """
+
     if missing_files.empty:
         print("No missing files to download.")
         return
     else:
         # Set up error handling
         errors = {"Date": [], "Time": [], "Error": []}
-        end_api = datetime.now().strftime(
-            "%Y%m%d%H%M"
-        )  # Set end time to be current time at beginning of download
+        # Set end time to be current time at beginning of download
+        end_api = datetime.now().strftime("%Y%m%d%H%M")  
 
         # Set up directory
         directory = "1_raw_wx/" + network + "/"
 
-        ## Login.
-        ## using ftplib
+        # Login using ftplib
         ftp = FTP("ftp.ncdc.noaa.gov")
         ftp.login()  # user anonymous, password anonymous
-        ftp.cwd("pub/data/noaa")  # Change WD.
-        pwd = ftp.pwd()  # Get base file path.
+        ftp.cwd("pub/data/noaa")
+        pwd = ftp.pwd() 
 
-        # Get list of folders (by year) in main FTP folder.
+        # Get list of folders (by year) in main FTP folder
         years = ftp.nlst()
 
         # Iterate through years
-        for i in years:  # For each year / folder.
-            if len(i) < 5:  # If folder is the name of a year (and not metadata file)
-                if int(i) in list(
-                    missing_files["year"]
-                ):  # If folder is in our missing file list
+        for i in years: 
+            # If folder is the name of a year (and not metadata file)
+            if len(i) < 5:  
+                # If folder is in our missing file list
+                if int(i) in list(missing_files["year"]):  
                     try:
-                        # print(i)
-                        ftp.cwd(pwd)  # Return to original working directory
-                        ftp.cwd(i)  # Change working directory to year.
-                        filenames = ftp.nlst()  # Get list of all file names in folder.
-                        # print(filenames)
+                        ftp.cwd(pwd)  
+                        ftp.cwd(i)  
+                        filenames = ftp.nlst() 
+
+                        # Get relevant missing files
                         sub_missing = missing_files[
-                            missing_files["year"] == int(i)
-                        ]  # Get relevant missing files
-                        # print(sub_missing)
+                            missing_files["year"] == int(i)]  
+                        
+                        # Get list to download
                         to_download = [
                             file
                             for file in filenames
                             if file in list(sub_missing["file_name"])
-                        ]  # Get list to download.
-                        # print(to_download)
-                        if to_download:  # If there are files in the list
-                            for (
-                                file
-                            ) in (
-                                to_download
-                            ):  # Iterate through each one and download to AWS directory.
+                        ] 
+
+                        # If there are files in the list
+                        if to_download:  
+                            # Iterate through each one and download to AWS directory
+                            for file in to_download:
                                 ftp_to_aws(ftp, file, directory)
 
-                        else:  # Otherwise
-                            print(
-                                "No missing files available for download in folder {}".format(
-                                    i
-                                )
-                            )
+                        else:
+                            print(f"No missing files available for download in folder {i}")
                             continue
 
-                    except (
-                        Exception
-                    ) as e:  # If error occurs at directory scale, save folder information.
-                        print("Error in downloading date {}: {}".format(i, e))
+                    except Exception as e:
+                        print(f"Error in downloading date {i}: {e}")
                         errors["Date"].append(i)
                         errors["Time"].append(end_api)
                         errors["Error"].append(e)
                     pass
                 else:
-                    continue  # Otherwise skip folder
+                    continue  
             else:
-                continue  # Otherwise skip folder.
+                continue  
 
-        # Write errors to AWS.
+        # Write errors to AWS
         csv_buffer = StringIO()
         errors = pd.DataFrame(errors)
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
-            Key=directory + "errors_{}_{}.csv".format(network.lower(), end_api),
+            Key=directory + f"errors_{network.lower()}_{end_api}.csv",
         )
+
+    return None
 
 
 # After attempted redownload, read in station list and add column "Downloaded" with Y/N.
 # Inputs: AWS bucket name, network name
-def update_station_list(bucket_name, network):
-    # Define list of all MADIS networks.
-    MADIS = [
-        "CAHYDRO",
-        "CDEC",
-        "CNRFC",
-        "CRN",
-        "CWOP",
-        "HADS",
-        "HNXWFO",
-        "HOLFUY",
-        "HPWREN",
-        "LOXWFO",
-        "MAP",
-        "MTRWFO",
-        "NCAWOS",
-        "NOS-NWLON",
-        "NOS-PORTS",
-        "RAWS",
-        "SGXWFO",
-        "SHASAVAL",
-        "VCAPCD",
-    ]
+def update_station_list(network: str) -> pd.DataFrame:
+    """
+    
+    Parameters
+    ----------
 
-    # Define list of SCAN/SNOTEL networks.
-    SNTL = ["SNOTEL", "SCAN"]
-
-    # Define list of ISD networks
-    ISD = ["ASOSAWOS", "OtherISD"]
+    Returns
+    -------
+    station_csv : pd.DataFrame
+    """
 
     directory = "1_raw_wx/" + network + "/"
-    ## Read in station list to compare against
+    
+    # Read in station list to compare against
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=directory):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=directory):
         file = str(item.key)
         files += [file]
 
     # Get station file and list of files
-    station_file = [file for file in files if "stationlist" in file]  # ID station file
+    station_file = [file for file in files if "stationlist" in file]
 
+    # Get list of file names
     if network in MADIS or network in SNTL:
-        files = list(
-            filter(lambda f: f.endswith(".csv"), files)
-        )  # Get list of file names
+        files = list(filter(lambda f: f.endswith(".csv"), files))  
 
     elif network in ISD:
-        files = list(
-            filter(lambda f: f.endswith(".gz"), files)
-        )  # Get list of file names
+        files = list(filter(lambda f: f.endswith(".gz"), files))
 
     if network == "ASOSAWOS":
         station_file = [
             file for file in station_file if "ISD" in file
-        ]  # Get the station list used to download files.
+        ]
 
     station_file = str(station_file[0])
 
-    # Read in station file.
-    test = s3.Bucket(bucket_name).Object(station_file).get()
+    # Read in station file
+    test = s3.Bucket(BUCKET_NAME).Object(station_file).get()
     station_csv = pd.read_csv(test["Body"])
 
-    # Filter files.
+    # Filter files
     files = [file for file in files if "errors" not in file]
-    files = [
-        file for file in files if "station" not in file
-    ]  # Remove error and station list files
+    # Remove error and station list files
+    files = [file for file in files if "station" not in file]  
 
-    # Get list of downloaded IDs from file names.
+    # Get list of downloaded IDs from file names
     downloaded_stns = set()
     for file in files:
-        dn_file = file.split("/")[-1].replace(
-            ".csv", ""
-        )  # Grabs station_id from each filename
-        dn_file = dn_file.replace(".gz", "")  # Grabs station_id from each filename
+        # Grab station_id from each filename
+        dn_file = file.split("/")[-1].replace(".csv", "")  
+        # Grabs station_id from each filename
+        dn_file = dn_file.replace(".gz", "")  
+        
         if network in MADIS:
-            dn_file = dn_file.split("_")[
-                -1
-            ]  # Remove leading extension, if file is one of multiple.
+            # Remove leading extension, if file is one of multiple
+            dn_file = dn_file.split("_")[-1]
+
         elif network in ISD:
-            dn_file = dn_file.rsplit("-", 1)[0]  # Remove year suffix (e.g. '-2015')
+            # Remove year suffix (e.g. '-2015')
+            dn_file = dn_file.rsplit("-", 1)[0]  
+
         downloaded_stns.add(dn_file)
     downloaded_stns = list(downloaded_stns)
 
-    ## Adds download column so we can compare post full data pull, will get filled after full pull
+    # Adds download column so we can compare post full data pull, will get filled after full pull
     # For each network, specify ID column to check against.
     if network in MADIS:
         station_csv["Pulled"] = np.where(
             station_csv["STID"].isin(downloaded_stns), "Y", "N"
         )
+
     elif network in SNTL:
-        # Split triplet ID into 3 subcomponents.
+        # Split triplet ID into 3 subcomponents
         station_csv[["id", "state", "subnetwork"]] = station_csv[
             "stationTriplet"
         ].str.split(":", expand=True)
@@ -591,59 +676,67 @@ def update_station_list(bucket_name, network):
     # Drop first column from station_csv
     station_csv = station_csv.drop(columns=station_csv.columns[0], axis=1)
 
-    # For ISD stations, also double check that stations in list meet time criteria and filter any that aren't, updating station list.
+    # For ISD stations, also double check that stations in list meet time criteria and filter any that aren't, updating station list
     # (This gets done in practice in the code, but isn't yet reflected in our station lists)
     if network in ISD:
+        # Remove rows where data ends before 1980
         station_csv = station_csv[
             station_csv["end_time"].str[0:4].astype(int) >= 1980
-        ]  # Remove rows where data ends before 1980.
+        ]  
 
-    # ## Write stations to respective AWS bucket
+    # Write stations to respective AWS bucket
     new_buffer = StringIO()
     station_csv.to_csv(new_buffer)
     content = new_buffer.getvalue()
 
-    s3_cl.put_object(Bucket=bucket_name, Body=content, Key=station_file)
+    s3_cl.put_object(Bucket=BUCKET_NAME, Body=content, Key=station_file)
+    pull_y = station_csv["Pulled"].value_counts()["Y"]
+    pull_n = station_csv["Pulled"].value_counts()["N"]
 
     if "N" in station_csv["Pulled"].values:
-        print(
-            "{} station_list updated. {} successful downloads, {} failed downloads.".format(
-                network,
-                station_csv["Pulled"].value_counts()["Y"],
-                station_csv["Pulled"].value_counts()["N"],
-            )
-        )  ## Function may take a while to run, useful to indicate completion
+        print(f"{network} station_list updated. {pull_y} successful downloads, {pull_n} failed downloads.") 
     else:
-        print(
-            "{} station_list updated. {} successful downloads.".format(
-                network, station_csv["Pulled"].value_counts()["Y"]
-            )
-        )
+        print(f"{network} station_list updated. {pull_y} successful downloads.")
 
     return station_csv
 
 
-# For MARITIME/NDBC data
-def maritime_retry_downloads(bucket_name, network):
+def maritime_retry_downloads(network: str) -> pd.Series:
+    """
+    Check for missing files or stations in MARITIME or NDBC and attempts to redownload them. 
+
+    Parameters
+    ----------
+    network : str
+        network name
+        
+    Returns
+    -------
+    missed_stations : pd.Series
+        list of staiton ids not within AWS pull folder for network
+
+    Notes
+    -----
+    1. There are 2 different file formats:
+        Canadian stations: STID#_csv.zip
+        NDBC stations: STID#hYYYY.txt.gz
+    """
+
     # Get list of files in folder
     prefix = "1_raw_wx/" + network
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=prefix):
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=prefix):
         file = str(item.key)
         files += [file]
 
     station_file = [file for file in files if "station" in file]
-
-    # Two different file formats:
-    # Canadian stations: STID#_csv.zip
-    # NDBC stations: STID#hYYYY.txt.gz
 
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
     stations = [file[0:5] for file in stations]  # Drop trailing metadata
 
     # Read in station list
-    station_list = s3_cl.get_object(Bucket=bucket_name, Key=str(station_file[0]))
+    station_list = s3_cl.get_object(Bucket=BUCKET_NAME, Key=str(station_file[0]))
     station_list = pd.read_csv(station_list["Body"])
 
     # Get list of IDs not in download folder
@@ -653,112 +746,101 @@ def maritime_retry_downloads(bucket_name, network):
     return missed_stations
 
 
-## Comparison of which stations downloaded, updating the station_list csv with y/n to download column
-## In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, or no data is provided (optimization/testing buoy)
-def download_comparison(bucket_name, network):
+def download_comparison(network: str):
+    """
+    Comparison of which stations downloaded, updating the station_list csv with y/n to download column.
+    In general, if a station cannot be downloaded (has a N for download) it is an ocean-observing buoy ONLY, 
+    or no data is provided (optimization/testing buoy)
+
+    Parameters
+    ----------
+    network : str
+        network name to check
+
+    Returns
+    -------
+    None
+    """
+
     # Get list of files in folder
     directory = "1_raw_wx/" + network
     files = []
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=directory):
+
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=directory):
         file = str(item.key)
         files += [file]
 
+    # Get station list
     station_file = [file for file in files if "stationlist" in file]
 
-    files = [
-        file for file in files if "stationlist" not in file
-    ]  # Get list of file names
+    # Get list of file names
+    files = [file for file in files if "stationlist" not in file]  
 
     # Get only station IDs from file names
     stations = [file.split("/")[-1] for file in files]
-    downloaded_stations = [
-        file[0:5] for file in stations
-    ]  # Drop hYYYYtxt.gz or _csv.zip
+    # Drop hYYYYtxt.gz or _csv.zip
+    downloaded_stations = [file[0:5] for file in stations]  
 
     # Read in station list
-    station_csv = s3_cl.get_object(Bucket=bucket_name, Key=str(station_file[0]))
+    station_csv = s3_cl.get_object(Bucket=BUCKET_NAME, Key=str(station_file[0]))
     station_csv = pd.read_csv(station_csv["Body"])
 
-    ## Adds download column so we can compare post full data pull, will get filled after full pull
-    ## Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
+    # Adds download column so we can compare post full data pull, will get filled after full pull
+    # Mainly important for the oceanographic buoys that do not contain wx obs but are flagged as a part of WECC
     station_csv["Pulled"] = np.where(
         station_csv["STATION_ID"].isin(downloaded_stations), "Y", "N"
     )
     station_csv["Time_Checked"] = pd.to_datetime("now", utc=True).replace(microsecond=0)
 
-    ## Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
+    # Moves Note column to last column because of weird lat-lon column overwriting -- metadata issue for cleaning
     station_csv = station_csv.reindex(
         columns=[col for col in station_csv.columns if col != "NOTE"] + ["NOTE"]
     )
 
-    ## Reorders the indices in both stationlists
-    ## Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
+    # Reorders the indices in both stationlists
+    # Previously was the full index from station_table, so there was a mismatch in index and actual number of provided stations
     station_csv.reset_index(inplace=True, drop=True)
 
-    # ## Write stations to respective AWS bucket
+    # Write stations to respective AWS bucket
     new_buffer = StringIO()
     station_csv.to_csv(new_buffer)
     content = new_buffer.getvalue()
     s3_cl.put_object(
-        Bucket=bucket_name,
+        Bucket=BUCKET_NAME,
         Body=content,
-        Key=directory + "/stationlist_{}.csv".format(network),
+        Key=directory + f"/stationlist_{network}.csv",
     )
 
-    print(
-        "{} station_list updated. {} successful downloads, {} failed downloads.".format(
-            network,
-            station_csv["Pulled"].value_counts()["Y"],
-            station_csv["Pulled"].value_counts()["N"],
-        )
-    )  ## Function may take a while to run, useful to indicate completion
-    print(station_csv)
+    pull_y = station_csv["Pulled"].value_counts()["Y"]
+    pull_n = station_csv["Pulled"].value_counts()["N"]
+
+    print(f"{network} station_list updated. {pull_y} successful downloads, {pull_n} failed downloads.")  
+    print(station_csv.head(5))
+
+    return None
 
 
 ## Define overarching function
 # Inputs: madis token, bucket name and network names (as list). If not specified, this runs through all networks.
-def retry_downloads(token, bucket_name, networks=None):
-    # Set paths to WECC shapefiles in AWS bucket.
-    wecc_terr = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-    wecc_mar = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+def retry_downloads(token: str, networks: str | None=None):
+    """
+    Parameters
+    ----------
+    token : str
+        Synoptic API token (private)
+    networks : str
+        name of network to retry download
 
-    # Define list of all MADIS networks.
-    MADIS = [
-        "CAHYDRO",
-        "CDEC",
-        "CNRFC",
-        "CRN",
-        "CWOP",
-        "HADS",
-        "HNXWFO",
-        "HOLFUY",
-        "HPWREN",
-        "LOXWFO",
-        "MAP",
-        "MTRWFO",
-        "NCAWOS",
-        "NOS-NWLON",
-        "NOS-PORTS",
-        "RAWS",
-        "SGXWFO",
-        "SHASAVAL",
-        "VCAPCD",
-    ]
+    Returns
+    -------
+    None
+    """
 
-    # Define list of SCAN/SNOTEL networks.
-    SNTL = ["SNOTEL", "SCAN"]
-
-    # Define list of ISD networks
-    ISD = ["ASOSAWOS", "OtherISD"]
-
-    # Define list of MARITIME/NDBC networks
-    MARITIME = ["NDBC", "MARITIME"]
-
-    # If network not provided, get list of all networks from AWS bucket and iterate.
+    # If network not provided, get list of all networks from AWS bucket and iterate
     if networks is None:
         print("All networks specified.")
         response = s3_cl.list_objects_v2(
-            Bucket=bucket_name, Prefix="1_raw_wx/", Delimiter="/"
+            Bucket=BUCKET_NAME, Prefix="1_raw_wx/", Delimiter="/"
         )
         networks = [
             prefix["Prefix"][:-1].replace("1_raw_wx/", "")
@@ -766,7 +848,7 @@ def retry_downloads(token, bucket_name, networks=None):
         ]
 
     else:
-        # Remove any spaces or slashes in inputted network names.
+        # Remove any spaces or slashes in inputted network names
         networks = [i.replace(" ", "") for i in networks]
         networks = [i.replace("/", "") for i in networks]
 
@@ -776,81 +858,70 @@ def retry_downloads(token, bucket_name, networks=None):
 
         # MADIS
         if network in MADIS:
+            # Retry any missing downloads
             madis_retry_downloads(
-                token, bucket_name, network
-            )  # Retry any missing downloads
-            # Get timeout CSVs.
-            print("Identifying file timeouts for {} network".format(network))
-            get_madis_station_timeout_csv(
-                token=token, bucket_name=bucket_name, directory=directory
-            )  # Get timeout CSVs.
-            update_station_list(bucket_name, network)
+                token, network
+            )  
+
+            # Get timeout CSVs
+            print(f"Identifying file timeouts for {network} network")
+            get_madis_station_timeout_csv(token=token,  directory=directory)
+            update_station_list(network)
 
         # SNOTEL/SCAN
         elif network in SNTL:
+            # Get IDs
             scan_retry_downloads(
-                bucket_name=bucket_name,
                 network=[network],
-                terrpath=wecc_terr,
-                marpath=wecc_mar,
-            )  # Get IDs.
-            update_station_list(bucket_name, network)
+                terrpath=WECC_TERR,
+                marpath=WECC_MAR,
+            )  
+            update_station_list( network)
 
         # ASOSAWOS / OtherISD
         elif network in ISD:
-            missed_stations, file_list = isd_retry_downloads(
-                bucket_name=bucket_name, network=network
-            )
+            missed_stations, file_list = isd_retry_downloads(network=network)
 
-            if len(missed_stations) == 0:  # If no missing stations.
+            if len(missed_stations) == 0:  # If no missing stations
                 print("All selected stations have data downloaded.")
             else:
-                print(
-                    "Attempting to download data for {} missing stations.".format(
-                        len(missed_stations)
-                    )
-                )
+                print(f"Attempting to download data for {len(missed_stations)} missing stations.")
                 if network == "ASOSAWOS":
                     # Download all missing stations
                     get_asosawos_data_ftp(
-                        missed_stations, bucket_name, directory, get_all=True
+                        missed_stations, directory, get_all=True
                     )
-                    # ^ SUBSETTED FOR TESTING, remove for full run.
+    
                 elif network == "OtherISD":
                     # Download all missing stations
                     get_otherisd_data_ftp(
-                        missed_stations, bucket_name, directory, get_all=True
+                        missed_stations,  directory, get_all=True
                     )
-                    # ^ SUBSETTED FOR TESTING, remove for full run.
 
-            # Regenerate file_list after full station download.
-            missed_stations, file_list = isd_retry_downloads(
-                bucket_name=bucket_name, network=network
-            )
+            # Regenerate file_list after full station download
+            missed_stations, file_list = isd_retry_downloads(network=network)
 
             # Download missing files
-            print("Attempting to download {} missing files.".format(len(file_list)))
-            isd_get_missing_files(file_list, bucket_name, network)
+            print(f"Attempting to download {len(file_list)} missing files.")
+            isd_get_missing_files(file_list,  network)
 
-            # Then, update station list.
-            update_station_list(bucket_name, network)
+            # update station list
+            update_station_list(network)
 
         # MARITIME / NDBC
         elif network in MARITIME:
-            # Get list of missing stations, missing files.
-            missed_stations = maritime_retry_downloads(bucket_name, network)
-            get_maritime(missed_stations, bucket_name, network, years=None)
-            download_comparison(bucket_name, network)
+            # Get list of missing stations, missing files
+            missed_stations = maritime_retry_downloads(network)
+            get_maritime(missed_stations,  network, years=None)
+            download_comparison( network)
 
         else:
-            print(
-                "{} network not currently configured for download retry.".format(
-                    network
-                )
-            )
+            print(f"{network} network not currently configured for download retry.")
             continue
+
+    return None
 
 
 if __name__ == "__main__":
-    retry_downloads(token=config.token, bucket_name=bucket_name, networks=["CWOP"])
-# If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
+    retry_downloads(token=config.token, networks=["CWOP"])
+    # If networks not specified, will attempt all networks (generating list from folders in raw bucket.)
