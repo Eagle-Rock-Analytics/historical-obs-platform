@@ -11,6 +11,10 @@ Functions
 - get_cw3e: Pull CW3E data via FTP
 - get_cw3e_update: Pull updated CW3E data via FTP
 
+Intended Use
+------------ 
+Retrieves raw data for an individual network, all variables, all times. Organized by station, with 1 file per station per year.
+
 Notes
 -----
 1. Subsequent updates may want to just pull the most recent files in the 2022 subfolder by station, 

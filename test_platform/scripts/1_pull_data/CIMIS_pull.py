@@ -12,6 +12,10 @@ Functions
 - get_cimis_data_ftp: Query FTP server for CIMIS data and download raw csv files, use for the full retrieval
 - get_cimis_update_ftp: Query ftp server for CIMIS data and download csv files. Use to update data.
 
+Intended Use
+------------ 
+Retrieves raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
+
 Notes
 -----
 1. The file for each station-year is updated daily for the current year.
@@ -164,7 +168,7 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
                     if modifiedTime > last_edit_time:
                         ftp_to_aws(ftp, filename, directory)
                     else:
-                        print("{} already saved".format(filename))
+                        print(f"{filename} already saved")
                 else:
                     # Else, if filename not saved already, save
                     ftp_to_aws(ftp, filename, directory)
@@ -207,18 +211,18 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
                             if modifiedTime > last_edit_time:
                                 ftp_to_aws(ftp, filename, directory)
                             else:
-                                print("{} already saved".format(filename))
+                                print(f"{filename} already saved")
                         else:
                             # Else, if filename not saved already, save.
                             ftp_to_aws(ftp, filename, directory)
 
     except Exception as e:
-        print("Error in downloading file {}: {}".format(filename, e))
+        print(f"Error in downloading file {filename}: {e}")
         errors["File"].append(filename)
         errors["Time"].append(end_api)
         errors["Error"].append(e)
 
-    # This is the “polite” way to close a connection
+    # close connection
     ftp.quit()
 
     # Write errors to csv
@@ -229,7 +233,7 @@ def get_cimis_data_ftp(directory: str, years: list[str] | None, get_all: bool = 
     s3.put_object(
         Bucket=BUCKET_NAME,
         Body=content,
-        Key=directory + "errors_cimis_{}.csv".format(end_api),
+        Key=directory + f"errors_cimis_{end_api}.csv",
     )
 
     return None
@@ -357,12 +361,12 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
                 ftp_to_aws(ftp, filename, directory)
 
     except Exception as e:
-        print("Error in downloading file {}: {}".format(filename, e))
+        print(f"Error in downloading file {filename}: {e}")
         errors["File"].append(filename)
         errors["Time"].append(end_api)
         errors["Error"].append(e)
 
-    # This is the “polite” way to close a connection
+    # close connection
     ftp.quit()
 
     # Write errors to csv
@@ -373,7 +377,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
     s3.put_object(
         Bucket=BUCKET_NAME,
         Body=content,
-        Key=directory + "errors_cimis_{}.csv".format(end_api),
+        Key=directory + f"errors_cimis_{end_api}.csv",
     )
 
     return None

@@ -533,7 +533,7 @@ def get_asosawos_data_ftp(
             # Skip if file or folder isn't a year. Can change to print file/folder name, or to save other metadata files as desired
             continue
 
-    # This is the “polite” way to close a connection
+    # close connection
     ftp.quit()
 
     # Write errors to csv

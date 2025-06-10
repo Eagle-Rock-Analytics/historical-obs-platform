@@ -9,6 +9,7 @@ Functions
 - get_wecc_poly: Identifies a bbox of WECC area to filter stations against
 - _lat_dms_to_dd: Converts latitude from decimal-minutes-seconds to decimal degrees
 - _lon_dms_to_dd: Converts longitude from decimal-minutes-seconds to decimal degrees
+- ftp_to_aws: Writes FTP data directly to AWS S3 folder
 """
 
 import geopandas as gpd
