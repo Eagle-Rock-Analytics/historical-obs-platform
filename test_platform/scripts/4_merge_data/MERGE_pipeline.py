@@ -267,7 +267,7 @@ def convert_df_to_xr(
         raise e
 
     try:
-        # Add history into Dataset attributes
+        # Add history into Dataset attributes and update comment
         timestamp = datetime.now(timezone.utc).strftime("%m-%d-%Y, %H:%M:%S")
         ds_attrs["history"] += f"\nMERGE_pipeline run on {timestamp} UTC"
         ds_attrs["comment"] = (
