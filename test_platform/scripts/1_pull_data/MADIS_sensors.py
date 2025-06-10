@@ -11,6 +11,11 @@ Functions
 Intended Use
 ------------
 This script only needs to be run occasionally/when a full MADIS pull occurs.
+
+Notes
+-----
+1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
+See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
 
 import requests
@@ -69,19 +74,19 @@ MADIS_NETWORKS = [
 ]
 
 
-def madis_network_name_to_id(token: str, networks: list[str]):
-    """Get dictionary of network names and short IDs.
+def madis_network_name_to_id(token: str, madis_networks: list[str]) -> pd.Series:
+    """Get dataframe of network names and short IDs.
 
     Parameters
     ----------
     token : str
         API token
-    networks : list[str]
+    madis_networks : list[str]
         network names to retrieve
 
     Returns
     -------
-    networks : dict
+    networks : pd.Series
         network names to retrieve
     """
 
@@ -107,7 +112,7 @@ def madis_network_name_to_id(token: str, networks: list[str]):
 
 
 def get_madis_sensor_metadata(
-    token: str, terrpath: str, marpath: str, networks: dict, directory: str
+    token: str, terrpath: str, marpath: str, networks: pd.Series, directory: str
 ):
     """Retrieves sensor metadata for each network.
 
@@ -116,10 +121,10 @@ def get_madis_sensor_metadata(
     token : str
         API token
     terrpath : str
-
+        shapefiles for maritime and terrestrial WECC boundaries
     marpath : str
-
-    networks : dict
+        shapefiles for maritime and terrestrial WECC boundaries
+    networks : pd.Series
         network names to retrieve metadata for
     directory : str
         AWS path to directory

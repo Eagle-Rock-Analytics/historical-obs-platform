@@ -55,8 +55,9 @@ def get_wecc_stations(terrpath: str, marpath: str, directory: str) -> pd.DataFra
     Parameters
     ----------
     terrpath : str
-
+        shapefiles for maritime and terrestrial WECC boundaries
     marpath : str
+        shapefiles for maritime and terrestrial WECC boundaries
     directory : str
         AWS path name
 
@@ -151,6 +152,7 @@ def get_otherisd_data_ftp(
 ):
     """
     Query ftp server for non-ASOS/AWOS ISD data and download zipped files.
+
     Parameters
     ----------
     station_list : pd.DataFrame

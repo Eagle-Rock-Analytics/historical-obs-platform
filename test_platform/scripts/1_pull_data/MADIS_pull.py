@@ -15,6 +15,11 @@ Functions
 Intended Use
 ------------
 Retrieves raw data for an individual network, all variables, all times. Organized by station, with 1 file per year.
+
+Notes
+-----
+1. This function assumes users have configured the AWS CLI such that their access key / secret key pair are stored in ~/.aws/credentials.
+See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for guidance.
 """
 
 import requests

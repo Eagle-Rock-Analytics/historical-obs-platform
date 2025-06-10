@@ -60,7 +60,7 @@ def get_cimis_stations(directory: str):
     # Login using ftplib, get list of stations as csv
     ftp = FTP("ftpcimis.water.ca.gov")
     ftp.login()  # user anonymous, password anonymous
-    ftp.cwd("pub2")  # Change WD
+    ftp.cwd("pub2")
 
     # Get station list
     ftp_to_aws(
@@ -254,6 +254,7 @@ def get_cimis_update_ftp(directory: str, start_date: str | None, end_date: str |
 
     Returns
     -------
+    None
     """
     # Set up error handling
     errors = {"File": [], "Time": [], "Error": []}

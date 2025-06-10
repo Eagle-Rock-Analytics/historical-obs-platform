@@ -46,7 +46,9 @@ import config
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"
-WECC_TERR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+WECC_TERR = (
+    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+)
 WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
 
 today = datetime.now(timezone.utc).date()
@@ -59,7 +61,7 @@ def get_last_date(folder: str, file_ext: str | None = None) -> str:
 
     Parameters
     ----------
-    folder : str 
+    folder : str
         name of network directory
     file_ext: str, optional
         file extension to look for (e.g. .gz, only useful if not .csv or multiple file types)
@@ -93,15 +95,15 @@ def get_last_date(folder: str, file_ext: str | None = None) -> str:
     return last_time_modified.date()
 
 
-def update_asosawos(last_time_mod: str | None=None):
+def update_asosawos(last_time_mod: str | None = None):
     """Retrieves newer data for ASOSAWOS since the date of the last data retrieval.
     As currently written, this will overwrite all files for the current year.
-  
+
     Parameters
     ----------
     last_time_mod : str, optional
         time of last modification
-    
+
     Returns
     -------
     None
@@ -127,10 +129,10 @@ def update_asosawos(last_time_mod: str | None=None):
     return None
 
 
-def update_cimis(last_time_mod: str | None=None):
+def update_cimis(last_time_mod: str | None = None):
     """
     Retrieves newer data for CIMIS since the date of the last data retrieval.
-    No retry download method avaialble. May overwrite most recent if pull is 
+    No retry download method avaialble. May overwrite most recent if pull is
     repeated more frequently than monthly.
 
     Parameters
@@ -162,7 +164,7 @@ def update_cimis(last_time_mod: str | None=None):
     return None
 
 
-def update_cw3e(last_time_mod: str | None=None):
+def update_cw3e(last_time_mod: str | None = None):
     """
     Retrieves newer data for CW3E since the date of the last data retrieval.
     Will download multiple byte files for each station for each day selected, resulting
@@ -208,7 +210,7 @@ def update_cw3e(last_time_mod: str | None=None):
     return None
 
 
-def update_hads(last_time_mod: str | None=None):
+def update_hads(last_time_mod: str | None = None):
     """
     Retrieves newer data for HADS since the date of the last data retrieval.
 
@@ -242,17 +244,17 @@ def update_hads(last_time_mod: str | None=None):
     return None
 
 
-def update_madis(network: str, last_time_mod:str | None=None):
+def update_madis(network: str, last_time_mod: str | None = None):
     """
     Retrieves newer data for MADIS networks since the date of the last data retrieval.
-    
+
     Parameters
     ----------
     network : str
         name of MADIS network to retrieve
     last_time_mod : str, optional
         time of last modification
-    
+
     Returns
     -------
     None
@@ -263,8 +265,7 @@ def update_madis(network: str, last_time_mod:str | None=None):
     # CAHYDRO has special handling due to space character
     if network == "CAHYDRO":
         if last_time_mod is None:
-            last_time_mod = get_last_date(folder=directory, file_ext=".csv"
-            )
+            last_time_mod = get_last_date(folder=directory, file_ext=".csv")
 
         if last_time_mod < download_date:
             print(
@@ -281,9 +282,10 @@ def update_madis(network: str, last_time_mod:str | None=None):
             print(f"{network} station files up to date.")
 
     # all other MADIS networks
-    else:  
+    else:
         if last_time_mod is None:
-            last_time_mod = get_last_date(folder=directory, n=int(n[network]), file_ext=".csv"
+            last_time_mod = get_last_date(
+                folder=directory, n=int(n[network]), file_ext=".csv"
             )
 
         if last_time_mod < download_date:
@@ -299,21 +301,21 @@ def update_madis(network: str, last_time_mod:str | None=None):
             )
         else:
             print(f"{network} station files up to date.")
-    
+
     return None
 
 
-def update_maritime(network: str, last_time_mod: str | None=None):
+def update_maritime(network: str, last_time_mod: str | None = None):
     """
     Retrieves newer data for MARITIME / NDBC since the date of the last data retrieval.
-    
+
     Parameters
     ----------
     network : str
         name of network to download, MARITIME or NDBC
     last_time_mod : str, optional
         time of last modification
-    
+
     Returns
     -------
     None
@@ -344,21 +346,20 @@ def update_maritime(network: str, last_time_mod: str | None=None):
         )
     else:
         print(f"{network} station files up to date.")
-    
+
     return None
 
 
-
-def update_otherisd(last_time_mod: str | None=None):
+def update_otherisd(last_time_mod: str | None = None):
     """
     Retrieves newer data for OtherISD since the date of the last data retrieval.
     As currently written, this will overwrite all files for the current year.
-    
+
     Parameters
     ----------
     last_time_mod : str, optional
         time of last modification
-    
+
     Returns
     -------
     None
@@ -392,23 +393,23 @@ def update_otherisd(last_time_mod: str | None=None):
 
 
 # Update script: SCAN
-def update_SCAN(network: str, last_time_mod: str | None=None):
+def update_SCAN(network: str, last_time_mod: str | None = None):
     """
     Retrieves newer data for SCAN / SNOTEL since the date of the last data retrieval.
-   
+
     Parameters
     ----------
     network : str
         name of network to return, SCAN or SNOTEL
     last_time_mod : str, optional
         time of last modification
-    
+
     Returns
     -------
     None
     """
 
-    today = datetime.now(timezone.utc).date()  
+    today = datetime.now(timezone.utc).date()
 
     if last_time_mod is None:
         last_time_mod = get_last_date(f"1_raw_wx/{network}/")
@@ -435,12 +436,11 @@ def update_SCAN(network: str, last_time_mod: str | None=None):
                 end_date=str(download_date),
                 networks=[usda_network],
                 fileext=str(today),
-        )
+            )
     else:
         print(f"{network} station files up to date.")
-    
-    return None
 
+    return None
 
 
 if __name__ == "__main__":
