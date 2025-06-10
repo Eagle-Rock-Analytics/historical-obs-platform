@@ -1,5 +1,5 @@
 # Historical Observations Data Platform 
-Victoria Ford, Héctor Inda Diaz, Vanessa Machuca, Nicole Keeney, Brenna Norris, Ella Belfer, Beth McClenny, Grace DiCecco<br>
+Victoria Ford, Héctor Inda Diaz, Vanessa Machuca, Nicole Keeney, Neil Schroeder, Brenna Norris, Ella Belfer, Beth McClenny, Grace DiCecco<br>
 Code associated with PIR-19-006
 
 The Historical Observations Data Platform is a cloud-based, historical weather observations data platform to enable California's energy sector access to high-quality, open climate and weather data. The Platform responds to community partner needs in understanding weather and cliamte information including the severity, duration, frequency, and rate of change over time of extreme weather events, as well as supporting projections downscaling efforts. We implement stringent, customized Quality Assurance/Quality Control (QA/QC) procedures in line with international convention, and updates relevant to the energy sector are accurately captures (such as temperature and precipitation extremes, winds, and solar radiation).
@@ -10,6 +10,7 @@ This repository contains the code (via Python scripts and Jupyter Notebooks) ass
 * **3_qaqc_data**: Scripts to QA/QC stations, including visualization of tests.
 * **4_merge_data**: Scripts to close out processing, and standardize to hourly timesteps. Data at conclusion have been fully processed.
 * **pcluster**: Scripts and files for running code in an AWS pcluster
+* **figures**: Notebooks to produce relevant figures
 
 **History**<br>
 **v1.0** -- *In progress*
