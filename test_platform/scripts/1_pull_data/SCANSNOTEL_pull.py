@@ -127,7 +127,7 @@ def get_scan_station_data(
     marpath: str,
     start_date: str | None = None,
     end_date: str | None = None,
-    stations: pd.DataFrame | None = None,
+    stations: pd.Series | None = None,
     primary: bool = False,
     networks: list[str] | None = ["SNTL", "SCAN"],
     fileext: str | None = None,
@@ -144,7 +144,7 @@ def get_scan_station_data(
         If none, download data starting on 1980-01-01. Otherwise, download data after start date (format "YYYY-MM-DD")
     end_date : str, optional
         If none, download data through present. Otherwise, download data after start date (format "YYYY-MM-DD") through end date
-    stations : pd.DataFrame, optional
+    stations : pd.Series, optional
         station metadata to download, required in format with "stationTriplet" and "beginDate"
     primary : bool, optional
         download primary data only, if primary is False, download secondary sensor data.
