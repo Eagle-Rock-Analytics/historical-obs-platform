@@ -40,7 +40,7 @@ import boto3
 
 
 def setup_logger(
-    station: str, logs_dir: str = "qaqc_logs", verbose: bool = True
+    station: str, logs_dir: str = "merge_logs", verbose: bool = True
 ) -> tuple[logging.Logger, str]:
     """
     Initialize a timestamped logger for the current station.
@@ -50,7 +50,7 @@ def setup_logger(
     station : str
         Station identifier for log file naming.
     logs_dir : str
-        Directory to save logs. Defaults to "qaqc_logs".
+        Directory to save logs. Defaults to "merge_logs".
     verbose : bool
         If True, also logs to console.
 
@@ -180,7 +180,7 @@ def _configure_logger(log_file: str, verbose: bool) -> logging.Logger:
 
 
 def _init_logger(
-    log_fname: str, logs_dir: str = "qaqc_logs", verbose: bool = True
+    log_fname: str, logs_dir: str = "merge_logs", verbose: bool = True
 ) -> logging.Logger:
     """
     Initializes a timestamped logger with optional console output.
@@ -190,7 +190,7 @@ def _init_logger(
     log_fname : str
         Log filename (e.g., station name, script name).
     logs_dir : str, optional
-        Directory to store log files. Defaults to "qaqc_logs".
+        Directory to store log files. Defaults to "merge_logs".
     verbose : bool, optional
         If True, also logs to the console. Defaults to True.
 
