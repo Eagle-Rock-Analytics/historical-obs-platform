@@ -23,32 +23,38 @@ import inspect
 import logging
 
 
-def merge_reorder_vars(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
+def filter_and_reorder_columns(
+    df: pd.DataFrame, logger: logging.Logger
+) -> pd.DataFrame:
     """
-    Reorders input dataframe columns
+    Filters and reorders DataFrame columns based on variable inclusion, exclusion,
+    and QA/QC suffix conventions.
 
     Rules
-    ------
-        1.) Non-qaqc variables that start with the strings in "desired_order" come first,
-            followed by their associated qaqc variables, followed by all remaining variables
+    -----
+    1. Keep only columns that contain any substring in `desired_variables`.
+    2. Exclude columns that contain any substring in `delete_variables`.
+    3. Reorder so that variables ending in '_eraqc' appear last.
 
     Parameters
-    ------
-    df: pd.DataFrame
+    ----------
+    df : pd.DataFrame
+        The input DataFrame to process.
+    logger : logging.Logger
+        Logger for tracking function execution.
 
     Returns
     -------
-    df : pd.DataFrame | None
-        Returns a dataframe with reordered columns
-
-    Notes
-    -------
-
+    pd.DataFrame
+        A DataFrame with filtered and reordered columns.
     """
+
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     try:
-        desired_order = [
+        # Keep only columns that match any desired_variables substring,
+        # and do NOT match any delete_variables substring
+        desired_variables = [
             "ps",
             "tas",
             "tdps",
@@ -56,72 +62,9 @@ def merge_reorder_vars(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame
             "hurs",
             "rsds",
             "sfcWind",
-            "pvp",
-            "svp",
         ]
 
-        # Select variables with names that start with those in "desired_order"
-        new_order = [
-            i for keyword in desired_order for i in df.columns if i.startswith(keyword)
-        ]
-
-        # Now split them into qaqc and non-qaqc variables
-        qaqc_vars = [i for i in new_order if "qc" in i]
-        nonqaqc_vars = [i for i in new_order if i not in qaqc_vars]
-
-        # Now store all remaining columns
-        rest_of_vars = [i for i in list(df.columns) if i not in new_order]
-
-        # Generate the complete list of variables, in the correct order
-        final_order = nonqaqc_vars + qaqc_vars + rest_of_vars
-
-        # Use that list to reorder the columns in "df"
-        df = df[final_order]
-
-        logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
-
-        return df
-
-    except Exception as e:
-        logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
-        raise e
-
-
-def merge_drop_vars(
-    df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
-) -> tuple[pd.DataFrame, dict]:
-    """
-    Keep “_eraqc” vars and drop the following variables
-        - qaqc_process
-        - pr_duration
-        - pr_depth
-        - PREC_flag
-        - rsds_duration
-        - rsds_flag
-        - q_code
-        - any "_qc" or "method "variable
-
-    Parameters
-    ------
-    df: pd.DataFrame
-        station data
-    var_attrs: dict
-        variable attributes
-
-    Returns
-    -------
-    if success:
-        df: pd.DataFrame
-        var_attrs: dict
-
-    if failure:
-        None
-    """
-
-    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
-
-    try:
-        drop_vars_keywords = [
+        delete_variables = [
             "qaqc_process",
             "pr_depth",
             "PREC_flag",
@@ -131,23 +74,25 @@ def merge_drop_vars(
             "method",
             "accum_pr",
         ]
-
-        # Select variables that contain the keywords defined above
-        drop_vars = [
-            i for keyword in drop_vars_keywords for i in df.columns if keyword in i
+        df = df[
+            [
+                col
+                for col in df.columns
+                if any(substr in col for substr in desired_variables)
+                and not any(substr in col for substr in delete_variables)
+            ]
         ]
 
-        # Remove those variables
-        df = df.drop(columns=drop_vars)
+        # Separate columns that end with '_eraqc' and those that don't
+        normal_cols = [col for col in df.columns if not col.endswith("_eraqc")]
+        eraqc_cols = [col for col in df.columns if col.endswith("_eraqc")]
 
-        # Remove the attributes of the dropped variables
-        for key in drop_vars:
-            if key in var_attrs:
-                del var_attrs[key]
+        # Reorder the DataFrame with _eraqc columns at the end
+        df = df[normal_cols + eraqc_cols]
 
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
-        return df, var_attrs
+        return df
 
     except Exception as e:
         logger.error(f"{inspect.currentframe().f_code.co_name}: Failed")
