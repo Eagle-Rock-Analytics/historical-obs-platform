@@ -145,10 +145,7 @@ def get_var_attrs(
     ds: xr.Dataset, network: str, logger: logging.Logger
 ) -> Dict[str, dict]:
     """
-    Extracts variable attributes from all data variables in an xarray Dataset.
-
-    For the "ASOSAWOS" network, if the "pr" variable is present, its "units"
-    attribute is explicitly set to "mm".
+    Extract and standardize variable attributes from all data variables in an xarray Dataset.
 
     Parameters
     ----------
@@ -161,26 +158,58 @@ def get_var_attrs(
 
     Returns
     -------
-    var_attrs : dict[str, dict]
-        A dictionary mapping variable names to their attribute dictionaries.
+    dict[str, dict]
+        A dictionary mapping variable names to their updated attribute dictionaries.
     """
+
+    def update_attrs(var_attrs: dict, var: str, updates: dict):
+        if var in var_attrs:
+            var_attrs[var].update(updates)
 
     try:
         var_attrs = {var: ds[var].attrs.copy() for var in ds.data_vars}
 
-        if network == "ASOSAWOS" and "pr" in ds.data_vars:
-            var_attrs["pr"]["units"] = "mm"
+        # Special-case: Set units for ASOSAWOS precipitation
+        if network == "ASOSAWOS" and "pr" in var_attrs:
+            update_attrs(var_attrs, "pr", {"units": "mm"})
             logger.info(
-                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network to resolve error in units attribute."
+                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network."
             )
 
-        return var_attrs
+        # Add standard metadata to QAQC variables
+        for var in ds.data_vars:
+            if var.endswith("_eraqc"):
+                update_attrs(
+                    var_attrs,
+                    var,
+                    {
+                        "comment": "ERA QAQC flags for variable",
+                        "flag_meanings": "See QAQC csv",
+                    },
+                )
+
+        # Standard time and station metadata
+        update_attrs(var_attrs, "time", {"long_name": "time", "standard_name": "time"})
+
+        update_attrs(
+            var_attrs,
+            "station",
+            {
+                "long_name": "station_id",
+                "comment": (
+                    "Unique ID created by Eagle Rock Analytics. "
+                    "Includes network name appended to original unique station ID provided by network."
+                ),
+            },
+        )
 
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to retrieve variable attributes from xr.Dataset."
         )
         raise e
+
+    return var_attrs
 
 
 def convert_xr_to_df(
@@ -214,6 +243,42 @@ def convert_xr_to_df(
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to convert xarray Dataset to DataFrame."
+        )
+        raise e
+
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
+    return df
+
+
+def resolve_datatype_issue(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
+    """
+    Convert all columns ending with '_eraqc' in the DataFrame to numeric dtype,
+    coercing any non-numeric values to NaN. This helps fix datatype issues
+    caused by mixed types or strings in those columns before converting to xarray.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame containing columns to clean.
+    logger : logging.Logger
+        Logger instance for info and error messages.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with '_eraqc' columns converted to numeric dtype.
+    """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
+    try:
+        for col in df.columns:
+            if col.endswith("_eraqc"):
+                # Convert '_eraqc' columns to numeric, coercing errors to NaN
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert '_eraqc' columns to numeric."
         )
         raise e
 
@@ -442,6 +507,9 @@ def run_merge_one_station(
         df = filter_and_reorder_columns(df, logger)
 
         # ======== CLEANUP & UPLOAD DATA TO S3 ========
+
+        # Resolve datatype issue for eraqc variables
+        df = resolve_datatype_issue(df, logger)
 
         # Convert the cleaned DataFrame to an xarray.Dataset and assign global + variable-level metadata
         ds_merged = convert_df_to_xr(df, ds.attrs, var_attrs, logger)
