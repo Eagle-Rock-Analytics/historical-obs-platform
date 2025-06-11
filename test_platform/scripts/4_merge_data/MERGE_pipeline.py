@@ -30,7 +30,7 @@ import logging
 from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
-from merge_clean_vars import merge_reorder_vars, merge_drop_vars
+from merge_clean_vars import filter_and_reorder_columns
 from merge_eraqc_counts import (
     eraqc_counts_native_timestep,
     eraqc_counts_hourly_timestep,
@@ -275,9 +275,11 @@ def convert_df_to_xr(
         )
         ds = ds.assign_attrs(ds_attrs)
 
-        # Assign attributes for each variable
+        # Assign attributes for each variable, only if the variable exists in the dataset
         for var, attrs in var_attrs.items():
-            ds[var] = ds[var].assign_attrs(attrs)
+            if var in ds.data_vars:
+                ds[var] = ds[var].assign_attrs(attrs)
+
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to assign attributes to final xr.Dataset object."
@@ -436,11 +438,8 @@ def run_merge_one_station(
         # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
         eraqc_counts_hourly_timestep(df, network_name, station, logger)
 
-        # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
-        df, var_attrs = merge_drop_vars(df, var_attrs, logger)
-
-        # Part 5: Re-orders variables into final preferred order
-        df = merge_reorder_vars(df, logger)
+        # Part 4: Filter and reorder variables
+        df = filter_and_reorder_columns(df, logger)
 
         # ======== CLEANUP & UPLOAD DATA TO S3 ========
 
