@@ -49,7 +49,7 @@ client = Client(url)
 
 
 def get_SCAN_stations(
-    terrpath: str, marpath: str, networks: list[str]
+    terrpath: str, marpath: str, networks: list[str] | None = None
 ) -> pd.DataFrame | None:
     """
     Get SCAN station list in WECC region from SOAP API and save to AWS.
@@ -118,7 +118,7 @@ def get_SCAN_stations(
         return station_metadata
 
     except Exception as e:
-        print("Error: {}".format(e))
+        print(f"Error: {e}")
         return None
 
 
