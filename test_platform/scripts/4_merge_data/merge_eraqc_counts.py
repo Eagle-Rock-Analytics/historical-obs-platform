@@ -73,7 +73,7 @@ def eraqc_counts_native_timestep(
         flag_counts = flag_counts.astype(int)
 
         # send file to AWS
-        csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_native_timestep.csv"
+        csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts_native_timestep/{station}_flag_counts_native_timestep.csv"
         flag_counts.to_csv(csv_s3_filepath, index=True)
 
         # Update logger
@@ -147,7 +147,7 @@ def eraqc_counts_hourly_timestep(
         flag_counts = flag_counts.astype(int)
 
         # send file to AWS
-        csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts/{station}_flag_counts_hourly_standardized.csv"
+        csv_s3_filepath = f"s3://wecc-historical-wx/4_merge_wx/{network}/eraqc_counts_hourly_timestep/{station}_flag_counts_hourly_standardized.csv"
         flag_counts.to_csv(csv_s3_filepath, index=True)
 
         # Update logger
