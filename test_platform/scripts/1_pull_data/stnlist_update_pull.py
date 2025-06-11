@@ -33,6 +33,7 @@ Functions
 
 Intended Use
 ------------
+Run to ensure all available stations are retrievable per network, including failed downloads API timeouts are captured. Generates the "pull station list". 
 """
 
 from MADIS_pull import get_madis_station_csv
