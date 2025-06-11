@@ -30,7 +30,7 @@ import logging
 from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
-from merge_clean_vars import filter_and_reorder_columns
+from merge_clean_vars import filter_columns
 from merge_eraqc_counts import (
     eraqc_counts_native_timestep,
     eraqc_counts_hourly_timestep,
@@ -145,7 +145,10 @@ def get_var_attrs(
     ds: xr.Dataset, network: str, logger: logging.Logger
 ) -> Dict[str, dict]:
     """
-    Extract and standardize variable attributes from all data variables in an xarray Dataset.
+    Extracts variable attributes from all data variables in an xarray Dataset.
+
+    For the "ASOSAWOS" network, if the "pr" variable is present, its "units"
+    attribute is explicitly set to "mm".
 
     Parameters
     ----------
@@ -158,50 +161,49 @@ def get_var_attrs(
 
     Returns
     -------
-    dict[str, dict]
-        A dictionary mapping variable names to their updated attribute dictionaries.
+    var_attrs : dict[str, dict]
+        A dictionary mapping variable names to their attribute dictionaries.
     """
-
-    def update_attrs(var_attrs: dict, var: str, updates: dict):
-        if var in var_attrs:
-            var_attrs[var].update(updates)
 
     try:
         var_attrs = {var: ds[var].attrs.copy() for var in ds.data_vars}
 
-        # Special-case: Set units for ASOSAWOS precipitation
-        if network == "ASOSAWOS" and "pr" in var_attrs:
-            update_attrs(var_attrs, "pr", {"units": "mm"})
+        # Add units for ASOSAWOS precip
+        if network == "ASOSAWOS" and "pr" in ds.data_vars:
+            var_attrs["pr"]["units"] = "mm"
             logger.info(
-                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network."
+                f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network to resolve error in units attribute."
             )
 
-        # Add standard metadata to QAQC variables
+        # Add ERA QAQC-specific attributes to variables ending in '_eraqc'
         for var in ds.data_vars:
             if var.endswith("_eraqc"):
-                update_attrs(
-                    var_attrs,
-                    var,
+                var_attrs[var].update(
                     {
                         "comment": "ERA QAQC flags for variable",
                         "flag_meanings": "See QAQC csv",
-                    },
+                    }
                 )
 
-        # Standard time and station metadata
-        update_attrs(var_attrs, "time", {"long_name": "time", "standard_name": "time"})
+        # Latitude attributes
+        if "lat" in var_attrs:
+            var_attrs["lat"].update(
+                {
+                    "long_name": "latitude",
+                    "standard_name": "latitude",
+                    "units": "degrees_north",
+                }
+            )
 
-        update_attrs(
-            var_attrs,
-            "station",
-            {
-                "long_name": "station_id",
-                "comment": (
-                    "Unique ID created by Eagle Rock Analytics. "
-                    "Includes network name appended to original unique station ID provided by network."
-                ),
-            },
-        )
+        # Longitude attributes
+        if "lon" in var_attrs:
+            var_attrs["lon"].update(
+                {
+                    "long_name": "longitude",
+                    "standard_name": "longitude",
+                    "units": "degrees_east",
+                }
+            )
 
     except Exception as e:
         logger.error(
@@ -344,6 +346,18 @@ def convert_df_to_xr(
         for var, attrs in var_attrs.items():
             if var in ds.data_vars:
                 ds[var] = ds[var].assign_attrs(attrs)
+
+        # Update time coordinate attributes
+        ds["time"].attrs = {
+            "long_name": "time",
+            "standard_name": "time",
+        }
+
+        # Update station coordinate attributes
+        ds["station"].attrs = {
+            "long_name": "station_id",
+            "comment": "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network.",
+        }
 
     except Exception as e:
         logger.error(
@@ -503,8 +517,8 @@ def run_merge_one_station(
         # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
         eraqc_counts_hourly_timestep(df, network_name, station, logger)
 
-        # Part 4: Filter and reorder variables
-        df = filter_and_reorder_columns(df, logger)
+        # Part 4: Filter columns to remove unwanted variables
+        df = filter_columns(df, logger)
 
         # ======== CLEANUP & UPLOAD DATA TO S3 ========
 

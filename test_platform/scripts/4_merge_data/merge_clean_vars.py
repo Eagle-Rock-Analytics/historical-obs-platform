@@ -1,20 +1,15 @@
 """
 merge_clean_vars.py
 
-Drop unwanted variables and reorder columns.
+Drop unwanted variables from station-level climate data.
 
-This script combines two merge pipeline steps:
-1. Dropping unnecessary or intermediate variables such as QAQC flags and method indicators.
-2. Reordering the remaining columns so that core variables and their QAQC counterparts are grouped consistently.
+This script performs a key preprocessing step in the merge pipeline:
+1. Filtering out unnecessary or intermediate variables (e.g., QAQC flags, method indicators),
+   while preserving essential columns for downstream analysis.
 
 Functions
 ---------
-- merge_drop_vars: Removes temporary and QAQC-related variables from the dataset.
-- merge_reorder_vars: Reorders the columns in a standardized format for downstream use.
-
-Intended Use
-------------
-Import into merge workflows to clean and organize station-level climate data.
+- filter_columns(df, logger): Filters a DataFrame's columns based on inclusion and exclusion rules.
 
 """
 
@@ -23,18 +18,15 @@ import inspect
 import logging
 
 
-def filter_and_reorder_columns(
-    df: pd.DataFrame, logger: logging.Logger
-) -> pd.DataFrame:
+def filter_columns(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
     """
-    Filters and reorders DataFrame columns based on variable inclusion, exclusion,
+    Filters and DataFrame columns based on variable inclusion, exclusion,
     and QA/QC suffix conventions.
 
     Rules
     -----
     1. Keep only columns that contain any substring in `desired_variables`.
     2. Exclude columns that contain any substring in `delete_variables`.
-    3. Reorder so that variables ending in '_eraqc' appear last.
 
     Parameters
     ----------
@@ -52,8 +44,7 @@ def filter_and_reorder_columns(
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
 
     try:
-        # Keep only columns that match any desired_variables substring,
-        # and do NOT match any delete_variables substring
+        # Define variable inclusion and exclusion criteria
         desired_variables = [
             "ps",
             "tas",
@@ -62,6 +53,7 @@ def filter_and_reorder_columns(
             "hurs",
             "rsds",
             "sfcWind",
+            "elevation",
         ]
 
         delete_variables = [
@@ -74,21 +66,23 @@ def filter_and_reorder_columns(
             "method",
             "accum_pr",
         ]
-        df = df[
-            [
-                col
-                for col in df.columns
-                if any(substr in col for substr in desired_variables)
-                and not any(substr in col for substr in delete_variables)
-            ]
-        ]
 
-        # Separate columns that end with '_eraqc' and those that don't
-        normal_cols = [col for col in df.columns if not col.endswith("_eraqc")]
-        eraqc_cols = [col for col in df.columns if col.endswith("_eraqc")]
+        # Always-include variables, regardless of filtering rules
+        keep_always = ["station", "time", "lat", "lon"]
 
-        # Reorder the DataFrame with _eraqc columns at the end
-        df = df[normal_cols + eraqc_cols]
+        # Filter columns:
+        # - Include if the column name contains any substring in desired_variables
+        # - Exclude if it contains any substring in delete_variables
+        # - Always include if it's in keep_always
+        filtered_cols = []
+        for col in df.columns:
+            is_desired = any(substr in col for substr in desired_variables)
+            is_deleted = any(substr in col for substr in delete_variables)
+            if (is_desired and not is_deleted) or col in keep_always:
+                filtered_cols.append(col)
+
+        # Subset the DataFrame to filtered columns
+        df = df[filtered_cols]
 
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
 
