@@ -288,6 +288,39 @@ def convert_df_to_xr(
     return ds
 
 
+def set_ds_chunks(ds: xr.Dataset, logger: logging.Logger) -> xr.Dataset:
+    """
+    Rechunk an xarray Dataset so each variable has a single Dask chunk along time.
+
+    This avoids automatic chunking when writing to Zarr, by explicitly setting
+    a single chunk along the time dimension. The station dimension is assumed
+    to be a singleton and is left unchanged.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The input dataset to rechunk.
+    logger : logging.Logger
+        Logger for error and info reporting.
+
+    Returns
+    -------
+    xr.Dataset
+        A rechunked Dataset where each variable has a single Dask chunk along time.
+    """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
+    try:
+        ds = ds.chunk({"time": -1})
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to rechunk dataset"
+        )
+        raise e
+
+    return ds
+
+
 def write_zarr_to_s3(
     ds: xr.Dataset,
     bucket_name: str,
@@ -413,6 +446,9 @@ def run_merge_one_station(
 
         # Convert the cleaned DataFrame to an xarray.Dataset and assign global + variable-level metadata
         ds_merged = convert_df_to_xr(df, ds.attrs, var_attrs, logger)
+
+        # Assign chunks (one big chunk :)
+        ds_merged = set_ds_chunks(ds_merged, logger)
 
         # Write the xarray Dataset as a Zarr file to the specified S3 path
         write_zarr_to_s3(
