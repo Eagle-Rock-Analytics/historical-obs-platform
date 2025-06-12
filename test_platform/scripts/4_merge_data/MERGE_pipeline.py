@@ -214,9 +214,7 @@ def get_var_attrs(
     return var_attrs
 
 
-def convert_xr_to_df(
-    ds: xr.Dataset, logger: logging.Logger
-) -> tuple[pd.DataFrame, pd.MultiIndex]:
+def convert_xr_to_df(ds: xr.Dataset, logger: logging.Logger) -> pd.DataFrame:
     """
     Convert an xarray Dataset into a flat pandas DataFrame, while preserving the original MultiIndex.
 
