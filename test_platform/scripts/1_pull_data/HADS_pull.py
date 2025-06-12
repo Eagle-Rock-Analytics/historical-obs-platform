@@ -336,7 +336,7 @@ def get_hads_dat(directory: str, start_date: str | None = None, get_all: bool = 
                     # If folder empty or there's an error with the "last downloaded" metadata, redownload all data
                     get_all = True
 
-            if get_all == True:
+            if get_all:
                 link_to_aws(links, directory)
 
         except Exception as e:
