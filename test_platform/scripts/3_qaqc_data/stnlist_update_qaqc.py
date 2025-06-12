@@ -27,7 +27,6 @@ import numpy as np
 import boto3
 import s3fs
 
-# Set environment variables
 BUCKET_NAME = "wecc-historical-wx"
 RAW_WX = "1_raw_wx/"
 CLEAN_WX = "2_clean_wx/"
