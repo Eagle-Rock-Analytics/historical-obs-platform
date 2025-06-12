@@ -18,7 +18,9 @@ __pycache__/
 # Logging
 */qaqc_logs
 */qaqc_figs
+*/merge_logs
 */timing
 */temp
 */local_qaqced_files
 default_qaqc_log.log
+default_merge_log.log
