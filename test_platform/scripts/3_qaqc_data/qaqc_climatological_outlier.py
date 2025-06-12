@@ -1,37 +1,35 @@
 """
+qaqc_climatological_outlier.py
+
 This is a script where Stage 3: QA/QC function(s) on climatological outlier values in the data observations are flagged. 
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_climatological_outlier: Flags individual gross outliers from climatological distribution.
+- flag_clim_outliers: Identifies climatological outliers to flag.
+- fit_normal: Fits a guassian distribution to the series.
+- gap_search: Flags observations outside of the central range of the hitsogram, as determined by the left and right bins, and frequency counts.
+- qaqc_climatological_outlier_precip: Checks for daily precipitation totals that exceed the respective 29-day climatological 95th percentiles by at
+    least a certain factor (9 when the day's mean temperature is above freezing, 5 when it is below freezing).
+
+Intended Use
+------------
+Script functions assess QA/QC on climatological outliers from a Guassian distribution, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 import scipy.signal as signal
-
-# New logger function
 from log_config import logger
 
-## Import plotting functions
-try:
-    from qaqc_plot import *
-except:
-    logger.debug("Error importing qaqc_plot.py")
-
-try:
-    from qaqc_unusual_gaps import *
-except:
-    logger.debug("Error importing qaqc_unusual_gaps.py")
-
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+from qaqc_plot import *
+from qaqc_unusual_gaps import *
+from qaqc_utils import *
 
 
-# ----------------------------------------------------------------------
-## climatological outlier check
 def qaqc_climatological_outlier(
     df: pd.DataFrame,
     winsorize: bool = True,
@@ -57,12 +55,8 @@ def qaqc_climatological_outlier(
 
     Returns
     -------
-    qaqc success:
-        new_df : pd.DataFrame
-            QAQC dataframe with flagged values (see below for flag meaning)
-    qaqc failure:
-        None
-            This function does not return a value
+    If success, QAQC dataframe with flagged values (see below for flag meaning)
+    If failure: None
 
     Notes
     ------
@@ -72,7 +66,11 @@ def qaqc_climatological_outlier(
     ----------
     [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
 
+    To Do
+    -----
+    1. Fix plotting.
     """
+
     new_df = df.copy()
 
     vars_to_check = ["tas", "tdps", "tdps_derived"]
@@ -258,7 +256,6 @@ def qaqc_climatological_outlier(
     return new_df
 
 
-# ----------------------------------------------------------------------
 def flag_clim_outliers(series: pd.Series, bin_size: float = 0.25) -> pd.DataFrame:
     """Identifies climatological outliers to flag.
 
@@ -327,23 +324,11 @@ def flag_clim_outliers(series: pd.Series, bin_size: float = 0.25) -> pd.DataFram
 
     # Create new array for the flags
     clim_outliers = np.ones_like(series) * np.nan
-
-    #############################################################################
-    # RED vs YELLOW flag with nearest neighbor stations for version 2
-    # clim_outliers[red] = 30
-    # clim_outliers[yellow] = 31
-
-    # RED AND YELLOW FLAGGED
     clim_outliers[np.where(np.logical_or(red, yellow))[0]] = 26
-
-    # ONLY RED FLAGGED
-    # clim_outliers[np.where(red)[0]] = 26
-    #############################################################################
 
     return clim_outliers
 
 
-# ----------------------------------------------------------------------
 def fit_normal(
     series: pd.Series, bin_size: float = 0.25, plot: bool = False
 ) -> tuple[list, list, list, int, int]:
@@ -370,7 +355,12 @@ def fit_normal(
         leftmost bin for distribution
     right : int
         rightmost bin for distribution
+
+    To Do
+    -----
+    1. Plotting of histogram should be in qaqc_plot.py
     """
+
     bins = create_bins(series, bin_size=bin_size)
     max_bin = np.abs(bins).max()
     bins = np.arange(-max_bin - bin_size, max_bin + 2 * bin_size, bin_size)
@@ -406,7 +396,7 @@ def fit_normal(
     except:
         right = len(bins) - 2
 
-    if plot:  #! why is this here?
+    if plot:
         # Plot the histogram of the series
         fig, ax = plt.subplots()
         ax.hist(series, bins=bins, density=False, alpha=0.35, label="Histogram")
@@ -429,7 +419,6 @@ def fit_normal(
     return freq, bins, p, left, right
 
 
-# ----------------------------------------------------------------------
 def gap_search(freq: list, left: int, right: int) -> int:
     """
     Flags observations outside of the central range of the hitsogram,
@@ -452,35 +441,34 @@ def gap_search(freq: list, left: int, right: int) -> int:
             0 indicates non-flagged obs oustide central range
             1 indicates central region between left and right bin
     """
+
     left_freq = freq[0:left]
-    left_flag = np.zeros_like(
-        left_freq
-    )  # Yellow flag, all values beyond the threshold are flagged
+    # Yellow flag, all values beyond the threshold are flagged
+    left_flag = np.zeros_like(left_freq)
+
     for i, f in zip(range(len(left_freq) - 1, -1, -1), left_freq[::-1]):
         if f < 0.1:
-            left_flag[0 : i + 1] = (
-                -1
-            )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
+            # Red flag, values and gap below 0.1 and beyond the threshold are flagged
+            left_flag[0 : i + 1] = -1
             break
 
     right_freq = freq[right + 1 :]
-    right_flag = np.zeros_like(
-        right_freq
-    )  # Yellow flag, all values beyond the threshold are flagged
+    # Yellow flag, all values beyond the threshold are flagged
+    right_flag = np.zeros_like(right_freq)
+
     for i, f in zip(range(len(right_freq)), right_freq):
         if f < 0.1:
-            right_flag[i:] = (
-                -1
-            )  # Red flag, values and gap below 0.1 and beyond the threshold are flagged
+            # Red flag, values and gap below 0.1 and beyond the threshold are flagged
+            right_flag[i:] = -1
             break
 
     # Return flag of the size of freq
     flag = np.ones(len(freq) - len(left_freq) - len(right_freq))
     flag = np.concatenate((left_flag, flag, right_flag))
+
     return flag
 
 
-# ----------------------------------------------------------------------
 def qaqc_climatological_outlier_precip(
     df: pd.DataFrame, var: str, factor: int = 9
 ) -> pd.DataFrame:

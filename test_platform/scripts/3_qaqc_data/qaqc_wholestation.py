@@ -248,7 +248,7 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     # Read in WECC and Alaska shapefiles
     t = gp.read_file(WECC_TERR).iloc[0].geometry
     m = gp.read_file(WECC_MAR).iloc[0].geometry
-    ak_t = (gp.read_file(ASCC).iloc[9].geometry)
+    ak_t = gp.read_file(ASCC).iloc[9].geometry
     lat = df["lat"].iloc[0]
     lon = df["lon"].iloc[0]
 
@@ -587,7 +587,6 @@ def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
     return df
 
 
-# ======================================================================
 # Part 1b functions (whole station/network)
 # Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
 def qaqc_sensor_height_t(df: pd.DataFrame) -> pd.DataFrame | None:

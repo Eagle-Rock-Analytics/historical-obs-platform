@@ -1,24 +1,25 @@
 """
+qaqc_buoy_check.py
+
 This is a script where Stage 3: QA/QC function(s) on spurious buoy issues within the NDBC and MARITIME networks are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- spurious_buoy_check: Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.
+
+Intended Use
+------------
+Script functions assess QA/QC on buoy stations with known issues, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import datetime
-
-# New logger function
 from log_config import logger
 
-# Import utils
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+from qaqc_utils import *
 
 
-## NDBC and MARITIME only
-# -----------------------------------------------------------------------------
 def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
     """
     Checks the end date on specific buoys to confirm disestablishment/drifting dates of coverage.

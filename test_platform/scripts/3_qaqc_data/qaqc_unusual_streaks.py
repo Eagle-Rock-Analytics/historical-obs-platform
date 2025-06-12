@@ -1,38 +1,45 @@
 """
-This is a script where Stage 3: QA/QC related common functions, conversions, and operations is stored for ease of use
-for the Historical Observations Platform.
+qaqc_unusual_streaks.py
+
+This is a script where Stage 3: QA/QC function(s) on unusual streaks of data observations are flagged.
+For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- infere_freq: Infers common time step frequencies.
+- infere_res_var: Infers resolution for a specific variable.
+- infere_res: Infers value resolution for all variables in a QC dataframe.
+- consecutive_months: Assigns group labels to consecutive months.
+- qaqc_unusual_repeated_streaks: Test for repeated streaks/unusual spell frequency.
+- find_date_clusters: Identifies clusters of dates to evaluate 3 kinds of unusual streaks.
+- hourly_repeats: Identifies timestamps of hourly repeating streak values.
+- conseuctive_repeats: Consecutive observation replication (either using a threshold of a certain number of observations,
+    or for sparser records, a number of days during which all the observations have the same value).
+- is_consecutive: Filters the repeated bad series from`consecutive_repeats`.
+- full_day_compare: Compares two daily obs series to determine matching or mismatched streaks.
+- consecutive_fullDay_repeat: Consecutive full day replication (either using a threshold of a certain number of observations,
+    or for sparser records, a number of days during which all the observations have the same value).
+
+Intended Use
+------------
+Script functions for the unusual streaks QA/QC test, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import boto3
 import numpy as np
 import pandas as pd
-
-# New logger function
 from log_config import logger
 
-try:
-    from qaqc_plot import *
-except:
-    logger.debug("Error importing qaqc_plot.py")
+from qaqc_plot import *
+from qaqc_utils import *
 
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
-
-## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
-## Set relative paths to other folders and objects in repository.
 BUCKET_NAME = "wecc-historical-wx"
 
-
-# CONSTANTS
-# ----------------------------------------------------------------------
 # Straight repeat streak criteria
-straight_repeat_criteria = {
+STRAIGHT_REPEAT_CRITERIA = {
     "tas": {
         1: [40, 14],  # 40 values or 14 days
         0.5: [30, 10],  # 30 values or 10 days
@@ -50,19 +57,19 @@ straight_repeat_criteria = {
         0.1: [24, 7],  # or
     },
 }
-straight_repeat_criteria["tdps_derived"] = straight_repeat_criteria["tdps"]
-straight_repeat_criteria["ps"] = straight_repeat_criteria["psl"]
-straight_repeat_criteria["ps_derived"] = straight_repeat_criteria["psl"]
-straight_repeat_criteria["ps_altimeter"] = straight_repeat_criteria["psl"]
+STRAIGHT_REPEAT_CRITERIA["tdps_derived"] = STRAIGHT_REPEAT_CRITERIA["tdps"]
+STRAIGHT_REPEAT_CRITERIA["ps"] = STRAIGHT_REPEAT_CRITERIA["psl"]
+STRAIGHT_REPEAT_CRITERIA["ps_derived"] = STRAIGHT_REPEAT_CRITERIA["psl"]
+STRAIGHT_REPEAT_CRITERIA["ps_altimeter"] = STRAIGHT_REPEAT_CRITERIA["psl"]
 
 # Add criteria for precipiation
 pr_variables = ["pr", "pr_5min", "pr_15min", "pr_1h", "pr_24h", "pr_localmid"]
 for pr_var in pr_variables:
-    straight_repeat_criteria[pr_var] = straight_repeat_criteria["tas"]
+    STRAIGHT_REPEAT_CRITERIA[pr_var] = STRAIGHT_REPEAT_CRITERIA["tas"]
 
-# ----------------------------------------------------------------------
+
 # Hour repeat streak criteria
-hour_repeat_criteria = {
+HOUR_REPEAT_CRITERIA = {
     "tas": {
         1: 25,  # 40 days
         0.5: 20,  # 20 days
@@ -70,20 +77,20 @@ hour_repeat_criteria = {
     }
 }
 # All variables have the same hourly criteria
-hour_repeat_criteria["tdps"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["tdps_derived"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["psl"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["ps"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["ps_altimeter"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["ps_derived"] = hour_repeat_criteria["tas"]
-hour_repeat_criteria["sfcWind"] = hour_repeat_criteria["tas"]
+HOUR_REPEAT_CRITERIA["tdps"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["tdps_derived"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["psl"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["ps"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["ps_altimeter"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["ps_derived"] = HOUR_REPEAT_CRITERIA["tas"]
+HOUR_REPEAT_CRITERIA["sfcWind"] = HOUR_REPEAT_CRITERIA["tas"]
 # Add criteria for precipiation
 for pr_var in pr_variables:
-    hour_repeat_criteria[pr_var] = hour_repeat_criteria["tas"]
+    HOUR_REPEAT_CRITERIA[pr_var] = HOUR_REPEAT_CRITERIA["tas"]
 
-# ----------------------------------------------------------------------
+
 # Day repeat streak criteria
-day_repeat_criteria = {
+DAY_REPEAT_CRITERIA = {
     "tas": {
         1: 10,  # 10 days
         0.5: 7,  #  7 days
@@ -91,18 +98,18 @@ day_repeat_criteria = {
     }
 }
 # All variables have the same daily criteria
-day_repeat_criteria["tdps"] = day_repeat_criteria["tas"]
-day_repeat_criteria["tdps_derived"] = day_repeat_criteria["tas"]
-day_repeat_criteria["psl"] = day_repeat_criteria["tas"]
-day_repeat_criteria["ps"] = day_repeat_criteria["tas"]
-day_repeat_criteria["ps_altimeter"] = day_repeat_criteria["tas"]
-day_repeat_criteria["ps_derived"] = day_repeat_criteria["tas"]
-day_repeat_criteria["sfcWind"] = day_repeat_criteria["tas"]
+DAY_REPEAT_CRITERIA["tdps"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["tdps_derived"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["psl"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["ps"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["ps_altimeter"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["ps_derived"] = DAY_REPEAT_CRITERIA["tas"]
+DAY_REPEAT_CRITERIA["sfcWind"] = DAY_REPEAT_CRITERIA["tas"]
 # Add criteria for precipiation
 for pr_var in pr_variables:
-    day_repeat_criteria[pr_var] = day_repeat_criteria["tas"]
+    DAY_REPEAT_CRITERIA[pr_var] = DAY_REPEAT_CRITERIA["tas"]
 
-# ----------------------------------------------------------------------
+
 # Min value for straight repeat test
 # More analysis needs to be done to ensure what is a good threshold for calm wind conditions for this test
 # For now, precipitation min value for streaks is set to 2 mm, which means that very low precip repeated values shoold not be flagged
@@ -111,9 +118,8 @@ MIN_VALUE = {
     "pr": {1: 2.0, 0.5: 2.0, 0.1: 2.0},
 }
 
-# ----------------------------------------------------------------------
 # Define test variables and check if they are in the dataframe
-check_vars = [
+CHECK_VARS = [
     "sfcWind" "tas",
     "tdps",
     "tdps_derived",
@@ -131,7 +137,6 @@ check_vars = [
 ]
 
 
-# ----------------------------------------------------------------------
 def infere_freq(df: pd.DataFrame) -> dict[float, float]:
     """
     Infers common time step frequencies.
@@ -161,7 +166,6 @@ def infere_freq(df: pd.DataFrame) -> dict[float, float]:
     return frequencies
 
 
-# ----------------------------------------------------------------------
 def infere_res_var(df: pd.DataFrame, var: str) -> float:
     """
     Infers resolution for a specific variable.
@@ -216,7 +220,6 @@ def infere_res_var(df: pd.DataFrame, var: str) -> float:
             return 1.0
 
 
-# ----------------------------------------------------------------------
 def infere_res(df: pd.DataFrame) -> dict:
     """
     Infers value resolution for all variables in a QC dataframe.
@@ -231,7 +234,7 @@ def infere_res(df: pd.DataFrame) -> dict:
     resolutions : dict
         Dict of var names to inferred resolutions
     """
-    variables = [var for var in check_vars if var in df.columns]
+    variables = [var for var in CHECK_VARS if var in df.columns]
 
     resolutions = {}
     for var in variables:
@@ -251,8 +254,6 @@ def infere_res(df: pd.DataFrame) -> dict:
     return resolutions
 
 
-# ---------------------------------------------------------------------------------------------------
-# Function to create a new column for consecutive months
 def consecutive_months(series: pd.Series) -> pd.Series:
     """
     Assigns group labels to consecutive months.
@@ -277,7 +278,6 @@ def consecutive_months(series: pd.Series) -> pd.Series:
     return pd.Series(groups, index=series.index)
 
 
-# ---------------------------------------------------------------------------------------------------
 def qaqc_unusual_repeated_streaks(
     df: pd.DataFrame, min_sequence_length: int = 10, plot: bool = True
 ) -> pd.DataFrame | None:
@@ -325,7 +325,7 @@ def qaqc_unusual_repeated_streaks(
     # Save original df multiindex and create station column
     new_df = df.copy()
 
-    variables = [var for var in check_vars if var in new_df.columns]
+    variables = [var for var in CHECK_VARS if var in new_df.columns]
     logger.info(
         "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
     )
@@ -368,13 +368,12 @@ def qaqc_unusual_repeated_streaks(
             ## test.loc[:,'tdps_derived'] = test['tdps_derived'].round(decimals=1)
             ##
             ##########################################################################################
-            # ------------------------------------------------------------------------------------------------
             # Hour repeat streak criteria
             logger.info(
                 "Running hourly repeats on {}".format(var),
             )
             tt00 = time.time()
-            threshold = hour_repeat_criteria[var][res]
+            threshold = HOUR_REPEAT_CRITERIA[var][res]
 
             # If the data is precip avoid dry season bad flagging
             if var == "sfcWind":
@@ -396,13 +395,13 @@ def qaqc_unusual_repeated_streaks(
                         var, time.time() - tt00
                     ),
                 )
-            # ------------------------------------------------------------------------------------------------
+
             # Straight repeat streak criteria
             logger.info(
                 "Running straight repeats on {}".format(var),
             )
             tt00 = time.time()
-            threshold = straight_repeat_criteria[var][res]
+            threshold = STRAIGHT_REPEAT_CRITERIA[var][res]
             if var == "sfcWind":
                 min_value = MIN_VALUE["sfcWind"][res]
             elif "pr" in var:
@@ -425,13 +424,13 @@ def qaqc_unusual_repeated_streaks(
                         var, time.time() - tt00
                     ),
                 )
-            # ------------------------------------------------------------------------------------------------
+
             # Whole day replication for a streak of days
             logger.info(
                 "Running whole day repeats on {}".format(var),
             )
             tt00 = time.time()
-            threshold = day_repeat_criteria[var][res]
+            threshold = DAY_REPEAT_CRITERIA[var][res]
 
             # If the data is precip avoid dry season bad flagging
             if var == "sfcWind":
@@ -453,7 +452,6 @@ def qaqc_unusual_repeated_streaks(
                         var, time.time() - tt00
                     ),
                 )
-            # ------------------------------------------------------------------------------------------------
             bad_keys = np.concatenate(
                 [
                     len(bad_hourly) * [27],
@@ -468,9 +466,8 @@ def qaqc_unusual_repeated_streaks(
             bad["year"] = bad.time.dt.year
             bad["month"] = bad.time.dt.month
 
-            # --------------------------------------------------------
             if plot:
-                ## Plotting by month/year will reduce the number of plots
+                # Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year", "month"]).groups.keys()
                 for k in keys:
                     ind = np.logical_and(
@@ -494,7 +491,6 @@ def qaqc_unusual_repeated_streaks(
     return new_df
 
 
-# ---------------------------------------------------------------------------------------------------
 def find_date_clusters(dates: pd.Series, threshold: int) -> np.array:
     """
     Identifies clusters of dates to evaluate 3 kinds of unusual streaks.
@@ -535,7 +531,6 @@ def find_date_clusters(dates: pd.Series, threshold: int) -> np.array:
         return np.nan
 
 
-# ---------------------------------------------------------------------------------------------------
 def hourly_repeats(
     df: pd.DataFrame,
     var: str,
@@ -595,7 +590,6 @@ def hourly_repeats(
     return pd.Series(hourly_streaks, index=values, dtype="datetime64[ns]").sort_values()
 
 
-# ---------------------------------------------------------------------------------------------------
 def consecutive_repeats(
     df: pd.DataFrame,
     var: str,
@@ -696,8 +690,6 @@ def consecutive_repeats(
         return pd.Series([], dtype="datetime64[ns]")
 
 
-# ---------------------------------------------------------------------------------------------------
-# Function to check consecutive indices
 def is_consecutive(group: pd.Series) -> bool:
     """
     Since consecutive repeats are dropping elements below the min_value,
@@ -722,7 +714,6 @@ def is_consecutive(group: pd.Series) -> bool:
     return (group.index.to_series().diff().dropna() == 1).all()
 
 
-# ---------------------------------------------------------------------------------------------------
 def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
     """
     Compares two daily obs series to determine matching or mismatched streaks.
@@ -758,12 +749,11 @@ def full_day_compare(series0: pd.Series, series1: pd.Series) -> np.array:
         return groups
 
 
-# ---------------------------------------------------------------------------------------------------
 def consecutive_fullDay_repeats(
     df: pd.DataFrame, var: str, threshold: int, min_value: float | None = None
 ) -> np.array:
-    """Consecutive observation replication (either using a threshold of a certain number of observations,
-    or for sparser records, a number of days during which all the observations have the same value)
+    """Consecutive full day replication (either using a threshold of a certain number of observations,
+    or for sparser records, a number of days during which all the observations have the same value).
 
     Paramters
     ---------

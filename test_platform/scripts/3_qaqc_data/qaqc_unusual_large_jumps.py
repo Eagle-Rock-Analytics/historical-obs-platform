@@ -1,30 +1,30 @@
 """
-This is a script where Stage 3: QA/QC function(s) on unusual large jumps / spikes with data observations are flagged.
+qaqc_unusual_large_jumps.py
+
+This is a script where Stage 3: QA/QC function(s) on unusual large jumps / spikes within the monthly distribution with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_unusual_large_jumps: Test for unusual large jumps or spikes, given the statistics of the series. Analysis for each individual month in
+    time series to account for seasonal cycles in different regions.
+- potential_spike_check: Checks for neccessary conditions for a potential spike to be an actual spike.
+- detect_spikes: Detect unusual large jumps or ''spikes'' in the time series for `var`.
+
+Intended Use
+------------
+Script functions for the spike QA/QC test, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-
-# New logger function
 from log_config import logger
 
-## Import plotting functions
-try:
-    from qaqc_plot import *
-except:
-    logger.debug("Error importing qaqc_plot.py")
-
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+from qaqc_plot import *
+from qaqc_utils import *
 
 
-# -----------------------------------------------------------------------------
-## unusual large jumps (spike) + helper functions
 def qaqc_unusual_large_jumps(
     df: pd.DataFrame,
     iqr_thresh: int = 6,
@@ -110,7 +110,6 @@ def qaqc_unusual_large_jumps(
 
             df_plot = df.copy()
 
-            # --------------------------------------------------------
             if plot:
                 ## Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year", "month"]).groups.keys()
@@ -136,7 +135,6 @@ def qaqc_unusual_large_jumps(
     return df
 
 
-# -----------------------------------------------------------------------------
 def potential_spike_check(
     potential_spike: pd.Series, diff: pd.Series, crit: pd.Series, hours_diff: pd.Series
 ) -> pd.DataFrame:
@@ -228,7 +226,6 @@ def potential_spike_check(
     return spikes
 
 
-# -----------------------------------------------------------------------------
 def detect_spikes(
     df: pd.DataFrame, var: str, iqr_thresh: int = 6, min_datapoints: int = 50
 ) -> pd.DataFrame:

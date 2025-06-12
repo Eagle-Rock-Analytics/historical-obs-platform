@@ -1,13 +1,23 @@
 """
+log_config.py
+
 This is a script setting up Stage 3: QA/QC runtime logging for error tracing and timing. 
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- setup_logger: Configures logger for more efficient tracing of QAQC processes and errors.
+- remove_file_handler_by_filename: Remove a specific FileHandler from the logger by matching the filename.
+
+Intended Use
+------------
+Functions set-up traceability of QA/QC pipeline for error tracing. 
 """
 
 import logging
 import os
 
 
-# Configure the logger
 def setup_logger(
     log_file: str = f"{os.getcwd()}/default_qaqc_log.log", verbose: bool = False
 ) -> logging.Logger:
@@ -53,7 +63,6 @@ def setup_logger(
     return logger
 
 
-# -----------------------------------------------------------------------------
 def remove_file_handler_by_filename(logger: logging.Logger, filename: str):
     """Remove a specific FileHandler from the logger by matching the filename.
 

@@ -1,23 +1,30 @@
 """
+qaqc_logic_checks.py
+
 This is a script where Stage 3: QA/QC function(s) on logic checks in the data observations are flagged. 
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_crossvar_logic_tdps_to_tas_supersat: Checks that dewpoint temperature does not exceed air temperature.
+- qaqc_crossvar_logic_tdps_to_tas_wetbulb: Checks for extended periods of a dewpoint depression of 0°C.
+- qaqc_precip_logic_nonegvals: Ensures that precipitation values are positive.
+- qaqc_precip_logic_accum_amounts: Ensures that precipitation accumulation amounts are consistent with reporting time frame.
+- qaqc_crossvar_logic_calm_wind_dir: Checks that wind direction is zero when wind speed is also zero.
+- qaqc_pressure_units_fix: Ensures that stations consistently report pressure vars in Pa units. Temporary fix.
+
+Intended Use
+------------
+Script functions assess QA/QC on meteorological logic checks for physical consistency, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import datetime
 import pandas as pd
-
-# New logger function
 from log_config import logger
 
-try:
-    from qaqc_utils import grab_valid_obs
-except Exception as e:
-    logger.debug(f"Error importing qaqc_utils: {e}")
+from qaqc_utils import grab_valid_obs
 
 
-# -----------------------------------------------------------------------------
-## logic check: dew point must not exceed air temperature
 def qaqc_crossvar_logic_tdps_to_tas_supersat(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks that dewpoint temperature does not exceed air temperature.
@@ -74,7 +81,6 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ----------------------------------------------------------------------
 def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks for extended periods of a dewpoint depression of 0°C.
@@ -153,8 +159,6 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df: pd.DataFrame) -> pd.DataFrame:
     return df_dpt
 
 
-## ----------------------------------------------------------------------
-## logic check: precip does not have any negative values
 def qaqc_precip_logic_nonegvals(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that precipitation values are positive. Negative values are flagged as impossible.
@@ -214,8 +218,6 @@ def qaqc_precip_logic_nonegvals(df: pd.DataFrame) -> pd.DataFrame:
     return df_neg_pr
 
 
-# ----------------------------------------------------------------------
-## logic check: precip accumulation amounts balance for time period
 def qaqc_precip_logic_accum_amounts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that precipitation accumulation amounts are consistent with reporting time frame.
@@ -318,8 +320,6 @@ def qaqc_precip_logic_accum_amounts(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
 
-# ----------------------------------------------------------------------
-## logic check: wind direction must be 0 if wind speed is 0
 def qaqc_crossvar_logic_calm_wind_dir(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks that wind direction is zero when wind speed is also zero.
@@ -387,9 +387,6 @@ def qaqc_crossvar_logic_calm_wind_dir(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
 
-# -----------------------------------------------------------------------------
-## temporary fix on pressure variables being in the wrong unit
-## fn to be removed from pipeline on next full cleaning update
 def qaqc_pressure_units_fix(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensures that stations consistently report pressure vars in Pa units. This largely impacts ASOSAWOS stations,

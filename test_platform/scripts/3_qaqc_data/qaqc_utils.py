@@ -524,7 +524,7 @@ def get_wecc_poly(
     bbox : pd.DataFrame
         bounding box for union of t and m
     """
-    t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)  ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds  ## Combine polygons and get bounding box of union.
+    t = gp.read_file(terrpath)  # Read in terrestrial WECC shapefile.
+    m = gp.read_file(marpath)  # Read in marine WECC shapefile.
+    bbox = t.union(m).bounds  # Combine polygons and get bounding box of union.
     return t, m, bbox

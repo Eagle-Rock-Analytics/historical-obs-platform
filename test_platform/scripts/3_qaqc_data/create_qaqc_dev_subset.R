@@ -1,3 +1,11 @@
+"""
+create_qaqc_dev_subset.R
+
+Intended Use
+------------
+Creates a subset of the full 16k+ stations based on climatology for training testing.
+"""
+
 ## Eval training dataset for QA/QC
 
 library(tidyverse)

@@ -1,9 +1,34 @@
 """
+qaqc_plot.py
+
 This is a script where Stage 3: QA/QC related common plotting functions stored for ease of use
 for the Historical Observations Platform.
+
+Functions
+---------
+- _plot_format_helper: Formatting helper function for variable names, units, ylabels.
+- id_flag: Identifies flag based on numerical value assigned for plotting.
+- flagged_timeseries_plot: Produces timeseries of variables that have flags placed.
+- frequent_plot_helper: Plotting helper with common plotting elements for all 3 versions of the frequent values plot.
+- frequent_vals_plot: Produces a histogram of the diagnostic histogram per variable, and any bin that is indicated as "too frequent" by the qaqc_frequent_vals test
+    is visually flagged.
+- frequent_precip_plot: Plot frequent values for precipitation.
+- dist_gap_part1_plot: Produces a timeseries plots of specific months and variables for part 1 of the unusual gaps function.
+- dist_gap_part2_plot: Produces a histogram of the monthly standardized distribution with PDF overlay and threshold lines where pdf falls below y=0.1.
+- unusual_jumps_plot: Plots unusual large jumps qaqc. 
+- clim_outlier_plot: Produces a histogram of monthly standardized distribution with PDF overlay and threshold lines where pdf falls below y=0.1.
+- climatological_precip_plot: Plot frequent values for precipitation.
+- unusual_streaks_plot: Plots unusual streaks qaqc data points.
+- precip_deaccumulation_plot: Generate and save a precipitation de-accumulation plot with flagged data points.
+- standardized_median_bounds: Part 1: Calculates the standardized median.
+- iqr_range: Calculates the monthly interquartile range.
+- standardized_iqr: Part 2: Standardizes data against the interquartile range.
+
+Intended Use
+------------
+Script functions produce QA/QC figures, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import boto3
 import numpy as np
 import pandas as pd
@@ -11,8 +36,6 @@ import math
 import matplotlib.pyplot as plt
 from io import BytesIO
 import scipy.stats as stats
-
-# New logger function
 from log_config import logger
 import time
 
@@ -26,22 +49,16 @@ import time
 import warnings
 
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
-# =======================================================================================================
-try:
-    from qaqc_utils import create_bins_frequent, create_bins
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
 
+from qaqc_utils import create_bins_frequent, create_bins
 from IPython.display import display
 
-# s3 set-up
 BUCKET_NAME = "wecc-historical-wx"
 
 
-# ============================================================================================================
 def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
     """
-    Helper function for unusual large jumps plots.
+    Formatting helper function for variable names, units, ylabels.
 
     Parameters
     ----------
@@ -194,7 +211,6 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
     return ylab, unit, miny, maxy
 
 
-# ============================================================================================================
 def id_flag(flag_to_id: int) -> str:
     """
     Identifies flag based on numerical value assigned for plotting.
@@ -218,7 +234,6 @@ def id_flag(flag_to_id: int) -> str:
     return fn_name
 
 
-# ============================================================================================================
 def flagged_timeseries_plot(
     df: pd.DataFrame, var: str, dpi: int = 300, savefig: bool = True
 ):
@@ -319,7 +334,6 @@ def flagged_timeseries_plot(
         return None
 
 
-# ============================================================================================================
 def frequent_plot_helper(
     df: pd.DataFrame,
     var: str,
@@ -330,7 +344,7 @@ def frequent_plot_helper(
     dpi: int = 300,
 ):
     """
-    Plotting helper with common plotting elements for all 3 versions of this plot.
+    Plotting helper with common plotting elements for all 3 versions of the frequent values plot.
 
     Parameters
     ----------
@@ -424,7 +438,6 @@ def frequent_plot_helper(
     return None
 
 
-# -----------------------------------------------------------------------------------------
 def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
     """
     Produces a histogram of the diagnostic histogram per variable,
@@ -567,7 +580,6 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
     return None
 
 
-# -----------------------------------------------------------------------------------------
 def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     """
     Plot frequent values for precipitation.
@@ -651,7 +663,6 @@ def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     return None
 
 
-# ============================================================================================================
 def dist_gap_part1_plot(
     df: pd.DataFrame,
     month: int,
@@ -766,7 +777,6 @@ def dist_gap_part1_plot(
     return None
 
 
-# -----------------------------------------------------------------------------------------
 def dist_gap_part2_plot(
     df: pd.DataFrame, month: int, var: str, network: str, dpi: int = 300
 ):
@@ -888,7 +898,6 @@ def dist_gap_part2_plot(
     return None
 
 
-# ============================================================================================================
 def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int = 300):
     """
     Plots unusual large jumps qaqc.
@@ -971,7 +980,6 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
     return None
 
 
-# ============================================================================================================
 def clim_outlier_plot(
     series: pd.DataFrame,
     month: int,
@@ -1110,7 +1118,6 @@ def clim_outlier_plot(
     return None
 
 
-# ============================================================================================================
 def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     """
     Plot frequent values for precipitation.
@@ -1200,7 +1207,6 @@ def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int =
     return None
 
 
-# ============================================================================================================
 def unusual_streaks_plot(
     df: pd.DataFrame,
     var: str,
@@ -1209,7 +1215,7 @@ def unusual_streaks_plot(
     dpi: int = 300,
 ):
     """
-    Plots unusual large jumps qaqc result.
+    Plots unusual streaks qaqc data points.
 
     Parameters
     ----------
@@ -1334,7 +1340,6 @@ def unusual_streaks_plot(
     return None
 
 
-# ============================================================================================================
 def precip_deaccumulation_plot(
     df: pd.DataFrame, flags, var: str = "pr", dpi: int = 300
 ):
@@ -1453,7 +1458,6 @@ def precip_deaccumulation_plot(
     return None
 
 
-# ============================================================================================================
 def standardized_median_bounds(
     df: pd.DataFrame, var: str, iqr_thresh: int
 ) -> tuple[float, float, float]:

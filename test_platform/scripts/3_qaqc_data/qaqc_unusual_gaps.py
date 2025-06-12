@@ -1,31 +1,35 @@
 """
+qaqc_unusual_gaps.py
+
 This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_unusual_gaps: Runs all parts of the unusual gaps function, with a whole station bypass check first.
+- qaqc_dist_gap_part1: Identifies suspect months and flags all obs within month. 
+- qaqc_dist_gap_part2: Identifies individual suspect observations and flags the entire month. 
+- monthly_med: Part 1. Calculates the monthly median.
+- iqr_range: Part 1. Calculates the monthly interquartile range. 
+- standardized_iqr: Part 2. Standardizes data against the interquartile range.
+- median_clim: Part 2. Calculate climatological median for a specific month and variable.
+- check_differences: Computes pairwise absolute differences between each day and all other days in series.
+- qaqc_unusual_gaps_precip: Precipitation values that are at least threshold larger than all other precipitation totals for a given station and calendar month.
+
+Intended Use
+------------
+Script functions for the distributional gap QA/QC test, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-
-# New logger function
 from log_config import logger
 
-## Import plotting functions
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
-
-try:
-    # from qaqc_plot import standardized_median_bounds, dist_gap_part1_plot, dist_gap_part2_plot
-    from qaqc_plot import *
-except Exception as e:
-    logger.debug("Error importing qaqc_plot: {}".format(e))
+from qaqc_utils import *
+from qaqc_plot import *
 
 
-# -----------------------------------------------------------------------------
-## distributional gap (unusual gap) + helper functions
 def qaqc_unusual_gaps(
     df: pd.DataFrame, iqr_thresh: int = 5, plots: bool = True
 ) -> pd.DataFrame | None:
@@ -110,7 +114,6 @@ def qaqc_unusual_gaps(
         return None
 
 
-# -----------------------------------------------------------------------------
 def qaqc_dist_gap_part1(
     df: pd.DataFrame, vars_to_check: list[str], iqr_thresh: int, plot: bool = True
 ) -> pd.DataFrame:
@@ -221,7 +224,6 @@ def qaqc_dist_gap_part1(
     return df
 
 
-# -----------------------------------------------------------------------------
 def qaqc_dist_gap_part2(
     df: pd.DataFrame, vars_to_check: list[str], plot: bool = True
 ) -> pd.DataFrame:
@@ -362,7 +364,6 @@ def qaqc_dist_gap_part2(
     return df
 
 
-# -----------------------------------------------------------------------------
 def monthly_med(df: pd.DataFrame) -> pd.DataFrame:
     """
     Part 1: Calculates the monthly median.
@@ -380,7 +381,6 @@ def monthly_med(df: pd.DataFrame) -> pd.DataFrame:
     return df.resample("M", on="time").median(numeric_only=True)
 
 
-# #-----------------------------------------------------------------------------
 def iqr_range(df: pd.DataFrame, var: str) -> pd.DataFrame:
     """Part 1: Calculates the monthly interquartile range
 
@@ -399,7 +399,6 @@ def iqr_range(df: pd.DataFrame, var: str) -> pd.DataFrame:
     return df[var].quantile([0.25, 0.75]).diff().iloc[-1]
 
 
-# -----------------------------------------------------------------------------
 def standardized_iqr(df: pd.DataFrame, var: str) -> pd.DataFrame:
     """Part 2: Standardizes data against the interquartile range
 
@@ -418,7 +417,6 @@ def standardized_iqr(df: pd.DataFrame, var: str) -> pd.DataFrame:
     return (df[var].values - df[var].median()) / iqr_range(df, var)
 
 
-# -----------------------------------------------------------------------------
 def median_clim(df: pd.DataFrame, var: str) -> float:
     """Part 2: Calculate climatological median for a specific month and variable
 
@@ -438,7 +436,6 @@ def median_clim(df: pd.DataFrame, var: str) -> float:
     return clim
 
 
-# -----------------------------------------------------------------------------
 def standardized_anom(df: pd.DataFrame, month: int, var: str) -> np.array:
     """
     Part 1: Calculates the monthly anomalies standardized by IQR range
@@ -469,7 +466,6 @@ def standardized_anom(df: pd.DataFrame, month: int, var: str) -> np.array:
     return arr_std_anom
 
 
-# -----------------------------------------------------------------------------
 def check_differences(series: pd.Series, threshold: int) -> pd.Series:
     """
     Computes pairwise absolute differences between each day and all other days in series
@@ -504,7 +500,6 @@ def check_differences(series: pd.Series, threshold: int) -> pd.Series:
     )
 
 
-# -----------------------------------------------------------------------------
 def qaqc_unusual_gaps_precip(
     df: pd.DataFrame, var: str, threshold: int
 ) -> pd.DataFrame:

@@ -1,35 +1,37 @@
 """
+qaqc_frequent.py
+
 This is a script where Stage 3: QA/QC function(s) on unusually frequent values in the data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_frequent_vals: Test for unusually frequent values. This check is performed in two phases.
+- frequent_bincheck: Identifies which bins should be flagged via the annual/seasonal frequent test.
+- synergistic_flag: In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
+- bins_to_flag: Returns the specific bins to flag as suspect.
+- qaqc_frequent_precip: Checks for clusters of 5-9 identical moderate to heavy daily totals in time series of non-zero precipitation observations.
+
+Intended Use
+------------
+Script functions assess QA/QC on frequent value occurrence, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import pandas as pd
 import datetime
 import math
-
-# New logger function
 from log_config import logger
 
-## Import plotting functions
-try:
-    from qaqc_plot import *
-except:
-    logger.debug("Error importing qaqc_plot.py")
-
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+from qaqc_plot import *
+from qaqc_utils import *
 
 
-# -----------------------------------------------------------------------------
 def qaqc_frequent_vals(
     df: pd.DataFrame, rad_scheme: str, plots: bool = True
 ) -> pd.DataFrame | None:
     """
-    Test for unusually frequent values, run on temperatures and pressure. This check is performed in two phases.
+    Test for unusually frequent values. This check is performed in two phases.
     - Phase 1: Check is applied to all observations for a designated variable. If the current bin has >50% + >30 number of observations
     compared to +/- 3 surrounding bins, the current bin is highlighted for further check on the year-by-year basis. If the bin persists
     as unusually frequent, the bin is flagged.
@@ -227,7 +229,6 @@ def qaqc_frequent_vals(
     return df
 
 
-# -----------------------------------------------------------------------------
 def frequent_bincheck(
     df: pd.DataFrame, var: str, data_group: str, rad_scheme: str
 ) -> pd.DataFrame:
@@ -303,7 +304,6 @@ def frequent_bincheck(
         if len(flagged_bins) != 0:
             for sus_bin in flagged_bins:
                 # indicate as suspect bins
-                # DECISION: preliminary flag? and then remove if okay/reset to nan?
                 df.loc[
                     (df[var] >= sus_bin) & (df[var] <= sus_bin + 1), var + "_eraqc"
                 ] = 100  # highlight for further review flag, either overwritten with real flag or removed in next step
@@ -432,7 +432,7 @@ def frequent_bincheck(
                         df_djf = df_jf
                         logger.info(
                             "Winter season: proceeding with just Jan/Feb, no previous Dec",
-                        )  ## DECISION
+                        )
 
                     else:
                         logger.info(
@@ -479,7 +479,6 @@ def frequent_bincheck(
     return df
 
 
-# -----------------------------------------------------------------------------
 def synergistic_flag(df: pd.DataFrame, num_temp_vars: list) -> pd.DataFrame:
     """
     In frequent values, if air temp is flagged, dew point is also flagged, and vice versa.
@@ -516,7 +515,6 @@ def synergistic_flag(df: pd.DataFrame, num_temp_vars: list) -> pd.DataFrame:
     return df
 
 
-# -----------------------------------------------------------------------------
 def bins_to_flag(
     bar_counts: list,
     bins: list,
@@ -580,7 +578,6 @@ def bins_to_flag(
     return bins_to_flag  # returns a list of values that are suspicious
 
 
-# -----------------------------------------------------------------------------
 def qaqc_frequent_precip(
     df: pd.DataFrame, var: str, moderate_thresh: int = 18, day_thresh: int = 5
 ) -> pd.DataFrame:
