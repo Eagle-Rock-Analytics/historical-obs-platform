@@ -1,19 +1,22 @@
 """
 MERGE_run_for_single_station.py
 
-Inputs:
--------
+Intended Use
+------------
+This script is the main processing driver for the merge pipeline. 
+
+Inputs
+------
 - Station ID (string) corresponding to a cleaned file in either zarr or netCDF format.
 
-Outputs:
---------
+Outputs
+-------
 - QA/QC-processed data for the specified station, including priority variables for all timestamps.
   The data is exported as a zarr file.
 
-Example usage:
+Example usage
 --------------
 python MERGE_run_for_single_station.py --station="ASOSAWOS_69007093217" --verbose=True
-
 """
 
 import argparse

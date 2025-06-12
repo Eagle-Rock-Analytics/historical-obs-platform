@@ -19,7 +19,6 @@ import logging
 import inspect
 
 
-# -----------------------------------------------------------------------------
 def eraqc_counts_native_timestep(
     df: pd.DataFrame, network: str, station: str, logger: logging.Logger
 ) -> None:
@@ -85,7 +84,6 @@ def eraqc_counts_native_timestep(
         raise e
 
 
-# -----------------------------------------------------------------------------
 def eraqc_counts_hourly_timestep(
     df: pd.DataFrame, network: str, station: str, logger: logging.Logger
 ) -> None:

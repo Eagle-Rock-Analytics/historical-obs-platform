@@ -2,6 +2,17 @@
 
 Resamples data to an hourly timestep according to standard conventions.
 
+Functions
+---------
+- qaqc_flag_fcn: Used for resampling QAQC flag columns.
+- _modify_infill: This function does two things: (1) Flags rows ('y' under 'standardized_infill') that were infilled by resampling in the hourly standardization
+    process, where there were time gaps in the input dataframe. (2) Infills constant variables (ie those in "constant_vars") observations that were left empty because
+    they were in a time gap.
+- merge_hourly_standardization: Resamples meteorological variables to hourly timestep according to standard conventions.
+
+Intended Use
+------------
+Script functions are used to standardize all variables to hourly temporal resolution as a part of the merge pipeline.
 """
 
 from functools import reduce
@@ -11,7 +22,6 @@ import logging
 import inspect
 
 
-# -----------------------------------------------------------------------------
 def qaqc_flag_fcn(flags: str) -> str:
     """
     Used for resampling QAQC flag columns. Ensures that the final standardized dataframe
@@ -33,7 +43,6 @@ def qaqc_flag_fcn(flags: str) -> str:
         return ",".join(flags.unique())
 
 
-# -----------------------------------------------------------------------------
 def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     """
     This function does two things:
@@ -85,7 +94,6 @@ def _modify_infill(df: pd.DataFrame, constant_vars: list) -> pd.DataFrame:
     return df
 
 
-# -----------------------------------------------------------------------------
 def merge_hourly_standardization(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict]:
