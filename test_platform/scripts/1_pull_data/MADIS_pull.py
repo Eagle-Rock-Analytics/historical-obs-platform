@@ -31,8 +31,8 @@ from io import StringIO
 
 try:
     from calc_pull import get_wecc_poly
-except:
-    print("Error importing get_wecc_poly")
+except RuntimeError as e:
+    print(f"Error importing calc_pull: {e}")
 
 try:
     import config  # Import API keys.

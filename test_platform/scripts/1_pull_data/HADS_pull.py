@@ -30,7 +30,6 @@ from datetime import datetime, timezone
 import re
 import boto3
 from io import StringIO
-import calc_pull
 import geopandas as gp
 from shapely.geometry import Point
 from geopandas.tools import sjoin
@@ -39,8 +38,8 @@ from bs4 import BeautifulSoup
 
 try:
     from calc_pull import get_wecc_poly
-except:
-    print("Error importing get_wecc_poly")
+except RuntimeError as e:
+    print(f"Error importing calc_pull: {e}")
 
 # Synoptic API keys (obsolete)
 try:
@@ -286,6 +285,7 @@ def get_hads_dat(directory: str, start_date: str | None = None, get_all: bool = 
         years = range(1997, 2023)
 
     else:
+        # Grab year
         start_date = int(start_date[:4])
         years = range(start_date[:4], 2023)
 
@@ -294,7 +294,7 @@ def get_hads_dat(directory: str, start_date: str | None = None, get_all: bool = 
             yearurl = f"https://www.ncei.noaa.gov/data/nws-hydrometeorological-automated-data-system/archive/{str(i)}/"
             links = get_file_links(yearurl)
 
-            if get_all != True:
+            if not get_all:
                 try:
                     # Get files in AWS folder
                     objects = s3.list_objects(Bucket=BUCKET_NAME, Prefix=directory)

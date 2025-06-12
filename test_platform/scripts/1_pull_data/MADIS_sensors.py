@@ -28,18 +28,18 @@ import numpy as np
 
 try:
     from calc_pull import get_wecc_poly
-except:
-    print("Error importing calc_pull")
+except RuntimeError as e:
+    print(f"Error importing calc_pull: {e}")
 
 try:
     from MADIS_pull import get_network_metadata
-except:
-    print("Error importing get_network_metadata")
+except RuntimeError as e:
+    print(f"Error importing get_network_metadata: {e}")
 
 try:
     import config  # Import API keys.
-except:
-    print("Missing config.py file with API token. Make file if necessary.")
+except RuntimeError as e:
+    print(f"Missing config.py file with API token: {e}. Make file if necessary.")
     exit()
 
 s3 = boto3.resource("s3")

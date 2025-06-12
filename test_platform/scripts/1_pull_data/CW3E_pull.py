@@ -34,8 +34,8 @@ import requests
 
 try:
     from calc_pull import ftp_to_aws
-except:
-    print("Error importing ftp_to_aws")
+except RuntimeError as e:
+    print(f"Error importing calc_pull: {e}")
 
 # Synoptic API keys (obsolete)
 try:

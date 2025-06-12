@@ -502,23 +502,23 @@ def get_asosawos_data_ftp(
                         ).replace(tzinfo=timezone.utc)
 
                         # If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder
-                        if get_all is False:
+                        if not get_all:
                             # If filename already in saved bucket
                             if filename in alreadysaved:
                                 # If file new since last run-through, write to folder
                                 if modifiedTime > last_edit_time:
                                     ftp_to_aws(ftp, filename, directory)
                                 else:
-                                    print("{} already saved".format(filename))
+                                    print(f"{filename} already saved")
                             else:
                                 ftp_to_aws(ftp, filename, directory)
 
-                        elif get_all is True:
+                        else:
                             # If get_all is true, download all files in folder.
                             ftp_to_aws(ftp, filename, directory)
 
                 except Exception as e:
-                    print("Error in downloading date {}: {}".format(i, e))
+                    print(f"Error in downloading date {i}: {e}")
                     errors["Date"].append(i)
                     errors["Time"].append(end_api)
                     errors["Error"].append(e)

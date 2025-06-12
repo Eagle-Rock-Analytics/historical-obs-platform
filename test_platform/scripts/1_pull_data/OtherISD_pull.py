@@ -35,9 +35,9 @@ import boto3  # For AWS integration.
 from io import BytesIO, StringIO
 
 try:
-    from calc_pull import get_wecc_poly, ftp_to_aws
-except:
-    print("Error importing calc_pull")
+    from calc_pull import ftp_to_aws, get_wecc_poly
+except RuntimeError as e:
+    print(f"Error importing calc_pull: {e}")
 
 s3 = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"
