@@ -35,18 +35,10 @@ from shapely.geometry import Point
 from geopandas.tools import sjoin
 import requests
 from bs4 import BeautifulSoup
+import config  # Synoptic API keys (obsolete)
 
-try:
-    from calc_pull import get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
+from calc_pull import get_wecc_poly
 
-# Synoptic API keys (obsolete)
-try:
-    import config  # Import API keys.
-except:
-    print("Missing config.py file with API token. Make file if necessary.")
-    exit()
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -177,7 +169,7 @@ def get_file_links(url: str) -> list[tuple[str, str]]:
 
     Returns
     -------
-    links : list[str, str]
+    links : list[tuple[str, str]]
         list of download urls and date last modified
     """
 

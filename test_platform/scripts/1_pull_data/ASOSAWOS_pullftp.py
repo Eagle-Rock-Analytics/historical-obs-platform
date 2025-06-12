@@ -34,14 +34,10 @@ import geopandas as gp
 from geopandas.tools import sjoin
 import boto3
 from io import BytesIO, StringIO
-import calc_pull
 import requests
 import numpy as np
 
-try:
-    from calc_pull import ftp_to_aws
-except:
-    print("Error importing ftp_to_aws")
+from calc_pull import ftp_to_aws
 
 s3 = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"
@@ -328,7 +324,6 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     weccstations = pd.concat(
         [terwecc.iloc[:, :11], marwecc.iloc[:, :11]], ignore_index=True, sort=False
     )
-
     weccstations = weccstations.drop_duplicates(subset=["USAF", "WBAN"], keep="first")
 
     # Generate ID from USAF/WBAN combo for API call. This follows the naming convention used by FTP/AWS for file names
@@ -481,49 +476,48 @@ def get_asosawos_data_ftp(
             if (
                 start_date is not None and int(i) >= int(start_date[0:4])
             ) or start_date is None:
-                try:
-                    ftp.cwd(pwd)
-                    ftp.cwd(i)
+                ftp.cwd(pwd)
+                ftp.cwd(i)
 
-                    # Get list of all file names in folder
-                    filenames = ftp.nlst()
-                    # Reformat station IDs to match file names
-                    filefiltlist = station_list["ISD-ID"] + "-" + i + ".gz"
-                    filefiltlist = filefiltlist.tolist()
+                # Get list of all file names in folder
+                filenames = ftp.nlst()
+                # Reformat station IDs to match file names
+                filefiltlist = station_list["ISD-ID"] + "-" + i + ".gz"
+                filefiltlist = filefiltlist.tolist()
 
-                    # Only pull all file names that are contained in station_list ID column
-                    fileswecc = [x for x in filenames if x in filefiltlist]
+                # Only pull all file names that are contained in station_list ID column
+                fileswecc = [x for x in filenames if x in filefiltlist]
 
-                    for filename in fileswecc:
-                        # Returns time modified (in UTC)
-                        modifiedTime = ftp.sendcmd("MDTM " + filename)[4:].strip()
-                        modifiedTime = datetime.strptime(
-                            modifiedTime, "%Y%m%d%H%M%S"
-                        ).replace(tzinfo=timezone.utc)
+                for filename in fileswecc:
+                    # Returns time modified (in UTC)
+                    modifiedTime = ftp.sendcmd("MDTM " + filename)[4:].strip()
+                    modifiedTime = datetime.strptime(
+                        modifiedTime, "%Y%m%d%H%M%S"
+                    ).replace(tzinfo=timezone.utc)
 
-                        # If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder
-                        if not get_all:
-                            # If filename already in saved bucket
-                            if filename in alreadysaved:
-                                # If file new since last run-through, write to folder
-                                if modifiedTime > last_edit_time:
-                                    ftp_to_aws(ftp, filename, directory)
-                                else:
-                                    print(f"{filename} already saved")
-                            else:
+                # If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder
+                if not get_all:
+                    # If filename already in saved bucket
+                    try: 
+                        if filename in alreadysaved:
+                            # If file new since last run-through, write to folder
+                            if modifiedTime > last_edit_time:
                                 ftp_to_aws(ftp, filename, directory)
-
+                            else:
+                                print(f"{filename} already saved")
                         else:
-                            # If get_all is true, download all files in folder.
                             ftp_to_aws(ftp, filename, directory)
 
-                except Exception as e:
-                    print(f"Error in downloading date {i}: {e}")
-                    errors["Date"].append(i)
-                    errors["Time"].append(end_api)
-                    errors["Error"].append(e)
-                    # Adds error handling in case of missing folder. Skip to next folder
-                    continue
+                    except Exception as e:
+                        print(f"Error in downloading date {i}: {e}")
+                        errors["Date"].append(i)
+                        errors["Time"].append(end_api)
+                        errors["Error"].append(e)
+                        # Adds error handling in case of missing folder. Skip to next folder
+                        continue
+                else:
+                    # If get_all is true, download all files in folder.
+                    ftp_to_aws(ftp, filename, directory)
 
             else:
                 # If year of folder not in start date range, skip folder
@@ -544,8 +538,10 @@ def get_asosawos_data_ftp(
     s3.put_object(
         Bucket=BUCKET_NAME,
         Body=content,
-        Key=directory + "errors_asosawos_{}.csv".format(end_api),
+        Key=directory + f"errors_asosawos_{end_api}.csv",
     )
+
+    return None
 
 
 if __name__ == "__main__":
