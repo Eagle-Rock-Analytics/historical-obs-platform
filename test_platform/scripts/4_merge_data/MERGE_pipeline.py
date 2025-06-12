@@ -319,7 +319,7 @@ def convert_df_to_xr(
         df.set_index(["station", "time"], inplace=True)
     except Exception as e:
         logger.error(
-            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct cooridnates."
+            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct coordinates."
         )
         raise e
 
