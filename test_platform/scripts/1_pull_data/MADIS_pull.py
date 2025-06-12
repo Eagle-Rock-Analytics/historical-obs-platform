@@ -28,17 +28,9 @@ from datetime import datetime
 import re
 import boto3
 from io import StringIO
+import config  # Import API keys.
 
-try:
-    from calc_pull import get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
-
-try:
-    import config  # Import API keys.
-except:
-    print("Missing config.py file with API token. Make file if necessary.")
-    exit()
+from calc_pull import get_wecc_poly
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -156,7 +148,7 @@ def get_madis_station_csv(
     ids: pd.DataFrame,
     directory: str,
     start_date: str | None = None,
-    **options,
+    **options: dict[str, bool],
 ):
     """Download network data from Synoptic API.
 
@@ -170,7 +162,14 @@ def get_madis_station_csv(
         AWS directory to save
     start_date : str, optional
         specific start date to subset for; format "YYYYMMDDHHMM"
-
+    options : dict[bool, str]
+        timeout : bool
+            will identify and download any station data that timed out the API request
+        extension : str
+            looking for csv files
+        round : str
+            prefix (directory) name within API request
+            
     Returns
     -------
     None
@@ -275,7 +274,7 @@ def get_madis_station_csv_update(
     directory: str,
     start_date: str | None = None,
     end_date: str | None = None,
-    **options,
+    **options: dict[bool, str],
 ):
     """Download updated network data from Synoptic API.
 
@@ -291,11 +290,13 @@ def get_madis_station_csv_update(
         date to subset start
     end_date : str, optional
         date to subset end
-    timeout : bool, optional
-        will identify and download any station data that timed out the API request
-    options : str, optional
-        extension : looking for csv files
-        round : prefix (directory) name within API request
+    options : dict[bool, str]
+        timeout : bool
+            will identify and download any station data that timed out the API request
+        extension : str
+            looking for csv files
+        round : str
+            prefix (directory) name within API request
 
     Returns
     -------
