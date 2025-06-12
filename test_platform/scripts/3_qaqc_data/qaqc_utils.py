@@ -21,7 +21,7 @@ Functions
 
 Intended Use
 ------------
-Script functions assess QA/QC on the entire station, as a part of the QA/QC pipeline. 
+Script function utilities, as a part of the QA/QC pipeline. 
 """
 
 import boto3
