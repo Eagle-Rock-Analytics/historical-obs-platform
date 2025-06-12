@@ -30,7 +30,7 @@ import logging
 from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
 from merge_derive_missing import merge_derive_missing_vars
-from merge_clean_vars import merge_reorder_vars, merge_drop_vars
+from merge_clean_vars import filter_columns
 from merge_eraqc_counts import (
     eraqc_counts_native_timestep,
     eraqc_counts_hourly_timestep,
@@ -168,13 +168,42 @@ def get_var_attrs(
     try:
         var_attrs = {var: ds[var].attrs.copy() for var in ds.data_vars}
 
+        # Add units for ASOSAWOS precip
         if network == "ASOSAWOS" and "pr" in ds.data_vars:
             var_attrs["pr"]["units"] = "mm"
             logger.info(
                 f"{inspect.currentframe().f_code.co_name}: Set 'pr' units to 'mm' for ASOSAWOS network to resolve error in units attribute."
             )
 
-        return var_attrs
+        # Add ERA QAQC-specific attributes to variables ending in '_eraqc'
+        for var in ds.data_vars:
+            if var.endswith("_eraqc"):
+                var_attrs[var].update(
+                    {
+                        "comment": "ERA QAQC flags for variable",
+                        "flag_meanings": "See QAQC csv",
+                    }
+                )
+
+        # Latitude attributes
+        if "lat" in var_attrs:
+            var_attrs["lat"].update(
+                {
+                    "long_name": "latitude",
+                    "standard_name": "latitude",
+                    "units": "degrees_north",
+                }
+            )
+
+        # Longitude attributes
+        if "lon" in var_attrs:
+            var_attrs["lon"].update(
+                {
+                    "long_name": "longitude",
+                    "standard_name": "longitude",
+                    "units": "degrees_east",
+                }
+            )
 
     except Exception as e:
         logger.error(
@@ -182,10 +211,10 @@ def get_var_attrs(
         )
         raise e
 
+    return var_attrs
 
-def convert_xr_to_df(
-    ds: xr.Dataset, logger: logging.Logger
-) -> tuple[pd.DataFrame, pd.MultiIndex]:
+
+def convert_xr_to_df(ds: xr.Dataset, logger: logging.Logger) -> pd.DataFrame:
     """
     Convert an xarray Dataset into a flat pandas DataFrame, while preserving the original MultiIndex.
 
@@ -214,6 +243,42 @@ def convert_xr_to_df(
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to convert xarray Dataset to DataFrame."
+        )
+        raise e
+
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
+    return df
+
+
+def resolve_datatype_issue(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
+    """
+    Convert all columns ending with '_eraqc' in the DataFrame to numeric dtype,
+    coercing any non-numeric values to NaN. This helps fix datatype issues
+    caused by mixed types or strings in those columns before converting to xarray.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame containing columns to clean.
+    logger : logging.Logger
+        Logger instance for info and error messages.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with '_eraqc' columns converted to numeric dtype.
+    """
+    logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
+
+    try:
+        for col in df.columns:
+            if col.endswith("_eraqc"):
+                # Convert '_eraqc' columns to numeric, coercing errors to NaN
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    except Exception as e:
+        logger.error(
+            f"{inspect.currentframe().f_code.co_name}: Failed to convert '_eraqc' columns to numeric."
         )
         raise e
 
@@ -254,7 +319,7 @@ def convert_df_to_xr(
         df.set_index(["station", "time"], inplace=True)
     except Exception as e:
         logger.error(
-            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct cooridnates."
+            f"{inspect.currentframe().f_code.co_name}: Failed to set DataFrame MultiIndex with station and time. This is required for conversion from pd.DataFrame --> xr.Dataset object with correct coordinates."
         )
         raise e
 
@@ -275,9 +340,23 @@ def convert_df_to_xr(
         )
         ds = ds.assign_attrs(ds_attrs)
 
-        # Assign attributes for each variable
+        # Assign attributes for each variable, only if the variable exists in the dataset
         for var, attrs in var_attrs.items():
-            ds[var] = ds[var].assign_attrs(attrs)
+            if var in ds.data_vars:
+                ds[var] = ds[var].assign_attrs(attrs)
+
+        # Update time coordinate attributes
+        ds["time"].attrs = {
+            "long_name": "time",
+            "standard_name": "time",
+        }
+
+        # Update station coordinate attributes
+        ds["station"].attrs = {
+            "long_name": "station_id",
+            "comment": "Unique ID created by Eagle Rock Analytics. Includes network name appended to original unique station ID provided by network.",
+        }
+
     except Exception as e:
         logger.error(
             f"{inspect.currentframe().f_code.co_name}: Failed to assign attributes to final xr.Dataset object."
@@ -436,13 +515,13 @@ def run_merge_one_station(
         # Part 3b: Construct and export table of raw QAQC counts per variable post-hourly standardization
         eraqc_counts_hourly_timestep(df, network_name, station, logger)
 
-        # Part 4: Drops raw _qc variables (DECISION TO MAKE) or provide code to filter
-        df, var_attrs = merge_drop_vars(df, var_attrs, logger)
-
-        # Part 5: Re-orders variables into final preferred order
-        df = merge_reorder_vars(df, logger)
+        # Part 4: Filter columns to remove unwanted variables
+        df = filter_columns(df, logger)
 
         # ======== CLEANUP & UPLOAD DATA TO S3 ========
+
+        # Resolve datatype issue for eraqc variables
+        df = resolve_datatype_issue(df, logger)
 
         # Convert the cleaned DataFrame to an xarray.Dataset and assign global + variable-level metadata
         ds_merged = convert_df_to_xr(df, ds.attrs, var_attrs, logger)
