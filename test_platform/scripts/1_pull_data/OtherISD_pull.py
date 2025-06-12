@@ -34,10 +34,7 @@ from geopandas.tools import sjoin
 import boto3  # For AWS integration.
 from io import BytesIO, StringIO
 
-try:
-    from calc_pull import ftp_to_aws, get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
+from calc_pull import ftp_to_aws, get_wecc_poly
 
 s3 = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"

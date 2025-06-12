@@ -31,18 +31,9 @@ import boto3
 from io import BytesIO, StringIO
 import calc_pull
 import requests
+import config  # Synoptic API keys (obsolete)
 
-try:
-    from calc_pull import ftp_to_aws
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
-
-# Synoptic API keys (obsolete)
-try:
-    import config
-except:
-    print("Missing config.py file with API token. Make file if necessary.")
-    exit()
+from calc_pull import ftp_to_aws
 
 s3 = boto3.client("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes

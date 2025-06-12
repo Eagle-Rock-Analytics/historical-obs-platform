@@ -169,7 +169,7 @@ def get_madis_station_csv(
             looking for csv files
         round : str
             prefix (directory) name within API request
-            
+
     Returns
     -------
     None

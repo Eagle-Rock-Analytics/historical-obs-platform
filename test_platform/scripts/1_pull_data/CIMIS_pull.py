@@ -31,10 +31,7 @@ import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 
-try:
-    from calc_pull import ftp_to_aws
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
+from calc_pull import ftp_to_aws
 
 
 s3 = boto3.client("s3")

@@ -31,10 +31,7 @@ import geopandas as gp
 from geopandas.tools import sjoin
 import numpy as np
 
-try:
-    from calc_pull import get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
+from calc_pull import get_wecc_poly
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes

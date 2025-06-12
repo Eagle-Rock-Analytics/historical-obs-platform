@@ -498,7 +498,7 @@ def get_asosawos_data_ftp(
                 # If get_all is False, only download files whose last edit date has changed since the last download or whose filename is not in the folder
                 if not get_all:
                     # If filename already in saved bucket
-                    try: 
+                    try:
                         if filename in alreadysaved:
                             # If file new since last run-through, write to folder
                             if modifiedTime > last_edit_time:

@@ -25,22 +25,10 @@ import re
 import boto3
 from io import StringIO
 import numpy as np
+import config  # Import API keys.
 
-try:
-    from calc_pull import get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
-
-try:
-    from MADIS_pull import get_network_metadata
-except RuntimeError as e:
-    print(f"Error importing get_network_metadata: {e}")
-
-try:
-    import config  # Import API keys.
-except RuntimeError as e:
-    print(f"Missing config.py file with API token: {e}. Make file if necessary.")
-    exit()
+from calc_pull import get_wecc_poly
+from MADIS_pull import get_network_metadata
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes

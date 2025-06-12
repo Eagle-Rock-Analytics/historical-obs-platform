@@ -27,13 +27,10 @@ import boto3
 from io import BytesIO, StringIO
 from zeep import Client  # For calling SOAP APIs
 from zeep.helpers import serialize_object
+import requests
 
-# import requests # if necessary
+from calc_pull import get_wecc_poly
 
-try:
-    from calc_pull import get_wecc_poly
-except RuntimeError as e:
-    print(f"Error importing calc_pull: {e}")
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
