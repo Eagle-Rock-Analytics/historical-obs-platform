@@ -10,6 +10,10 @@ Functions
 - _lat_dms_to_dd: Converts latitude from decimal-minutes-seconds to decimal degrees
 - _lon_dms_to_dd: Converts longitude from decimal-minutes-seconds to decimal degrees
 - ftp_to_aws: Writes FTP data directly to AWS S3 folder
+
+Intended Use
+------------
+Script function utilities, as a part of the data pulling process. 
 """
 
 import geopandas as gpd

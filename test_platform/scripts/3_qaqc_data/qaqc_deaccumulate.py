@@ -1,30 +1,30 @@
 """
+qaqc_deaccumulate.py
+
 This is a script where Stage 3: QA/QC function(s) on unusual gaps / gaps within the monthly distribution with data observations are flagged.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- is_precip_accumulated: Determines whether a precipitation time series is accumulated by analyzing its autocorrelation.
+- flag_ringing: Flags values exhibiting ringing (back-and-forth oscillations).
+- de_accumulate: Compute incremental values from an accumulated time series while handling resets and filtering artifacts.
+- qaqc_deaccumulate_precip: Performs quality control (QAQC) and de-accumulation on a precipitation time series.
+
+Intended Use
+------------
+Script functions assess QA/QC on accumulated precipitation, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-
-# New logger function
 from log_config import logger
 
-## Import plotting functions
-try:
-    from qaqc_utils import *
-except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
-
-try:
-    # from qaqc_plot import standardized_median_bounds, dist_gap_part1_plot, dist_gap_part2_plot
-    from qaqc_plot import *
-except Exception as e:
-    logger.debug("Error importing qaqc_plot: {}".format(e))
+from qaqc_utils import *
+from qaqc_plot import *
 
 
-# -----------------------------------------------------------------------------
 def is_precip_accumulated(pr: pd.Series) -> bool:
     """
     Determines whether a precipitation time series is accumulated by analyzing its autocorrelation.
@@ -71,7 +71,6 @@ def is_precip_accumulated(pr: pd.Series) -> bool:
             return False
 
 
-# -----------------------------------------------------------------------------
 def flag_ringing(
     series: pd.Series, window: int = 3, threshold: float | None = None
 ) -> pd.Series:
@@ -92,6 +91,7 @@ def flag_ringing(
     ringing_flags : pd.Series
         A boolean series where `True` indicates a flagged (bad) ringing value.
     """
+
     diff_series = series.diff()  # Compute first difference
     sign_changes = np.sign(diff_series).diff().fillna(0).abs()  # Detect sign changes
 
@@ -107,14 +107,12 @@ def flag_ringing(
         )  # Use 2x median difference as default threshold
 
     large_fluctuations = diff_series.abs() > threshold
-    ringing_flags = (
-        ringing_flags & large_fluctuations
-    )  # Flag only if oscillations are significant
+    # Flag only if oscillations are significant
+    ringing_flags = ringing_flags & large_fluctuations
 
     return ringing_flags
 
 
-# -----------------------------------------------------------------------------
 def de_accumulate(
     original_series: pd.Series,
     reset_threshold: float | None = None,
@@ -191,7 +189,6 @@ def de_accumulate(
     # Fix the flags where original series is zero
     flags[series == 0] = False
 
-    # print(len(flags))
     # De-accumulate clean series (without ringing)
     # clean_series = original_series.copy().loc[flags[~flags]]
     clean_series = original_series.copy().loc[flags.dropna().index]
@@ -237,7 +234,6 @@ def de_accumulate(
     return diff_series, final_flags
 
 
-# -----------------------------------------------------------------------------
 def qaqc_deaccumulate_precip(
     df: pd.DataFrame,
     var: str = "pr",

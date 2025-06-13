@@ -1,29 +1,35 @@
 """
-The following scripts query the HOMR metadata API and returns information about relevant stations.
-get_homr_metadata takes an NCDC ID and returns up to 6 tables with metadata information about the station.
-get_all_homr_ids returns a table with all NCDC IDs in WECC states and high-level metadata (e.g. location, state, network) for each station, saving this table to AWS
-get_all_homr_metadata reads in this table and queries all NCDC IDs in these states for detailed information, including sensor maintenance logs, obstructions
-and detailed remarks. These are saved as 6 tables, linked through the shared NCDC ID.
+homr_metadata.py
+
+This script queries the HOMR metadata API and returns information about relevant stations.
+
+Functions
+---------
+- get_homr_metadata: takes an NCDC ID and returns up to 6 tables with metadata information about the station.
+- get_all_homr_ids: returns a table with all NCDC IDs in WECC states and high-level metadata (e.g. location, state, network) for each station, saving this table to AWS
+- get_all_homr_metadata: reads in this table and queries all NCDC IDs in these states for detailed information, including sensor maintenance logs, obstructions
+    and detailed remarks. These are saved as 6 tables, linked through the shared NCDC ID.
+
+Intended Use
+-------------
+Generates metadata for relevant stations. Run after a full pull. 
+
+References
+----------
+https://www.ncei.noaa.gov/access/homr/api
 """
-
-# From https://www.ncei.noaa.gov/access/homr/api
-
-# Returns four tables
 
 import requests
 import pandas as pd
 from io import StringIO, BytesIO
 import boto3
 
-## Set AWS credentials
 s3_cl = boto3.client("s3")
 
 
-# -----------------------------------------------------------------------------
 def flatten_data(y: dict | list) -> dict:
     """
     Flattens multi-level nested JSONs, splitting columns composed of both lists and dictionaries.
-    Borrowed from: https://gist.github.com/davidwarshaw/8d4c74c31371f8f8d5eb00cccb86dd08
 
     Parameters
     ----------
@@ -34,6 +40,10 @@ def flatten_data(y: dict | list) -> dict:
     -------
     out :  dict
         a flattened dictionary with combined keys
+
+    References
+    ----------
+    https://gist.github.com/davidwarshaw/8d4c74c31371f8f8d5eb00cccb86dd08
     """
 
     out = {}
@@ -54,7 +64,6 @@ def flatten_data(y: dict | list) -> dict:
     return out
 
 
-# -----------------------------------------------------------------------------
 def get_homr_metadata(
     id: str,
 ) -> tuple[
@@ -131,7 +140,6 @@ def get_homr_metadata(
     return names, identifiers, platforms, location, remarks, updates
 
 
-# -----------------------------------------------------------------------------
 def get_all_homr_ids(bucket_name: str, savedir: str):
     """
     Iterates through all WECC states and save header HOMR metadata for all stations.
@@ -187,7 +195,6 @@ def get_all_homr_ids(bucket_name: str, savedir: str):
     s3_cl.put_object(Bucket=bucket_name, Body=content, Key=savedir + "homr_ids.csv")
 
 
-# -----------------------------------------------------------------------------
 def get_all_homr_metadata(bucket_name: str, savedir: str):
     """
     Takes all NCDC IDs saved in homr_ids.csv and compiles 5 csvs of names, identifiers, platforms, location, remarks, and updates.

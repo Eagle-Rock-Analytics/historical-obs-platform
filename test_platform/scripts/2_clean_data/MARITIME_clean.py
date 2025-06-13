@@ -1,19 +1,27 @@
 """
-This script performs data cleaning for NDBC and MARITIME data pulled from NCEI for
-ingestion into the Historical Observations Platform.
-Approach:
+MARITIME_clean.py
+
+This script performs data cleaning for NDBC and MARITIME data pulled from NCEI for ingestion into the Historical Observations Platform.
+
+Approach
+--------
 (1) Read through variables and drop unnecessary variables
 (2) Converts station metadata to standard format, with unique identifier
 (3) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
 (4) Converts missing data to standard format
 (5) Tracks existing qa/qc flag for review
 (6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
-Inputs: Raw data for the network's stations, with each .dat.gz or .zip file representing a single day's data for a specified year.
-Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
+
+Functions
+---------
+- get_elevs: Generate list of station and instrument elevations.
+- clean_buoys: Clean MARITIME and NDBC buoy data.
+
+Intended Use
+------------
+Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 """
 
-# Step 0: Environment set-up
-# Import libraries
 import os
 import xarray as xr
 from datetime import datetime
@@ -25,29 +33,17 @@ import gzip
 import requests
 from bs4 import BeautifulSoup
 import zipfile
-from cleaning_helpers import get_file_paths
 
-# To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
+from clean_utils import get_file_paths
+import calc_clean
 
-## Import cleaning stage calc functions for conversions
-try:
-    import calc_clean
-except:
-    print("Error importing calc_clean.py")
-    pass
-
-## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-## Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
+BUCKET_NAME = "wecc-historical-wx"
 
 ## Set up directory to save files temporarily, if it doesn't already exist.
 try:
-    os.mkdir(
-        "temp"
-    )  # Make the directory to save data in. Except used to pass through code if folder already exists.
+    os.mkdir("temp")
 except:
     pass
 
@@ -85,14 +81,12 @@ def get_elevs(url: str) -> pd.DataFrame:
     table = tabletext.get_text().rsplit("ELEVATION", 1)[1]  # Remove headers
     table = table.split()  # Remove whitespace
     # Should be 5 for table 0 and 6 for table 1+2
-    composite_list = [
-        table[x : x + 5] for x in range(0, len(table), 5)
-    ]  # Split into rows
+    # Split into rows
+    composite_list = [table[x : x + 5] for x in range(0, len(table), 5)]
     df = pd.DataFrame(composite_list)
     df.columns = columns
-    df["Tide_Reference"] = (
-        np.NAN
-    )  # Add 6th column -- don't really  need this column, drop in update
+    # Add 6th column -- don't really  need this column, drop in update
+    df["Tide_Reference"] = np.nan
 
     # Table 2 has 6 columns
     tabletext = tables[1]
@@ -107,15 +101,13 @@ def get_elevs(url: str) -> pd.DataFrame:
     table = tabletext.get_text().rsplit("ELEVATION", 1)[1]  # Remove headers
     table = table.split()  # Remove whitespace
     # Should be 5 for table 0 and 6 for table 1+2
-    composite_list = [
-        table[x : x + 6] for x in range(0, len(table), 6)
-    ]  # Split into rows
+    composite_list = [table[x : x + 6] for x in range(0, len(table), 6)]
     dftemp = pd.DataFrame(composite_list)
     dftemp.columns = columns
     df = pd.concat([df, dftemp], sort=True)
     df = df.reset_index(drop=True)
 
-    #   Table 3 has 9 columns, but we only want the first 6
+    # Table 3 has 9 columns, but we only want the first 6
     tabletext = tables[2]
     columns = [
         "Station_ID",
@@ -128,14 +120,13 @@ def get_elevs(url: str) -> pd.DataFrame:
     table = tabletext.get_text().rsplit("CIRCLE", 1)[1]  # Remove headers
     table = table.split()  # Remove whitespace
     # Should be 5 for table 0 and 6 for table 1+2
-    composite_list = [
-        table[x : x + 9] for x in range(0, len(table), 9)
-    ]  # Split into rows
+    composite_list = [table[x : x + 9] for x in range(0, len(table), 9)]
     dftemp = pd.DataFrame(composite_list)
     dftemp = dftemp.iloc[:, 0:6]  # Drop last three columns
     dftemp.columns = columns
     df = pd.concat([df, dftemp], sort=True)
     df = df.reset_index(drop=True)
+
     return df
 
 
@@ -166,15 +157,17 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
     [1] https://unidata.github.io/siphon/latest/_modules/siphon/simplewebservice/ndbc.html
     [2] https://www.meds-sdmm.dfo-mpo.gc.ca/isdm-gdsi/waves-vagues/formats-eng.html
     """
+
+    # Get files
     try:
-        files = []  # Get files
-        for item in s3.Bucket(bucket_name).objects.filter(Prefix=rawdir):
+        files = []
+        for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=rawdir):
             file = str(item.key)
             files += [file]
 
         # Get station file and read in metadata
         station_file = [file for file in files if "stationlist_" in file]
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj["Body"].read()))
         stations = station_file["STATION_ID"].dropna()
 
@@ -185,44 +178,46 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
         files = [file for file in files if "error" not in file]
 
         # Set up error handling.
-        errors = {"File": [], "Time": [], "Error": []}  # Set up error handling
-        end_api = datetime.now().strftime(
-            "%Y%m%d%H%M"
-        )  # Set end time to be current time at beginning of download: for error handling csv
+        errors = {"File": [], "Time": [], "Error": []}
+        # Set end time to be current time at beginning of download: for error handling csv
+        end_api = datetime.now().strftime("%Y%m%d%H%M")
         timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
 
-    except Exception as e:  # If unable to read files from rawdir, break function
+    except Exception as e:
+        # If unable to read files from rawdir, break function
         print(e)
         errors["File"].append("Whole network")
         errors["Time"].append(end_api)
         errors["Error"].append(e)
 
-    else:  # If files read successfully, continue
-        for station in stations:  # Full run
-            # for station in stations.sample(4): # SUBSET FOR TESTING
-            station_id = network + "_" + str(station)
-            print("Parsing: ", station_id)
+    else:
+        # If files read successfully, continue
+        for station in stations:
+            station_id = f"{network}_{str(station)}"
+            print(f"Parsing: {station_id}")
             station_metadata = station_file.loc[station_file["STATION_ID"] == station]
 
-            df_stat = None  # Initialize merged df
+            # Initialize merged df
+            df_stat = None
             try:
-                stat_files = [
-                    k for k in files if station in k
-                ]  # Gets list of files from the same station
+                # Gets list of files from the same station
+                stat_files = [k for k in files if station in k]
 
-                if not stat_files:  # If station has no files downloaded
-                    print("No raw data found for {} on AWS.".format(station_id))
+                if not stat_files:
+                    # If station has no files downloaded
+                    print(f"No raw data found for {station_id} on AWS.")
                     errors["File"].append(station_id)
                     errors["Time"].append(end_api)
                     errors["Error"].append("No raw data found for this station on AWS.")
-                    othercols = None  # setting to none here so script doesn't fail if the first station grabbed is one with no data
-                    continue  # Skip this station
-
+                    # setting to none here so script doesn't fail if the first station grabbed is one with no data
+                    othercols = None
+                    continue
                 for file in stat_files:
                     try:
                         # handling for different file extensions (.txt.gz = US-owner, .zip = Canada-owner)
-                        if file.endswith(".txt.gz"):  # US-based owner
-                            obj = s3.Object(bucket_name, file)
+                        if file.endswith(".txt.gz"):
+                            # US-based owner
+                            obj = s3.Object(BUCKET_NAME, file)
                             with gzip.GzipFile(
                                 fileobj=obj.get()["Body"]
                             ) as file_to_parse:
@@ -234,16 +229,14 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                 )
 
                                 # older files are missing the minute column
+                                # manually setting to top of hour, our process will collapse all other obs to top of hour at next stage
                                 if {"mm"}.issubset(df.columns) == False:
-                                    df.insert(
-                                        loc=4, column="mm", value="00"
-                                    )  # manually setting to top of hour, our process will collapse all other obs to top of hour at next stage
+                                    df.insert(loc=4, column="mm", value="00")
 
                                 # fix year label mismatch
                                 yr_raw = str(df.iloc[1][0]).split(".")[0]
-                                if (
-                                    len(yr_raw) != 4
-                                ):  # older files have a two-digit year
+                                if len(yr_raw) != 4:
+                                    # older files have a two-digit year
                                     if (df.iloc[1][0] >= 80) & (
                                         df.iloc[1][0] <= 99
                                     ):  # 1980-1999
@@ -251,22 +244,21 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                             lambda x: "{}{}".format("19", x)
                                         )
                                         df = df.iloc[:, 1:]
-                                    else:  # 2000-present
+                                    else:
+                                        # 2000-present
                                         df["YYYY"] = df["YY"].apply(
                                             lambda x: "{}{}".format("20", x)
                                         )
                                         df = df.iloc[:, 1:]
 
-                                if (
-                                    df.columns[0][0].isdigit()
-                                ) == False:  # newer files have a 2-line header with comments
+                                if (df.columns[0][0].isdigit()) == False:
+                                    # newer files have a 2-line header with comments
                                     df.drop([0], inplace=True)
                                     df.rename(columns={"#YY": "YYYY"}, inplace=True)
 
                                 # fix variable label mismatch
-                                if {"WD", "BAR"}.issubset(
-                                    df.columns
-                                ) == True:  # older files have different var names
+                                if {"WD", "BAR"}.issubset(df.columns) == True:
+                                    # older files have different var names
                                     df.rename(
                                         columns={"WD": "WDIR", "BAR": "PRES"},
                                         inplace=True,
@@ -309,10 +301,8 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                 othercols = [
                                     col for col in df.columns if col not in cols_to_keep
                                 ]
-                                df = df[
-                                    df.columns.intersection(cols_to_keep)
-                                ]  # drop all columns not in cols_to_keep list
-
+                                # drop all columns not in cols_to_keep list
+                                df = df[df.columns.intersection(cols_to_keep)]
                                 df.rename(
                                     columns={
                                         "WDIR": "sfcWind_dir",
@@ -332,12 +322,14 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
 
                                 # standardize NA codes
                                 try:
-                                    df.replace(999, np.nan, inplace=True)  # sfcWind_dir
-                                    df.replace(
-                                        999.0, np.nan, inplace=True
-                                    )  # sfcWind_dir, tas, tdps
-                                    df.replace(99.0, np.nan, inplace=True)  # sfcWind
-                                    df.replace(9999.0, np.nan, inplace=True)  # ps
+                                    # sfcWind_dir
+                                    df.replace(999, np.nan, inplace=True)
+                                    # sfcWind_dir, tas, tdps
+                                    df.replace(999.0, np.nan, inplace=True)
+                                    # sfcWind
+                                    df.replace(99.0, np.nan, inplace=True)
+                                    # ps
+                                    df.replace(9999.0, np.nan, inplace=True)
 
                                 except Exception as e:
                                     print(e)
@@ -347,25 +339,25 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                     df_stat = df
                                     del df  # deleting for memory
                                 else:
-                                    if (
-                                        len(stat_files) > 1
-                                    ):  # if there is more than one file per station
+                                    if len(stat_files) > 1:
+                                        # if there is more than one file per station
                                         df_stat = pd.concat(
                                             [df_stat, df], axis=0, ignore_index=True
                                         )
 
-                        elif file.endswith(".zip"):  # canadian buoy
-                            obj = s3.Bucket(bucket_name).Object(file)
+                        elif file.endswith(".zip"):
+                            # canadian buoy
+                            obj = s3.Bucket(BUCKET_NAME).Object(file)
 
                             with BytesIO(obj.get()["Body"].read()) as tf:
-                                tf.seek(0)  # rewind the file
+                                # rewind the file
+                                tf.seek(0)
 
                                 with zipfile.ZipFile(tf, mode="r") as zipf:
                                     for subfile in zipf.namelist():
                                         filestn = subfile.replace(".csv", "")
-                                        filestn = int(
-                                            filestn[1:]
-                                        )  # drops proceeding 'c'
+                                        # drops proceeding 'c'
+                                        filestn = int(filestn[1:])
 
                                         if int(station) == filestn:
                                             df = pd.read_csv(
@@ -386,7 +378,9 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                             ]
 
                                             # drop variables if not desired variable
-                                            # cols_to_keep = ['time', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WDIR.1', 'WSPD.1', 'WSPD', 'ATMS', 'ATMS.1', 'DRYT'] # waiting on response about ".1" - thinking these are secondary sensors, but with different nan codes
+                                            # cols_to_keep = ['time', 'LATITUDE', 'LONGITUDE', 'WDIR', 'WDIR.1', 'WSPD.1', 'WSPD', 'ATMS', 'ATMS.1', 'DRYT']
+                                            # # waiting on response about ".1" - thinking these are secondary sensors, but with different nan codes
+                                            # 'SLEV' is sea level height, could also be useful
                                             cols_to_keep = [
                                                 "time",
                                                 "Q_FLAG",
@@ -396,15 +390,16 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                                 "WSPD",
                                                 "ATMS",
                                                 "DRYT",
-                                            ]  # 'SLEV' is sea level height, could also be useful
+                                            ]
                                             othercols = [
                                                 col
                                                 for col in df.columns
                                                 if col not in cols_to_keep
                                             ]
+                                            # drop all columns not in cols_to_keep list
                                             df = df[
                                                 df.columns.intersection(cols_to_keep)
-                                            ]  # drop all columns not in cols_to_keep list
+                                            ]
 
                                             df.rename(
                                                 columns={
@@ -421,27 +416,22 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                             )
 
                                             # missing data flags - mainly as a catchall in case pre-proccessed data did not catch
-                                            df.replace(
-                                                999, np.nan, inplace=True
-                                            )  # sfcWind_dir
-                                            df.replace(
-                                                999.0, np.nan, inplace=True
-                                            )  # sfcWind_dir, tas, tdps
-                                            df.replace(
-                                                99.0, np.nan, inplace=True
-                                            )  # sfcWind
-                                            df.replace(
-                                                9999.0, np.nan, inplace=True
-                                            )  # ps
+                                            # sfcWind_dir
+                                            df.replace(999, np.nan, inplace=True)
+                                            # sfcWind_dir, tas, tdps
+                                            df.replace(999.0, np.nan, inplace=True)
+                                            # sfcWind
+                                            df.replace(99.0, np.nan, inplace=True)
+                                            # ps
+                                            df.replace(9999.0, np.nan, inplace=True)
 
                                             # if more than one file per station, merge files together
                                             if df_stat is None:
                                                 df_stat = df
                                                 del df  # deleting for memory
                                             else:
-                                                if (
-                                                    len(stat_files) > 1
-                                                ):  # if there is more than one file per station
+                                                # if there is more than one file per station
+                                                if len(stat_files) > 1:
                                                     df_stat = pd.concat(
                                                         [df_stat, df],
                                                         axis=0,
@@ -451,9 +441,7 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                     except Exception as e:
                         errors["File"].append(file)
                         errors["Time"].append(end_api)
-                        errors["Error"].append(
-                            "Error in pandas df set-up: {}".format(e)
-                        )
+                        errors["Error"].append(f"Error in pandas df set-up: {e}")
                         continue
 
                 # Format joined station file
@@ -472,7 +460,7 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 ds = ds.assign_attrs(institution="Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source="")
                 ds = ds.assign_attrs(
-                    history="MARITIME_clean.py script run on {} UTC".format(timestamp)
+                    history=f"MARITIME_clean.py script run on {timestamp} UTC"
                 )
                 ds = ds.assign_attrs(
                     comment="Intermediate data product: may not have been subject to any cleaning or QA/QC processing."
@@ -485,20 +473,17 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 ds = ds.assign_attrs(
                     station_name=station_metadata["NAME"].values[0].upper()
                 )
-                ds = ds.assign_attrs(
-                    raw_files_merged=file_count
-                )  # Keep count of how many files merged per station
-
-                # Add dimensions and coordinates
-                ds = ds.set_coords("time").swap_dims(
-                    {"index": "time"}
-                )  # Swap index with time
+                # Keep count of how many files merged per station
+                ds = ds.assign_attrs(raw_files_merged=file_count)
+                # Add dimensions and coordinates, Swap index with time
+                ds = ds.set_coords("time").swap_dims({"index": "time"})
                 ds = ds.assign_coords(id=str(station_id).upper())
-                ds = ds.expand_dims("id")  # Add station_id as index
-                ds = ds.drop_vars(
-                    ("index")
-                )  # Drop station_id variable and index coordinate
-                ds = ds.rename({"id": "station"})  # Rename id to station_id
+                # Add station_id as index
+                ds = ds.expand_dims("id")
+                # Drop station_id variable and index coordinate
+                ds = ds.drop_vars(("index"))
+                # Rename id to station_id
+                ds = ds.rename({"id": "station"})
 
                 # Add coordinates: latitude and longitude
                 # Note: Datafiles do not have lat/lon information, grab from stationlist file
@@ -530,9 +515,7 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 except Exception as e:
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
-                    errors["Error"].append(
-                        "Error in assigning lat-lon coords: {}".format(e)
-                    )
+                    errors["Error"].append(f"Error in assigning lat-lon coords: {e}")
 
                 # Add variable: elevation
                 # Note: Datafiles do not have elevation information, grab from NDBC
@@ -540,39 +523,41 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 url = "https://www.ndbc.noaa.gov/bmanht.shtml"
                 elevs_df = get_elevs(url)
                 try:
+                    # station is in NDBC elevation list
                     if (
                         elevs_df[
                             elevs_df["Station_ID"].str.contains(station)
                         ].index.values.size
                         > 0
-                    ):  # station is in NDBC elevation list
+                    ):
+                        # elevation has a non-NA valid value
                         idx = elevs_df[
                             elevs_df["Station_ID"].str.contains(station)
                         ].index.values
-                        if (
-                            elevs_df["Site_Elevation"].iloc[idx].values
-                        ) != "NA":  # elevation has a non-NA valid value
+
+                        if (elevs_df["Site_Elevation"].iloc[idx].values) != "NA":
                             elev = np.asarray(
                                 [float(elevs_df["Site_Elevation"].iloc[idx])]
                                 * len(ds["time"])
                             )
                             elev.shape = (1, len(ds["time"]))
                         else:
-                            elev = np.asarray(
-                                [np.nan] * len(ds["time"])
-                            )  # some stations have NA in for elevation
+                            # some stations have NA in for elevation
+                            elev = np.asarray([np.nan] * len(ds["time"]))
                             elev.shape = (1, len(ds["time"]))
                     else:
+                        # station in our stationlist but not in the NDBC elevation list
                         print(
                             "This station is not in the elevation list -- setting to NaN"
-                        )  # station in our stationlist but not in the NDBC elevation list
+                        )
                         elev = np.asarray([np.nan] * len(ds["time"]))
                         elev.shape = (1, len(ds["time"]))
                     ds["elevation"] = (["station", "time"], elev)
+
                 except Exception as e:
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
-                    errors["Error"].append("Error in assigning elevation: {}".format(e))
+                    errors["Error"].append(f"Error in assigning elevation: {e}")
 
                 # Add sensor heights, grab from NDBC
                 # defaulting to nan, as we are assuming most stations will only have some of these sensor heights available
@@ -580,36 +565,31 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 ds = ds.assign_attrs(barometer_elevation_m=np.nan)
                 ds = ds.assign_attrs(anemometer_height_m=np.nan)
                 try:
+                    # station exists in NDBC list
                     if (
                         elevs_df[
                             elevs_df["Station_ID"].str.contains(station)
                         ].index.values.size
                         > 0
-                    ):  # station exists in NDBC list
+                    ):
                         idx = elevs_df[
                             elevs_df["Station_ID"].str.contains(station)
                         ].index.values
 
                         # air temperature
-                        if (
-                            elevs_df["Air_Temp_Elevation"].iloc[idx].values
-                        ) != "NA":  # air temp sensor has value
+                        if (elevs_df["Air_Temp_Elevation"].iloc[idx].values) != "NA":
                             ds.attrs["thermometer_height_m"] = float(
                                 elevs_df["Air_Temp_Elevation"].iloc[idx]
                             )
 
                         # air pressure
-                        if (
-                            elevs_df["Barometer_Elevation"].iloc[idx].values
-                        ) != "NA":  # air pressure sensor has value
+                        if (elevs_df["Barometer_Elevation"].iloc[idx].values) != "NA":
                             ds.attrs["barometer_elevation_m"] = float(
                                 elevs_df["Barometer_Elevation"].iloc[idx]
                             )
 
                         # wind
-                        if (
-                            elevs_df["Anemometer_Elevation"].iloc[idx].values
-                        ) != "NA":  # wind sensor has value
+                        if (elevs_df["Anemometer_Elevation"].iloc[idx].values) != "NA":
                             ds.attrs["anemometer_height_m"] = float(
                                 elevs_df["Anemometer_Elevation"].iloc[idx]
                             )
@@ -621,9 +601,7 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 except Exception as e:
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
-                    errors["Error"].append(
-                        "Error in assigning sensor heights: {}".format(e)
-                    )
+                    errors["Error"].append(f"Error in assigning sensor heights: {e}")
 
                 # Update dimension and coordinate attributes
                 ds["time"] = pd.to_datetime(ds["time"].values, utc=True)
@@ -654,11 +632,10 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                 ds["elevation"].attrs["standard_name"] = "height_above_mean_sea_level"
                 ds["elevation"].attrs["long_name"] = "station_elevation"
                 ds["elevation"].attrs["units"] = "meters"
-                ds["elevation"].attrs[
-                    "positive"
-                ] = "up"  # Defines which direction is positive
+                # Defines which direction is positive
+                ds["elevation"].attrs["positive"] = "up"
 
-                # Next, update/add variable attributes and do unit conversions
+                # update/add variable attributes and do unit conversions
                 # tas: surface air temperature (K)
                 if "tas" in ds.keys():
                     ds["tas"] = calc_clean._unit_degC_to_K(ds["tas"])
@@ -721,25 +698,22 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans
-                        if (key == "elevation") & (
-                            len(ds.keys()) == 1
-                        ):  # only elevation remains
-                            print(
-                                "Dropping empty var: {}".format(key)
-                            )  # slightly unnecessary since the entire dataset will be empty too
+                        if (key == "elevation") & (len(ds.keys()) == 1):
+                            # only elevation remains
+                            print(f"Dropping empty var: {key}")
+                            # slightly unnecessary since the entire dataset will be empty too
                             ds = ds.drop(key)
                             continue
-                    except (
-                        Exception
-                    ) as e:  # Add to handle errors for unsupported data types
-                        next
+                    except Exception as e:
+                        # Add to handle errors for unsupported data types
+                        continue
 
                 # removes elevation and quality code (canadian buoy only) if the only remaining variables (occurs at least once)
                 for key in ds.keys():
                     if "q_code" in list(ds.keys()):
                         if len(ds.keys()) == 2:
-                            print("Dropping empty var: {}".format("elevation"))
-                            print("Dropping empty var: {}".format("q_code"))
+                            print("Dropping empty var: elevation")
+                            print("Dropping empty var: q_code")
                             ds = ds.drop("q_code")
                             ds = ds.drop("elevation")
                             continue
@@ -755,56 +729,50 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                     "sfcWind",
                     "sfcWind_dir",
                 ]
-                desired_order = [
-                    i for i in desired_order if i in list(ds.keys())
-                ]  # only keep vars that are in ds
-                rest_of_vars = [
-                    i for i in list(ds.keys()) if i not in desired_order
-                ]  # Retain rest of variables at the bottom (elevation)
+                # only keep vars that are in ds
+                desired_order = [i for i in desired_order if i in list(ds.keys())]
+                # Retain rest of variables at the bottom (elevation)
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order]
                 new_index = desired_order + rest_of_vars
                 ds = ds[new_index]
 
             except Exception as e:
                 errors["File"].append(file)
                 errors["Time"].append(end_api)
-                errors["Error"].append("Error in ds set-up: {}".format(e))
+                errors["Error"].append(f"Error in ds set-up: {e}")
                 continue
 
             # Write station file to netcdf format
-            if (
-                len(ds.keys()) == 0
-            ):  # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+            if len(ds.keys()) == 0:
+                # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
                 print(
-                    "{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(
-                        station_id
-                    )
+                    f"{station_id} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned."
                 )
                 errors["File"].append(station_id)
                 errors["Time"].append(end_api)
                 errors["Error"].append("Station reports all nan meteorological data.")
                 continue
+
             else:
                 try:
-                    filename = station_id.upper() + ".nc"  # Make file name
-                    filepath = cleandir + filename  # Writes file path
+                    filename = station_id.upper() + ".nc"
+                    filepath = cleandir + filename
 
                     # Write locally
-                    ds.to_netcdf(
-                        path="temp/temp.nc", engine="netcdf4"
-                    )  # Save station file.
+                    ds.to_netcdf(path="temp/temp.nc", engine="netcdf4")
 
                     # Push file to AWS with correct file name
-                    s3.Bucket(bucket_name).upload_file("temp/temp.nc", filepath)
+                    s3.Bucket(BUCKET_NAME).upload_file("temp/temp.nc", filepath)
 
-                    print("Saving {} with dims {}".format(filename, ds.dims))
-                    ds.close()  # Close dataframe
+                    print(f"Saving {filename} with dims {ds.dims}")
+                    ds.close()
 
                 except Exception as e:
                     print(filename, e)
                     errors["File"].append(filename)
                     errors["Time"].append(end_api)
                     errors["Error"].append(
-                        "Error saving ds as .nc file to AWS bucket: {}".format(e)
+                        f"Error saving ds as .nc file to AWS bucket: {e}"
                     )
                     continue
 
@@ -814,28 +782,27 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
         removedvars.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name, Body=content, Key=cleandir + "removedvars.csv"
+            Bucket=BUCKET_NAME, Body=content, Key=cleandir + "removedvars.csv"
         )
 
     # Write errors to csv
     finally:
-        # print(errors) # Testing
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
-            Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
-        )  # Make sure error files save to correct directory
+            Key=cleandir + f"errors_{network}_{end_api}.csv",
+        )
+        # Make sure error files save to correct directory
 
     return None
 
 
 # Run functions
 if __name__ == "__main__":
-    network = "MARITIME"  # or "MARITIME"
+    network = "MARITIME"  # "MARITIME" or "NDBC"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-    print(rawdir, cleandir, qaqcdir)
     clean_buoys(rawdir, cleandir, network=network)

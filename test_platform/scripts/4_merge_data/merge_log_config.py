@@ -35,7 +35,6 @@ import logging
 import os
 import inspect
 from datetime import datetime
-
 import boto3
 
 

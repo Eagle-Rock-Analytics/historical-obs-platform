@@ -4,8 +4,8 @@ QAQC_run_for_single_station.py
 This script applies QA/QC protocols to cleaned weather station data for ingestion into the Historical Observations Platform.
 It is designed to work on individual stations, regardless of network.
 
-Overview:
----------
+Overview
+--------
 1. Remove duplicate station entries
 2. Handle variables with inconsistent reporting intervals or changing frequencies (e.g., convert to hourly data)
 3. Apply various QA/QC tests:
@@ -16,19 +16,18 @@ Overview:
 4. (Optional) Perform case study analysis for accuracy
    [Note: This can be separated into a standalone script if needed]
 
-Inputs:
--------
-- Station ID (string) corresponding to a cleaned file in either zarr or netCDF format.
+Inputs
+------
+Station ID (string) corresponding to a cleaned file in either zarr or netCDF format.
 
-Outputs:
---------
-- QA/QC-processed data for the specified station, including priority variables for all timestamps.
+Outputs
+-------
+QA/QC-processed data for the specified station, including priority variables for all timestamps.
   The data is exported as a zarr file.
 
-Example usage:
---------------
+Example usage
+-------------
 python QAQC_run_for_single_station.py --station="LOXWFO_CBGC1"
-
 """
 
 import argparse

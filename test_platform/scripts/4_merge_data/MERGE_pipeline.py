@@ -1,21 +1,25 @@
 """
 MERGE_pipeline.py
 
+Intended Use
+------------
 This script runs the full merge pipeline for a single weather station dataset.
 It processes cleaned QA/QC output and applies a sequence of standardization,
 homogenization, and export operations to generate a finalized station file.
 
-Input:
-    - Cleaned station Zarr file from S3 (from 3_qaqc_wx/ directory)
-    - Station metadata CSV from S3
+Input
+-----
+- Cleaned station Zarr file from S3 (from 3_qaqc_wx/ directory)
+- Station metadata CSV from S3
 
-Output:
-    - Final merged and standardized Zarr file written to S3 (4_merge_wx/ directory)
-    - Logfile documenting processing steps (also uploaded to S3)
+Output
+------
+- Final merged and standardized Zarr file written to S3 (4_merge_wx/ directory)
+- Logfile documenting processing steps (also uploaded to S3)
 
-Example:
-    Run from command line or as part of a larger batch process for all stations.
-
+Example
+-------
+Run from command line or as part of a larger batch process for all stations.
 """
 
 from datetime import datetime, timedelta, timezone

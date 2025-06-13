@@ -1,9 +1,30 @@
 """
+qaqc_wholestation.py
+
 This is a script where Stage 3: QA/QC function(s) whole station checks.
 For use within the PIR-19-006 Historical Obsevations Platform.
+
+Functions
+---------
+- qaqc_eligible_vars: Initial check on data variables within a station to determine whether to proceed through QA/QC.
+- qaqc_missing_vals: Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
+- qaqc_missing_latlon: Test for missing latitude / longitude values for a station.
+- qaqc_within_wecc: Test for whether station is within terrestrial & marine WECC boundaries.
+- _grab_dem_elev_m: If elevation is missing, retrieves elevation value from the USGS Elevation Point Query Service,
+    lat lon must be in decimal degrees (which it is after cleaning).
+- qaqc_elev_internal_range_consistency: For stations with multiple elevation values, checks if the delta is reasonable, flags if not.
+- qaqc_elev_infill: Test if elevation is NA/missing.
+- qaqc_elev_range: Checks if valid elevation value is outside of range of reasonable values for WECC region.
+- qaqc_sensor_height_t: Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
+- qaqc_sensor_height_w: Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
+- qaqc_world_record: Checks if variables are outside North American world records.
+- flag_summary: Generates summary of flags set on all QAQC tests.
+
+Intended Use
+------------
+Script functions assess QA/QC on the entire station, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import geopandas as gp
 import shapely
 import numpy as np
@@ -12,8 +33,6 @@ import xarray as xr
 import shapely
 import urllib
 import requests
-
-# New logger function
 from log_config import logger
 
 try:
@@ -35,12 +54,8 @@ ASCC = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
 MRO = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
 
 
-# ======================================================================
-## Part 1a functions (whole station/network)
-## Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
-
-
-# ----------------------------------------------------------------------
+# Part 1a functions (whole station/network)
+# Note: QA/QC functions in part 1a of whole station checks do not proceed through QA/QC if failure occurs
 def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
     """
     Initial check on data variables within a station to determine whether to proceed through QA/QC.
@@ -95,8 +110,6 @@ def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
         return ds
 
 
-# ----------------------------------------------------------------------
-# missing value check: double check that all missing value observations are converted to NA before QA/QC
 def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Test for any errant missing values that made it through cleaning and converts missing values to NaNs.
@@ -183,8 +196,6 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
         return None
 
 
-# ----------------------------------------------------------------------
-# missing spatial coords (lat-lon)
 def qaqc_missing_latlon(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Test for missing latitude / longitude values for a station.
@@ -217,8 +228,6 @@ def qaqc_missing_latlon(df: pd.DataFrame) -> pd.DataFrame | None:
     return df
 
 
-# ----------------------------------------------------------------------
-# in bounds of WECC
 def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Test for whether station is within terrestrial & marine WECC boundaries.
@@ -236,11 +245,10 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     logger.info("Running: qaqc_within_wecc")
 
-    t = gp.read_file(WECC_TERR).iloc[0].geometry  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(WECC_MAR).iloc[0].geometry  ## Read in marine WECC shapefile.
-    ak_t = (
-        gp.read_file(ASCC).iloc[9].geometry
-    )  ## Read in Alaska boundaries shapefile -- Southeast region.
+    # Read in WECC and Alaska shapefiles
+    t = gp.read_file(WECC_TERR).iloc[0].geometry
+    m = gp.read_file(WECC_MAR).iloc[0].geometry
+    ak_t = gp.read_file(ASCC).iloc[9].geometry
     lat = df["lat"].iloc[0]
     lon = df["lon"].iloc[0]
 
@@ -260,8 +268,6 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
         return None  # QAQC will fail
 
 
-# ----------------------------------------------------------------------
-# elevation
 def _grab_dem_elev_m(lats_to_check: list[float], lons_to_check: list[str]) -> float:
     """
     If elevation is missing, retrieves elevation value from the USGS Elevation Point Query Service,
@@ -312,7 +318,6 @@ def _grab_dem_elev_m(lats_to_check: list[float], lons_to_check: list[str]) -> fl
         return dem_elev_short
 
 
-# ----------------------------------------------------------------------
 def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     For stations with multiple elevation values, checks if the delta is reasonable, flags if not.
@@ -397,7 +402,6 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
         return None
 
 
-# ----------------------------------------------------------------------
 def qaqc_elev_infill(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Test if elevation is NA/missing.
@@ -540,7 +544,6 @@ def qaqc_elev_infill(df: pd.DataFrame) -> pd.DataFrame | None:
     return df
 
 
-# ----------------------------------------------------------------------
 def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Checks if valid elevation value is outside of range of reasonable values for WECC region.
@@ -584,13 +587,8 @@ def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
     return df
 
 
-# ======================================================================
-## Part 1b functions (whole station/network)
-## Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
-
-
-# ----------------------------------------------------------------------
-## sensor height - air temperature
+# Part 1b functions (whole station/network)
+# Note: QA/QC functions in part 1b of whole station checks proceed through QA/QC if failure occurs
 def qaqc_sensor_height_t(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Checks if temperature sensor height is within 2 meters above surface +/- 1/3 meter tolerance.
@@ -646,9 +644,7 @@ def qaqc_sensor_height_t(df: pd.DataFrame) -> pd.DataFrame | None:
         return None
 
 
-# ----------------------------------------------------------------------
-## sensor height - wind
-## NOTE: qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
+# NOTE: qaqc_sensor_height_w function moved into v2 of this data product, as many networks do not report sensor height, leaving many stations excluded from this check
 def qaqc_sensor_height_w(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Checks if wind sensor height is within 10 meters above surface +/- 1/3 meter tolerance.
@@ -707,8 +703,6 @@ def qaqc_sensor_height_w(df: pd.DataFrame) -> pd.DataFrame | None:
         return None
 
 
-# ----------------------------------------------------------------------
-## flag values outside world records for North America
 def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame:
     """
     Checks if variables are outside North American world records.
@@ -870,8 +864,6 @@ def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame:
         return None
 
 
-# ----------------------------------------------------------------------
-## final summary stats of flagged variables and percentage of coverage
 def flag_summary(df: pd.DataFrame):
     """
     Generates summary of flags set on all QAQC tests.

@@ -1,18 +1,27 @@
 """
+QAQC_pipeline.py
+
 This script performs qa/qc protocols for cleaned station data for ingestion into the Historical Observations Platform, and is
 independent of network.
 Approach:
 (1) Remove duplicate stations
 (2) Handle variables that report at different intervals and/or change frequency over time (convert to hourly?)
 (3) QA/QC testing, including consistency checks, gaps, checks against climatological distributions, and cross variable checks.
-(4) Case study analysis for accuracy -- SHOULD THIS BE A SEPARATE SCRIPT/PROCESS?
 
-Inputs: Cleaned data for an individual network
-Outputs: QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .nc file.
+Intended Use
+-------------
+This script runs the full QA/QC pipeline for a single weather station dataset. It processes cleaned output and applies a 
+    sequence of QA/QC tests to generate a QA/QC'd station file.
+
+Inputs
+------
+Cleaned data for an individual network
+
+Outputs
+-------
+QA/QC-processed data for an individual network, priority variables, all times. Organized by station as .zarr.
 """
 
-# Step 0: Environment set-up
-# Import libraries
 import os
 import datetime
 import pandas as pd
@@ -24,7 +33,6 @@ import time
 import tempfile
 import logging
 
-# Import all qaqc script functions
 try:
     from log_config import setup_logger
     from qaqc_plot import *
@@ -41,22 +49,18 @@ try:
 except Exception as e:
     print("Error importing qaqc script: {}".format(e))
 
-# ----------------------------------------------------------------------------
-## Set AWS credentials
+
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-## Set relative paths to other folders and objects in repository.
 BUCKET_NAME = "wecc-historical-wx"
 
-# Make local directories to save files temporarily and save timing,
+# Make local directories to save files temporarily and save timing
 dirs = ["./qaqc_logs/"]
 for d in dirs:
     if not os.path.exists(d):
         os.makedirs(d)
 
 
-# ----------------------------------------------------------------------------
 def setup_error_handling() -> tuple[dict[str, list], str, str]:
     """
     Sets-up error handling.
@@ -82,7 +86,6 @@ def setup_error_handling() -> tuple[dict[str, list], str, str]:
     return errors, end_api, timestamp
 
 
-# ----------------------------------------------------------------------------
 def print_qaqc_failed(
     errors: dict[str, list],
     station: str | None = None,
@@ -120,8 +123,6 @@ def print_qaqc_failed(
     return errors
 
 
-# ----------------------------------------------------------------------------
-## Check if network files are in s3 bucket
 def file_on_s3(df: pd.DataFrame, zarr: bool) -> pd.Series:
     """
     Check if network files are in s3 bucket
@@ -161,8 +162,6 @@ def file_on_s3(df: pd.DataFrame, zarr: bool) -> pd.Series:
     return substring_in_filepath
 
 
-# ----------------------------------------------------------------------------
-## Read network nc files
 def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
     """
     Read files for a network from AWS
@@ -280,8 +279,6 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
         return final_df
 
 
-# ----------------------------------------------------------------------------
-## Assign ds attributes and save
 def process_output_ds(
     df: pd.DataFrame,
     attrs: dict[str],
@@ -317,6 +314,10 @@ def process_output_ds(
     Returns
     -------
     None
+
+    To Do
+    -----
+    1. Add metadata for _eraqc variables.
     """
     # Convert back to dataset
     with warnings.catch_warnings():
@@ -356,13 +357,6 @@ def process_output_ds(
     ] + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.".format(
         timestamp
     )
-    # # Flag meaninng attribute
-    # ds = ds.assign_attrs(flags_meaning = flags_attrs)
-    # --------------------------------------------------------
-    # TO DO:
-    # Add metadata to `_eraqc` variables
-
-    # --------------------------------------------------------
 
     # Write station file
     if zarr == False:
@@ -398,7 +392,6 @@ def process_output_ds(
     return None
 
 
-# --------------------------------------------------------------------------------
 def qaqc_ds_to_df(
     ds: xr.Dataset,
 ) -> tuple[pd.DataFrame, pd.Index, list[str], list[str], list[str]]:
@@ -423,9 +416,8 @@ def qaqc_ds_to_df(
         QAQC variables
     """
 
-    ## Add qc_flag variable for all variables, including elevation;
-    ## defaulting to nan for fill value that will be replaced with qc flag
-
+    # Add qc_flag variable for all variables, including elevation;
+    # defaulting to nan for fill value that will be replaced with qc flag
     for key, val in ds.variables.items():
         if val.dtype == object:
             if key == "station":
@@ -535,7 +527,6 @@ def qaqc_ds_to_df(
     return df, df_multi_idx, attrs, var_attrs, era_qc_vars
 
 
-# ----------------------------------------------------------------------------
 def run_qaqc_pipeline(
     ds: xr.Dataset,
     network: str,
@@ -1019,14 +1010,12 @@ def run_qaqc_pipeline(
     )
 
     # Sort by time and remove any overlapping timesteps
-    # TODO: Is this necessary? Probably done in the cleaning step
     # Check back to see if this can or needs to be removed
     stn_to_qaqc = stn_to_qaqc[~stn_to_qaqc.index.duplicated()].sort_index()
 
     return stn_to_qaqc, attrs, var_attrs, era_qc_vars
 
 
-# ==============================================================================
 def run_qaqc_one_station(
     station: str, verbose: bool = False, rad_scheme: str = "remove_zeros"
 ):

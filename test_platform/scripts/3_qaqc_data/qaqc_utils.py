@@ -1,9 +1,29 @@
 """
+qaqc_utils.py
+
 This is a script where Stage 3: QA/QC related common functions, conversions, and operations is stored for ease of use
 for the Historical Observations Platform.
+
+Functions
+---------
+- get_bin_size_by_var: Get bin size for a given variable.
+- create_bins_frequent: Create bins from data covering entire data range; Used in frequent value check and qaqc plot of frequent values.
+- create_bins: Create bins from data covering entire data range.
+- pdf_bounds: Calculate pdf distribution, return pdf and threshold bounds.
+- qaqc_dist_whole_stn_bypass_check: Checks the number of valid observation months in order to proceed through monthly distribution checks.
+- qaqc_dist_var_bypass_check: Checks the number of valid observation months in order to proceed through monthly distribution checks.
+- qaqc_var_length_bypass_check: Bypass function based on variable obs record length.
+- grab_valid_obs: Observations that have been flagged by QA/QC test should not proceed through any other QA/QC test.
+- progressbar: Print a progress bar to console.
+- get_file_paths: Returns AWS filepaths for historical data platform bucket.
+- get_filenames_in_s3_folder: Get a list of files in s3 bucket.
+- get_wecc_poly: Identifies a bbox of WECC area to filter stations against.
+
+Intended Use
+------------
+Script function utilities, as a part of the QA/QC pipeline. 
 """
 
-## Import Libraries
 import boto3
 import geopandas as gp
 import numpy as np
@@ -11,25 +31,13 @@ import time
 import pandas as pd
 import scipy.stats as stats
 import sys
-
-## New logger function
 from log_config import logger
 
-## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-## Set relative paths to other folders and objects in repository.
 BUCKET_NAME = "wecc-historical-wx"
 
-## Following functions
-## 1. QA/QC statistical helper functions (e.g., histogram bins)
-## 2. QA/QC runtime functions (e.g., progress bar)
 
-
-## QA/QC statistical helper functions
-# -----------------------------------------------------------------------------
-# fns to return histogram bins
 def get_bin_size_by_var(var: str) -> float:
     """Get bin size for a given variable
 
@@ -61,7 +69,6 @@ def get_bin_size_by_var(var: str) -> float:
     return bin_size_by_var[var]
 
 
-# -----------------------------------------------------------------------------
 def create_bins_frequent(
     df: pd.DataFrame, var: str, bin_size: float | None = None
 ) -> np.array:
@@ -108,7 +115,6 @@ def create_bins_frequent(
     return bins
 
 
-# -----------------------------------------------------------------------------
 def create_bins(data: pd.DataFrame, bin_size: float = 0.25) -> list:
     """Create bins from data covering entire data range.
 
@@ -137,7 +143,6 @@ def create_bins(data: pd.DataFrame, bin_size: float = 0.25) -> list:
     return bins
 
 
-# -----------------------------------------------------------------------------
 def pdf_bounds(
     df: pd.DataFrame, mu: float, sigma: float, bins: list
 ) -> tuple[np.array, float, float]:
@@ -195,7 +200,6 @@ def pdf_bounds(
             return (y, left_bnd, right_bnd)
 
 
-# -----------------------------------------------------------------------------
 def qaqc_dist_whole_stn_bypass_check(
     df: pd.DataFrame, vars_to_check: list, min_num_months: int = 5
 ) -> tuple[pd.DataFrame, int]:
@@ -252,7 +256,6 @@ def qaqc_dist_whole_stn_bypass_check(
     return new_df, stn_length
 
 
-# -----------------------------------------------------------------------------
 def qaqc_dist_var_bypass_check(
     df: pd.DataFrame, var: str, min_num_months: int = 5
 ) -> pd.DataFrame:
@@ -298,7 +301,6 @@ def qaqc_dist_var_bypass_check(
     return df
 
 
-# -----------------------------------------------------------------------------
 def qaqc_var_length_bypass_check(df: pd.DataFrame, var: str) -> pd.DataFrame:
     """Bypass function based on variable obs record length
 
@@ -321,8 +323,6 @@ def qaqc_var_length_bypass_check(df: pd.DataFrame, var: str) -> pd.DataFrame:
     )
 
 
-# -----------------------------------------------------------------------------
-# Red vs. Yellow flagging
 def grab_valid_obs(
     df: pd.DataFrame, var: str, var2: str | None = None, kind: str = "keep"
 ) -> pd.DataFrame:
@@ -378,8 +378,6 @@ def grab_valid_obs(
     return df_valid
 
 
-## QA/QC other helper functions
-# -----------------------------------------------------------------------------
 def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout):
     """Print a progress bar to console
 
@@ -428,7 +426,6 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out: str = sys.stdout
     print("\n", flush=True, file=out)
 
 
-# -----------------------------------------------------------------------------
 def get_file_paths(network: str) -> tuple[str, str, str, str]:
     """Returns AWS filepaths for historical data platform bucket.
 
@@ -455,7 +452,6 @@ def get_file_paths(network: str) -> tuple[str, str, str, str]:
     return rawdir, cleandir, qaqcdir, mergedir
 
 
-# -----------------------------------------------------------------------------
 def get_filenames_in_s3_folder(bucket: str, folder: str) -> list:
     """Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
@@ -507,7 +503,6 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list:
     return files_in_s3
 
 
-# -----------------------------------------------------------------------------
 def get_wecc_poly(
     terrpath: str, marpath: str
 ) -> tuple[gp.GeoDataFrame, gp.GeoDataFrame, pd.DataFrame]:
@@ -529,7 +524,7 @@ def get_wecc_poly(
     bbox : pd.DataFrame
         bounding box for union of t and m
     """
-    t = gp.read_file(terrpath)  ## Read in terrestrial WECC shapefile.
-    m = gp.read_file(marpath)  ## Read in marine WECC shapefile.
-    bbox = t.union(m).bounds  ## Combine polygons and get bounding box of union.
+    t = gp.read_file(terrpath)  # Read in terrestrial WECC shapefile.
+    m = gp.read_file(marpath)  # Read in marine WECC shapefile.
+    bbox = t.union(m).bounds  # Combine polygons and get bounding box of union.
     return t, m, bbox

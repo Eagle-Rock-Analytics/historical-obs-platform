@@ -16,16 +16,28 @@ Variables that cannot be derived if observations are missing
 - Surface radiation
 - Precipitation
 - Pressure: air temperature, elevation, sea level pressure (not ideal, tricky calculation)
+
+Functions
+---------
+- merge_derive_missing_vars: Identifies if any variables can be derived with other input variables.
+- _input_var_check: Flexible check if required secondary input variables are available to derive a primary variable.
+- derive_synergistic_flag: Synergistically flags the derived variable if the input variables also have flags.
+- _add_derived_var_attrs: Creates data attributes for new derived variable and adds to var_attrs.
+- _calc_dewpointtemp: Calculates dew point temperature, method 1.
+- _calc_airtemp: Calculate air temperature.
+- _calc_relhumid: Calculate relative humidity.
+
+Intended Use
+------------
+Script functions are used to derive any potentially missing variables, where appropriate, as a part of the merge pipeline.
 """
 
-# Import libraries
 import pandas as pd
 import numpy as np
 import logging
 import inspect
 
 
-## Identify vars that can be derived
 def merge_derive_missing_vars(
     df: pd.DataFrame, var_attrs: dict, logger: logging.Logger
 ) -> tuple[pd.DataFrame, dict] | None:
@@ -300,7 +312,6 @@ def _add_derived_var_attrs(
     return var_attrs
 
 
-## Derived variable calculations
 def _calc_dewpointtemp(tas: pd.Series, hurs: pd.Series) -> pd.Series:
     """Calculates dew point temperature, method 1
 

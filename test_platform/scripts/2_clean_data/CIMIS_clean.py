@@ -1,66 +1,61 @@
 """
-This script performs data cleaning for CIMIS stations pulled through CADWR for
-ingestion into the Historical Observations Platform.
-Approach:
+CIMIS_clean.py
+
+This script performs data cleaning for CIMIS stations pulled through CADWR for ingestion into the Historical Observations Platform.
+
+Approach
+--------
 (1) Read through variables and drop unnecessary variables
 (2) Converts station metadata to standard format, with unique identifier
 (3) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
 (4) Converts missing data to standard format
 (5) Tracks existing qa/qc flag for review
 (6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
-Inputs: Raw data for the network's stations, with each csv file representing data for all stations in a given year or month (current year's data)
-Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
-Reference: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
 
+Functions
+---------
+- clean_cimis: Cleans CIMIS data. 
+
+Intended Use
+------------
+Cleans data for an individual network, priority variables, all times. Organized by station as .nc file. 
+
+Notes
+------
 Note: QAQC flags formatted and uploaded manually. Last update Nov 22 2022.
 Source: https://cimis.water.ca.gov/Content/PDF/CurrentFlags2.pdf (1995-present)
 Source: https://cimis.water.ca.gov/Content/PDF/FormerFlags2.pdf (Pre 1995)
 """
 
-# Step 0: Environment set-up
-# Import libraries
 import os
 import xarray as xr
 from datetime import datetime, timedelta
 import re
 import numpy as np
-import warnings
-
-warnings.filterwarnings(
-    action="ignore", category=FutureWarning
-)  # Optional: Silence pandas' future warnings about regex (not relevant here)
-
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 import zipfile
-from cleaning_helpers import var_to_unique_list, get_file_paths
+import warnings
 
-# To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
-try:
-    import calc_clean
-except:
-    print("Error importing calc_clean.py")
-    pass
+# Optional: Silence pandas' future warnings about regex (not relevant here)
+warnings.filterwarnings(action="ignore", category=FutureWarning)
 
-## Set AWS credentials
+from clean_utils import var_to_unique_list, get_file_paths
+import calc_clean
+
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-# Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
-
+BUCKET_NAME = "wecc-historical-wx"
 
 # Set up directory to save files temporarily, if it doesn't already exist.
 try:
-    os.mkdir(
-        "temp"
-    )  # Make the directory to save data in. Except used to pass through code if folder already exists.
+    os.mkdir("temp")
 except:
     pass
 
 
-def clean_cimis(rawdir, cleandir):
+def clean_cimis(rawdir: str, cleandir: str):
     """Clean CIMIS data
 
     Parameters
@@ -73,21 +68,19 @@ def clean_cimis(rawdir, cleandir):
     Returns
     -------
     None
-        this function does not return a value
     """
 
     network = "CIMIS"
 
-    # Set up error handling.
-    errors = {"File": [], "Time": [], "Error": []}  # Set up error handling.
-    end_api = datetime.now().strftime(
-        "%Y%m%d%H%M"
-    )  # Set end time to be current time at beginning of download: for error handling csv.
-    timestamp = datetime.utcnow().strftime(
-        "%m-%d-%Y, %H:%M:%S"
-    )  # For attributes of netCDF file.
+    # Set up error handling
+    errors = {"File": [], "Time": [], "Error": []}
 
-    # Column format changes in June 2014 for this dataset.
+    # Set end time to be current time at beginning of download: for error handling csv
+    end_api = datetime.now().strftime("%Y%m%d%H%M")
+    # For attributes of netCDF file
+    timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
+
+    # Column format changes in June 2014 for this dataset
     newcols = [
         "Station ID",
         "Date",
@@ -153,13 +146,13 @@ def clean_cimis(rawdir, cleandir):
     try:
         # Get files
         files = []
-        for item in s3.Bucket(bucket_name).objects.filter(Prefix=rawdir):
+        for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=rawdir):
             file = str(item.key)
             files += [file]
 
         # Get station file and read in metadata.
         station_file = [file for file in files if "stationlist_" in file]
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=station_file[0])
         station_file = pd.read_excel(BytesIO(obj["Body"].read()))
         stations = station_file["Station Number"].dropna().astype(int)
 
@@ -168,16 +161,16 @@ def clean_cimis(rawdir, cleandir):
         files = [file for file in files if "stationlist" not in file]
         files = [file for file in files if "error" not in file]
 
-    except Exception as e:  # If unable to read files from rawdir, break function.
+    except Exception as e:
+        # If unable to read files from rawdir, break function.
         print(e)
         errors["File"].append("Whole network")
         errors["Time"].append(end_api)
-        errors["Error"].append("Whole network error: {}".format(e))
+        errors["Error"].append(f"Whole network error: {e}")
 
-    else:  # If files read successfully, continue.
+    # If files read successfully, continue
+    else:
         for station in stations:
-            # for station in ['127']: # subset a specific station
-            # for station in stations.sample(3): # subset for testing
             station_metadata = station_file.loc[
                 station_file["Station Number"] == float(station)
             ]
@@ -185,7 +178,8 @@ def clean_cimis(rawdir, cleandir):
 
             # df_stat = None # Initialize merged df
             dfs = []
-            for file in files:  # For each zip file (annual or monthly)
+            for file in files:
+                # For each zip file (annual or monthly)
                 try:
                     fileyear = file.split("/")[-1]
                     fileyear = fileyear.replace("hourlyStns", "")
@@ -196,38 +190,37 @@ def clean_cimis(rawdir, cleandir):
                             columns = newcols
                         else:
                             columns = oldcols
-                    else:  # If data from current year
+                    else:
+                        # If data from current year
                         columns = newcols
 
-                    obj = s3.Bucket(bucket_name).Object(file)
+                    obj = s3.Bucket(BUCKET_NAME).Object(file)
                     with BytesIO(obj.get()["Body"].read()) as tf:
                         # rewind the file
                         tf.seek(0)
                         # Read the file as a zipfile and process the members
                         with zipfile.ZipFile(tf, mode="r") as zipf:  # Unzip
-                            for (
-                                subfile
-                            ) in zipf.namelist():  # For each csv file in a zipfile
+                            for subfile in zipf.namelist():
+                                # For each csv file in a zipfile
                                 stationid = subfile.replace(".csv", "")
                                 stationid = int(stationid[-3:])
                                 if int(station) == stationid:
-                                    print(
-                                        "Parsing: {}".format(station_id)
-                                    )  # Intentionally printing here to flag if passes read in
+                                    # Intentionally printing here to flag if passes read in
+                                    print(f"Parsing: {station_id}")
 
+                                    # Read into pandas
                                     df = pd.read_csv(
                                         zipf.open(subfile),
                                         names=columns,
                                         skipinitialspace=True,
                                         na_values=["*", "--", "#######"],
-                                    )  # Read into pandas
+                                    )
 
                                     # Handle for data present but empty on AWS
                                     if len(df.index) == 0:
                                         continue
 
                                     # Fix non-standard NAs and whitespace issues while reading in.
-                                    # print(df.head()) # for testing
                                     # Reorder columns into new column order
                                     df = df.reindex(columns=newcols)
 
@@ -273,21 +266,21 @@ def clean_cimis(rawdir, cleandir):
 
                                     dfs.append(df)
 
-                                else:  # if year csv file does not have data for station, move on to next year
+                                else:
+                                    # if year csv file does not have data for station, move on to next year
                                     continue
 
-                except (
-                    Exception
-                ) as e:  # Handle exceptions thrown during individual file read in.
+                except Exception as e:
+                    # Handle exceptions thrown during individual file read in.
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
-                    errors["Error"].append("Error in pandas df set-up: {}".format(e))
+                    errors["Error"].append(f"Error in pandas df set-up: {e}")
                     continue
 
             try:
                 file_count = len(dfs)
                 if file_count == 0:
-                    print("No raw data found for {} on AWS.".format(station_id))
+                    print(f"No raw data found for {station_id} on AWS.")
                     errors["File"].append(station_id)
                     errors["Time"].append(end_api)
                     errors["Error"].append("No raw data found for this station on AWS.")
@@ -343,21 +336,22 @@ def clean_cimis(rawdir, cleandir):
                 ds = ds.assign_attrs(humidity_height_m=1.5)
                 ds = ds.assign_attrs(rain_gauge_height_m=1.0)
 
-                ds = ds.assign_attrs(
-                    raw_files_merged=file_count
-                )  # Keep count of how many files merged per station.
+                # Keep count of how many files merged per station.
+                ds = ds.assign_attrs(raw_files_merged=file_count)
 
                 # Add dimensions: station ID and time.
                 ds = ds.set_coords("time").swap_dims(
                     {"index": "time"}
                 )  # Swap index with time.
                 ds = ds.assign_coords(id=str(station_id))
-                ds = ds.expand_dims("id")  # Add station_id as index.
-                ds = ds.drop_vars(
-                    ("index")
-                )  # Drop station_id variable and index coordinate.
-                ds = ds.rename({"id": "station"})  # Rename id to station_id.
-                ds = ds.drop("Station ID")  # Drop station ID column
+                # Add station_id as index.
+                ds = ds.expand_dims("id")
+                # Drop station_id variable and index coordinate.
+                ds = ds.drop_vars(("index"))
+                # Rename id to station_id.
+                ds = ds.rename({"id": "station"})
+                # Drop station ID column
+                ds = ds.drop("Station ID")
 
                 # Update dimensions and coordinates
 
@@ -387,9 +381,8 @@ def clean_cimis(rawdir, cleandir):
                 # Update dimension and coordinate attributes.
 
                 # Update attributes.
-                ds["time"] = pd.to_datetime(
-                    ds["time"]
-                )  # Remove timezone data from string (to match other networks)
+                # Remove timezone data from string (to match other networks)
+                ds["time"] = pd.to_datetime(ds["time"])
                 ds["time"] = pd.to_datetime(ds["time"], unit="ns")
                 ds["time"].attrs["long_name"] = "time"
                 ds["time"].attrs["standard_name"] = "time"
@@ -413,15 +406,12 @@ def clean_cimis(rawdir, cleandir):
 
                 # Elevation
                 # Convert from feet to meters.
-                ds["elevation"] = calc_clean._unit_elev_ft_to_m(
-                    ds["elevation"]
-                )  # Convert feet to meters.
+                ds["elevation"] = calc_clean._unit_elev_ft_to_m(ds["elevation"])
                 ds["elevation"].attrs["standard_name"] = "height_above_mean_sea_level"
                 ds["elevation"].attrs["long_name"] = "station_elevation"
                 ds["elevation"].attrs["units"] = "meters"
-                ds["elevation"].attrs[
-                    "positive"
-                ] = "up"  # Define which direction is positive
+                # Define which direction is positive
+                ds["elevation"].attrs["positive"] = "up"
                 ds["elevation"].attrs["comment"] = "Converted from feet to meters."
 
                 # Update variable attributes and do unit conversions
@@ -443,9 +433,8 @@ def clean_cimis(rawdir, cleandir):
                         ds["tas_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
-                        ds["tas"].attrs[
-                            "ancillary_variables"
-                        ] = "tas_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["tas"].attrs["ancillary_variables"] = "tas_qc"
 
                     ds["tas"].attrs["comment"] = "Converted from Celsius to Kelvin."
 
@@ -465,7 +454,8 @@ def clean_cimis(rawdir, cleandir):
                     ds["tdps_derived"].attrs["standard_name"] = "dew_point_temperature"
                     ds["tdps_derived"].attrs["units"] = "degree_Kelvin"
 
-                    if "QC for Dew Point" in ds.keys():  # If QA/QC exists.
+                    if "QC for Dew Point" in ds.keys():
+                        # If QA/QC exists.
                         ds = ds.rename({"QC for Dew Point": "tdps_derived_qc"})
                         ds["tdps_derived_qc"].attrs["flag_values"] = var_to_unique_list(
                             ds, "tdps_derived_qc"
@@ -473,9 +463,10 @@ def clean_cimis(rawdir, cleandir):
                         ds["tdps_derived_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
+                        # List other variables associated with variable (QA/QC)
                         ds["tdps_derived"].attrs[
                             "ancillary_variables"
-                        ] = "tdps_derived_qc"  # List other variables associated with variable (QA/QC)
+                        ] = "tdps_derived_qc"
 
                     ds["tdps_derived"].attrs[
                         "comment"
@@ -489,7 +480,8 @@ def clean_cimis(rawdir, cleandir):
 
                 # pr: precipitation
                 # bumping out of the precipitation loop -- one CIMIS station does not have pr, but does have QC flag
-                if "QC for Precipitation" in ds.keys():  # If QA/QC exists.
+                if "QC for Precipitation" in ds.keys():
+                    # If QA/QC exists.
                     ds = ds.rename({"QC for Precipitation": "pr_qc"})
                     ds["pr_qc"].attrs["flag_values"] = var_to_unique_list(ds, "pr_qc")
                     ds["pr_qc"].attrs["flag_meanings"] = "See QA/QC csv for network."
@@ -497,16 +489,14 @@ def clean_cimis(rawdir, cleandir):
                     # including within QC loop -- one CIMIS station does not have pr, but does have QC flag
                     # only update this info if pr variable is also present
                     if "pr" in ds.keys():
-                        ds["pr"].attrs[
-                            "ancillary_variables"
-                        ] = "pr_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["pr"].attrs["ancillary_variables"] = "pr_qc"
 
                         ds["pr"].attrs["comment"] = "Accumulated precipitation."
 
                 # hurs: relative humidity (%)
-                if (
-                    "Relative Humidity (%)" in ds.keys()
-                ):  # Already in %, no need to convert units.
+                if "Relative Humidity (%)" in ds.keys():
+                    # Already in %, no need to convert units.
                     ds = ds.rename({"Relative Humidity (%)": "hurs"})
                     # Set attributes
                     ds["hurs"].attrs["long_name"] = "relative_humidity"
@@ -522,14 +512,12 @@ def clean_cimis(rawdir, cleandir):
                         ds["hurs_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
-                        ds["hurs"].attrs[
-                            "ancillary_variables"
-                        ] = "hurs_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["hurs"].attrs["ancillary_variables"] = "hurs_qc"
 
                 # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
-                if (
-                    "Solar Radiation (W/m²)" in ds.keys()
-                ):  # Already in w/m2, no need to convert units.
+                if "Solar Radiation (W/m²)" in ds.keys():
+                    # Already in w/m2, no need to convert units.
                     # If column exists, rename.
                     ds = ds.rename({"Solar Radiation (W/m²)": "rsds"})
 
@@ -549,12 +537,12 @@ def clean_cimis(rawdir, cleandir):
                         ds["rsds_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
-                        ds["rsds"].attrs[
-                            "ancillary_variables"
-                        ] = "rsds_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["rsds"].attrs["ancillary_variables"] = "rsds_qc"
 
                 # sfcWind : wind speed (m/s)
-                if "Wind Speed (m/s)" in ds.keys():  # Data originally in mph.
+                if "Wind Speed (m/s)" in ds.keys():
+                    # Data originally in mph.
                     ds = ds.rename({"Wind Speed (m/s)": "sfcWind"})
                     ds["sfcWind"].attrs["long_name"] = "wind_speed"
                     ds["sfcWind"].attrs["standard_name"] = "wind_speed"
@@ -569,14 +557,12 @@ def clean_cimis(rawdir, cleandir):
                         ds["sfcWind_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
-                        ds["sfcWind"].attrs[
-                            "ancillary_variables"
-                        ] = "sfcWind_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["sfcWind"].attrs["ancillary_variables"] = "sfcWind_qc"
 
                 # sfcWind_dir: wind direction
-                if (
-                    "Wind Direction (0-360)" in ds.keys()
-                ):  # No conversions needed, do not make raw column.
+                if "Wind Direction (0-360)" in ds.keys():
+                    # No conversions needed, do not make raw column.
                     ds = ds.rename({"Wind Direction (0-360)": "sfcWind_dir"})
                     ds["sfcWind_dir"].attrs["long_name"] = "wind_direction"
                     ds["sfcWind_dir"].attrs["standard_name"] = "wind_from_direction"
@@ -590,10 +576,10 @@ def clean_cimis(rawdir, cleandir):
                         ds["sfcWind_dir_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
+                        # List other variables associated with variable (QA/QC)
                         ds["sfcWind_dir"].attrs[
                             "ancillary_variables"
-                        ] = "sfcWind_dir_qc"  # List other variables associated with variable (QA/QC)
-
+                        ] = "sfcWind_dir_qc"
                     ds["sfcWind_dir"].attrs[
                         "comment"
                     ] = "Wind direction is defined by the direction that the wind is coming from (i.e., a northerly wind originates in the north and blows towards the south)."
@@ -622,9 +608,8 @@ def clean_cimis(rawdir, cleandir):
                         ds["pvp_derived_qc"].attrs[
                             "flag_meanings"
                         ] = "See QA/QC csv for network."
-                        ds["pvp_derived"].attrs[
-                            "ancillary_variables"
-                        ] = "pvp_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["pvp_derived"].attrs["ancillary_variables"] = "pvp_qc"
 
                     ds["pvp_derived"].attrs[
                         "comment"
@@ -641,25 +626,22 @@ def clean_cimis(rawdir, cleandir):
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans
-                        if (key == "elevation") & (
-                            len(ds.keys()) == 1
-                        ):  # only elevation remains
-                            print(
-                                "Dropping empty var: {}".format(key)
-                            )  # slightly unnecessary since the entire dataset will be empty too
+                        if (key == "elevation") & (len(ds.keys()) == 1):
+                            # only elevation remains
+                            print(f"Dropping empty var: {key}")
+                            # slightly unnecessary since the entire dataset will be empty too
                             ds = ds.drop(key)
                             continue
-                    except (
-                        Exception
-                    ) as e:  # Add to handle errors for unsupported data types
-                        next
+
+                    except Exception as e:
+                        # Add to handle errors for unsupported data types
+                        continue
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
                 for key in ds.keys():
                     if "qc" in key:
-                        ds[key] = ds[key].astype(
-                            str
-                        )  # Coerce all values in key to string.
+                        ds[key] = ds[key].astype(str)
+                        # Coerce all values in key to string.
 
                 # Reorder variables
                 desired_order = [
@@ -675,27 +657,24 @@ def clean_cimis(rawdir, cleandir):
                     "svp",
                 ]
                 actual_order = [i for i in desired_order if i in list(ds.keys())]
-                rest_of_vars = [
-                    i for i in list(ds.keys()) if i not in desired_order
-                ]  # Retain rest of variables at the bottom.
+                # Retain rest of variables at the bottom.
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order]
+
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
 
             except Exception as e:
                 print(e)
-                errors["File"].append(station_id)  # Save ID of station.
+                errors["File"].append(station_id)
                 errors["Time"].append(end_api)
-                errors["Error"].append("Error in ds set-up: {}".format(e))
+                errors["Error"].append(f"Error in ds set-up: {e}")
                 continue
 
             # Write station file to netcdf.
-            if (
-                len(ds.keys()) == 0
-            ):  # skip station if the entire dataset will be empty because no data is observed
+            if len(ds.keys()) == 0:
+                # skip station if the entire dataset will be empty because no data is observed
                 print(
-                    "{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(
-                        station_id
-                    )
+                    f"{station_id} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned."
                 )
                 errors["File"].append(station_id)
                 errors["Time"].append(end_api)
@@ -704,18 +683,16 @@ def clean_cimis(rawdir, cleandir):
 
             else:
                 try:
-                    filename = station_id + ".nc"  # Make file name
-                    filepath = cleandir + filename  # Write file path
+                    filename = station_id + ".nc"
+                    filepath = cleandir + filename
 
                     # Write locally
-                    ds.to_netcdf(
-                        path="temp/temp.nc", engine="netcdf4"
-                    )  # Save station file.
+                    ds.to_netcdf(path="temp/temp.nc", engine="netcdf4")
 
                     # Push file to AWS with correct file name.
-                    s3.Bucket(bucket_name).upload_file("temp/temp.nc", filepath)
+                    s3.Bucket(BUCKET_NAME).upload_file("temp/temp.nc", filepath)
 
-                    print("Saving {} with dims {}".format(filename, ds.dims))
+                    print(f"Saving {filename} with dims {ds.dims}")
                     ds.close()  # Close dataframe.
 
                 except Exception as e:
@@ -723,7 +700,7 @@ def clean_cimis(rawdir, cleandir):
                     errors["File"].append(station_id)
                     errors["Time"].append(end_api)
                     errors["Error"].append(
-                        "Error saving ds as .nc file to AWS bucket: {}".format(e)
+                        f"Error saving ds as .nc file to AWS bucket: {e}"
                     )
                     continue
 
@@ -733,7 +710,7 @@ def clean_cimis(rawdir, cleandir):
         removedvars.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name, Body=content, Key=cleandir + "removedvars.csv"
+            Bucket=BUCKET_NAME, Body=content, Key=cleandir + "removedvars.csv"
         )
 
     # Write errors.csv
@@ -743,9 +720,9 @@ def clean_cimis(rawdir, cleandir):
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
-            Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
+            Key=cleandir + f"errors_{network}_{end_api}.csv",
         )
 
     return None
@@ -754,5 +731,4 @@ def clean_cimis(rawdir, cleandir):
 ## Run functions
 if __name__ == "__main__":
     rawdir, cleandir, qaqcdir = get_file_paths("CIMIS")
-    print(rawdir, cleandir, qaqcdir)
     clean_cimis(rawdir, cleandir)
