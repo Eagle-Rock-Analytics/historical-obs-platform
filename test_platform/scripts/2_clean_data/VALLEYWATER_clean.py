@@ -1,9 +1,12 @@
 """
+VALLEYWATER_clean.py
+
 This script performs data cleaning for networks pulled through Valley Water API for historical observational analysis
 in AR pattern recognition. These stations may be ingested into the Historical Data Platform in a future iteration, but
 processing conforms to the HDP standard of quality.
 
-Approach:
+Approach
+--------
 (1) Read through variables and drop unnecessary variables
 (2) Infill mis-timed timesteps at the correct 15 min interval with NaN in precipitation record
 (3) Add empty elevation variable, to be infilled via DEM
@@ -12,25 +15,14 @@ Approach:
 (6) Tracks existing qa/qc flag(s) for review
 (7) Outputs cleaned variables as a single zarr for each station in an individual network.
 
-Inputs: Raw data for the network's stations, with each csv file representing a station.
-Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as zarr.
+Functions
+---------
 
-Modification History:
-- 11/26/2024: Converted from a python notebook to a python script
-- 11/30/2024: Added empty elevation variable with proper attributes
-- 12/6/2024: Script now creates csv file that stores station info & cleaning time & upload to s3. This is used in QAQC step 3.
-- 12/12/2024: Change datetime conversion from using tz_localize and tz_convert to a simple +8 hr following advice from Valley Water team
-- 01/14/2025:
-    - Modified to work with new VW data that contains information about gaps.
-    - Missing timesteps are filled with NaN instead of 0.
-    - Time conversion removed because the new data contains a time column in UTC timezone
-    - Data read in using pd.read_csv() instead of tempfile method
-- 01/20/2025: Add check for station in API json file csv due to VW sending data that didn't exist in the API and error being raised in script (station ID 6053)
-- 04/08/2025: Remove part of script that merge VW station list with existing full station list. This is now done via another script.
-
+Intended Use
+------------
+Cleaned data for an individual network, priority variables, all times. Organized by station as zarr.
 """
 
-## Imports
 import xarray as xr
 import pandas as pd
 import numpy as np
@@ -44,13 +36,10 @@ from pathlib import Path  # to get file suffix
 import time
 from typing import TypeIO
 
-# Set name of bucket and folder containing data
-bucket = "wecc-historical-wx"
-network = "VALLEYWATER"
-folder_raw = "1_raw_wx/VALLEYWATER"  # Raw data
-folder_clean = (
-    "2_clean_wx/VALLEYWATER"  # Where to upload cleaned files. Folder must already exist
-)
+BUCKET_NAME = "wecc-historical-wx"
+NETWORK = "VALLEYWATER"
+RAW_DIR = "1_raw_wx/VALLEYWATER"
+CLEAN_DIR = "2_clean_wx/VALLEYWATER"
 
 
 def main():
@@ -64,7 +53,6 @@ def main():
     4. Adds metadata and quality control flags
     5. Saves cleaned data as zarr files to S3
     6. Generates a station metadata CSV file
-
     """
 
     # For attributes of exported file
@@ -86,12 +74,12 @@ def main():
             "cleaned": [],
             "time_cleaned": [],
             "network": [],
-            "{0}_nobs".format(era_var_name): [],
+            f"{era_var_name}_nobs": [],
             "total_nobs": [],
         }
     )
 
-    filenames = get_filenames_in_s3_folder(bucket=bucket, folder=folder_raw)
+    filenames = get_filenames_in_s3_folder(bucket=BUCKET_NAME, folder=folder_raw)
     filenames = [file for file in filenames if "Precip_Increm.Final@" in file]
 
     # Read in csv containing information about each station
@@ -109,14 +97,11 @@ def main():
         filename = filenames[i]
 
         # Read in file
-        df = pd.read_csv(
-            filename, header=14
-        )  # Remove header from each file so it can be read in as a dataframe
+        df = pd.read_csv(filename, header=14)
+        # Remove header from each file so it can be read in as a dataframe
 
         # Convert time to datetime so it can be better managed programmatically
         # No time conversion needed since UTC column already exists in data
-        # I have to do dt.tz_localize(None) because pandas does a weird thing where it adds the UTC timezone to the dtype of the object
-        # xarray didn't know how to convert it to a datetime index when I converted it to a Dataset later in the pipeline
         df["time"] = pd.to_datetime(df["ISO 8601 UTC"]).dt.tz_localize(None)
 
         # Delete unused columns
@@ -154,8 +139,8 @@ def main():
         )
 
         # Convert precip units in --> mm
-        precip_col_name = "Value"  # Variable name in raw data
-        df[era_var_name] = df[precip_col_name] * 25.4  # Convert in --> mm
+        precip_col_name = "Value"
+        df[era_var_name] = df[precip_col_name] * 25.4
 
         # Retrieve station ID from the filename
         station_id = int(filename.split("@")[1].split(".EntireRecord.csv")[0])
@@ -169,26 +154,20 @@ def main():
         # Implementing this check due to station ID #6053 not found in API
         if len(station_info_i) < 1:
             print(
-                "WARNING: no information found in csv file {0} for station ID {1}. Skipping and moving to next station".format(
-                    station_info_csv_filepath, station_id
-                )
+                f"WARNING: no information found in csv file {station_info_csv_filepath} for station ID {station_id}. Skipping and moving to next station"
             )
-            continue  # End this loop iteration completely, continue to next station
+            # End this loop iteration completely, continue to next station
+            continue
 
         # Remove date strings from filename
         # Convert to uppercase characters to match existing filename formatting conventions
-        # Current format: VALLEYWATER_[station_id].csv
-        relative_filepath = "{}_{}.zarr".format(network, station_id)
+        relative_filepath = f"{network}_{station_id}.zarr"
 
         # Convert data type to xarray object
-        df_pr = df[
-            [era_var_name, era_var_name + "_eraqc", "raw_qc"]
-        ]  # Just preserve the precip data
+        # Just preserve the precip data
+        df_pr = df[[era_var_name, era_var_name + "_eraqc", "raw_qc"]]
         ds = xr.Dataset.from_dataframe(df_pr)
-        ds = ds.expand_dims(
-            {"station": ["{}_{}".format(network, station_id)]}
-        )  # Add singleton dimension for station network + id
-
+        ds = ds.expand_dims({"station": [f"{network}_{station_id}"]})
         # Add lat and lon as coordinates
         ds = ds.assign_coords(
             {
@@ -204,12 +183,8 @@ def main():
         )
 
         # Add elevation data filled with NaNs
-        nan_data = np.full(
-            ds["pr_15min"].shape, np.nan
-        )  # Array of same shape as existing data variable
-        ds = ds.assign(
-            {"elevation": (ds.dims, nan_data)}
-        )  # Add new data variable "elevation" to Dataset
+        nan_data = np.full(ds["pr_15min"].shape, np.nan)
+        ds = ds.assign({"elevation": (ds.dims, nan_data)})
 
         # Assign appropriate variable & coordinate attributes
         ds[era_var_name].attrs = {
@@ -242,7 +217,7 @@ def main():
 
         # Assign appropriate global attributes
         ds.attrs = {
-            "title": "{} cleaned".format(network),
+            "title": "{} cleaned".format(NETWORK),
             "institution": "Eagle Rock Analytics",
             "license": "",
             "source": "",
@@ -251,28 +226,29 @@ def main():
             "Networks": "VALLEYWATER",
             "sensor_height_m": np.nan,
             "disclaimer": "This document was prepared as a result of work funded by the Santa Clara Valley Water District. It does not necessarily represent the views of the Santa Clara Valley Water District or its employees. Neither the Santa Clara Valley Water District, nor it's employees, contractors, or subcontractors makes any warranty, express or implied, or assumes any legal liability for the information in this document; nor does any party represent that the use of this information will not infringe upon privately owned rights. This document has not been approved or disapproved by Santa Clara Valley Water District, nor has the Santa Clara Valley Water District passed upon the accuracy of the information in this document.",
-            "history": "VALLEYWATER_clean.py script run on {} UTC".format(timestamp),
+            "history": f"VALLEYWATER_clean.py script run on {timestamp} UTC",
             "comment": "Intermediate data product: may not have been subject to any cleaning or QA/QC processing",
             "raw_files_merged": 1,
         }
 
         # Set the complete filepath to the s3 bucket
-        filepath_s3 = "s3://{}/{}/{}".format(bucket, folder_clean, relative_filepath)
+        filepath_s3 = f"s3://{BUCKET_NAME}/{CLEAN_DIR}/{relative_filepath}"
 
         # Upload as zarr to bucket
+        # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
         ds.to_zarr(
             filepath_s3,
-            consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
-            mode="w",  # Write & overwrite if file with same name exists already
+            consolidated=True,
+            mode="w",
         )
 
-        # Now, save info for this station to stations dataframe
         # Info for each station is saved as a single row, which is then appended as a row to the master dataframe
         time = pd.to_datetime(ds.time.values)
-        nobs = int(len(df[era_var_name]))  # Number of observations
+        nobs = int(len(df[era_var_name]))
+        # Total nobs is the same as single variable nobs because we just have one variable
         stations_df_i = pd.DataFrame(
             {
-                "era-id": ["{0}_{1}".format(network, station_id)],
+                "era-id": [f"{NETWORK}_{station_id}"],
                 "longitude": [station_info_i["lon"].item()],
                 "latitude": [station_info_i["lat"].item()],
                 "elevation": [np.nan],
@@ -280,11 +256,9 @@ def main():
                 "end-date": [time[-1].strftime("%m-%d-%Y, %H:%M:%S")],
                 "cleaned": ["Y"],
                 "time_cleaned": [timestamp],
-                "network": [network],
-                "{0}_nobs".format(era_var_name): [nobs],
-                "total_nobs": [
-                    nobs
-                ],  # Total nobs is the same as single variable nobs because we just have one variable
+                "network": [NETWORK],
+                f"{era_var_name}_nobs": [nobs],
+                "total_nobs": [nobs],
             }
         )
         stations_df = pd.concat([stations_df, stations_df_i], ignore_index=True)
@@ -297,16 +271,14 @@ def main():
     )
 
     # Save csv file with station info to AWS
-    csv_s3_filepath = "s3://{0}/{1}/stationlist_VALLEYWATER_cleaned.csv".format(
-        bucket, folder_clean
+    csv_s3_filepath = (
+        f"s3://{BUCKET_NAME}/{CLEAN_DIR}/stationlist_VALLEYWATER_cleaned.csv"
     )
     stations_df.to_csv(csv_s3_filepath, index=False)
-    print("Station list csv saved to s3 path: {0}".format(csv_s3_filepath))
-
-    print("SCRIPT COMPLETE")
+    print(f"Station list csv saved to s3 path: {csv_s3_filepath}")
 
 
-def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
+def get_filenames_in_s3_folder(folder: str) -> list[str]:
     """
     Get a list of files in s3 bucket.
     Make sure you follow the naming rules exactly for the two function arguments.
@@ -314,8 +286,6 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
 
     Parameters
     ---------
-    bucket: str
-        Simply, the name of the bucket, with no slashes, prefixes, suffixes, etc.
     folder: str
         Folder within the bucket that you want the filenames from
 
@@ -337,21 +307,20 @@ def get_filenames_in_s3_folder(bucket: str, folder: str) -> list[str]:
     References
     ----------
     https://stackoverflow.com/questions/59225939/get-only-file-names-from-s3-bucket-folder
-
     """
 
-    if folder[:-1] != "/":  # add slash
+    # add slash
+    if folder[:-1] != "/":
         folder = folder + "/"
 
     s3 = boto3.resource("s3")
-    s3_bucket = s3.Bucket(bucket)
+    s3_bucket = s3.Bucket(BUCKET_NAME)
 
     # Get all the filenames
     files_in_s3 = [f.key for f in s3_bucket.objects.filter(Prefix=folder).all()]
 
     # Get filenames with URI
-    # This allows you to load the file directly using the path
-    filenames_with_uri = ["s3://{}/{}".format(bucket, file) for file in files_in_s3]
+    filenames_with_uri = [f"s3://{BUCKET_NAME}/{file}" for file in files_in_s3]
 
     return filenames_with_uri
 
@@ -379,10 +348,10 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out: TypeIO = sys.std
     References
     ----------
     https://stackoverflow.com/questions/3160699/python-progress-bar
-
     """
+    # time estimate start
     count = len(it)
-    start = time.time()  # time estimate start
+    start = time.time()
 
     def show(j):
         x = int(size * j / count)
@@ -406,6 +375,5 @@ def progressbar(it: int, prefix: str = "", size: int = 60, out: TypeIO = sys.std
 
 if __name__ == "__main__":
     with warnings.catch_warnings():
-        # Annoying RuntimeWarning is raised... ignore here so we can better evaluate the print output of the function, which includes a progress bar
         warnings.simplefilter("ignore")
         main()

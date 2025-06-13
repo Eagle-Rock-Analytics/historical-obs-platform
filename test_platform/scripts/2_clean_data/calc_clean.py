@@ -38,7 +38,9 @@ import geopandas as gp
 import numpy as np
 
 
-def get_wecc_poly(terrpath: str, marpath: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoSeries]:
+def get_wecc_poly(
+    terrpath: str, marpath: str
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoSeries]:
     """Identifies a bbox of WECC area to filter stations against.
 
     Parameters
@@ -338,11 +340,9 @@ def _calc_dewpointtemp_opt1(tas: float, hurs: float) -> float:
     # calculates saturation vapor pressure
     es = 0.611 * np.exp(5423 * ((1 / 273) - (1 / tas)))
     # calculates vapor pressure
-    e_vap = (es * hurs) / 100.0 
+    e_vap = (es * hurs) / 100.0
     # calculates dew point temperature, units = K
-    tdps = (
-        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
-    ) ** -1  
+    tdps = ((1 / 273) - 0.0001844 * np.log(e_vap / 0.611)) ** -1
     return tdps
 
 
@@ -360,9 +360,7 @@ def _calc_dewpointtemp_opt2(e_vap: float) -> float:
         dewpoint temperature, K
     """
     # calculates dew point temperature, units = K
-    tdps = (
-        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
-    ) ** -1  
+    tdps = ((1 / 273) - 0.0001844 * np.log(e_vap / 0.611)) ** -1
     return tdps
 
 
@@ -382,9 +380,9 @@ def _calc_relhumid(tas: float, tdps: float) -> float:
         relative humidity, % (0-100)
     """
     # calculates saturation vapor pressure using air temp
-    es = 0.611 * np.exp(5423 * ((1 / 273) - (1 / tas))) 
-    # calculates vapor pressure using dew point temp 
-    e_vap = 0.611 * np.exp(5423 * ((1 / 273) - (1 / tdps)))  
+    es = 0.611 * np.exp(5423 * ((1 / 273) - (1 / tas)))
+    # calculates vapor pressure using dew point temp
+    e_vap = 0.611 * np.exp(5423 * ((1 / 273) - (1 / tdps)))
     hurs = 100 * (e_vap / es)
     return hurs
 
@@ -409,7 +407,7 @@ def _calc_windmag(u10: float, v10: float) -> float:
     1. u and v wind components (both in m/s)
     """
     # calculates wind magnitude, units = ms-1
-    sfcWind = np.sqrt((u10) ** 2 + (v10) ** 2)  
+    sfcWind = np.sqrt((u10) ** 2 + (v10) ** 2)
     return sfcWind
 
 

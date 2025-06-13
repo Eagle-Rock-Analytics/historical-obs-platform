@@ -1,6 +1,19 @@
+"""
+clean_utils.py
+
+Functions
+---------
+- var_to_unique_list: Given a variable column in an xarray object, this function returns a string with all of the unique variables
+    present in that column.
+- get_file_paths: Given a network name, return all relevant AWS filepaths for other functions.
+
+Intended Use
+------------
+Support utility functions for cleaning processes, as a part of the clean pipeline.
+"""
+
 import pandas as pd
 import numpy as np
-from typing import Tuple, Union, List
 import xarray as xr
 
 
@@ -20,7 +33,6 @@ def var_to_unique_list(ds: xr.Dataset, column: str) -> str:
     -------
     str : flagvals
         string that can be provided as the flag_values attribute for a QA/QC flag.
-
     """
     flagvals = ds[column].values.tolist()[0]
     flagvals = [x for x in flagvals if pd.isnull(x) == False]  # Remove nas
@@ -30,7 +42,7 @@ def var_to_unique_list(ds: xr.Dataset, column: str) -> str:
 
 
 #
-def get_file_paths(network: str) -> Tuple[str, str, str]:
+def get_file_paths(network: str) -> tuple[str, str, str]:
     """
     Given a network name, return all relevant AWS filepaths for other functions.
 
@@ -41,9 +53,8 @@ def get_file_paths(network: str) -> Tuple[str, str, str]:
 
     Returns
     -------
-    Tuple[str, str, str]
+    tuple[str, str, str]
         tuple list of rawdir, cleandir, qaqcdir
-
     """
     rawdir = "1_raw_wx/{}/".format(network)
     cleandir = "2_clean_wx/{}/".format(network)

@@ -1,60 +1,54 @@
 """
-This script performs data cleaning for networks pulled through Synoptic API for
-ingestion into the Historical Observations Platform.
-Approach:
+SCANSNOTEL_clean.py
+
+Script performs data cleaning for networks pulled through Synoptic API for ingestion into the Historical Observations Platform.
+
+Approach
+--------
 (1) Read through variables and drop unnecessary variables
 (2) Converts station metadata to standard format, with unique identifier
 (3) Converts data metadata to standard format, and converts units into standard units if not provided in standard units.
 (4) Converts missing data to standard format
 (5) Tracks existing qa/qc flag for review
 (6) Merge files by station, and outputs cleaned variables as a single .nc file for each station in an individual network.
-Inputs: Raw data for the network's stations, with each csv file representing a station.
-Outputs: Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
 
+Functions
+---------
+- clean_scansnotel: Clean SCAN and SNOTEL data.
 
-Note: QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
+Intended Use
+------------
+Cleaned data for an individual network, priority variables, all times. Organized by station as .nc file.
+
+Notes
+-----
+QAQC flags and removed variable lists both formatted and uploaded manually. Last update Nov 9 2022.
 """
 
-# Step 0: Environment set-up
-# Import libraries
 import os
 import xarray as xr
 from datetime import datetime, date, timedelta
 import re
 import numpy as np
-import warnings
-
-warnings.filterwarnings(
-    action="ignore", category=FutureWarning
-)  # Optional: Silence pandas' future warnings about regex (not relevant here)
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
 import random
-from cleaning_helpers import get_file_paths
+import warnings
 
-# To be able to open xarray files from S3, h5netcdf must also be installed, but doesn't need to be imported.
+# Optional: Silence pandas' future warnings about regex (not relevant here)
+warnings.filterwarnings(action="ignore", category=FutureWarning)
 
+from clean_utils import get_file_paths
+import calc_clean
 
-# Import calc_clean.py.
-try:
-    import calc_clean
-except:
-    print("Error importing calc_clean.py")
-    pass
-
-## Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-# Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
+BUCKET_NAME = "wecc-historical-wx"
 
 # Set up directory to save files temporarily, if it doesn't already exist.
 try:
-    os.mkdir(
-        "temp"
-    )  # Make the directory to save data in. Except used to pass through code if folder already exists.
+    os.mkdir("temp")
 except:
     pass
 
@@ -73,33 +67,32 @@ def clean_scansnotel(rawdir: str, cleandir: str):
     Returns
     -------
     None
-        This function does not return a value
 
     References
     ----------
     [1] https://www.nrcs.usda.gov/wps/portal/wcc/home/dataAccessHelp/webService/webServiceReference
     """
+
     # Set up error handling.
-    errors = {"File": [], "Time": [], "Error": []}  # Set up error handling.
-    end_api = datetime.now().strftime(
-        "%Y%m%d%H%M"
-    )  # Set end time to be current time at beginning of download: for error handling csv.
-    timestamp = datetime.utcnow().strftime(
-        "%m-%d-%Y, %H:%M:%S"
-    )  # For attributes of netCDF file.
+    errors = {"File": [], "Time": [], "Error": []}
+    # Set end time to be current time at beginning of download: for error handling csv.
+    end_api = datetime.now().strftime("%Y%m%d%H%M")
+    # For attributes of netCDF file.
+    timestamp = datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
 
     try:
         # Get files
         files = []
-        for item in s3.Bucket(bucket_name).objects.filter(Prefix=rawdir):
+        for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=rawdir):
             file = str(item.key)
             files += [file]
 
         # Get station file and read in metadata.
         station_file = [file for file in files if "station" in file]
-        if len(station_file) > 1:  # If more than one file returned
+        if len(station_file) > 1:
+            # If more than one file returned
             station_file = [file for file in station_file if "stationlist_" in file]
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=station_file[0])
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=station_file[0])
         station_file = pd.read_csv(BytesIO(obj["Body"].read()))
 
         # Remove error, station files
@@ -107,6 +100,7 @@ def clean_scansnotel(rawdir: str, cleandir: str):
         files = [file for file in files if "station" not in file]
         files = [file for file in files if "error" not in file]
 
+        # Variables to remove
         vars_to_remove = [
             "TAVG",
             "RHUMV",
@@ -114,62 +108,61 @@ def clean_scansnotel(rawdir: str, cleandir: str):
             "SRADT",
             "WDIRV",
             "WSPDV",
-        ]  # Variables to remove
+        ]
+        # Associated columns for each variable
         cols_to_remove = (
             ["{}_flag".format(elem) for elem in vars_to_remove]
             + ["{}_value".format(elem) for elem in vars_to_remove]
             + ["{}_time".format(elem) for elem in vars_to_remove]
-        )  # Associated columns for each variable
+        )
 
         # Get list of station IDs from filename and clean.
         ids = list()
         for file in files:
-            id = file.split("/")[-1]  # Remove leading folders
-            id = id.split("_")[-1]  # Remove leading prefixes (for mult files)
+            id = file.split("/")[-1]
+            # Remove leading prefixes (for mult files)
+            id = id.split("_")[-1]
             id = re.sub(".csv", "", id)
             if id not in ids:
                 ids.append(id)
 
-    except Exception as e:  # If unable to read files from rawdir, break function.
-        # print(e)
+    except Exception as e:
+        # If unable to read files from rawdir, break function.
         errors["File"].append("Whole network")
         errors["Time"].append(end_api)
-        errors["Error"].append("Whole network error: {}".format(e))
+        errors["Error"].append(f"Whole network error: {e}")
 
-    else:  # If files read successfully, continue.
-        for i in ids:  # For each station (full run)
-            # for i in ['457:CO:SNTL']: # specific station -- look up the station triplet!
-            # for i in random.sample(ids,2): # Subsample for testing errors
-            df_stat = None  # Initialize merged df.
+    else:
+        # If files read successfully, continue.
+        for i in ids:
+            # Initialize merged df.
+            df_stat = None
             try:
-                stat_files = [
-                    k for k in files if i in k
-                ]  # Get list of files with station ID in them.
+                # Get list of files with station ID in them.
+                stat_files = [k for k in files if i in k]
 
-                station_id = (
-                    "{}_".format(network) + i.split(":")[0]
-                )  # Save file ID, keeping STID from triplet.
+                # Save file ID, keeping STID from triplet.
+                id_split = i.split(":")[0]
+                station_id = f"{network}_{id_split}"
 
-                if not stat_files:  # If ID has no files downloaded
-                    print("No raw data found for {} on AWS.".format(station_id))
+                if not stat_files:
+                    # If ID has no files downloaded
+                    print(f"No raw data found for {station_id} on AWS.")
                     errors["File"].append(station_id)
                     errors["Time"].append(end_api)
                     errors["Error"].append("No raw data found for station on AWS.")
-                    continue  # Skip ID.
+                    continue
 
                 # Get metadata attributes from station list.
-                station_metadata = station_file.loc[
-                    station_file["stationTriplet"] == i
-                ]  # Get metadata for station.
+                station_metadata = station_file.loc[station_file["stationTriplet"] == i]
                 station_metadata = station_metadata.iloc[0]
 
-                for file in stat_files:  # For each station
+                for file in stat_files:
                     # Read in CSV, removing header.
                     try:
-                        obj = s3_cl.get_object(Bucket=bucket_name, Key=file)
-                        df = pd.read_csv(
-                            BytesIO(obj["Body"].read()), low_memory=False
-                        )  # here we can either set engine = 'python' (slower) to suppress dtype warning, or remove but ignore it - it gets fixed down the line either way.
+                        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=file)
+                        # here we can either set engine = 'python' (slower) to suppress dtype warning, or remove but ignore it - it gets fixed down the line either way.
+                        df = pd.read_csv(BytesIO(obj["Body"].read()), low_memory=False)
 
                         # Fix any NA mixed types
                         df.replace("NaN", np.nan, inplace=True)
@@ -186,41 +179,30 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         # For each column, check if any value different than original time column
                         # Do so by setting to NA if identical, and then deleting all columns with all NAs.
                         timecols = [col for col in df.columns if "time" in col]
-                        timecols = [
-                            col for col in timecols if col != "time"
-                        ]  # Remove 'time' column
+                        timecols = [col for col in timecols if col != "time"]
 
                         for col in timecols:
-                            df[col] = np.where(
-                                df["time"] == df[col], np.nan, df[col]
-                            )  # Assign nan to any value identical to the time column.
+                            # Assign nan to any value identical to the time column.
+                            df[col] = np.where(df["time"] == df[col], np.nan, df[col])
 
-                        df = df.dropna(
-                            axis=1, how="all"
-                        )  # if all columns are dropped, handled at last step, but could happen here too
+                        # if all columns are dropped, handled at last step, but could happen here too
+                        df = df.dropna(axis=1, how="all")
 
-                        if (
-                            len([col for col in df.columns if "time" in col]) > 1
-                        ):  # If more than one time column remains,
-                            print(
-                                "Conflicting time values: {}".format(
-                                    list([col for col in df.columns if "time" in col])
-                                )
-                            )  # print warning
-                            exit()  # And kill code.
+                        if len([col for col in df.columns if "time" in col]) > 1:
+                            # If more than one time column remains,
+                            time_list = list(
+                                [col for col in df.columns if "time" in col]
+                            )
+                            print(f"Conflicting time values: {time_list}")
+                            exit()
 
                         # Fix time format issues caused by "Timeout" errors.
-                        df["time"] = pd.to_datetime(
-                            df["time"], errors="coerce"
-                        )  # Convert time to datetime and catch any incorrectly formatted columns.
-                        df = df[
-                            pd.notnull(df["time"])
-                        ]  # Remove any rows where time is missing.
+                        df["time"] = pd.to_datetime(df["time"], errors="coerce")
+                        # Remove any rows where time is missing.
+                        df = df[pd.notnull(df["time"])]
 
                         # Adjust station time by local time offset.
-                        hours_adj = float(
-                            station_metadata["stationDataTimeZone"]
-                        )  # Get UTC offset from metadata
+                        hours_adj = float(station_metadata["stationDataTimeZone"])
                         df["time"] = df["time"] - pd.Timedelta(hours=hours_adj)
 
                         # TIME FILTER: Remove any rows before Jan 01 1980 and after August 30 2022.
@@ -233,24 +215,20 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         # will require additional testing at this point.
                         if df_stat is None:
                             df_stat = df
-                            del df  # For memory.
+                            del df
+
                         else:
-                            if (
-                                len(stat_files) > 1
-                            ):  # If there is more than one file per station
+                            if len(stat_files) > 1:
+                                # If there is more than one file per station
                                 df_stat = pd.concat(
                                     [df_stat, df], axis=0, ignore_index=True
                                 )
 
-                    except (
-                        Exception
-                    ) as e:  # Exceptions thrown during individual file read in.
+                    except Exception as e:
                         print("Error in pandas df set-up")
                         errors["File"].append(file)
                         errors["Time"].append(end_api)
-                        errors["Error"].append(
-                            "Error in pandas df set-up: {}".format(e)
-                        )
+                        errors["Error"].append(f"Error in pandas df set-up: {e}")
                         continue
 
                 # Format joined station file.
@@ -261,29 +239,26 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                 for b in df_stat.columns:
                     multitype = set(type(x).__name__ for x in df_stat[b])
                     if len(multitype) > 1:
-                        if "flag" in b:  # QC columns
-                            df_stat[b] = df_stat[b].astype(
-                                str
-                            )  # Coerce to string (to handle multiple QA/QC flags)
+                        if "flag" in b:
+                            # QC columns, Coerce to string (to handle multiple QA/QC flags)
+                            df_stat[b] = df_stat[b].astype(str)
+
                         else:
+                            # Code to flag novel exceptions, correct and add explicit handling above.
                             print(
-                                "Multitype error for column {} with data types {}. Please resolve".format(
-                                    b, multitype
-                                )
-                            )  # Code to flag novel exceptions, correct and add explicit handling above.
+                                f"Multitype error for column {b} with data types {multitype}. Please resolve"
+                            )
                             errors["File"].append(file)
                             errors["Time"].append(end_api)
                             errors["Error"].append(
-                                "Multitype error for column {} with data types {}. Please resolve".format(
-                                    b, multitype
-                                )
+                                f"Multitype error for column {b} with data types {multitype}. Please resolve"
                             )
                             continue
+
                     else:
                         if "flag" in b:
-                            df_stat[b] = df_stat[b].astype(
-                                str
-                            )  # Coerce QA/QC flag to string in all instances.
+                            # Coerce QA/QC flag to string in all instances.
+                            df_stat[b] = df_stat[b].astype(str)
 
                 # Fix issue with "nan" and nan causing comparison errors
                 df_stat.replace("nan", np.nan, inplace=True)
@@ -301,7 +276,7 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                 ds = ds.assign_attrs(institution="Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source="")
                 ds = ds.assign_attrs(
-                    history="SCANSNOTEL_clean.py script run on {} UTC".format(timestamp)
+                    history=f"SCANSNOTEL_clean.py script run on {timestamp} UTC"
                 )
                 ds = ds.assign_attrs(
                     comment="Intermediate data product: may not have been subject to any cleaning or QA/QC processing"
@@ -340,25 +315,18 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                 if isinstance(station_metadata["shefId"], str):
                     ds = ds.assign_attrs(shefId=station_metadata["shefId"])
 
-                ## commenting out the following section - it breaks 4 stations in terms of opening (sometimes) but it appears SCAN is missing actonId anyways?
-                # if network == "SCAN":
-                #     if isinstance(station_metadata['actonId'], str):
-                #         ds = ds.assign_attrs(actonId = station_metadata['actonId'])
-
-                ds = ds.assign_attrs(
-                    raw_files_merged=file_count
-                )  # Keep count of how many files merged per station.
+                # Keep count of how many files merged per station.
+                ds = ds.assign_attrs(raw_files_merged=file_count)
 
                 # Add dimensions: station ID and time.
-                ds = ds.set_coords("time").swap_dims(
-                    {"index": "time"}
-                )  # Swap index with time.
+                ds = ds.set_coords("time").swap_dims({"index": "time"})
                 ds = ds.assign_coords(id=str(station_id))
-                ds = ds.expand_dims("id")  # Add station_id as index.
-                ds = ds.drop_vars(
-                    ("index")
-                )  # Drop station_id variable and index coordinate.
-                ds = ds.rename({"id": "station"})  # Rename id to station_id.
+                # Add station_id as index.
+                ds = ds.expand_dims("id")
+                # Drop station_id variable and index coordinate.
+                ds = ds.drop_vars(("index"))
+                # Rename id to station_id.
+                ds = ds.rename({"id": "station"})
 
                 # Update dimensions and coordinates
 
@@ -376,11 +344,9 @@ def clean_scansnotel(rawdir: str, cleandir: str):
 
                 # If any observation is missing lat or lon coordinates, drop these observations.
                 if np.count_nonzero(np.isnan(ds["lat"])) != 0:
-                    # print("Dropping missing lat values") # For testing.
                     ds = ds.where(~np.isnan(ds["lat"]))
 
                 if np.count_nonzero(np.isnan(ds["lon"])) != 0:
-                    # print("Dropping missing lon values") # For testing.
                     ds = ds.where(~np.isnan(ds["lon"]))
 
                 # Add variable: elevation (in feet)
@@ -393,11 +359,9 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                 # Update attributes.
                 ds["time"].attrs["long_name"] = "time"
                 ds["time"].attrs["standard_name"] = "time"
-                ds["time"].attrs["comment"] = (
-                    "Converted from local time zone UTC{} to UTC.".format(
-                        str(int(hours_adj))
-                    )
-                )
+                ds["time"].attrs[
+                    "comment"
+                ] = f"Converted from local time zone UTC{str(int(hours_adj))} to UTC."
 
                 # Station ID
                 ds["station"].attrs["long_name"] = "station_id"
@@ -417,15 +381,12 @@ def clean_scansnotel(rawdir: str, cleandir: str):
 
                 # Elevation
                 # Convert from feet to meters.
-                ds["elevation"] = calc_clean._unit_elev_ft_to_m(
-                    ds["elevation"]
-                )  # Convert feet to meters.
+                ds["elevation"] = calc_clean._unit_elev_ft_to_m(ds["elevation"])
                 ds["elevation"].attrs["standard_name"] = "height_above_mean_sea_level"
                 ds["elevation"].attrs["long_name"] = "station_elevation"
                 ds["elevation"].attrs["units"] = "meters"
-                ds["elevation"].attrs[
-                    "positive"
-                ] = "up"  # Define which direction is positive
+                # Define which direction is positive
+                ds["elevation"].attrs["positive"] = "up"
                 ds["elevation"].attrs["comment"] = "Converted from feet to meters."
 
                 # Update variable attributes and do unit conversions
@@ -444,15 +405,15 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds = ds.rename({"TOBS_flag": "tas_qc"})
                         ds["tas_qc"].attrs["flag_values"] = "V S E"
                         ds["tas_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["tas"].attrs[
-                            "ancillary_variables"
-                        ] = "tas_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["tas"].attrs["ancillary_variables"] = "tas_qc"
 
                     ds["tas"].attrs["comment"] = "Converted from Fahrenheit to Kelvin."
 
                 # ps: surface air pressure (Pa)
                 # Here we only have barometric pressure (sea-level).
-                if "PRES_value" in ds.keys():  # If barometric pressure available
+                if "PRES_value" in ds.keys():
+                    # If barometric pressure available
                     # Convert from inHg to PA
                     ds["psl"] = calc_clean._unit_pres_inHg_to_pa(ds["PRES_value"])
                     ds = ds.drop("PRES_value")
@@ -462,15 +423,14 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     ds["psl"].attrs["standard_name"] = "air_pressure"
                     ds["psl"].attrs["units"] = "Pa"
 
-                    if "PRES_flag" in ds.keys():  # If QA/QC exists.
-                        ds = ds.rename(
-                            {"PRES_flag": "psl_qc"}
-                        )  # this was previously set to TOBS_flag and tas_qc, in case this errors in the future
+                    if "PRES_flag" in ds.keys():
+                        # If QA/QC exists
+                        # this was previously set to TOBS_flag and tas_qc, in case this errors in the future
+                        ds = ds.rename({"PRES_flag": "psl_qc"})
                         ds["psl_qc"].attrs["flag_values"] = "V S E"
                         ds["psl_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["psl"].attrs[
-                            "ancillary_variables"
-                        ] = "psl_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["psl"].attrs["ancillary_variables"] = "psl_qc"
 
                     ds["psl"].attrs["comment"] = "Converted from inHg."
 
@@ -485,13 +445,13 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     ds["tdps"].attrs["standard_name"] = "dew_point_temperature"
                     ds["tdps"].attrs["units"] = "degree_Kelvin"
 
-                    if "DPTP_flag" in ds.keys():  # If QA/QC exists.
+                    if "DPTP_flag" in ds.keys():
+                        # If QA/QC exists.
                         ds = ds.rename({"DPTP_flag": "tdps_qc"})
                         ds["tdps_qc"].attrs["flag_values"] = "V S E"
                         ds["tdps_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["tdps"].attrs[
-                            "ancillary_variables"
-                        ] = "tdps_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["tdps"].attrs["ancillary_variables"] = "tdps_qc"
 
                     ds["tdps"].attrs["comment"] = "Converted from Fahrenheit to Kelvin."
 
@@ -510,13 +470,13 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     ds["pr"].attrs["long_name"] = "precipitation_accumulation"
                     ds["pr"].attrs["units"] = "mm/?"
 
-                    if "PREC_flag" in ds.keys():  # If QA/QC exists.
+                    if "PREC_flag" in ds.keys():
+                        # If QA/QC exists.
                         ds = ds.rename({"PREC_flag": "pr_qc"})
                         ds["pr_qc"].attrs["flag_values"] = "V S E"
                         ds["pr_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["pr"].attrs[
-                            "ancillary_variables"
-                        ] = "pr_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["pr"].attrs["ancillary_variables"] = "pr_qc"
 
                     ds["pr"].attrs[
                         "comment"
@@ -529,13 +489,13 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     ds["pr_inc"].attrs["long_name"] = "precipitation_increment"
                     ds["pr_inc"].attrs["units"] = "mm/?"
 
-                    if "PRCP_flag" in ds.keys():  # If QA/QC exists.
+                    if "PRCP_flag" in ds.keys():
+                        # If QA/QC exists.
                         ds = ds.rename({"PRCP_flag": "pr_inc_qc"})
                         ds["pr_inc_qc"].attrs["flag_values"] = "V S E"
                         ds["pr_inc_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["pr_inc"].attrs[
-                            "ancillary_variables"
-                        ] = "pr_inc_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["pr_inc"].attrs["ancillary_variables"] = "pr_inc_qc"
 
                     ds["pr_inc"].attrs[
                         "comment"
@@ -551,22 +511,23 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     ] = "precipitation_increment_snow_adjusted"
                     ds["pr_incsa"].attrs["units"] = "mm/?"
 
-                    if "PRCPSA_flag" in ds.keys():  # If QA/QC exists.
+                    if "PRCPSA_flag" in ds.keys():
+                        # If QA/QC exists.
                         ds = ds.rename({"PRCPSA_flag": "pr_incsa_qc"})
                         ds["pr_incsa_qc"].attrs["flag_values"] = "V S E"
                         ds["pr_incsa_qc"].attrs[
                             "flag_meanings"
                         ] = "valid suspect edited"
-                        ds["pr_incsa"].attrs[
-                            "ancillary_variables"
-                        ] = "pr_incsa_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["pr_incsa"].attrs["ancillary_variables"] = "pr_incsa_qc"
 
                     ds["pr_incsa"].attrs[
                         "comment"
                     ] = "Precipitation increment (snow-adjusted). Converted from inches to mm."
 
                 # hurs: relative humidity (%)
-                if "RHUM_value" in ds.keys():  # Already in %, no need to convert units.
+                if "RHUM_value" in ds.keys():
+                    # Already in %, no need to convert units.
                     ds = ds.rename({"RHUM_value": "hurs"})
                     # Set attributes
                     ds["hurs"].attrs["long_name"] = "relative_humidity"
@@ -581,15 +542,13 @@ def clean_scansnotel(rawdir: str, cleandir: str):
 
                     # including within QC loop -- one SNOTEL station does not have rh, but does have QC flag
                     # only update this info if rh variable is also present
+                    # List other variables associated with variable (QA/QC)
                     if "hurs" in ds.keys():
-                        ds["hurs"].attrs[
-                            "ancillary_variables"
-                        ] = "hurs_qc"  # List other variables associated with variable (QA/QC)
+                        ds["hurs"].attrs["ancillary_variables"] = "hurs_qc"
 
                 # rsds: surface_downwelling_shortwave_flux_in_air (solar radiation, w/m2)
-                if (
-                    "SRAD_value" in ds.keys()
-                ):  # Already in w/m2, no need to convert units.
+                if "SRAD_value" in ds.keys():
+                    # Already in w/m2, no need to convert units.
                     # If column exists, rename.
                     ds = ds.rename({"SRAD_value": "rsds"})
 
@@ -605,12 +564,12 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds = ds.rename({"SRAD_flag": "rsds_qc"})
                         ds["rsds_qc"].attrs["flag_values"] = "V S E"
                         ds["rsds_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["rsds"].attrs[
-                            "ancillary_variables"
-                        ] = "rsds_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["rsds"].attrs["ancillary_variables"] = "rsds_qc"
 
                 # sfcWind : wind speed (m/s)
-                if "WSPD_value" in ds.keys():  # Data originally in mph.
+                if "WSPD_value" in ds.keys():
+                    # Data originally in mph.
                     ds["sfcWind"] = calc_clean._unit_windspd_mph_to_ms(ds["WSPD_value"])
                     ds = ds.drop("WSPD_value")
                     ds["sfcWind"].attrs["long_name"] = "wind_speed"
@@ -622,16 +581,14 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds = ds.rename({"WSPD_flag": "sfcWind_qc"})
                         ds["sfcWind_qc"].attrs["flag_values"] = "V S E"
                         ds["sfcWind_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["sfcWind"].attrs[
-                            "ancillary_variables"
-                        ] = "sfcWind_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["sfcWind"].attrs["ancillary_variables"] = "sfcWind_qc"
 
                     ds["sfcWind"].attrs["comment"] = "Converted from mph to m/s."
 
                 # sfcWind_dir: wind direction
-                if (
-                    "WDIR_value" in ds.keys()
-                ):  # No conversions needed, do not make raw column.
+                if "WDIR_value" in ds.keys():
+                    # No conversions needed, do not make raw column.
                     ds = ds.rename({"WDIR_value": "sfcWind_dir"})
                     ds["sfcWind_dir"].attrs["long_name"] = "wind_direction"
                     ds["sfcWind_dir"].attrs["standard_name"] = "wind_from_direction"
@@ -643,9 +600,10 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds["sfcWind_dir_qc"].attrs[
                             "flag_meanings"
                         ] = "valid suspect edited"
+                        # List other variables associated with variable (QA/QC)
                         ds["sfcWind_dir"].attrs[
                             "ancillary_variables"
-                        ] = "sfcWind_dir_qc"  # List other variables associated with variable (QA/QC)
+                        ] = "sfcWind_dir_qc"
 
                     ds["sfcWind_dir"].attrs[
                         "comment"
@@ -667,10 +625,8 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds = ds.rename({"PVPV_flag": "pvp_qc"})
                         ds["pvp_qc"].attrs["flag_values"] = "V S E"
                         ds["pvp_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["pvp"].attrs[
-                            "ancillary_variables"
-                        ] = "pvp_qc"  # List other variables associated with variable (QA/QC)
-
+                        # List other variables associated with variable (QA/QC)
+                        ds["pvp"].attrs["ancillary_variables"] = "pvp_qc"
                     ds["pvp"].attrs["comment"] = "Converted from kPa to Pa."
 
                 # Saturated vapor pressure (kPa -> Pa)
@@ -685,9 +641,8 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                         ds = ds.rename({"SVPV_flag": "svp_qc"})
                         ds["svp_qc"].attrs["flag_values"] = "V S E"
                         ds["svp_qc"].attrs["flag_meanings"] = "valid suspect edited"
-                        ds["svp"].attrs[
-                            "ancillary_variables"
-                        ] = "svp_qc"  # List other variables associated with variable (QA/QC)
+                        # List other variables associated with variable (QA/QC)
+                        ds["svp"].attrs["ancillary_variables"] = "svp_qc"
 
                     ds["svp"].attrs["comment"] = "Converted from kPa to Pa."
 
@@ -702,25 +657,21 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans
-                        if (key == "elevation") & (
-                            len(ds.keys()) == 1
-                        ):  # only elevation remains
-                            print(
-                                "Dropping empty var: {}".format(key)
-                            )  # slightly unnecessary since the entire dataset will be empty too
+                        if (key == "elevation") & (len(ds.keys()) == 1):
+                            # only elevation remains
+                            print(f"Dropping empty var: {key}")
                             ds = ds.drop(key)
                             continue
-                    except (
-                        Exception
-                    ) as e:  # Add to handle errors for unsupported data types
-                        next
+
+                    except Exception as e:
+                        # Add to handle errors for unsupported data types
+                        continue
 
                 # For QA/QC flags, replace np.nan with "nan" to avoid h5netcdf overwrite to blank.
                 for key in ds.keys():
                     if "qc" in key:
-                        ds[key] = ds[key].astype(
-                            str
-                        )  # Coerce all values in key to string.
+                        # Coerce all values in key to string.
+                        ds[key] = ds[key].astype(str)
 
                 # Reorder variables
                 desired_order = [
@@ -736,38 +687,31 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     "svp",
                 ]
                 actual_order = [i for i in desired_order if i in list(ds.keys())]
-                rest_of_vars = [
-                    i for i in list(ds.keys()) if i not in desired_order
-                ]  # Retain rest of variables at the bottom.
+                # Retain rest of variables at the bottom.
+                rest_of_vars = [i for i in list(ds.keys()) if i not in desired_order]
                 new_index = actual_order + rest_of_vars
                 ds = ds[new_index]
 
             except Exception as e:
-                # print(e)
-                errors["File"].append(
-                    station_id
-                )  # If stat_files is none, this will default to saving ID of station.
+                # If stat_files is none, this will default to saving ID of station.
+                errors["File"].append(station_id)
                 errors["Time"].append(end_api)
-                errors["Error"].append("Error in ds set-up: {}".format(e))
+                errors["Error"].append(f"Error in ds set-up: {e}")
                 continue
 
             # Write station file to netcdf.
-            if (
-                len(ds.keys()) == 0
-            ):  # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
+            if len(ds.keys()) == 0:
+                # skip station if the entire dataset will be empty because no data is observed (as in only ocean obs are recorded, but not needed)
                 print(
-                    "{} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned.".format(
-                        station_id
-                    )
+                    f"{station_id} has no data for all meteorological variables of interest throughout its current reporting; station not cleaned."
                 )
                 errors["File"].append(station_id)
                 errors["Time"].append(end_api)
                 errors["Error"].append("Station reports all nan meteorological data.")
                 continue
 
-            elif (
-                len(ds.time) == 0
-            ):  # this should not be necessary, but placing for testing
+            elif len(ds.time) == 0:
+                # this should not be necessary, but placing for testing
                 print(
                     "No data for this station during v1 period (1/1980 - 8/2022), station not cleaned."
                 )
@@ -780,44 +724,39 @@ def clean_scansnotel(rawdir: str, cleandir: str):
 
             else:
                 try:
-                    filename = station_id + ".nc"  # Make file name
-                    filepath = cleandir + filename  # Write file path
-                    # print(filepath) # For testing
+                    filename = station_id + ".nc"
+                    filepath = cleandir + filename
 
                     # Write locally
-                    ds.to_netcdf(
-                        path="temp/temp.nc", engine="netcdf4"
-                    )  # Save station file.
+                    ds.to_netcdf(path="temp/temp.nc", engine="netcdf4")
 
                     # Push file to AWS with correct file name.
-                    s3.Bucket(bucket_name).upload_file("temp/temp.nc", filepath)
+                    s3.Bucket(BUCKET_NAME).upload_file("temp/temp.nc", filepath)
 
-                    print("Saving {} with dims {}".format(filename, ds.dims))
-                    ds.close()  # Close dataframe.
+                    print(f"Saving {filename} with dims {ds.dims}")
+                    ds.close()
                     continue
 
                 except Exception as e:
-                    # print(e)
                     errors["File"].append(stat_files)
                     errors["Time"].append(end_api)
                     errors["Error"].append(
-                        "Error saving ds as .nc file to AWS bucket: {}".format(e)
+                        f"Error saving ds as .nc file to AWS bucket: {e}"
                     )
                     continue
 
     # The list of removed variables is manually saved to AWS, as it includes many variables not initially downloaded.
 
     # Write errors.csv
-    finally:  # Always execute this.
-        # print(errors)
+    finally:
         errors = pd.DataFrame(errors)
         csv_buffer = StringIO()
         errors.to_csv(csv_buffer)
         content = csv_buffer.getvalue()
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
-            Key=cleandir + "errors_{}_{}.csv".format(network, end_api),
+            Key=cleandir + f"errors_{network}_{end_api}.csv",
         )
 
     return None
@@ -827,5 +766,4 @@ def clean_scansnotel(rawdir: str, cleandir: str):
 if __name__ == "__main__":
     network = "SNOTEL"
     rawdir, cleandir, qaqcdir = get_file_paths(network)
-    print(rawdir, cleandir, qaqcdir)
     clean_scansnotel(rawdir, cleandir)

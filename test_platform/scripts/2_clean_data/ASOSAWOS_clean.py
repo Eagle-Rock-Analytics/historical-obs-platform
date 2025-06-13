@@ -1,9 +1,10 @@
 """
 ASOSAWOS_clean.py
 
-This script performs data cleaning for the ASOS/AWOS network for
-ingestion into the Historical Observations Platform.
-Approach:
+This script performs data cleaning for the ASOS/AWOS network for ingestion into the Historical Observations Platform.
+
+Approach
+--------
 (1) Read through variables, and calculates derived priority variables if not observed
 (2) Drops unnecessary variables
 (3) Converts station metadata to standard format, with unique identifier
@@ -45,8 +46,9 @@ from cleaning_helpers import var_to_unique_list, get_file_paths
 import gzip
 import traceback
 import warnings
+
 # Optional: Silence pandas' future warnings about regex (not relevant here)
-warnings.filterwarnings(action="ignore", category=FutureWarning)  
+warnings.filterwarnings(action="ignore", category=FutureWarning)
 
 from calc_clean import *
 
@@ -61,7 +63,7 @@ WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boun
 
 try:
     # Make the directory to save data in. Except used to pass through code if folder already exists.
-    os.mkdir("temp")  
+    os.mkdir("temp")
 except:
     pass
 
@@ -121,9 +123,7 @@ def merge_station_lists(key_asosawos: str, key_isd: str, cleandir: str) -> pd.Da
     stationlist_join = stationlist_join.drop(["Unnamed: 0_x", "Unnamed: 0_y"], axis=1)
     stationlist_join["Pulled"], stationlist_join["Time_Checked"] = stationlist_join.pop(
         "Pulled"
-    ), stationlist_join.pop(
-        "Time_Checked"
-    )  
+    ), stationlist_join.pop("Time_Checked")
 
     # Write to AWS
     csv_buffer = StringIO()
@@ -185,7 +185,9 @@ def clean_asosawos(rawdir: str, cleandir: str):
         #     Bucket=BUCKET_NAME, Key=cleandir + "stationlist_ASOSAWOS_merge.csv"
         # )
         # station_file = pd.read_csv(BytesIO(obj["Body"].read()))
-        station_file = pd.read_csv("s3://wecc-historical-wx/2_clean_wx/stationlist_ASOSAWOS_merge.csv")
+        station_file = pd.read_csv(
+            "s3://wecc-historical-wx/2_clean_wx/stationlist_ASOSAWOS_merge.csv"
+        )
         station_file = merge_station_lists(key_asosawos, key_isd, cleandir)
         stations = station_file["ISD-ID"].dropna().astype(str)
 
@@ -204,11 +206,11 @@ def clean_asosawos(rawdir: str, cleandir: str):
         for id in stations:  # full run
             subfiles = list(filter(lambda f: id in f, files))
             # Sort files by year in order to concatenate in correct order
-            subfiles = sorted(subfiles)  
+            subfiles = sorted(subfiles)
             file_count = len(subfiles)
 
-            if bool(subfiles) is False: 
-                 # If ID returns no files, go to next ID.
+            if bool(subfiles) is False:
+                # If ID returns no files, go to next ID.
                 continue
 
             station = "ASOSAWOS_" + id.replace("-", "")
@@ -495,7 +497,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                                         sfcWind = np.nan
                                 except Exception as e:
                                     print(e)
-                                    
+
                                 # For each row of data, append data to list.
                                 columns = [
                                     "station",
@@ -595,7 +597,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
             if df.empty is True:
                 print("df {} not saved".format(file))
 
-            if (df.empty is False):  
+            if df.empty is False:
                 # If there is data in the dataframe, convert to xarray object.
                 try:
                     # Drop any empty variables
@@ -1055,7 +1057,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                     new_index = desired_order + rest_of_vars
                     ds = ds[new_index]
 
-                except Exception as e:  
+                except Exception as e:
                     # If error in xarray reorganization
                     traceback.print_exc()
                     errors["File"].append(station)
@@ -1063,7 +1065,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                     errors["Error"].append("Error in ds set-up: {}".format(e))
 
                 # Write station file to netcdf.
-                if (ds is None):  
+                if ds is None:
                     # Should be caught be error handling above, but add in case.
                     print("ds {} not saved.".format(file))
                     errors["File"].append(file)
@@ -1077,9 +1079,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                         filepath = cleandir + filename  # Write file path
 
                         # Write locally
-                        ds.to_netcdf(
-                            path="temp/temp.nc", engine="netcdf4"
-                        ) 
+                        ds.to_netcdf(path="temp/temp.nc", engine="netcdf4")
 
                         # Push file to AWS with correct file name.
                         s3.Bucket(BUCKET_NAME).upload_file("temp/temp.nc", filepath)

@@ -5,19 +5,25 @@ This script merges individual NetCDF files for the same weather station in the C
 Originally, CW3E station data were split into multiple NetCDF files due to size limitations during the initial cleaning step.
 This script combines all the individual NetCDF files for each station into zarr stores for each station for easier ingestion and analysis.
 
-Overview:
----------
-1. Read the list of cleaned stations from a CSV stored in S3.
-2. Identify all NetCDF files corresponding to each station.
-3. Open all NetCDF files, concatenate them along the "time" dimension, and sort chronologically.
-4. Save the merged dataset as a zarr file back to S3.
-
-Outputs:
+Approach
 --------
-- One consolidated zarr file per station, stored in the same S3 folder.
+(1) Read the list of cleaned stations from a CSV stored in S3.
+(2) Identify all NetCDF files corresponding to each station.
+(3) Open all NetCDF files, concatenate them along the "time" dimension, and sort chronologically.
+(4) Save the merged dataset as a zarr file back to S3.
 
-Example usage:
---------------
+Functions
+----------
+- get_filenames_in_s3_bucket: Get a list of files in s3 bucket.
+- open_multiple_netcdf_files: Open a list of NetCDF files from S3 using xarray.
+- concat_and_sort_datasets: Concatenate a list of datasets along 'time' and sort chronologically.
+
+Intended Use
+------------
+Consolidates the individual station-year CW3E files into one consolidated zarr file per station, stored in the same S3 folder.
+
+Example usage
+-------------
 python CW3E_combine.py
 """
 
