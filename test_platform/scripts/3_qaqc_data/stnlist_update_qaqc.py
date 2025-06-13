@@ -107,7 +107,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
         - 'QAQC': 'Y' if a .zarr file exists (passed QA/QC), 'N' otherwise
     """
     # Initialize results dictionary
-    df = {"ID": [], "Time_QAQC": [], "QAQC": []}  
+    df = {"ID": [], "Time_QAQC": [], "QAQC": []}
 
     # Construct the S3 path prefix for the network inside the QAQC folder
     parent_s3_path = f"{BUCKET_NAME}/{QAQC_WX}{network}"
@@ -163,13 +163,13 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=errors_prefix):
         obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
         errors = pd.read_csv(obj["Body"])
-        if errors.empty:  
+        if errors.empty:
             # If file empty
             continue
         else:
             errors = errors[["File", "Time", "Error"]]
-            errordf.append(errors)  
-    if not errordf:  
+            errordf.append(errors)
+    if not errordf:
         # If no errors in cleaning
         return pd.DataFrame()
     else:
@@ -196,8 +196,8 @@ def qaqc_qa(network: str):
     -------
     None
     """
-    if network == "otherisd": 
-        # Fixing capitalization issues 
+    if network == "otherisd":
+        # Fixing capitalization issues
         network = "OtherISD"
     else:
         network = network.upper()
@@ -216,12 +216,12 @@ def qaqc_qa(network: str):
     # Join cleaned columns to column list
     stations = stations.merge(qaqc_ids, left_on="ERA-ID", right_on="ID", how="outer")
     if "ID_y" in stations.columns:
-        stations["QAQC"] = np.where(stations.ID_y.isna(), "N", "Y")  
+        stations["QAQC"] = np.where(stations.ID_y.isna(), "N", "Y")
         # Make binary qa/qc column
         # Drop ID column
         stations = stations.drop(["ID_x", "ID_y"], axis=1)
     else:
-        stations["QAQC"] = np.where(stations.ID.isna(), "N", "Y")  
+        stations["QAQC"] = np.where(stations.ID.isna(), "N", "Y")
         # Make binary qa/qc column
         # Drop ID column
         stations = stations.drop("ID", axis=1)
@@ -239,7 +239,7 @@ def qaqc_qa(network: str):
     # Get list of station IDs
     ids = [id.split("_")[-1] for id in stations["ERA-ID"].tolist()]
 
-    if errors.empty:  
+    if errors.empty:
         # If no errors, stop here.
         pass
 
@@ -260,10 +260,13 @@ def qaqc_qa(network: str):
             if error_sta.empty:  # if no errors for station
                 continue
             else:
-                if not pd.isnull(row["Time_QAQC"]):  
+                if not pd.isnull(row["Time_QAQC"]):
                     # If file cleaned
                     # Only keep errors from qaqc at or after time of qaqc
-                    error_sta = error_sta.loc[(error_sta.Time >= row["Time_QAQC"]) | (error_sta.Time.isna()),:,]  
+                    error_sta = error_sta.loc[
+                        (error_sta.Time >= row["Time_QAQC"]) | (error_sta.Time.isna()),
+                        :,
+                    ]
 
                 if len(error_sta) == 1:
                     stations.loc[index, "Errors_QAQC"] = error_sta["Error"].values[0]
@@ -279,10 +282,11 @@ def qaqc_qa(network: str):
     qaqc_n = stations["QAQC"].value_counts()["N"]
 
     if "Y" in stations["QAQC"].values:
-        if ("N" not in stations["QAQC"].values):  
+        if "N" not in stations["QAQC"].values:
             # order is important here, if no "N" is present in a qa/qc'd network, it will bark without this
             print(
-                f"Station list updated for {network} stations that pass QA/QC. All stations pass: {qaqc_y} stations.")
+                f"Station list updated for {network} stations that pass QA/QC. All stations pass: {qaqc_y} stations."
+            )
         else:
             print(
                 f"Station list updated for {network} stations that pass QA/QC. {qaqc_y} stations passed QA/QC, {qaqc_n} stations were not QA/QC."
@@ -299,7 +303,7 @@ def qaqc_qa(network: str):
     s3_cl.put_object(
         Bucket=BUCKET_NAME,
         Body=content,
-        Key=f"{QAQC_WX}{network}/stationlist_{network}_qaqc.csv"
+        Key=f"{QAQC_WX}{network}/stationlist_{network}_qaqc.csv",
     )
 
 
