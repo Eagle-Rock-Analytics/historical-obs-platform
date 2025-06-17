@@ -107,7 +107,7 @@ def clean_cw3e(rawdir: str, cleandir: str):
 
     # Specify columns to use if there is no DataFormat file
     default_cols = [
-        "Dataloger ID",
+        "Datalogger ID",
         "Year (end time of average)",
         "Julian Day (end time of average)",
         "HoursMinutes (end time of average)",
@@ -169,7 +169,8 @@ def clean_cw3e(rawdir: str, cleandir: str):
 
     else:
         # If files read successfully, continue.
-        for station in stations:
+        # for station in stations:
+        for station in ["CAT"]: # uncomment for a specific station
             # Full network clean
             print(f"Parsing: {station}")
             try:

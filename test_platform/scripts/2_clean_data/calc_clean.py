@@ -34,7 +34,7 @@ Intended Use
 Functions consist of unit conversions, coordinate conversions, and derived variable calculations for cleaning. 
 """
 
-import geopandas as gp
+import geopandas as gpd
 import numpy as np
 
 
