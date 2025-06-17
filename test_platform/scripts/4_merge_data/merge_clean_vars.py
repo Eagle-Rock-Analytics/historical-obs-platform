@@ -61,7 +61,7 @@ def filter_columns(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
             "pr_depth",
             "PREC_flag",
             "rsds_flag",
-            "hurs_temp", 
+            "hurs_temp",
             "hurs_temp_flag",
             "hurs_duration",
             "hurs_flag",

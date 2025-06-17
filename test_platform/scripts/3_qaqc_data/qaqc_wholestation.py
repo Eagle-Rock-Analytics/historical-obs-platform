@@ -86,7 +86,7 @@ def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
         "PREC_flag",
         "rsds_duration",
         "rsds_flag",
-        "hurs_temp", 
+        "hurs_temp",
         "hurs_temp_flag",
         "hurs_duration",
         "hurs_flag",
@@ -139,7 +139,7 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
         "method",
         "process",
         "flag",
-    ]  
+    ]
     # adding process to list of vars to remove
 
     all_vars = [
@@ -261,9 +261,7 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     pxy = shapely.geometry.Point(lon, lat)
     if pxy.within(t) or pxy.within(m):
         return df
-    elif (
-        lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0
-    ):  
+    elif lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0:
         # trying to get the weird SD bump
         logger.info("Station is within the South Dakota portion")
         return df  # QAQC will NOT fail
@@ -356,7 +354,7 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                 susElevs = df.loc[
                     (df["elevation"] < base_elev - 50)
                     | (df["elevation"] > base_elev + 50)
-                ]  
+                ]
                 # find suspicious elevations
                 df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
                     36  # see era_qaqc_flag_meanings.csv
@@ -853,7 +851,7 @@ def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame | None:
                 )
                 if isOffRecord.any():
                     # keep only true indices
-                    isOffRecord_true = isOffRecord[isOffRecord]  
+                    isOffRecord_true = isOffRecord[isOffRecord]
                     df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )

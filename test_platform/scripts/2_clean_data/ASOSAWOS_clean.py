@@ -49,7 +49,7 @@ import warnings
 # Optional: Silence pandas' future warnings about regex (not relevant here)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 
-import calc_clean 
+import calc_clean
 from clean_utils import get_file_paths
 
 s3 = boto3.resource("s3")

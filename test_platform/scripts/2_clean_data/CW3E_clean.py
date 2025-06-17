@@ -170,7 +170,7 @@ def clean_cw3e(rawdir: str, cleandir: str):
     else:
         # If files read successfully, continue.
         for station in stations:
-        # for station in ["CAT"]: # uncomment for a specific station
+            # for station in ["CAT"]: # uncomment for a specific station
             # Full network clean
             print(f"Parsing: {station}")
             try:

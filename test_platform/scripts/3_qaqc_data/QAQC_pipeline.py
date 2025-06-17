@@ -212,9 +212,7 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
     full_df["exist"] = np.zeros(len(full_df)).astype("bool")
 
     # To use the full dataset for specific sample stations
-    df = full_df.copy()[
-        full_df["network"] == network
-    ]  
+    df = full_df.copy()[full_df["network"] == network]
 
     # subset for specific network
     for n in df["network"].unique():
@@ -320,7 +318,7 @@ def process_output_ds(
             var = eraqc_var.split("_eraqc")[0]
             # sfcWind_eraqc is added to dataset by (`qaqc_sensor_height_w`) even if sfcWind is not.
             # We need to account this to avoid errors in ds[var] for sfcWind
-            if var in list(ds.data_vars.keys()):  
+            if var in list(ds.data_vars.keys()):
                 # Only if var was originally present in dataset
                 if "ancillary_variables" in list(ds[var].attrs.keys()):
                     ds[var].attrs["ancillary_variables"] = ds[var].attrs[
@@ -423,13 +421,13 @@ def qaqc_ds_to_df(
         "PREC_flag",
         "rsds_duration",
         "rsds_flag",
-        "hurs_temp", 
+        "hurs_temp",
         "hurs_temp_flag",
         "hurs_duration",
         "hurs_flag",
         "anemometer_height_m",
         "thermometer_height_m",
-    ]  
+    ]
 
     raw_qc_vars = []  # qc_variable for each data variable, will vary station to station
     era_qc_vars = []  # our ERA qc variable
@@ -437,10 +435,10 @@ def qaqc_ds_to_df(
     for var in ds.data_vars:
         if "q_code" in var:
             # raw qc variable, need to keep for comparison, then drop
-            raw_qc_vars.append(var)  
+            raw_qc_vars.append(var)
             # raw qc variables, need to keep for comparison, then drop
         if "_qc" in var:
-            raw_qc_vars.append(var)  
+            raw_qc_vars.append(var)
 
     logger.info("Existing observation and QC variables: {}".format(list(ds.keys())))
 
