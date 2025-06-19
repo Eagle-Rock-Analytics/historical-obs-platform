@@ -50,11 +50,11 @@ CLEANED_VARS = [
     "rsds_nobs",
     "total_nobs",
 ]
- 
+
 
 def get_station_list_paths(directory: str) -> dict:
     """Iterate through clean folder and get all station lists
-    
+
     Parameters
     ----------
     directory : str
@@ -88,22 +88,20 @@ def get_station_list_paths(directory: str) -> dict:
         )
 
         # If 1 stationlist per network
-        if len(list(station_file)) == 1: 
-            for item in station_file:  
+        if len(list(station_file)) == 1:
+            for item in station_file:
                 networks["Network"].append(networkname)
                 networks["NetworkPath"].append(networkpath)
                 networks["StationFile"].append(item.key)
                 # If more than one file of this format found in folder, just take the most recent
-                break 
+                break
 
         # If no station lists
-        elif len(list(station_file)) == 0:  
-            files = s3.Bucket(BUCKET_NAME).objects.filter(
-                Prefix=networkpath + "/"
-            )  # List all files in folder
-            file = [
-                file for file in files if "station" in file.key
-            ]  # More general search for 'station'
+        elif len(list(station_file)) == 0:
+            # List all files in folder
+            files = s3.Bucket(BUCKET_NAME).objects.filter(Prefix=networkpath + "/")
+            # More general search for 'station'
+            file = [file for file in files if "station" in file.key]
 
             # Keep all files found here. These files may be different (e.g. ISD ASOS/AWOS vs ASOS/AWOS station lists)
             for item in file:
@@ -120,10 +118,8 @@ def get_station_list_paths(directory: str) -> dict:
             if networkname == "CWOP":
                 networks["Network"].append(networkname)
                 networks["NetworkPath"].append(networkpath)
-                networks["StationFile"].append(
-                    file_all[0]
-                )  # Add path to first in list -- alphabetical
-
+                # Add path to first in list -- alphabetical
+                networks["StationFile"].append(file_all[0])
             else:
                 file = [
                     obj.key
@@ -134,7 +130,7 @@ def get_station_list_paths(directory: str) -> dict:
                 # Add path to most recently changed file
                 networks["Network"].append(networkname)
                 networks["NetworkPath"].append(networkpath)
-                networks["StationFile"].append(file[0])  
+                networks["StationFile"].append(file[0])
 
     return networks
 
@@ -149,7 +145,7 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
         s3 bucket corresponding to option
     option : str
         which stage of development to generate a stationlist for
-    
+
     Returns
     -------
     df_to_save : pd.DataFrame
@@ -162,10 +158,6 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
     networks = get_station_list_paths(directory)
     networks = pd.DataFrame(networks)
 
-    # If station has more than one type of station file (e.g. ASOSAWOS), manually remove the one you dont want to use
-    remove_list = ["stationlist_ASOSAWOS_merge.csv"]
-    networks = networks[~networks.StationFile.str.contains("|".join(remove_list))]
-
     # Remove all Valley Water and Marin County stations from list
     networks = networks[networks["Network"] != "VALLEYWATER"]
     networks = networks[networks["Network"] != "MARINCOUNTY"]
@@ -176,13 +168,13 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
     boolean = networks["Network"].is_unique
     total = 0
 
-    if boolean is False: 
+    if boolean is False:
         dupes = networks["Network"].duplicated()
         doubles = list(networks["Network"][dupes])
         print(
             f"Error: More than one station file found for the following networks: {doubles}. \
               Inspect folder, add duplicated files to remove_list and re-run function."
-            )
+        )
         exit()
 
     for index, row in networks.iterrows():
@@ -190,11 +182,11 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
         df = pd.DataFrame()
         obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=row["StationFile"])  # get file
         body = obj["Body"].read()
-        try: 
+        try:
             temp = pd.read_csv(BytesIO(body), encoding="utf8")
         except:
             # there's an encoding error in the CIMIS pull stationlist
-            temp = pd.read_excel(BytesIO(body), engine="openpyxl")  
+            temp = pd.read_excel(BytesIO(body), engine="openpyxl")
 
         try:
             networkname = row["Network"]
@@ -213,17 +205,21 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
             if option == "pull":
                 if any("name" in str for str in temp.columns):
                     colname = [col for col in temp.columns if "name" in col]
-                    if len(colname) > 1:  
+                    if len(colname) > 1:
                         # If more than one col returned
                         removelist = set(["countyname"])
                         # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
-                        colname = list(set(colname) - removelist)  
+                        colname = list(set(colname) - removelist)
                         if len(colname) > 1:
-                            print(f"Too many options for station name columns. Add manually to removelist: {colname}")
+                            print(
+                                f"Too many options for station name columns. Add manually to removelist: {colname}"
+                            )
                             break
 
-                    df["name"] = temp[colname].values.reshape(-1,)
-                
+                    df["name"] = temp[colname].values.reshape(
+                        -1,
+                    )
+
             else:
                 if any("era-id" in str for str in temp.columns):
                     colname = [col for col in temp.columns if "era-id" in col]
@@ -311,7 +307,7 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                 df["pulled"] = temp["pulled"].values.reshape(-1)
             else:
                 df["pulled"] = np.nan
-            
+
             if any("time_checked" in str for str in temp.columns):
                 df["time_checked"] = temp["time_checked"].values.reshape(-1)
             else:
@@ -337,16 +333,16 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
             else:
                 df["time_qaqc"] = np.nan
 
-            if any("merge" in str for str in temp.columns):
-                df["merge"] = temp["merge"].values.reshape(-1)
+            if any("merged" in str for str in temp.columns):
+                df["merged"] = temp["merged"].values.reshape(-1)
             else:
-                df["merge"] = np.nan
+                df["merged"] = np.nan
 
-            if any("time_merged" in str for str in temp.columns):
-                df["time_merged"] = temp["time_merged"].values.reshape(-1)
+            if any("time_merge" in str for str in temp.columns):
+                df["time_merge"] = temp["time_merge"].values.reshape(-1)
             else:
-                df["time_merged"] = np.nan
-            
+                df["time_merge"] = np.nan
+
             # network name column
             df["network"] = networkname
 
@@ -355,7 +351,7 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                 if any(clean_var in str for str in temp.columns):
                     df[clean_var] = temp[clean_var].values.reshape(-1)
                 else:
-                    df[clean_var] = (np.nan)
+                    df[clean_var] = np.nan
 
             dffull = pd.concat([dffull, df], sort=False)
 
@@ -373,9 +369,13 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
 
     # # Remove any duplicates (of network and ID)
     if option == "pull":
-        dffull.drop_duplicates(subset=["name", "latitude", "longitude", "network"], inplace=True)
+        dffull.drop_duplicates(
+            subset=["name", "latitude", "longitude", "network"], inplace=True
+        )
     else:
-        dffull.drop_duplicates(subset=["era-id", "latitude", "longitude", "network"], inplace=True)
+        dffull.drop_duplicates(
+            subset=["era-id", "latitude", "longitude", "network"], inplace=True
+        )
 
     # Resort by network
     dffull.sort_values(by=["network"], inplace=True)
@@ -387,9 +387,9 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
     return dffull
 
 
-def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str): 
+def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
     """
-    Helper function to export new stationlist. 
+    Helper function to export new stationlist.
 
     Parameters
     ----------
@@ -409,15 +409,15 @@ def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
     df_to_save = stationlist_cols(df_to_save, option)
 
     # set-up export to s3
-    csv_buffer = StringIO()       
+    csv_buffer = StringIO()
     df_to_save.to_csv(csv_buffer, na_rep="NaN")
     content = csv_buffer.getvalue()
 
     # export
     s3_cl.put_object(
-        Bucket = BUCKET_NAME,
-        Body = content,
-        Key = f"{directory}all_network_stationlist_{option}.csv"
+        Bucket=BUCKET_NAME,
+        Body=content,
+        Key=f"{directory}all_network_stationlist_{option}.csv",
     )
     print(f"all_network_stationlist_{option}.csv generated and saved to AWS.")
 
@@ -426,7 +426,7 @@ def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
 
 def stationlist_cols(df_to_save: pd.DataFrame, option: str) -> pd.DataFrame:
     """
-    Helper function to that sets which columns to export per stage. 
+    Helper function to that sets which columns to export per stage.
 
     Parameters
     ----------
@@ -441,16 +441,25 @@ def stationlist_cols(df_to_save: pd.DataFrame, option: str) -> pd.DataFrame:
         concatenated stationlist with appropriate columns
     """
 
-    pull_cols = ["name", "latitude", "longitude", "elevation", "start-date",
-                 "end-date", "pulled", "time_checked", "network"]
+    pull_cols = [
+        "name",
+        "latitude",
+        "longitude",
+        "elevation",
+        "start-date",
+        "end-date",
+        "pulled",
+        "time_checked",
+        "network",
+    ]
     clean_cols = pull_cols + ["cleaned", "time_cleaned"] + CLEANED_VARS
     clean_cols = [item.replace("name", "era-id") for item in clean_cols]
     qaqc_cols = clean_cols + ["qaqc", "time_qaqc"]
-    merge_cols = qaqc_cols + ["merge", "time_merged"]
+    merge_cols = qaqc_cols + ["merged", "time_merge"]
 
     if option == "pull":
         df_to_export = df_to_save[pull_cols]
-    
+
     if option == "clean":
         df_to_export = df_to_save[clean_cols]
 
@@ -465,14 +474,14 @@ def stationlist_cols(df_to_save: pd.DataFrame, option: str) -> pd.DataFrame:
 
 def generate_stationlist(option: str):
     """
-    Generates the all network stationlist, from the input per network stationlists, 
+    Generates the all network stationlist, from the input per network stationlists,
     based on user selected stage of development (option).
 
     Parameters
     ----------
     option : str
         which stage of development to generate a stationlist for
-    
+
     Returns
     -------
     None
@@ -490,19 +499,21 @@ def generate_stationlist(option: str):
         option_ed = option
     elif option == "merge":
         directory = MERGE_DIR
-        option_ed = option
+        option_ed = "merged"
 
     df_to_save = retrieve_and_concat_stnlists(directory, option)
     export_stationlist(df_to_save, directory, option)
 
     # Print some useful statistics
-    if option == "pull": 
+    if option == "pull":
         # CIMIS and CW3E have complicated data formats and read as NaN in station list
         # 15,730 + 261 CIMIS stations + 13 CW3E stations
         counts = 16004
     else:
         counts = df_to_save[option_ed].value_counts()["Y"]
-    print(f"Number of {option} stations: {counts} out of {len(df_to_save)} possible stations.")
+    print(
+        f"Number of {option} stations: {counts} out of {len(df_to_save)} possible stations."
+    )
     print(f"Successful {option} station rate: {(counts / len(df_to_save)) * 100}")
 
     return None
@@ -511,6 +522,6 @@ def generate_stationlist(option: str):
 # =======================================================================
 if __name__ == "__main__":
     # generate station chart
-    generate_stationlist(option = "merge")
+    generate_stationlist(option="merge")
 
     # Options: pull, clean, qaqc, merge

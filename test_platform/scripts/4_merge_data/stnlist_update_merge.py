@@ -207,16 +207,12 @@ def merge_qa(network: str):
     stations = stations.merge(merge_ids, left_on="ERA-ID", right_on="ID", how="outer")
     if "ID_y" in stations.columns:
         # Make binary merged column
-        stations["merged"] = np.where(
-            stations.ID_y.isna(), "N", "Y"
-        )  
+        stations["merged"] = np.where(stations.ID_y.isna(), "N", "Y")
         # Drop ID column
         stations = stations.drop(["ID_x", "ID_y"], axis=1)
     else:
         # Make binary merged column
-        stations["merged"] = np.where(
-            stations.ID.isna(), "N", "Y"
-        )  
+        stations["merged"] = np.where(stations.ID.isna(), "N", "Y")
         # Drop ID column
         stations = stations.drop("ID", axis=1)
 
@@ -249,19 +245,19 @@ def merge_qa(network: str):
                 errors.loc[index, "ID"] = network + "_" + id[-1]
 
         # For each station
-        for index, row in stations.iterrows():  
+        for index, row in stations.iterrows():
             error_sta = errors.loc[errors.ID == row["ERA-ID"]]
-            if error_sta.empty:  
+            if error_sta.empty:
                 # if no errors for station
                 continue
             else:
-                if not pd.isnull(row["Time_Merge"]):  
+                if not pd.isnull(row["Time_Merge"]):
                     # If file cleaned
                     # Only keep errors from merge at or after time of merge
                     error_sta = error_sta.loc[
                         (error_sta.Time >= row["Time_Merge"]) | (error_sta.Time.isna()),
                         :,
-                    ]  
+                    ]
 
                 if len(error_sta) == 1:
                     stations.loc[index, "Errors_Merge"] = error_sta["Error"].values[0]
@@ -281,13 +277,19 @@ def merge_qa(network: str):
         merge_N = 0
 
     if "Y" in stations["merged"].values:
-        if "N" not in stations["merged"].values:  
+        if "N" not in stations["merged"].values:
             # order is important here, if no "N" is present in a merged network, it will bark without this
-            print(f"Station list updated for {network} stations that pass merge. All stations pass: {merge_Y} stations.")
+            print(
+                f"Station list updated for {network} stations that pass merge. All stations pass: {merge_Y} stations."
+            )
         else:
-            print(f"Station list updated for {network} stations that pass merge. {merge_Y} stations passed merge, {merge_N} stations were not merged.")
+            print(
+                f"Station list updated for {network} stations that pass merge. {merge_Y} stations passed merge, {merge_N} stations were not merged."
+            )
     else:
-        print(f"Station list updated for {network} stations. No stations successfully pass merge. {merge_N} stations do not yet pass merge.")
+        print(
+            f"Station list updated for {network} stations. No stations successfully pass merge. {merge_N} stations do not yet pass merge."
+        )
 
     # Save station file to cleaned bucket
     new_buffer = StringIO()
