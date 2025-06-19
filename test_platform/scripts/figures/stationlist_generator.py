@@ -5,18 +5,15 @@ Generates the "all network" station list, using the "per network" station lists.
 (pull, clean, qa/qc, and merge). To replace the "station list" generation in the figure notebooks. 
 
 Functions
+---------
 - get_station_list_paths: Builds a dictionary of all stationlists within a sublevel of s3 bucket
 - retrieve_and_concat_stnlists: Retrieves the stationlists using the paths dictionary, and concats together. 
 - export_stationlist: Helper function to export final csv file
 - generate_stationlist: Core processing function
 
 Intended Use
+-------------
 Run this script after the corresponding "stnlist_update" script has been completed for all networks in the respective stage of development. 
-
-# TODO
-- clean, qaqc functional
-- error on pull
-- need to test on merge
 """
 
 import boto3
@@ -33,6 +30,26 @@ MERGE_DIR = "4_merge_wx/"
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
+
+CLEANED_VARS = [
+    "tas_nobs",
+    "tdps_nobs",
+    "tdps_derived_nobs",
+    "ps_nobs",
+    "ps_derived_nobs",
+    "psl_nobs",
+    "ps_altimeter_nobs",
+    "pr_nobs",
+    "pr_5min_nobs",
+    "pr_1h_nobs",
+    "pr_24h_nobs",
+    "pr_localmid_nobs",
+    "hurs_nobs",
+    "sfcwind_nobs",
+    "sfcwind_dir_nobs",
+    "rsds_nobs",
+    "total_nobs",
+]
  
 
 def get_station_list_paths(directory: str) -> dict:
@@ -173,7 +190,11 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
         df = pd.DataFrame()
         obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=row["StationFile"])  # get file
         body = obj["Body"].read()
-        temp = pd.read_csv(BytesIO(body), encoding="utf8")
+        try: 
+            temp = pd.read_csv(BytesIO(body), encoding="utf8")
+        except:
+            # there's an encoding error in the CIMIS pull stationlist
+            temp = pd.read_excel(BytesIO(body), engine="openpyxl")  
 
         try:
             networkname = row["Network"]
@@ -189,9 +210,24 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                 temp = temp.drop(remove, axis=1)
 
             # name: station name, station_name, name, dcp location name --> use name as filter
-            if any("era-id" in str for str in temp.columns):
-                colname = [col for col in temp.columns if "era-id" in col]
-                df["era-id"] = temp[colname].values.reshape(-1)
+            if option == "pull":
+                if any("name" in str for str in temp.columns):
+                    colname = [col for col in temp.columns if "name" in col]
+                    if len(colname) > 1:  
+                        # If more than one col returned
+                        removelist = set(["countyname"])
+                        # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                        colname = list(set(colname) - removelist)  
+                        if len(colname) > 1:
+                            print(f"Too many options for station name columns. Add manually to removelist: {colname}")
+                            break
+
+                    df["name"] = temp[colname].values.reshape(-1,)
+                
+            else:
+                if any("era-id" in str for str in temp.columns):
+                    colname = [col for col in temp.columns if "era-id" in col]
+                    df["era-id"] = temp[colname].values.reshape(-1)
 
             # latitude: lat or latitude
             if any("lat" in str for str in temp.columns):
@@ -314,29 +350,8 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
             # network name column
             df["network"] = networkname
 
-            # TODO: need to build a cleaner column name piece rather than manual
             # Cleaned variable coverage
-            cleaned_vars = [
-                "tas_nobs",
-                "tdps_nobs",
-                "tdps_derived_nobs",
-                "ps_nobs",
-                "ps_derived_nobs",
-                "psl_nobs",
-                "ps_altimeter_nobs",
-                "pr_nobs",
-                "pr_5min_nobs",
-                "pr_1h_nobs",
-                "pr_24h_nobs",
-                "pr_localmid_nobs",
-                "hurs_nobs",
-                "sfcwind_nobs",
-                "sfcwind_dir_nobs",
-                "rsds_nobs",
-                "total_nobs",
-            ]
-
-            for clean_var in cleaned_vars:
+            for clean_var in CLEANED_VARS:
                 if any(clean_var in str for str in temp.columns):
                     df[clean_var] = temp[clean_var].values.reshape(-1)
                 else:
@@ -357,8 +372,10 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
     dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
 
     # # Remove any duplicates (of network and ID)
-    # dffull.sort_values(by=["start-date"], ascending=True, inplace=True)
-    dffull.drop_duplicates(subset=["era-id", "latitude", "longitude", "network"], inplace=True)
+    if option == "pull":
+        dffull.drop_duplicates(subset=["name", "latitude", "longitude", "network"], inplace=True)
+    else:
+        dffull.drop_duplicates(subset=["era-id", "latitude", "longitude", "network"], inplace=True)
 
     # Resort by network
     dffull.sort_values(by=["network"], inplace=True)
@@ -387,6 +404,10 @@ def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
     -------
     None
     """
+
+    # set-up correct csv to export
+    df_to_save = stationlist_cols(df_to_save, option)
+
     # set-up export to s3
     csv_buffer = StringIO()       
     df_to_save.to_csv(csv_buffer, na_rep="NaN")
@@ -401,6 +422,45 @@ def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
     print(f"all_network_stationlist_{option}.csv generated and saved to AWS.")
 
     return None
+
+
+def stationlist_cols(df_to_save: pd.DataFrame, option: str) -> pd.DataFrame:
+    """
+    Helper function to that sets which columns to export per stage. 
+
+    Parameters
+    ----------
+    df_to_save : pd.DataFrame
+        concatenated stationlist to export
+    option : str
+        which stage of development to generate a stationlist for
+
+    Returns
+    -------
+    df_to_export : pd.DataFrame
+        concatenated stationlist with appropriate columns
+    """
+
+    pull_cols = ["name", "latitude", "longitude", "elevation", "start-date",
+                 "end-date", "pulled", "time_checked", "network"]
+    clean_cols = pull_cols + ["cleaned", "time_cleaned"] + CLEANED_VARS
+    clean_cols = [item.replace("name", "era-id") for item in clean_cols]
+    qaqc_cols = clean_cols + ["qaqc", "time_qaqc"]
+    merge_cols = qaqc_cols + ["merge", "time_merged"]
+
+    if option == "pull":
+        df_to_export = df_to_save[pull_cols]
+    
+    if option == "clean":
+        df_to_export = df_to_save[clean_cols]
+
+    if option == "qaqc":
+        df_to_export = df_to_save[qaqc_cols]
+
+    if option == "merge":
+        df_to_export = df_to_save[merge_cols]
+
+    return df_to_export
 
 
 def generate_stationlist(option: str):
@@ -436,8 +496,13 @@ def generate_stationlist(option: str):
     export_stationlist(df_to_save, directory, option)
 
     # Print some useful statistics
-    counts = df_to_save[option_ed].value_counts()["Y"]
-    print(f"Number of {option} stations: {counts}")
+    if option == "pull": 
+        # CIMIS and CW3E have complicated data formats and read as NaN in station list
+        # 15,730 + 261 CIMIS stations + 13 CW3E stations
+        counts = 16004
+    else:
+        counts = df_to_save[option_ed].value_counts()["Y"]
+    print(f"Number of {option} stations: {counts} out of {len(df_to_save)} possible stations.")
     print(f"Successful {option} station rate: {(counts / len(df_to_save)) * 100}")
 
     return None
@@ -446,6 +511,6 @@ def generate_stationlist(option: str):
 # =======================================================================
 if __name__ == "__main__":
     # generate station chart
-    generate_stationlist(option = "pull")
+    generate_stationlist(option = "merge")
 
     # Options: pull, clean, qaqc, merge
