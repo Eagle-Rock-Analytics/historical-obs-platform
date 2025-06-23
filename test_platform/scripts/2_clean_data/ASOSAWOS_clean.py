@@ -42,7 +42,6 @@ from io import BytesIO, StringIO
 import random
 import zipfile
 from ftplib import FTP
-from cleaning_helpers import var_to_unique_list, get_file_paths
 import gzip
 import traceback
 import warnings
@@ -50,7 +49,8 @@ import warnings
 # Optional: Silence pandas' future warnings about regex (not relevant here)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 
-from calc_clean import *
+import calc_clean
+from clean_utils import get_file_paths
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -151,7 +151,6 @@ def clean_asosawos(rawdir: str, cleandir: str):
     Returns
     -------
     None
-        This function does not return a value
     """
     network = "ASOSAWOS"
 
@@ -180,11 +179,6 @@ def clean_asosawos(rawdir: str, cleandir: str):
             lonmin, lonmax = -139.047795, -102.03721
             latmin, latmax = 30.142739, 60.003861
 
-        # Get station file and read in metadata.
-        # obj = s3_cl.get_object(
-        #     Bucket=BUCKET_NAME, Key=cleandir + "stationlist_ASOSAWOS_merge.csv"
-        # )
-        # station_file = pd.read_csv(BytesIO(obj["Body"].read()))
         station_file = pd.read_csv(
             "s3://wecc-historical-wx/2_clean_wx/stationlist_ASOSAWOS_merge.csv"
         )
@@ -200,7 +194,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
         print(e)
         errors["File"].append("Whole network")
         errors["Time"].append(end_api)
-        errors["Error"].append("Whole network error: {}".format(e))
+        errors["Error"].append(f"Whole network error: {e}")
 
     else:  # Use ID to grab all files linked to station.
         for id in stations:  # full run
@@ -215,7 +209,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
 
             station = "ASOSAWOS_" + id.replace("-", "")
             station_metadata = station_file.loc[station_file["ISD-ID"] == id]
-            print("Parsing: ", station)
+            print(f"Parsing: {station}")
 
             # Initialize list of dictionaries.
             data = {
@@ -1106,7 +1100,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
         s3_cl.put_object(
             Bucket=BUCKET_NAME,
             Body=content,
-            Key=cleandir + "errors_asosawos_{}.csv".format(end_api),
+            Key=cleandir + f"errors_asosawos_{end_api}.csv",
         )
 
 

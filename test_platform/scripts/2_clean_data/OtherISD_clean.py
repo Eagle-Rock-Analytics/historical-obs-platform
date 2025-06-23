@@ -39,10 +39,8 @@ import numpy as np
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
-import random
 from ftplib import FTP
 import gzip
-import math
 import csv
 import traceback
 import warnings

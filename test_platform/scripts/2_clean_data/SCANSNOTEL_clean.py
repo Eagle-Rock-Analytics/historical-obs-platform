@@ -33,7 +33,6 @@ import numpy as np
 import pandas as pd
 import boto3
 from io import BytesIO, StringIO
-import random
 import warnings
 
 # Optional: Silence pandas' future warnings about regex (not relevant here)

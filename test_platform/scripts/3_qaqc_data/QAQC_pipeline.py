@@ -25,6 +25,7 @@ QA/QC-processed data for an individual network, priority variables, all times. O
 import os
 import datetime
 import pandas as pd
+import numpy as np
 import xarray as xr
 import boto3
 import s3fs
@@ -210,24 +211,8 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
         )
     full_df["exist"] = np.zeros(len(full_df)).astype("bool")
 
-    # Setting up the QAQC training station list to match temp_clean_all_station_list
-    if network == "TRAINING":
-        logger.info("Using training station list!")
-        df = pd.read_csv("qaqc_training_station_list.csv")
-        df["rawdir"] = df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
-        df["cleandir"] = df["network"].apply(lambda row: "2_clean_wx/{}/".format(row))
-        df["qaqcdir"] = df["network"].apply(lambda row: "3_qaqc_wx/{}/".format(row))
-        df["mergedir"] = df["network"].apply(lambda row: "4_merge_wx/{}/".format(row))
-        df["key"] = df.apply(
-            lambda row: row["cleandir"] + row["era-id"] + ".nc", axis=1
-        )
-        df["exist"] = np.zeros(len(df)).astype("bool")
-
-    # If it's a network (not training) run, keep it fast by only checking that network files on s3
-    else:
-        df = full_df.copy()[
-            full_df["network"] == network
-        ]  # To use the full dataset for specific sample stations
+    # To use the full dataset for specific sample stations
+    df = full_df.copy()[full_df["network"] == network]
 
     # subset for specific network
     for n in df["network"].unique():
@@ -235,56 +220,52 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
         df.loc[ind, "exist"] = file_on_s3(df[ind], zarr=zarr)
     df = df[df["exist"]]
 
-    # If it's a network (not training) run, return df as is
-    if network != "TRAINING":
-        return df
-    else:
-        df["file_size"] = df["key"].apply(
-            lambda row: s3_cl.head_object(Bucket=BUCKET_NAME, Key=row)["ContentLength"]
-        )
-        df = df.sort_values(by=["file_size", "network", "era-id"]).drop(columns="exist")
+    df["file_size"] = df["key"].apply(
+        lambda row: s3_cl.head_object(Bucket=BUCKET_NAME, Key=row)["ContentLength"]
+    )
+    df = df.sort_values(by=["file_size", "network", "era-id"]).drop(columns="exist")
 
-        # Evenly distribute df by size to help with memory errors
-        # Number of groups is the total number of stations divided by the node size
-        num_groups = len(df) // (72 * 3)
-        total_size = df["file_size"].sum()
-        target_size = total_size / num_groups
+    # Evenly distribute df by size to help with memory errors
+    # Number of groups is the total number of stations divided by the node size
+    num_groups = len(df) // (72 * 3)
+    total_size = df["file_size"].sum()
+    target_size = total_size / num_groups
 
-        groups = []
-        current_group = []
-        current_group_size = 0
+    groups = []
+    current_group = []
+    current_group_size = 0
 
-        # Sort DataFrame by size to improve grouping efficiency
-        df_sorted = df.sort_values(by="file_size", ascending=False)
+    # Sort DataFrame by size to improve grouping efficiency
+    df_sorted = df.sort_values(by="file_size", ascending=False)
 
-        for index, row in df_sorted.iterrows():
-            if current_group_size + row["file_size"] > target_size and current_group:
-                groups.append(pd.DataFrame(current_group))
-                current_group = []
-                current_group_size = 0
-
-            current_group.append(row)
-            current_group_size += row["file_size"]
-
-        if current_group:
+    for index, row in df_sorted.iterrows():
+        if current_group_size + row["file_size"] > target_size and current_group:
             groups.append(pd.DataFrame(current_group))
+            current_group = []
+            current_group_size = 0
 
-        # Create a new DataFrame to hold the groups
-        final_df = (
-            pd.concat([df.assign(Group=i) for i, df in enumerate(groups)])
-            .reset_index(drop=True)
-            .drop(columns="Group")
-        )
+        current_group.append(row)
+        current_group_size += row["file_size"]
 
-        return final_df
+    if current_group:
+        groups.append(pd.DataFrame(current_group))
+
+    # Create a new DataFrame to hold the groups
+    final_df = (
+        pd.concat([df.assign(Group=i) for i, df in enumerate(groups)])
+        .reset_index(drop=True)
+        .drop(columns="Group")
+    )
+
+    return final_df
 
 
 def process_output_ds(
     df: pd.DataFrame,
-    attrs: dict[str],
-    var_attrs: dict[str],
+    attrs: dict[str, str],
+    var_attrs: dict[str, str],
     network: str,
-    timestamp: datetime,
+    timestamp: datetime.datetime,
     station: str,
     qaqcdir: str,
     zarr: bool,
@@ -302,7 +283,7 @@ def process_output_ds(
         variable attributes to be reset on xr.Dataset
     network: str
         network name
-    timestamp: datetime
+    timestamp: datetime.datetime
         time at runtime
     station: str
         station name
@@ -319,6 +300,7 @@ def process_output_ds(
     -----
     1. Add metadata for _eraqc variables.
     """
+
     # Convert back to dataset
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -336,9 +318,8 @@ def process_output_ds(
             var = eraqc_var.split("_eraqc")[0]
             # sfcWind_eraqc is added to dataset by (`qaqc_sensor_height_w`) even if sfcWind is not.
             # We need to account this to avoid errors in ds[var] for sfcWind
-            if var in list(
-                ds.data_vars.keys()
-            ):  # Only if var was originally present in dataset
+            if var in list(ds.data_vars.keys()):
+                # Only if var was originally present in dataset
                 if "ancillary_variables" in list(ds[var].attrs.keys()):
                     ds[var].attrs["ancillary_variables"] = ds[var].attrs[
                         "ancillary_variables"
@@ -394,7 +375,7 @@ def process_output_ds(
 
 def qaqc_ds_to_df(
     ds: xr.Dataset,
-) -> tuple[pd.DataFrame, pd.Index, list[str], list[str], list[str]]:
+) -> tuple[pd.DataFrame, pd.Index, dict[str, str], dict[str, str], list[str]]:
     """Converts xarray ds for a station to pandas df in the format needed for the pipeline
 
     Parameters
@@ -408,9 +389,9 @@ def qaqc_ds_to_df(
         converted xr.Dataset into dataframe
     df_multi_idx : pd.Index
         multi-index of station and time
-    attrs : list of str
+    attrs : dict[str, str]
         attributes from xr.Dataset
-    var_attrs : list of str
+    var_attrs : dict[str, str]
         variable attributes from xr.Dataset
     era_qc_vars : list of str
         QAQC variables
@@ -427,6 +408,7 @@ def qaqc_ds_to_df(
                 if str in [type(v) for v in ds.isel(station=0)[key].values]:
                     ds[key] = ds[key].astype(str)
 
+    # lat, lon have different qc check
     exclude_qaqc = [
         "time",
         "station",
@@ -439,23 +421,24 @@ def qaqc_ds_to_df(
         "PREC_flag",
         "rsds_duration",
         "rsds_flag",
+        "hurs_temp",
+        "hurs_temp_flag",
+        "hurs_duration",
+        "hurs_flag",
         "anemometer_height_m",
         "thermometer_height_m",
-    ]  # lat, lon have different qc check
+    ]
 
     raw_qc_vars = []  # qc_variable for each data variable, will vary station to station
     era_qc_vars = []  # our ERA qc variable
-    # old_era_qc_vars = []  # our ERA qc variable
 
     for var in ds.data_vars:
         if "q_code" in var:
-            raw_qc_vars.append(
-                var
-            )  # raw qc variable, need to keep for comparison, then drop
+            # raw qc variable, need to keep for comparison, then drop
+            raw_qc_vars.append(var)
+            # raw qc variables, need to keep for comparison, then drop
         if "_qc" in var:
-            raw_qc_vars.append(
-                var
-            )  # raw qc variables, need to keep for comparison, then drop
+            raw_qc_vars.append(var)
 
     logger.info("Existing observation and QC variables: {}".format(list(ds.keys())))
 
@@ -532,7 +515,7 @@ def run_qaqc_pipeline(
     network: str,
     errors: dict,
     station: str,
-    end_api: datetime,
+    end_api: datetime.datetime,
     rad_scheme: str,
 ) -> tuple[pd.DataFrame, list[str], list[str], list[str]]:
     """

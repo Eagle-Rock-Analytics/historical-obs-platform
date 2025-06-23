@@ -86,6 +86,10 @@ def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
         "PREC_flag",
         "rsds_duration",
         "rsds_flag",
+        "hurs_temp",
+        "hurs_temp_flag",
+        "hurs_duration",
+        "hurs_flag",
         "anemometer_height_m",
         "thermometer_height_m",
     ]
@@ -134,7 +138,9 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
         "duration",
         "method",
         "process",
-    ]  # adding process to list of vars to remove
+        "flag",
+    ]
+    # adding process to list of vars to remove
 
     all_vars = [
         var
@@ -255,9 +261,8 @@ def qaqc_within_wecc(df: pd.DataFrame) -> pd.DataFrame | None:
     pxy = shapely.geometry.Point(lon, lat)
     if pxy.within(t) or pxy.within(m):
         return df
-    elif (
-        lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0
-    ):  # trying to get the weird SD bump
+    elif lat > 43.0 and lat < 45.0 and lon > -104.0 and lon < -102.0:
+        # trying to get the weird SD bump
         logger.info("Station is within the South Dakota portion")
         return df  # QAQC will NOT fail
     elif pxy.within(ak_t) or lon <= -141.0:
@@ -349,7 +354,8 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                 susElevs = df.loc[
                     (df["elevation"] < base_elev - 50)
                     | (df["elevation"] > base_elev + 50)
-                ]  # find suspicious elevations
+                ]
+                # find suspicious elevations
                 df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
                     36  # see era_qaqc_flag_meanings.csv
                 )
@@ -703,7 +709,7 @@ def qaqc_sensor_height_w(df: pd.DataFrame) -> pd.DataFrame | None:
         return None
 
 
-def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame:
+def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Checks if variables are outside North American world records.
     If outside minimum or maximum records, flags values.
@@ -844,9 +850,8 @@ def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame:
                     df_valid[var] > maxes[var]["North_America"],
                 )
                 if isOffRecord.any():
-                    isOffRecord_true = isOffRecord[
-                        isOffRecord
-                    ]  # keep only true indices
+                    # keep only true indices
+                    isOffRecord_true = isOffRecord[isOffRecord]
                     df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
                         11  # see era_qaqc_flag_meanings.csv
                     )

@@ -79,7 +79,7 @@ def main():
         }
     )
 
-    filenames = get_filenames_in_s3_folder(bucket=BUCKET_NAME, folder=folder_raw)
+    filenames = get_filenames_in_s3_folder(RAW_DIR)
     filenames = [file for file in filenames if "Precip_Increm.Final@" in file]
 
     # Read in csv containing information about each station
@@ -161,13 +161,13 @@ def main():
 
         # Remove date strings from filename
         # Convert to uppercase characters to match existing filename formatting conventions
-        relative_filepath = f"{network}_{station_id}.zarr"
+        relative_filepath = f"{NETWORK}_{station_id}.zarr"
 
         # Convert data type to xarray object
         # Just preserve the precip data
         df_pr = df[[era_var_name, era_var_name + "_eraqc", "raw_qc"]]
         ds = xr.Dataset.from_dataframe(df_pr)
-        ds = ds.expand_dims({"station": [f"{network}_{station_id}"]})
+        ds = ds.expand_dims({"station": [f"{NETWORK}_{station_id}"]})
         # Add lat and lon as coordinates
         ds = ds.assign_coords(
             {
@@ -299,7 +299,6 @@ def get_filenames_in_s3_folder(folder: str) -> list[str]:
     You want to get all the filenames in a s3 bucket with the following path:
     s3 URI: "s3://wecc-historical-wx/1_raw_wx/VALLEYWATER/"
     >>> get_filenames_in_s3_folder(
-    >>>    bucket = "wecc-historical-wx",
     >>>    folder = "1_raw_wx/VALLEYWATER"
     >>> )
     ['ValleyWater_6001_1900-01-01_2024-11-11.csv','ValleyWater_6004_1900-01-01_2024-11-11.csv']
