@@ -13,6 +13,7 @@ Functions
 - get_station_list: Retrieves specific network stationlist from QAQC bucket
 - get_zarr_last_mod: Identifies the last modified date from a zarr 
 - get_merge_stations: Retrieves list of all stations that pass the merge process
+- fix_start_end_dates: Fixes two kinds of incorrect date encoding listed in the network stationlists. 
 - parse_error_csv: Retrieves all processing error files for a network
 - merge_qa: Update station list and save to AWS, adding merge status, time of merge pass and any relevant errors.
 
@@ -22,6 +23,7 @@ Run this script after merge has been completed for a network (via pcluster run) 
 """
 
 import pandas as pd
+import xarray as xr
 from io import BytesIO, StringIO
 import numpy as np
 import boto3
@@ -131,6 +133,60 @@ def get_merge_stations(network: str) -> pd.DataFrame:
     return pd.DataFrame(df)
 
 
+def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame: 
+    """
+    Fixes two kinds of incorrect date encoding listed in the network stationlists. 
+    Kind 1: Missing start and end dates listed in the stationlist for specific networks.
+    Issue originated from source network (not provided via raw station list). 
+    Impacted networks: MARITIME, NDBC, CW3E
+    #! Handful of individual stations in RAWS, HADS, CWOP (handle separately)
+    
+    Kind 2: End date incorrectly encoded as 2100-12-31. Issue originated from source network (known issue).
+    Impacted networks: SCAN, SNOTEL
+
+    Parameters
+    ----------
+    stations : pd.DataFrame
+        original stationlist
+    
+    Returns
+    -------
+    fixed_stns : pd.DataFrame
+        stationlist with corrected start and end dates
+
+    Notes
+    -----
+    To identify the correct start/end date, the station file has to be opened. For the "Kind 2" error,
+    we are also "resetting" the start date for ease of computation. Dates should be identical. 
+    #! Nice to have: build in check for identical dates
+    """
+
+    # networks with incorrect date encoding in station list
+    wrong_date = ["MARITIME", "NDBC", "CW3E", "SCAN", "SNOTEL"]
+    
+    if network in wrong_date:
+        # specific handling here
+        for id in stations["ERA-ID"]:
+            print(f"Checking start/end date encoding for {id}...")
+
+            # identify correct start/end date from station timestamps
+            try:
+                ds = xr.open_zarr(f"s3://{BUCKET_NAME}/{MERGE_WX}{id}.zarr") ## check
+                correct_start = x
+                correct_end = Y
+            except Exception as e:
+                print(f"issue opening zarr file")
+
+            # set these values back into the stationlist
+
+
+    else:
+        # bypass, no known date encoding issue
+        fixed_stations = stations
+
+    return fixed_stations
+
+
 def parse_error_csv(network: str) -> pd.DataFrame:
     """
     Given a network name, return a pandas dataframe containing all errors reported for the network in the merge stage.
@@ -187,10 +243,9 @@ def merge_qa(network: str):
     -------
     None
     """
-    if network == "otherisd":  # Fixing capitalization issues
+    # Fixing capitalization issues
+    if network == "otherisd": 
         network = "OtherISD"
-    else:
-        network = network.upper()
 
     # Call functions
     stations = get_station_list(network)  # grabs stationlist_qaqcd
@@ -202,6 +257,10 @@ def merge_qa(network: str):
             "No merged files for this network. Please run the relevant merge script and try again."
         )
         exit()
+
+    #! Check that this is the correct place to do this
+    # Fix start/end date issues
+    stations = fix_start_end_dates(network, stations)
 
     # Join qaqc'd columns to column list
     stations = stations.merge(merge_ids, left_on="ERA-ID", right_on="ID", how="outer")
