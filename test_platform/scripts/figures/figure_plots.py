@@ -5,7 +5,7 @@ Functions
 ---------
 - get_hdp_colordict: Builds a dictionary of specified network colors for use in HDP figures.
 - var_fullname: Returns the full name of variable.
-- 
+- networks_over_time_barchart: 
 
 Intended Use
 ------------
@@ -18,6 +18,66 @@ from io import BytesIO
 import geopandas as gpd
 import contextily as cx
 
+s3 = boto3.resource("s3")
+s3_cl = boto3.client("s3")
+
+BUCKET_NAME = "wecc-historical-wx"
+PULL_DIR = "1_raw_wx"
+CLEAN_DIR = "2_clean_wx"
+QAQC_DIR = "3_qaqc_wx"
+MERGE_DIR = "4_merge_wx"
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+WECC_TERR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+
+
+def _get_stage_dir(stage: str) -> str:
+    """
+    Based on option passed, returns the correct AWS folder. 
+    
+    Parameters
+    ----------
+    stage : str
+        name of stage of development
+    
+    Returns
+    -------
+    stage_dir : str
+        name of corresponding AWS folder
+    """
+
+    if stage == "pull":
+        stage_dir = PULL_DIR
+    if stage == "clean":
+        stage_dir = CLEAN_DIR
+    if stage == "qaqc":
+        stage_dir = QAQC_DIR
+    if stage == "merge":
+        stage_dir = MERGE_DIR
+
+    return stage_dir
+
+def _get_stage_stnlist(stage: str) -> pd.DataFrame:
+    """
+    Retrieves the corresponding stage station list.
+    
+    Parameters
+    ----------
+    stage : str
+        name of stage of development
+        
+    Returns
+    -------
+    stage_stnlist : pd.DataFrame
+        corresponding stage station list    
+    """
+
+    # get corresponding dir
+    stage_dir = _get_stage_dir(stage)
+
+    # read in stationlist from corresponding stage
+    stage_stnlist = pd.read_csv(f"s3://{BUCKET_NAME}/{stage_dir}/all_network_stationlist_{stage}.csv")
+
+    return stage_stnlist
 
 
 
@@ -88,34 +148,116 @@ def var_fullname(var: str) -> str:
 ## # of stations per network over time --> get_station_chart + new plot fn
 ## get_station_map 2 versions
 
+def thing():
+    return None
+
+def networks_over_time_barchart(df: pd.DataFrame, stage: str, save_fig: bool=False) -> matplotlib.fig:
+    """
+    Produces stacked bar chart for network coverage over time. 
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        stage specific dataframe to generate barchart
+    stage : str
+        stage of development to generate barchart. Options: pull, clean, qaqc, merge
+    save_fig : bool
+        saves figure to AWS
+
+    Returns
+    -------
+    fig : matplotlib.fig
+        figure object for display in nb
+    """
+
+    # Plot
+    outt = out.T.reset_index()
+
+    # Fix time component
+    outt["date"] = outt["period"].astype(str)
+    outt["date"] = pd.to_datetime(outt["date"])
+
+    # Plot parameters
+    plt.rcParams["figure.figsize"] = [7.50, 3.50]
+    plt.rcParams["figure.autolayout"] = True
+    plt.rcParams["figure.facecolor"] = "white"
+
+    # Subplot parameters
+    fig, ax = plt.subplots(figsize=(8, 6))
+    outt.plot.area(
+        x="date",
+        title=f"{stage} stations by network over time", # capitalize if possible
+        ax=ax,
+        x_compat=True,
+        cmap="tab20c_r",
+    )  
+    # Get area plot
+    ax.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))  # Fix legend
+    ax.tick_params(labelcolor="black", labelsize="medium", width=3)
+    ax.set_facecolor("w")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Number of stations")
+
+    # Change axis bounds
+    ax.set_xlim([date(1980, 1, 1), date(2022, 8, 1)])
+
+    # Change tick marks
+    ax.minorticks_on()
+    ax.xaxis.set_major_locator(matplotlib.dates.YearLocator(3))
+    ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%Y"))
+    ax.xaxis.set_minor_locator(matplotlib.dates.YearLocator(1))
+
+    # Change y ticks
+    plt.locator_params(axis="y", nbins=12)
+    ax.yaxis.get_ticklocs(minor=True)
+
+    # Set x axis labels
+    plt.subplots_adjust(left=0.2, bottom=0.2, top=0.8, right=0.8)
+
+    # Annotate with number of stations
+    num_stns = 0 #! 
+    plt.annotate(
+        f"Total # of {stage} stations: {num_stns}", 
+        xy=(0.025, 0.95), 
+        xycoords="axes fraction"
+    )
+
+    # Save to AWS
+    if save_fig: 
+        dir_to_save = _get_stage_dir(stage)
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png")
+        img_data.seek(0)
+
+        s3 = boto3.resource("s3")
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, 
+            ContentType="image/png", 
+            Key=f"{dir_to_save}/{stage}_stations_over_time.png"
+        )
+
+    return fig
+
 
 ## PULL
 
 # Function: plot station chart
-# Set update = True if you want to regenerate the primary station list, otherwise function pulls the existing file from AWS.
-def get_station_chart(bucket_name, directory, update=False):
-    s3 = boto3.resource("s3")
-    s3_cl = boto3.client("s3")  # for lower-level processes
-    if update == False:
-        obj = s3_cl.get_object(
-            Bucket=bucket_name, Key="1_raw_wx/temp_pull_all_station_list.csv"
-        )
-        body = obj["Body"].read()
-        dffull = pd.read_csv(BytesIO(body), encoding="utf8")
-    elif update == True:
-        dffull = get_station_list(bucket_name, directory)
+def get_station_chart(stage, ):
 
-    # Get period
+    # retrieve correct stage stationlist
+   stage_stnlist = _get_stage_stnlist(stage)
 
     # Format dates in datetime format (this gets lost in import).
-    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
-    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
+    stage_stnlist["start-date"] = pd.to_datetime(stage_stnlist["start-date"], utc=True)
+    stage_stnlist["end-date"] = pd.to_datetime(stage_stnlist["end-date"], utc=True)
 
     # Fix nas
     ## Filter out rows w/o start date
     ## Note here: we lose MARITIME and NDBC networks.
     # print(dffull[dffull['network']=="MARITIME"])
-    subdf = dffull.loc[~dffull["start-date"].isnull()].copy()
+    subdf = stage_stnlist.loc[~stage_stnlist["start-date"].isnull()].copy()
+   # TODO: make sure that end dates on SNOTEL / SCAN are now fixed
 
     ## Filter out non-downloaded rows
     subdf = subdf.loc[subdf["pulled"] != "N"].copy()
@@ -159,23 +301,29 @@ def get_station_chart(bucket_name, directory, update=False):
 
 
 
-def gdf_setup(var):
-    # AWS set-up
-    s3 = boto3.resource("s3")
-    s3_cl = boto3.client("s3")
-    bucket_name = "wecc-historical-wx"
+def gdf_setup(var, stage):
+    """
+
+    Parameters
+    ----------
+    var : str
+
+    stage : str
+
+    Returns
+    -------
+    gdf
+    """
 
     # Read in all stations
-    obj = s3_cl.get_object(
-        Bucket=bucket_name, Key="2_clean_wx/temp_clean_all_station_list.csv"
-    )
-    body = obj["Body"].read()
-    df_all = pd.read_csv(BytesIO(body), encoding="utf8")
+    df_all = _get_stage_stnlist(stage)
 
-    # ------------------------------------------------------------------------------------------------------------
     # Make a geodataframe
     gdf = gpd.GeoDataFrame(
-        df_all, geometry=gpd.points_from_xy(df_all.longitude, df_all.latitude)
+        df_all, 
+        geometry=gpd.points_from_xy(
+            df_all.longitude, 
+            df_all.latitude)
     )
     gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
 
