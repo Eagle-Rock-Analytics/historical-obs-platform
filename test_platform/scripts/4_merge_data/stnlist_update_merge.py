@@ -165,26 +165,41 @@ def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
     wrong_date = ["MARITIME", "NDBC", "CW3E", "SCAN", "SNOTEL"]
     
     if network in wrong_date:
-        # specific handling here
         for id in stations["ERA-ID"]:
             print(f"Checking start/end date encoding for {id}...")
 
             # identify correct start/end date from station timestamps
             try:
-                ds = xr.open_zarr(f"s3://{BUCKET_NAME}/{MERGE_WX}{id}.zarr") ## check
-                correct_start = x
-                correct_end = Y
+                ds = xr.open_zarr(f"s3://{BUCKET_NAME}/{MERGE_WX}{network}/{id}.zarr", consolidated=False)
             except Exception as e:
-                print(f"issue opening zarr file")
+                continue
 
-            # set these values back into the stationlist
+            correct_start = str(ds.time.values[0])
+            correct_end = str(ds.time.values[-1])
+            # save memory
+            ds.close()
 
+            # set correct start/end date time to station list
+            try:
+                stations.loc[stations["ERA-ID"] == id, "start-date"] = correct_start
+                stations.loc[stations["ERA-ID"] == id, "end-date"] = correct_end
+
+            except Exception as e:
+                print(f"Issue setting correct start / end dates for {id}... {e}")
 
     else:
-        # bypass, no known date encoding issue
-        fixed_stations = stations
+        print("Network has no known start/end date issues.")
 
-    return fixed_stations
+    # put these columns at specific index (so they're not at the end)
+    try: 
+        start = stations.pop("start-date")
+        end = stations.pop("end-date")
+        stations.insert(4, "start-date", start)
+        stations.insert(5, "end-date", end)
+    except:
+        print(f"Issue resetting index on start/end")
+
+    return stations
 
 
 def parse_error_csv(network: str) -> pd.DataFrame:
@@ -258,7 +273,6 @@ def merge_qa(network: str):
         )
         exit()
 
-    #! Check that this is the correct place to do this
     # Fix start/end date issues
     stations = fix_start_end_dates(network, stations)
 
@@ -362,7 +376,7 @@ def merge_qa(network: str):
 
 
 if __name__ == "__main__":
-    merge_qa("ASOSAWOS")
+    merge_qa("CW3E")
 
 # List of all stations for ease of use here:
 # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
