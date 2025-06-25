@@ -133,14 +133,14 @@ def get_merge_stations(network: str) -> pd.DataFrame:
     return pd.DataFrame(df)
 
 
-def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame: 
+def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
     """
-    Fixes two kinds of incorrect date encoding listed in the network stationlists. 
+    Fixes two kinds of incorrect date encoding listed in the network stationlists.
     Kind 1: Missing start and end dates listed in the stationlist for specific networks.
-    Issue originated from source network (not provided via raw station list). 
+    Issue originated from source network (not provided via raw station list).
     Impacted networks: MARITIME, NDBC, CW3E
     #! Handful of individual stations in RAWS, HADS, CWOP (handle separately)
-    
+
     Kind 2: End date incorrectly encoded as 2100-12-31. Issue originated from source network (known issue).
     Impacted networks: SCAN, SNOTEL
 
@@ -148,7 +148,7 @@ def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
     ----------
     stations : pd.DataFrame
         original stationlist
-    
+
     Returns
     -------
     fixed_stns : pd.DataFrame
@@ -157,20 +157,26 @@ def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
     Notes
     -----
     To identify the correct start/end date, the station file has to be opened. For the "Kind 2" error,
-    we are also "resetting" the start date for ease of computation. Dates should be identical. 
+    we are also "resetting" the start date for ease of computation. Dates should be identical.
     #! Nice to have: build in check for identical dates
     """
 
     # networks with incorrect date encoding in station list
     wrong_date = ["MARITIME", "NDBC", "CW3E", "SCAN", "SNOTEL"]
-    
+
     if network in wrong_date:
+        print(
+            "Network has known issue with start/end date coverage. This may take some time to correct."
+        )
         for id in stations["ERA-ID"]:
             print(f"Checking start/end date encoding for {id}...")
 
             # identify correct start/end date from station timestamps
             try:
-                ds = xr.open_zarr(f"s3://{BUCKET_NAME}/{MERGE_WX}{network}/{id}.zarr", consolidated=False)
+                ds = xr.open_zarr(
+                    f"s3://{BUCKET_NAME}/{MERGE_WX}{network}/{id}.zarr",
+                    consolidated=False,
+                )
             except Exception as e:
                 continue
 
@@ -191,7 +197,7 @@ def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
         print("Network has no known start/end date issues.")
 
     # put these columns at specific index (so they're not at the end)
-    try: 
+    try:
         start = stations.pop("start-date")
         end = stations.pop("end-date")
         stations.insert(4, "start-date", start)
@@ -259,7 +265,7 @@ def merge_qa(network: str):
     None
     """
     # Fixing capitalization issues
-    if network == "otherisd": 
+    if network == "otherisd":
         network = "OtherISD"
 
     # Call functions
@@ -376,7 +382,7 @@ def merge_qa(network: str):
 
 
 if __name__ == "__main__":
-    merge_qa("CW3E")
+    merge_qa("ASOSAWOS")
 
 # List of all stations for ease of use here:
 # ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
