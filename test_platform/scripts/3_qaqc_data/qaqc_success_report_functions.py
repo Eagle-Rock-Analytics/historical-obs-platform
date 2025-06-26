@@ -337,5 +337,5 @@ def generate_station_tables(timestep: str) -> None:
     return None
 
 
-
-
+if __name__ == "__main__":
+    main()
