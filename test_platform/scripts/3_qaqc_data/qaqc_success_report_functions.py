@@ -94,9 +94,9 @@ def _format_table(
     summed_counts["eraqc_flag_values"] = summed_counts["eraqc_flag_values"].apply(
         lambda x: int(x) if x not in ["no_flag", "total_obs_count"] else x
     )
-    summed_counts = summed_counts.applymap(
-        lambda x: int(x) if not isinstance(x, str) else x
-    )
+    # summed_counts = summed_counts.applymap(
+    #     lambda x: int(x) if not isinstance(x, str) else x
+    # )
 
     ## Merge the the counts and flag meanings dataframes
     merged_dfs = summed_counts.merge(flag_table, on="eraqc_flag_values", how="outer")
