@@ -1,20 +1,27 @@
 """
 qaqc_success_report_functions.py
 
-Generate and exports CSVs with counts of unique QAQC flag values per variable, in native
-and hourly timesteps. These counts are used to produce QAQC flag statistics for the QAQC success report.
+Creates QAQC flag counts csv files per network from the corresponding eraqc_counts_timestep files that were 
+generated as a part of the final processing step for stations within the Historical Data Pipeline. 
+These tables are used to then generate statistics for the QAQC success report.
+
+This is carried out in two steps:
+
+1. Generate the per-network QAQC flag count tables, at native and hourly timesteps
+2. Generates one flag count table that sums all per-network tables, at native and hourly timesteps
 
 Functions
 ---------
-- _pairwise_sum:
-- _format_table:
-- network_sum_flag_counts:
-- total_sum_flag_counts:
-- generate_station_tables:
+- _pairwise_sum(): helper function that merges two input flag tables, used by network_sum_flag_counts() and total_sum_flag_counts().
+- _network_format_table:
+- _total_format_table:
+- network_sum_flag_counts(): sums all station flag count tables for a given network, creating one flag count table for that network
+- generate_station_tables(): runs network_sum_flag_counts() for every network
+- total_sum_flag_counts(): sums all network flag count tables, creating one final flag count table
 
 Intended Use
 ------------
-Import into merge workflows to generate information for the QAQC success report.
+Import into qaqc_flag_counts_sum.ipynb to generate information for the QAQC success report.
 """
 
 import time
@@ -32,6 +39,7 @@ bucket_name = "wecc-historical-wx"
 stations_csv_path = f"s3://{bucket_name}/2_clean_wx/temp_clean_all_station_list.csv"
 qaqc_dir = "3_qaqc_wx"
 merge_dir = "4_merge_wx"
+
 
 # -----------------------------------------------------------------------------
 def _pairwise_sum(flag_df_1, flag_df_2) -> pd.DataFrame:
@@ -60,8 +68,9 @@ def _pairwise_sum(flag_df_1, flag_df_2) -> pd.DataFrame:
         )
         return summed_df
 
+
 # -----------------------------------------------------------------------------
-def _format_table(
+def _network_format_table(
     summed_counts: pd.DataFrame, flag_table: pd.DataFrame
 ) -> pd.DataFrame:
     """
@@ -90,16 +99,14 @@ def _format_table(
     )
 
     # convert flag value strings to integers
-    # ! this is old code, keeping here in case related to error
     summed_counts["eraqc_flag_values"] = summed_counts["eraqc_flag_values"].apply(
         lambda x: int(x) if x not in ["no_flag", "total_obs_count"] else x
     )
-    # summed_counts = summed_counts.applymap(
-    #     lambda x: int(x) if not isinstance(x, str) else x
-    # )
 
     ## Merge the the counts and flag meanings dataframes
-    merged_dfs = summed_counts.merge(flag_table, on="eraqc_flag_values", how="outer")
+    merged_dfs = summed_counts.merge(
+        flag_table, on="eraqc_flag_values", how="outer"
+    ).fillna(0)
 
     ## Format final dataframe
 
@@ -119,7 +126,13 @@ def _format_table(
         .index
     ]
 
+    # convert all counts to integers
+    final_format = final_format.applymap(
+        lambda x: int(x) if not isinstance(x, str) else x
+    )
+
     return final_format
+
 
 # -----------------------------------------------------------------------------
 def _total_format_table(summed_counts: pd.DataFrame) -> pd.DataFrame:
@@ -139,10 +152,6 @@ def _total_format_table(summed_counts: pd.DataFrame) -> pd.DataFrame:
 
     # convert flag value strings to integers
 
-    # ! this is old code, keeping here in case related to error
-    # summed_counts["eraqc_flag_values"] = summed_counts['eraqc_flag_values'].apply(
-    #     lambda x: int(x) if x not in ["no_flag", "total_obs_count"] else x
-    # )
     summed_counts = summed_counts.applymap(
         lambda x: int(x) if not isinstance(x, str) else x
     )
@@ -166,6 +175,7 @@ def _total_format_table(summed_counts: pd.DataFrame) -> pd.DataFrame:
     ]
 
     return final_format
+
 
 # -----------------------------------------------------------------------------
 def network_sum_flag_counts(network: str, timestep: str) -> None:
@@ -217,7 +227,7 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
             # send current dataframe and dataframe of previously summed counts to helper function
             summed_counts_df = _pairwise_sum(summed_counts_df, flags)
 
-    counts_final = _format_table(summed_counts_df, flag_meanings)
+    counts_final = _network_format_table(summed_counts_df, flag_meanings)
 
     ## Send final counts file to AWS as CSV
 
@@ -226,6 +236,7 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
     print(f"Sending summed counts dataframe for {network} to: {csv_s3_filepath}")
 
     return None
+
 
 # -----------------------------------------------------------------------------
 def total_sum_flag_counts(timestep: str) -> None:
@@ -284,6 +295,7 @@ def total_sum_flag_counts(timestep: str) -> None:
         print(f"Sending final summed counts dataframe for to: {csv_s3_filepath}")
 
         return None
+
 
 # -----------------------------------------------------------------------------
 def generate_station_tables(timestep: str) -> None:
