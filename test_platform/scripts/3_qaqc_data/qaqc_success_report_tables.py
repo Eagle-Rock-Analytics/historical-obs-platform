@@ -194,7 +194,7 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
             # send current dataframe and dataframe of previously summed counts to helper function
             summed_counts_df = _pairwise_sum(summed_counts_df, flags)
 
-    counts_final = _format_table(summed_counts_df, flag_meanings,'network')
+    counts_final = _format_table(summed_counts_df, flag_meanings, "network")
 
     ## Send final counts file to AWS as CSV
 
@@ -252,7 +252,7 @@ def total_sum_flag_counts(timestep: str) -> None:
             summed_counts_df = _pairwise_sum(summed_counts_df, flags)
 
     # format final table
-    final_table = _format_table(summed_counts_df,flag_meanings,'total')
+    final_table = _format_table(summed_counts_df, flag_meanings, "total")
 
     ## Send final counts file to AWS as CSV
     if len(summed_counts_df) == 0:
