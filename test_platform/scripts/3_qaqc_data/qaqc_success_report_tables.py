@@ -1,5 +1,5 @@
 """
-qaqc_generate_flag_sum.py
+qaqc_success_report_tables.py
 
 Creates QAQC flag counts csv files per network from the corresponding eraqc_counts_timestep files that were
 generated as a part of the final processing step for stations within the Historical Data Pipeline.
@@ -38,13 +38,13 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
-bucket_name = "wecc-historical-wx"
-qaqc_dir = "3_qaqc_wx"
-merge_dir = "4_merge_wx"
-stations_csv_path = f"s3://{bucket_name}/{qaqc_dir}/all_network_stationlist_qaqc.csv"
+BUCKET_NAME = "wecc-historical-wx"
+QAQC_DIR = "3_qaqc_wx"
+MERGE_DIR = "4_merge_wx"
+stations_csv_path = f"s3://{BUCKET_NAME}/{QAQC_DIR}/all_network_stationlist_qaqc.csv"
 
-# -----------------------------------------------------------------------------
-def _pairwise_sum(flag_df_1, flag_df_2) -> pd.DataFrame:
+
+def _pairwise_sum(flag_df_1: pd.DataFrame, flag_df_2: pd.DataFrame) -> pd.DataFrame:
     """
     Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
 
@@ -71,9 +71,8 @@ def _pairwise_sum(flag_df_1, flag_df_2) -> pd.DataFrame:
         return summed_df
 
 
-# -----------------------------------------------------------------------------
-def _network_format_table(
-    summed_counts: pd.DataFrame, flag_table: pd.DataFrame
+def _format_table(
+    summed_counts: pd.DataFrame, flag_table: pd.DataFrame, level: str
 ) -> pd.DataFrame:
     """
     A helper function that formats the network-level counts tables
@@ -84,21 +83,29 @@ def _network_format_table(
         dataframe of summed station flag counts
     flag_table: pd.DataFrame
         flag counts dataframes for next station
+    level: str
+        either 'total' or 'network'
+        setting level = 'network' adds one extra step that is not necessary in generating the 'total' flag sum table
 
     Returns
     -------
     final_format: pd.DataFrame
 
     """
+    if level not in ("network", "total"):
+        print("invalid level: ", level)
+        return None
+
     ## Format flag meanings df
     flag_table = flag_table.rename(columns={"Flag_value": "eraqc_flag_values"})
 
     ## Format summed counts df
 
-    # remove the ".0" from the flag values
-    summed_counts["eraqc_flag_values"] = summed_counts["eraqc_flag_values"].str.replace(
-        ".0", "", regex=True
-    )
+    if level == "network":
+        # remove the ".0" from the flag values
+        summed_counts["eraqc_flag_values"] = summed_counts[
+            "eraqc_flag_values"
+        ].str.replace(".0", "", regex=True)
 
     # convert flag value strings to integers
     summed_counts["eraqc_flag_values"] = summed_counts["eraqc_flag_values"].apply(
@@ -128,58 +135,16 @@ def _network_format_table(
         .index
     ]
 
+    # reset index after sorting
+    final_format = final_format.reset_index(drop=True)
+
     # convert all counts to integers
     final_format = final_format.applymap(
         lambda x: int(x) if not isinstance(x, str) else x
     )
-
     return final_format
 
 
-# -----------------------------------------------------------------------------
-def _total_format_table(summed_counts: pd.DataFrame) -> pd.DataFrame:
-    """
-    A helper function that formats the final, 'total' counts table
-
-    Parameters
-    ----------
-    summed_counts: pd.DataFrame
-        dataframe of summed station flag counts
-
-    Returns
-    -------
-    final_format: pd.DataFrame
-
-    """
-
-    # convert flag value strings to integers
-
-    summed_counts = summed_counts.applymap(
-        lambda x: int(x) if not isinstance(x, str) else x
-    )
-
-    ## Format final dataframe
-
-    # order by flag value, in descending numerical order
-    final_format = (
-        summed_counts.groupby(
-            summed_counts.eraqc_flag_values.apply(type) != str, group_keys=True
-        )
-        .apply(lambda g: g.sort_values("eraqc_flag_values"))
-        .reset_index(drop=True)
-    )
-
-    # move string flag value entries to the bottom
-    final_format = final_format.loc[
-        pd.to_numeric(final_format["eraqc_flag_values"], errors="coerce")
-        .sort_values()
-        .index
-    ]
-
-    return final_format
-
-
-# -----------------------------------------------------------------------------
 def network_sum_flag_counts(network: str, timestep: str) -> None:
     """
     Sums all station QAQC flag counts in a network for a given timestep (hourly or native) and sends to AWS.
@@ -213,13 +178,13 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
     summed_counts_df = []
 
     # point to folder containing station flag count CSVs
-    flags_prefix = f"{merge_dir}/{network}/eraqc_counts_{timestep}_timestep"
+    flags_prefix = f"{MERGE_DIR}/{network}/eraqc_counts_{timestep}_timestep"
 
     ## Merge flag counts
 
     # loop through all CSVs are the given level
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=flags_prefix):
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=flags_prefix):
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
         flags = pd.read_csv(obj["Body"])
         # the CSV is empty
         if flags.empty:
@@ -229,7 +194,7 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
             # send current dataframe and dataframe of previously summed counts to helper function
             summed_counts_df = _pairwise_sum(summed_counts_df, flags)
 
-    counts_final = _network_format_table(summed_counts_df, flag_meanings)
+    counts_final = _format_table(summed_counts_df, flag_meanings,'network')
 
     ## Send final counts file to AWS as CSV
 
@@ -240,7 +205,6 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
     return None
 
 
-# -----------------------------------------------------------------------------
 def total_sum_flag_counts(timestep: str) -> None:
     """
     Sums all network-level QAQC flag counts for a given timestep (hourly or native) and sends to AWS.
@@ -259,6 +223,8 @@ def total_sum_flag_counts(timestep: str) -> None:
     """
     ## Setup
 
+    flag_meanings = pd.read_csv("era_qaqc_flag_meanings.csv")
+
     # only run for a valid "timestep" input
     if timestep not in ("hourly", "native"):
         print("invalid timestep: ", timestep)
@@ -268,13 +234,13 @@ def total_sum_flag_counts(timestep: str) -> None:
     summed_counts_df = []
 
     # point to folder containing network-level flag count CSVs
-    flags_prefix = f"{merge_dir}/per_network_flag_counts_{timestep}_timestep"
+    flags_prefix = f"{MERGE_DIR}/per_network_flag_counts_{timestep}_timestep"
 
     ## Merge flag counts
 
     # loop through all networks CSVs
-    for item in s3.Bucket(bucket_name).objects.filter(Prefix=flags_prefix):
-        obj = s3_cl.get_object(Bucket=bucket_name, Key=item.key)
+    for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=flags_prefix):
+        obj = s3_cl.get_object(Bucket=BUCKET_NAME, Key=item.key)
         flags = pd.read_csv(obj["Body"])
         # the CSV is empty
         if flags.empty:
@@ -286,7 +252,7 @@ def total_sum_flag_counts(timestep: str) -> None:
             summed_counts_df = _pairwise_sum(summed_counts_df, flags)
 
     # format final table
-    final_table = _total_format_table(summed_counts_df)
+    final_table = _format_table(summed_counts_df,flag_meanings,'total')
 
     ## Send final counts file to AWS as CSV
     if len(summed_counts_df) == 0:
@@ -299,7 +265,6 @@ def total_sum_flag_counts(timestep: str) -> None:
         return None
 
 
-# -----------------------------------------------------------------------------
 def generate_station_tables(timestep: str) -> None:
     """
     Runs network_sum_flag_counts() for every network.
