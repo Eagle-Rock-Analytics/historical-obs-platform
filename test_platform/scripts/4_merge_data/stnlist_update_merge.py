@@ -1,7 +1,7 @@
 """
 stnlist_update_merge.py
 
-This script iterates through a specified network and checks to see what stations have been successfully been hourly standardized and merged,
+This script iterates through a specified network and checks to see what stations have been successfully hourly standardized and merged,
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files do not pass merge, or if the errors occur during or after the merge process.
 
