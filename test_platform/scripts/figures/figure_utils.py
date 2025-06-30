@@ -166,6 +166,629 @@ def get_station_list_paths(bucket_name, directory):
     # Note: currently doesn't have a method for dealing with more than one normally formatted station file
     return networks
 
+# ---------------------------------------------------------
+# get_station_list(bucket_name, directory)
+
+# stage 1
+
+
+def get_station_list(bucket_name, directory):
+    # Set up variables
+    s3 = boto3.resource(
+        "s3"
+    )  # Note these calls are reproduced in get_station_list_paths, but this enables us to run that function separately.
+    s3_cl = boto3.client("s3")  # for lower-level processes
+    dffull = pd.DataFrame()
+
+    networks = get_station_list_paths(bucket_name, directory)
+    networks = pd.DataFrame(networks)
+
+    # Remove ASOS/AWOS, madis and isd lists to prevent duplicates
+    # note: for station list (all stations), you'll probably want to KEEP the asosawos_stations and remove isd_asosawos or merge both!
+    # we do this here because the ISD station list has start/end dates, and asosawos does not.
+    # If station has more than one type of station file (e.g. ASOSAWOS), manually remove the one you don't want to use here.
+    remove_list = [
+        "/stationlist_ASOSAWOS.csv",
+        "/isd_stations.csv",
+        "madis_stations.csv",
+    ]  # / used to keep otherisd_stations.csv
+    networks = networks[~networks.StationFile.str.contains("|".join(remove_list))]
+
+    # Check that no network has >1 station file and break code if it does.
+    boolean = networks["Network"].is_unique
+
+    total = 0
+
+    # print(boolean)
+    if boolean is False:  # Tested by commenting out two remove lines above, works.
+        dupes = networks["Network"].duplicated()
+        doubles = list(networks["Network"][dupes])
+        print(
+            "Error: More than one station file found for the following networks: {}. Inspect folder, add duplicated files to remove_list and re-run function.".format(
+                doubles
+            )
+        )
+        return
+
+    for index, row in networks.iterrows():
+        try:
+            # print(row['StationFile'])
+            # Get data
+            df = pd.DataFrame()
+            obj = s3_cl.get_object(
+                Bucket=bucket_name, Key=row["StationFile"]
+            )  # Get file using StationFile as path.
+            body = obj["Body"].read()
+            temp = pd.read_csv(BytesIO(body), encoding="utf8")
+
+        except Exception as e:  # If there's an encoding error when reading in file
+            # print("Error parsing station file for {}: {}".format(row['Network'], e))
+            try:
+                if "xlsx" in row["StationFile"]:  # If file is .xlsx file (CIMIS)
+                    temp = pd.read_excel(
+                        BytesIO(body), engine="openpyxl"
+                    )  # Use different pandas function to read in.
+            except Exception as e:  # If there's an encoding error when reading in file
+                print("Error parsing station file for {}: {}".format(row["Network"], e))
+
+        try:
+            networkname = row["Network"]
+
+            print(networkname, len(temp))
+            total += len(temp)
+            print(total)
+
+            # Deal with distinct formatting of different station lists.
+            # Make column names to lower.
+            temp.columns = temp.columns.str.lower()
+
+            # Delete index column
+            remove = [col for col in temp.columns if "unnamed" in col]
+            if remove is not None:
+                temp = temp.drop(remove, axis=1)
+
+            # Each df should have 6 columns.
+            # network: network name.
+            # name: station name
+            # latitude
+            # longitude
+            # start-date: date station started running
+            # end-date: date station stopped running
+            # pulled: Y/N/NA, if station assessed as downloaded by pull_qa.py
+            # time_checked: time of pull check.
+
+            # # name: station name, station_name, name, dcp location name --> use name as filter.
+            if any("name" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "name" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set(["countyname"])
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        print(
+                            "Too many options for station name columns. Add manually to removelist: {}".format(
+                                colname
+                            )
+                        )
+                        break
+
+                # print(temp[colname])
+                df["name"] = temp[colname].values.reshape(
+                    -1,
+                )  # Assign column to df.
+                # print(df)
+
+            # latitude: lat or latitude
+            if any("lat" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "lat" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        print(
+                            "Too many options for latitude columns. Add manually to removelist: {}".format(
+                                colname
+                            )
+                        )
+                        break
+                df["latitude"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["latitude"] = np.nan
+
+            # longitude: lat or latitude
+            if any("lon" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "lon" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        print(
+                            "Too many options for longitude columns. Add manually to removelist: {}".format(
+                                colname
+                            )
+                        )
+                        break
+                df["longitude"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["longitude"] = np.nan
+
+            # elevation: elev or elevation (TO DO: convert to same unit!!)
+            if any("elev" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "elev" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        if "elev_dem" in colname:
+                            colname.remove("elev_dem")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for elevation columns. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["elevation"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["elevation"] = np.nan
+
+            # # start-date: search for start, begin or connect
+            if any(y in x for x in temp.columns for y in ["begin", "start", "connect"]):
+                colname = [
+                    col
+                    for col in temp.columns
+                    if any(sub in col for sub in ["begin", "start", "connect"])
+                ]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])  # Add any items to be manually removed here.
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        if (
+                            "start_time" in colname
+                        ):  # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
+                            if "begin" in colname:
+                                colname.remove("begin")
+                        if "disconnect" in colname:
+                            colname.remove("disconnect")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for start date columns. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["start-date"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:  # If no start date provided
+                df["start-date"] = np.nan
+
+            # # end-date: search for end or disconnect
+            if any(y in x for x in temp.columns for y in ["end", "disconnect"]):
+                colname = [
+                    col
+                    for col in temp.columns
+                    if any(sub in col for sub in ["end", "disconnect"])
+                ]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])  # Add any items to be manually removed here.
+                    colname = list(
+                        set(colname) - removelist
+                    )  # Use sets to exclude partial matches (e.g. 'name' in 'countyname')
+                    if len(colname) > 1:
+                        if (
+                            "end_time" in colname
+                        ):  # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
+                            if "end" in colname:
+                                colname.remove("end")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for end date columns. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["end-date"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:  # If no start date provided
+                df["end-date"] = np.nan
+
+            # Add pulled and date checked columns, if they exist
+            if any("pulled" in str for str in temp.columns):
+                df["pulled"] = temp["pulled"].values.reshape(
+                    -1,
+                )
+            else:
+                df["pulled"] = np.nan
+
+            if any("time_checked" in str for str in temp.columns):
+                df["time_checked"] = temp["time_checked"].values.reshape(
+                    -1,
+                )
+            else:
+                df["time_checked"] = np.nan
+
+            # Make network column
+            df["network"] = networkname
+
+            dffull = pd.concat([dffull, df], sort=False)
+
+        except Exception as e:
+            print(e)
+
+    # Organize full dataframe.
+    # If end date is "active", make this be today's date.
+    today = datetime.now()
+
+    dffull["end-date"] = dffull["end-date"].replace("Active", today)
+
+    # Format dates in datetime format.
+    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
+    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
+
+    # Drop empty rows - lat/lon as min criteria for inclusion
+    dffull.dropna(subset=["latitude"], inplace=True)
+    dffull.dropna(subset=["longitude"], inplace=True)
+    # Remove any duplicates (of network and ID)
+    dffull.sort_values(
+        by=["start-date"], ascending=True, inplace=True
+    )  # Sort by network and time so oldest network is always first
+    dffull.drop_duplicates(
+        subset=["name", "latitude", "longitude", "network"], inplace=True
+    )
+    print(len(dffull))
+    # Resort by network
+    dffull.sort_values(by=["network"], inplace=True)
+
+    # Reset index.
+    dffull = dffull.reset_index(drop=True)
+
+    # Save station chart to AWS
+    csv_buffer = StringIO()
+    dffull.to_csv(csv_buffer, na_rep="NaN")
+    content = csv_buffer.getvalue()
+    s3_cl.put_object(
+        Bucket=bucket_name, Body=content, Key="1_raw_wx/temp_pull_all_station_list.csv"
+    )
+
+    return dffull
+
+# stage 2
+
+
+def get_station_list(bucket_name, directory):
+    # Set up variables
+    # Note these calls are reproduced in get_station_list_paths, but enables to run function separately
+    s3 = boto3.resource("s3")
+    s3_cl = boto3.client("s3")
+    dffull = pd.DataFrame()
+
+    networks = get_station_list_paths(bucket_name, directory)
+    networks = pd.DataFrame(networks)
+
+    # Remove ASOS/AWOS merge version -- need to confirm what this is
+    # If station has more than one type of station file (e.g. ASOSAWOS), manually remove the one you dont want to use
+    remove_list = ["stationlist_ASOSAWOS_merge.csv"]
+    networks = networks[~networks.StationFile.str.contains("|".join(remove_list))]
+
+    # Remove all Valley Water stations from list
+    networks = networks[networks["Network"] != "VALLEYWATER"]
+
+    # Check that no network has >1 station file and break code if it does.
+    boolean = networks["Network"].is_unique
+
+    total = 0
+
+    if boolean is False:  # Tested by commenting out two remove lines above, works.
+        dupes = networks["Network"].duplicated()
+        doubles = list(networks["Network"][dupes])
+        print(
+            "Error: More than one station file found for the following networks: {}. \
+              Inspect folder, add duplicated files to remove_list and re-run function.".format(
+                doubles
+            )
+        )
+        return
+
+    for index, row in networks.iterrows():
+        #         try:
+        # Get data
+        df = pd.DataFrame()
+        obj = s3_cl.get_object(Bucket=bucket_name, Key=row["StationFile"])  # get file
+        body = obj["Body"].read()
+        temp = pd.read_csv(BytesIO(body), encoding="utf8")
+
+        try:
+            networkname = row["Network"]
+
+            print("Checking for cleaned stations: ", networkname)
+            total += len(temp)
+
+            # Deal with distinct formatting of different station lists.
+            # Make column names to lower.
+            temp.columns = temp.columns.str.lower()
+
+            # Delete index column
+            remove = [col for col in temp.columns if "unnamed" in col]
+            if remove is not None:
+                temp = temp.drop(remove, axis=1)
+
+            # Each df should have at least the following columns:
+            # ERA-ID: specific cleaned station name of network_station
+            # LAT
+            # LON
+            # start-date: date station started running
+            # end-date: date station stopped running
+            # Cleaned: Y/N/NA, if station assessed as downloaded by stnlist_update_clean.py
+            # Time_Cleaned: time of clean check
+
+            # Cleaned variable coverage, number of valid observations
+            # tas_nobs
+            # tdps_nobs
+            # tdps_derived_obs
+            # ps_nobs
+            # psl_nobs
+            # ps_altimeter_nobs
+            # ps_derived_nobs
+            # pr_nobs
+            # pr_5min_nobs
+            # pr_1h_nobs
+            # pr_25h_nobs
+            # pr_localmid_nobs
+            # hurs_nobs
+            # sfcWind_nobs
+            # sfcWind_dir_nobs
+            # rsds_nobs
+            # total_nobs: total length of data record, including nans
+
+            # name: station name, station_name, name, dcp location name --> use name as filter
+            if any("era-id" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "era-id" in col]
+                df["era-id"] = temp[colname].values.reshape(
+                    -1,
+                )  # Assign column to df.
+
+            # latitude: lat or latitude
+            if any("lat" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "lat" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])
+                    colname = list(set(colname) - removelist)
+                    if len(colname) > 1:
+                        print(
+                            "Too many options for lat cols. Add manually to removelist: {}".format(
+                                colname
+                            )
+                        )
+                        break
+                df["latitude"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["latitude"] = np.nan
+
+            # longitude: lat or latitude
+            if any("lon" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "lon" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])
+                    colname = list(set(colname) - removelist)
+                    if len(colname) > 1:
+                        print(
+                            "Too many options for lon cols. Add manually to removelist: {}".format(
+                                colname
+                            )
+                        )
+                        break
+                df["longitude"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["longitude"] = np.nan
+
+            # elevation: elev or elevation (TO DO: convert to same unit!!)
+            if any("elev" in str for str in temp.columns):
+                colname = [col for col in temp.columns if "elev" in col]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set(
+                        ["elev(m)", "barometer_elev", "anemometer_elev"]
+                    )  # remove sensor heights
+                    colname = list(set(colname) - removelist)
+                    if len(colname) > 1:
+                        if "elev_dem" in colname:
+                            colname.remove("elev_dem")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for elev cols. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["elevation"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:
+                df["elevation"] = np.nan
+
+            # start-date: search for start, begin or connect
+            if any(y in x for x in temp.columns for y in ["begin", "start", "connect"]):
+                colname = [
+                    col
+                    for col in temp.columns
+                    if any(sub in col for sub in ["begin", "start", "connect"])
+                ]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set(
+                        ["startdate"]
+                    )  # Add any items to be manually removed here.
+                    colname = list(set(colname) - removelist)
+                    if len(colname) > 1:
+                        # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
+                        if "start_time" in colname:
+                            if "begin" in colname:
+                                colname.remove("begin")
+                        if "disconnect" in colname:
+                            colname.remove("disconnect")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for start cols. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["start-date"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:  # If no start date provided
+                df["start-date"] = np.nan
+
+            # end-date: search for end or disconnect
+            if any(y in x for x in temp.columns for y in ["end", "disconnect"]):
+                colname = [
+                    col
+                    for col in temp.columns
+                    if any(sub in col for sub in ["end", "disconnect"])
+                ]
+                if len(colname) > 1:  # If more than one col returned
+                    removelist = set([])  # Add any items to be manually removed here.
+                    colname = list(set(colname) - removelist)
+                    if len(colname) > 1:
+                        # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
+                        if "end_time" in colname:
+                            if "end" in colname:
+                                colname.remove("end")
+                        if len(colname) > 1:
+                            print(
+                                "Too many options for end cols. Add manually to removelist: {}".format(
+                                    colname
+                                )
+                            )
+                            break
+                df["end-date"] = temp[colname].values.reshape(
+                    -1,
+                )
+            else:  # If no start date provided
+                df["end-date"] = np.nan
+
+            # Add pulled and date checked columns, if they exist
+            if any("cleaned" in str for str in temp.columns):
+                df["cleaned"] = temp["cleaned"].values.reshape(
+                    -1,
+                )
+            else:
+                df["cleaned"] = np.nan
+
+            if any("time_cleaned" in str for str in temp.columns):
+                df["time_cleaned"] = temp["time_cleaned"].values.reshape(
+                    -1,
+                )
+            else:
+                df["time_cleaned"] = np.nan
+
+            # Make network column
+            df["network"] = networkname
+
+            ## Cleaned variable coverage
+            cleaned_vars = [
+                "tas_nobs",
+                "tdps_nobs",
+                "tdps_derived_nobs",
+                "ps_nobs",
+                "ps_derived_nobs",
+                "psl_nobs",
+                "ps_altimeter_nobs",
+                "pr_nobs",
+                "pr_5min_nobs",
+                "pr_1h_nobs",
+                "pr_24h_nobs",
+                "pr_localmid_nobs",
+                "hurs_nobs",
+                "sfcwind_nobs",
+                "sfcwind_dir_nobs",
+                "rsds_nobs",
+                "total_nobs",
+            ]
+
+            for clean_var in cleaned_vars:
+                if any(clean_var in str for str in temp.columns):
+                    df[clean_var] = temp[clean_var].values.reshape(
+                        -1,
+                    )
+                else:
+                    df[clean_var] = (
+                        np.nan
+                    )  # will be redundant once all networks have var coverage updated
+
+            dffull = pd.concat([dffull, df], sort=False)
+
+        except Exception as e:
+            print(e)
+
+    # Organize full dataframe
+    # If end date is "active", make this be today's date.
+    today = datetime.now()
+    dffull["end-date"] = dffull["end-date"].replace("Active", today)
+
+    # Format dates in datetime format.
+    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
+    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
+
+    # Drop empty rows - lat/lon as min criteria for inclusion
+    dffull.dropna(subset=["latitude"], inplace=True)
+    dffull.dropna(subset=["longitude"], inplace=True)
+
+    # Remove any duplicates (of network and ID)
+    dffull.sort_values(
+        by=["start-date"], ascending=True, inplace=True
+    )  #  oldest network is always first
+    dffull.drop_duplicates(
+        subset=["era-id", "latitude", "longitude", "network"], inplace=True
+    )
+
+    # Print some useful statistics
+    num_allstns = len(dffull)
+    num_cleanstns = dffull["cleaned"].value_counts()["Y"]
+    print("Number of cleaned stations: ", num_cleanstns)
+    print(
+        "Successful clean station rate: {}%".format((num_cleanstns / num_allstns) * 100)
+    )
+
+    # Resort by network
+    dffull.sort_values(by=["network"], inplace=True)
+
+    # Reset index.
+    dffull = dffull.reset_index(drop=True)
+
+    # Save station chart to AWS
+    csv_buffer = StringIO()
+    dffull.to_csv(csv_buffer, na_rep="NaN")
+    content = csv_buffer.getvalue()
+    s3_cl.put_object(
+        Bucket=bucket_name,
+        Body=content,
+        Key="2_clean_wx/temp_clean_all_station_list.csv",
+    )
+
+    return dffull
+
+
+
 
 # ---------------------------------------------------------
 # get_station_chart(bucket_name, directory)
