@@ -25,8 +25,11 @@ import inspect
 # ---------------------------------------------------------
 # get_station_chart(bucket_name, directory)
 
-# stage 1
+# final function
+def get_station_chart(bucket_name, directory, update=False):
 
+
+# stage 1
 
 def get_station_chart(bucket_name, directory, update=False):
     s3 = boto3.resource("s3")
