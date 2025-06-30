@@ -186,15 +186,9 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
 
     # Add path info as new columns
     full_df["rawdir"] = full_df["network"].apply(lambda row: f"1_raw_wx/{row}/")
-    full_df["cleandir"] = full_df["network"].apply(
-        lambda row: f"2_clean_wx/{row}/"
-    )
-    full_df["qaqcdir"] = full_df["network"].apply(
-        lambda row: f"3_qaqc_wx/{row}/"
-    )
-    full_df["mergedir"] = full_df["network"].apply(
-        lambda row: f"4_merge_wx/{row}/"
-    )
+    full_df["cleandir"] = full_df["network"].apply(lambda row: f"2_clean_wx/{row}/")
+    full_df["qaqcdir"] = full_df["network"].apply(lambda row: f"3_qaqc_wx/{row}/")
+    full_df["mergedir"] = full_df["network"].apply(lambda row: f"4_merge_wx/{row}/")
 
     # If its a zarr store, use the zarr file extension (".zarr")
     if zarr == True:
@@ -319,21 +313,22 @@ def process_output_ds(
             if var in list(ds.data_vars.keys()):
                 # Only if var was originally present in dataset
                 if "ancillary_variables" in list(ds[var].attrs.keys()):
-                    ds[var].attrs["ancillary_variables"] = ds[var].attrs[
-                        "ancillary_variables"
-                    ] + f", {eraqc_var}"
+                    ds[var].attrs["ancillary_variables"] = (
+                        ds[var].attrs["ancillary_variables"] + f", {eraqc_var}"
+                    )
                 else:
                     ds[var].attrs["ancillary_variables"] = f"{eraqc_var}"
     # Overwrite file title
     ds = ds.assign_attrs(title=network + " quality controlled")
 
     # Append qaqc to the file history and comments (https://docs.unidata.ucar.edu/netcdf-c/current/attribute_conventions.html)
-    ds.attrs["history"] = ds.attrs[
-        "history"
-    ] + t" \nQAQC_pipeline.py script run on {timestamp} UTC"
-    ds.attrs["comment"] = ds.attrs[
-        "comment"
-    ] + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing."
+    ds.attrs["history"] = (
+        ds.attrs["history"] + f" \nQAQC_pipeline.py script run on {timestamp} UTC"
+    )
+    ds.attrs["comment"] = (
+        ds.attrs["comment"]
+        + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing."
+    )
 
     # Write station file
     if zarr == False:
@@ -445,9 +440,7 @@ def qaqc_ds_to_df(
             if qc_var not in era_qc_vars:
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
-                logger.info(
-                    f"nans created for {qc_var}"
-                )
+                logger.info(f"nans created for {qc_var}")
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
 
     n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
@@ -1168,7 +1161,7 @@ def run_qaqc_one_station(
         # Save log file to s3 bucket
         logfile_s3_filepath = f"s3://{BUCKET_NAME}/{qaqc_dir}{log_fname}"
         logger.info(
-           f"Saving log file to {logfile_s3_filepath}\n",
+            f"Saving log file to {logfile_s3_filepath}\n",
         )
         s3.Bucket(BUCKET_NAME).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
 
