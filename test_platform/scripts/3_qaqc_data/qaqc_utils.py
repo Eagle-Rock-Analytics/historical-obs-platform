@@ -101,16 +101,13 @@ def create_bins_frequent(
     # Get data
     data = df[var]
 
-    # Compute bins
-    b_min = np.floor(
-        np.nanmin(data)
-    )  # Get the minimum of the data; get closest integer to min (floor)
-    b_max = np.ceil(
-        np.nanmax(data)
-    )  # Get the maximum of the data; get closest integer to max (ceil)
-    bins = np.arange(
-        b_min, b_max + bin_size, bin_size
-    )  # Arange the bins; largest bin should be maximum + bin size.
+    # Compute bin
+    # Get the minimum of the data; get closest integer to min (floor)
+    b_min = np.floor(np.nanmin(data))  
+    # Get the maximum of the data; get closest integer to max (ceil)
+    b_max = np.ceil(np.nanmax(data))  
+    # Arange the bins; largest bin should be maximum + bin size.
+    bins = np.arange(b_min, b_max + bin_size, bin_size)  
 
     return bins
 
@@ -445,10 +442,10 @@ def get_file_paths(network: str) -> tuple[str, str, str, str]:
     mergedir : str
         Path to the final merged data bucket
     """
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
-    mergedir = "4_merge_wx/{}/".format(network)
+    rawdir = f"1_raw_wx/{network}/"
+    cleandir = f"2_clean_wx/{network}/"
+    qaqcdir = f"3_qaqc_wx/{network}/"
+    mergedir = f"4_merge_wx/{network}/"
     return rawdir, cleandir, qaqcdir, mergedir
 
 

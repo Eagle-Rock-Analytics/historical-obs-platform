@@ -100,7 +100,7 @@ def get_SCAN_stations(
             # Fix name differences between SNOTEL/SNTL
             if i == "SNTL":
                 i = "SNOTEL"
-            subdir = "1_raw_wx/{}/".format(i)
+            subdir = f"1_raw_wx/{i}/"
 
             # Save to AWS
             csv_buffer = StringIO()
@@ -109,7 +109,7 @@ def get_SCAN_stations(
             s3_cl.put_object(
                 Bucket=BUCKET_NAME,
                 Body=content,
-                Key=subdir + "stationlist_{}.csv".format(i),
+                Key=subdir + f"stationlist_{i}.csv",
             )
 
         return station_metadata
@@ -294,13 +294,13 @@ def get_scan_station_data(
                     s3_cl.put_object(
                         Bucket=BUCKET_NAME,
                         Body=content,
-                        Key=directory + "{}.csv".format(j),
+                        Key=directory + f"{j}.csv",
                     )
                 else:
                     s3_cl.put_object(
                         Bucket=BUCKET_NAME,
                         Body=content,
-                        Key=directory + "{}_{}.csv".format(j, fileext),
+                        Key=directory + f"{j}_{fileext}.csv",
                     )
                 print(f"Saved data for station {j} in network {i}")
             except Exception as e:
@@ -319,7 +319,7 @@ def get_scan_station_data(
         s3_cl.put_object(
             Bucket=BUCKET_NAME,
             Body=content,
-            Key=directory + "errors_{}_{}.csv".format(i, end_api),
+            Key=directory + f"errors_{i}_{end_api}.csv",
         )
 
     return None

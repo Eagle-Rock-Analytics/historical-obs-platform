@@ -71,12 +71,8 @@ def qaqc_crossvar_logic_tdps_to_tas_supersat(df: pd.DataFrame) -> pd.DataFrame:
                     12  # see qaqc_flag_meanings.csv
                 )
             except Exception as e:
-                logger.info(
-                    "qaqc_crossvar_logic_tdps_to_tas_supersat failed with Exception: {}".format(
-                        e
-                    )
-                )
-                continue
+                logger.error("qaqc_crossvar_logic_tdps_to_tas_supersat failed")
+                raise e
 
     return df
 
@@ -149,12 +145,8 @@ def qaqc_crossvar_logic_tdps_to_tas_wetbulb(df: pd.DataFrame) -> pd.DataFrame:
                         "Flagging extended streak in dewpoint depression",
                     )
             except Exception as e:
-                logger.info(
-                    "qaqc_crossvar_logic_tdps_to_tas_wetbulb failed with Exception: {}".format(
-                        e
-                    )
-                )
-                continue
+                logger.error("qaqc_crossvar_logic_tdps_to_tas_wetbulb failed")
+                raise e
 
     return df_dpt
 
@@ -186,13 +178,15 @@ def qaqc_precip_logic_nonegvals(df: pd.DataFrame) -> pd.DataFrame:
     vars_to_remove = ["qc", "duration", "method", "depth", "accum"]
     all_pr_vars = [
         var for var in df_neg_pr.columns if "pr" in var
-    ]  # can be variable length depending if there is a raw qc var
+    ]  
+    # can be variable length depending if there is a raw qc var
     pr_vars = [
         var
         for var in all_pr_vars
         if not any(True for item in vars_to_remove if item in var)
-    ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
-    logger.info("Running qaqc_precip_logic_nonegvals on: {}".format(pr_vars))
+    ]  
+    # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
+    logger.info(f"Running qaqc_precip_logic_nonegvals on: {pr_vars}")
 
     if not pr_vars:  # precipitation variable(s) is not present
         logger.info(
@@ -210,10 +204,8 @@ def qaqc_precip_logic_nonegvals(df: pd.DataFrame) -> pd.DataFrame:
                         df_neg_pr.index.isin(df_to_flag.index), item + "_eraqc"
                     ] = 10  # see era_qaqc_flag_meanings.csv
             except Exception as e:
-                logger.info(
-                    "qaqc_precip_logic_nonegvals failed with Exception: {}".format(e)
-                )
-                continue
+                logger.error("qaqc_precip_logic_nonegvals failed")
+                raise e
 
     return df_neg_pr
 
@@ -314,10 +306,8 @@ def qaqc_precip_logic_accum_amounts(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     except Exception as e:
-        logger.info(
-            "qaqc_precip_logic_accum_amounts failed with Exception: {}".format(e),
-        )
-        return df
+        logger.error("qaqc_precip_logic_accum_amounts failed")
+        raise e
 
 
 def qaqc_crossvar_logic_calm_wind_dir(df: pd.DataFrame) -> pd.DataFrame:
@@ -381,10 +371,8 @@ def qaqc_crossvar_logic_calm_wind_dir(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     except Exception as e:
-        logger.info(
-            "qaqc_crossvar_logic_calm_wind_dir failed with Exception: {}".format(e),
-        )
-        return df
+        logger.error("qaqc_crossvar_logic_calm_wind_dir failed")
+        raise e
 
 
 def qaqc_pressure_units_fix(df: pd.DataFrame) -> pd.DataFrame:
@@ -419,12 +407,10 @@ def qaqc_pressure_units_fix(df: pd.DataFrame) -> pd.DataFrame:
                 if df[var].mean() < 10000:
                     df[var] = df[var] * 100.0
                     logger.info(
-                        "Pressure units on {} updated to be Pa".format(var),
+                        f"Pressure units on {var} updated to be Pa",
                     )
         except Exception as e:
-            logger.info(
-                "qaqc_pressure_units_fix failed with Exception: {}".format(e),
-            )
-            continue
+            logger.error("qaqc_pressure_units_fix failed")
+            raise e
 
     return df

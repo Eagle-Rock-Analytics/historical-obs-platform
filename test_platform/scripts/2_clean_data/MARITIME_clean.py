@@ -241,13 +241,13 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                         df.iloc[1][0] <= 99
                                     ):  # 1980-1999
                                         df["YYYY"] = df["YY"].apply(
-                                            lambda x: "{}{}".format("19", x)
+                                            lambda x: f"19{x}"
                                         )
                                         df = df.iloc[:, 1:]
                                     else:
                                         # 2000-present
                                         df["YYYY"] = df["YY"].apply(
-                                            lambda x: "{}{}".format("20", x)
+                                            lambda x: f"20{x}"
                                         )
                                         df = df.iloc[:, 1:]
 
@@ -694,7 +694,7 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                     try:
                         if key != "elevation":
                             if np.isnan(ds[key].values).all():
-                                print("Dropping empty var: {}".format(key))
+                                print(f"Dropping empty var: {key}")
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans

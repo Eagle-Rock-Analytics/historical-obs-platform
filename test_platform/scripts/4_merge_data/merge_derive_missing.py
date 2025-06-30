@@ -74,10 +74,8 @@ def merge_derive_missing_vars(
         # var is missing
         # check if required inputs are available
         if "tdps" not in df.columns and "tdps_derived" not in df.columns:
-            if _input_var_check(df, var1="tas", var2="hurs") == True:
-                logger.info(
-                    "Calculating tdps_derived..."
-                )  # convert to logger when set-up
+            if _input_var_check(df, var1="tas", var2="hurs") == True:                
+                logger.info("Calculating tdps_derived...")
                 df["tdps_derived"] = _calc_dewpointtemp(df["tas"], df["hurs"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tdps_derived", "tas", "hurs")
@@ -96,15 +94,11 @@ def merge_derive_missing_vars(
         # first check if station has any vars that can be derived
         for item in derive_vars:
             if item in df.columns:
-                logger.info(
-                    f"{item} is present in station, no derivation necessary."
-                )  # convert to logger when set-up
+                logger.info(f"{item} is present in station, no derivation necessary.")
                 continue
 
             if item == "hurs" and _input_var_check(df, var1="tas", var2="tdps") == True:
-                logger.info(
-                    f"Calculating {item}_derived..."
-                )  # convert to logger when set-up
+                logger.info(f"Calculating {item}_derived...")
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps")
@@ -121,9 +115,7 @@ def merge_derive_missing_vars(
                 item == "hurs"
                 and _input_var_check(df, var1="tas", var2="tdps_derived") == True
             ):
-                logger.info(
-                    f"Calculating {item}_derived ..."
-                )  # convert to logger when set-up
+                logger.info(f"Calculating {item}_derived ...")
                 df["hurs_derived"] = _calc_relhumid(df["tas"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "hurs_derived", "tas", "tdps_derived")
@@ -139,9 +131,7 @@ def merge_derive_missing_vars(
             elif (
                 item == "tas" and _input_var_check(df, var1="hurs", var2="tdps") == True
             ):
-                logger.info(
-                    f"Calculating {item}_derived..."
-                )  # convert to logger when set-up
+                logger.info(f"Calculating {item}_derived...")
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "hurs", "tdps")
@@ -158,9 +148,7 @@ def merge_derive_missing_vars(
                 item == "tas"
                 and _input_var_check(df, var1="hurs", var2="tdps_derived") == True
             ):
-                logger.info(
-                    f"Calculating {item}_derived ...."
-                )  # convert to logger when set-up
+                logger.info(f"Calculating {item}_derived ....")
                 df["tas_derived"] = _calc_airtemp(df["hurs"], df["tdps_derived"])
                 # synergistic flag check
                 df = derive_synergistic_flag(df, "tas_derived", "tas", "tdps_derived")
@@ -176,7 +164,7 @@ def merge_derive_missing_vars(
             else:
                 logger.info(
                     f"{item} is missing the required input variables. {item}_derived not calculated."
-                )  # convert to logger when set-up
+                ) 
 
         logger.info(f"{inspect.currentframe().f_code.co_name}: Completed successfully")
         return df, new_var_attrs
@@ -244,23 +232,23 @@ def derive_synergistic_flag(
     # This column shouldn't have been strings in the first place, but oh well.
     for var in [var1, var2]:
         col = var + "_eraqc"
-        df[col] = df[col].replace(
-            ["nan", ""], np.nan
-        )  # Replace string "nan" and empty string "" to np.nan
-        df[col] = pd.to_numeric(
-            df[col], errors="coerce"
-        )  # Convert string integers ("28") to actual integers (28)
+         # Replace string "nan" and empty string "" to np.nan
+        df[col] = df[col].replace(["nan", ""], np.nan) 
+        # Convert string integers ("28") to actual integers (28)
+        df[col] = pd.to_numeric(df[col], errors="coerce")  
 
     # identify if var 1 has flags
     if len(df[var1 + "_eraqc"].unique()) > 1:
         # flags are present
+        # see 3_qaqc_data/era_qaqc_flag_meanings.csv
         df.loc[df[var1 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
-            38  # see 3_qaqc_data/era_qaqc_flag_meanings.csv
+            38  
         )
 
     if len(df[var2 + "_eraqc"].unique()) > 1:
+        # see 3_qaqc_data/era_qaqc_flag_meanings.csv
         df.loc[df[var2 + "_eraqc"] > 0, var_to_flag + "_eraqc"] = (
-            38  # see 3_qaqc_data/era_qaqc_flag_meanings.csv
+            38  
         )
 
     return df
@@ -331,15 +319,18 @@ def _calc_dewpointtemp(tas: pd.Series, hurs: pd.Series) -> pd.Series:
     -----
     Rounded to 3 decimal places to be consistent with input raw data sig figs
     """
+    # calculates saturation vapor pressure
     es = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / tas))
-    )  # calculates saturation vapor pressure
+    )  
+     # calculates vapor pressure, IF NOT ALREADY OBSERVED
     e_vap = (
         es * hurs
-    ) / 100.0  # calculates vapor pressure, IF NOT ALREADY OBSERVED -- will need ifelse statement
+    ) / 100.0 
+    # calculates dew point temperature, units = K
     tdps = (
         (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
-    ) ** -1  # calculates dew point temperature, units = K
+    ) ** -1  
     return np.round(tdps, decimals=3)
 
 
@@ -402,12 +393,13 @@ def _calc_relhumid(tas: pd.Series, tdps: pd.Series) -> pd.Series:
     -----
     Rounded to 3 decimal places to be consistent with input raw data sig figs
     """
-
+    # calculates saturation vapor pressure using air temp
     es = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / tas))
-    )  # calculates saturation vapor pressure using air temp
+    )  
+    # calculates vapor pressure using dew point temp
     e_vap = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / tdps))
-    )  # calculates vapor pressure using dew point temp
+    )  
     hurs = 100 * (e_vap / es)
     return np.round(hurs, decimals=3)

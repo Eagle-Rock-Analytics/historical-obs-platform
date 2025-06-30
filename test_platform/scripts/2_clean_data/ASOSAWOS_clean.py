@@ -273,13 +273,13 @@ def clean_asosawos(rawdir: str, cleandir: str):
                                 or lon > lonmax
                                 or lon < lonmin
                             ):
-                                print("Station {} not in WECC".format([lat, lon]))
+                                print(f"Station  not in WECC. Lat: {lat} Lon: {lon}")
                                 errors["File"].append(file)
                                 errors["Time"].append(end_api)
                                 errors["Error"].append(
-                                    "File not in WECC. Lat: {} Lon: {}".format(lat, lon)
+                                    f"File not in WECC. Lat: {lat} Lon: {lon}"
                                 )
-                                break  # Go to next file.
+                                break  
                             else:
                                 # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time (in UTC)
                                 time = datetime.strptime(string[15:27], "%Y%m%d%H%M")
@@ -576,20 +576,20 @@ def clean_asosawos(rawdir: str, cleandir: str):
                                 # For testing: progress update. Print status update every 1k rows.
                                 # If station reports every 10 min, expect up to 50k observations per year.
                                 if len(data) % 1000 == 0:
-                                    print("{} observations parsed.".format(len(data)))
+                                    print(f"{len(data)} observations parsed.")
 
                 except Exception as e:
                     print(file, e)
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
-                    errors["Error"].append("Error in pandas df set-up: {}".format(e))
+                    errors["Error"].append(f"Error in pandas df set-up: {e}")
 
             # Take all lists and convert to dataframe.
             # Remove any variables where all the data is nan.
             df = pd.DataFrame.from_dict(data)
 
             if df.empty is True:
-                print("df {} not saved".format(file))
+                print(f"df {file} not saved")
 
             if df.empty is False:
                 # If there is data in the dataframe, convert to xarray object.
@@ -609,9 +609,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                     ds = ds.assign_attrs(institution="Eagle Rock Analytics / Cal Adapt")
                     ds = ds.assign_attrs(source="")
                     ds = ds.assign_attrs(
-                        history="ASOSAWOS_clean.py script run on {} UTC".format(
-                            timestamp
-                        )
+                        history=f"ASOSAWOS_clean.py script run on {timestamp} UTC"
                     )
                     ds = ds.assign_attrs(
                         comment="Intermediate data product: may not have been subject to any cleaning or QA/QC processing"
@@ -1015,22 +1013,20 @@ def clean_asosawos(rawdir: str, cleandir: str):
                         try:
                             if key != "elevation":
                                 if np.isnan(ds[key].values).all():
-                                    print("Dropping empty var: {}".format(key))
+                                    print(f"Dropping empty var: {key}")
                                     ds = ds.drop(key)
 
                             # only drop elevation if all other variables are also nans
                             if (key == "elevation") & (
                                 len(ds.keys()) == 1
                             ):  # only elevation remains
-                                print(
-                                    "Dropping empty var: {}".format(key)
-                                )  # slightly unnecessary since the entire dataset will be empty too
+                                print(f"Dropping empty var: {key}")
                                 ds = ds.drop(key)
                                 continue
-                        except:  # Add to handle errors for unsupported data types
-                            next
+                        except: 
+                            continue
 
-                    # # Reorder variables
+                    # Reorder variables
                     # In following order:
                     desired_order = [
                         "ps",
@@ -1056,12 +1052,12 @@ def clean_asosawos(rawdir: str, cleandir: str):
                     traceback.print_exc()
                     errors["File"].append(station)
                     errors["Time"].append(end_api)
-                    errors["Error"].append("Error in ds set-up: {}".format(e))
+                    errors["Error"].append(f"Error in ds set-up: {e}")
 
                 # Write station file to netcdf.
                 if ds is None:
                     # Should be caught be error handling above, but add in case.
-                    print("ds {} not saved.".format(file))
+                    print(f"ds {file} not saved.")
                     errors["File"].append(file)
                     errors["Time"].append(end_api)
                     errors["Error"].append("File has no data.")

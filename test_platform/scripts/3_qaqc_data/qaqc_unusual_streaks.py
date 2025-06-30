@@ -327,13 +327,13 @@ def qaqc_unusual_repeated_streaks(
 
     variables = [var for var in CHECK_VARS if var in new_df.columns]
     logger.info(
-        "Running {} on {}".format("qaqc_unusual_repeated_streaks", variables),
+        f"Running qaqc_unusual_repeated_streaks on {variables}"
     )
 
     # Loop through test variables
     for var in variables:
         logger.info(
-            "Running unusual streaks check on: {}".format(var),
+            f"Running unusual streaks check on: {var}"
         )
         try:
             # Create a copy of the original dataframe and drop NaNs in the testing variable
@@ -345,9 +345,7 @@ def qaqc_unusual_repeated_streaks(
             # first scans suspect values using entire record
             if test_df[var].isna().all() == True:
                 logger.info(
-                    "All values for {} are flagged, bypassing qaqc_unusual_repeated_streaks".format(
-                        var
-                    ),
+                    "All values for {var} are flagged, bypassing qaqc_unusual_repeated_streaks"
                 )
                 continue  # bypass to next variable if all obs are nans
 
@@ -369,9 +367,7 @@ def qaqc_unusual_repeated_streaks(
             ##
             ##########################################################################################
             # Hour repeat streak criteria
-            logger.info(
-                "Running hourly repeats on {}".format(var),
-            )
+            logger.info(f"Running hourly repeats on {var}")
             tt00 = time.time()
             threshold = HOUR_REPEAT_CRITERIA[var][res]
 
@@ -397,9 +393,7 @@ def qaqc_unusual_repeated_streaks(
                 )
 
             # Straight repeat streak criteria
-            logger.info(
-                "Running straight repeats on {}".format(var),
-            )
+            logger.info(f"Running straight repeats on {var}")
             tt00 = time.time()
             threshold = STRAIGHT_REPEAT_CRITERIA[var][res]
             if var == "sfcWind":
@@ -427,7 +421,7 @@ def qaqc_unusual_repeated_streaks(
 
             # Whole day replication for a streak of days
             logger.info(
-                "Running whole day repeats on {}".format(var),
+                f"Running whole day repeats on {var}"
             )
             tt00 = time.time()
             threshold = DAY_REPEAT_CRITERIA[var][res]
@@ -475,9 +469,7 @@ def qaqc_unusual_repeated_streaks(
                     )
                     unusual_streaks_plot(new_df[ind], var, station=station)
                 logger.info(
-                    "{} subset plots produced for flagged obs in {}".format(
-                        len(keys), var
-                    ),
+                    f"{len(keys)} subset plots produced for flagged obs in {var}"
                 )
 
         except Exception as e:

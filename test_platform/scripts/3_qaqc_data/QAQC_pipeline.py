@@ -48,7 +48,7 @@ try:
     from qaqc_unusual_streaks import *
     from qaqc_deaccumulate import *
 except Exception as e:
-    print("Error importing qaqc script: {}".format(e))
+    print(f"Error importing qaqc script: {e}")
 
 
 s3 = boto3.resource("s3")
@@ -115,12 +115,10 @@ def print_qaqc_failed(
     errors : dict[str, list]
         updated error dictionary with failure entry appended
     """
-    logger.info(
-        "{0} {1}".format(station, message),
-    )
+    logger.info(f"{station} {message}")
     errors["File"].append(station)
     errors["Time"].append(end_api)
-    errors["Error"].append("Failure on {}".format(test))
+    errors["Error"].append(f"Failure on {test}")
     return errors
 
 
@@ -187,15 +185,15 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
     full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
 
     # Add path info as new columns
-    full_df["rawdir"] = full_df["network"].apply(lambda row: "1_raw_wx/{}/".format(row))
+    full_df["rawdir"] = full_df["network"].apply(lambda row: f"1_raw_wx/{row}/")
     full_df["cleandir"] = full_df["network"].apply(
-        lambda row: "2_clean_wx/{}/".format(row)
+        lambda row: f"2_clean_wx/{row}/"
     )
     full_df["qaqcdir"] = full_df["network"].apply(
-        lambda row: "3_qaqc_wx/{}/".format(row)
+        lambda row: f"3_qaqc_wx/{row}/"
     )
     full_df["mergedir"] = full_df["network"].apply(
-        lambda row: "4_merge_wx/{}/".format(row)
+        lambda row: f"4_merge_wx/{row}/"
     )
 
     # If its a zarr store, use the zarr file extension (".zarr")
@@ -323,21 +321,19 @@ def process_output_ds(
                 if "ancillary_variables" in list(ds[var].attrs.keys()):
                     ds[var].attrs["ancillary_variables"] = ds[var].attrs[
                         "ancillary_variables"
-                    ] + ", {}".format(eraqc_var)
+                    ] + f", {eraqc_var}"
                 else:
-                    ds[var].attrs["ancillary_variables"] = "{}".format(eraqc_var)
+                    ds[var].attrs["ancillary_variables"] = f"{eraqc_var}"
     # Overwrite file title
     ds = ds.assign_attrs(title=network + " quality controlled")
 
     # Append qaqc to the file history and comments (https://docs.unidata.ucar.edu/netcdf-c/current/attribute_conventions.html)
     ds.attrs["history"] = ds.attrs[
         "history"
-    ] + " \nQAQC_pipeline.py script run on {} UTC".format(timestamp)
+    ] + t" \nQAQC_pipeline.py script run on {timestamp} UTC"
     ds.attrs["comment"] = ds.attrs[
         "comment"
-    ] + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing.".format(
-        timestamp
-    )
+    ] + " \nAn intermediate data product: subject to cleaning but may not be subject to full QA/QC processing."
 
     # Write station file
     if zarr == False:
@@ -349,14 +345,12 @@ def process_output_ds(
     # Push file to AWS with correct file name
     t0 = time.time()
     logger.info(
-        "Saving/pushing {0} with dims {1} to {2}".format(
-            filename, ds.dims, BUCKET_NAME + "/" + qaqcdir
-        ),
+        f"Saving/pushing {filename} with dims {ds.dims} to {BUCKET_NAME}/{qaqcdir}"
     )
     if zarr == False:  # Upload as netcdf
         s3.Bucket(BUCKET_NAME).upload_file(filename, filepath)
     elif zarr == True:
-        filepath_s3 = "s3://{0}/{1}{2}".format(BUCKET_NAME, qaqcdir, filename)
+        filepath_s3 = f"s3://{BUCKET_NAME}/{qaqcdir}{filename}"
         ds.to_zarr(
             filepath_s3,
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
@@ -440,7 +434,7 @@ def qaqc_ds_to_df(
         if "_qc" in var:
             raw_qc_vars.append(var)
 
-    logger.info("Existing observation and QC variables: {}".format(list(ds.keys())))
+    logger.info(f"Existing observation and QC variables: {list(ds.keys())}")
 
     # only in-fill nans for valid variables
     for var in ds.data_vars:
@@ -452,12 +446,12 @@ def qaqc_ds_to_df(
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
                 era_qc_vars.append(qc_var)
                 logger.info(
-                    "nans created for {}".format(qc_var),
+                    f"nans created for {qc_var}"
                 )
                 ds = ds.assign({qc_var: xr.ones_like(ds[var]) * np.nan})
 
     n_qc = len(era_qc_vars)  # determine length of eraqc variables per station
-    logger.info("Created {0} era_qc variables: {1}".format(n_qc, era_qc_vars))
+    logger.info(f"Created {n_qc} era_qc variables: {era_qc_vars}")
 
     # Save attributes to inheret them to the QAQC'ed file
     attrs = ds.attrs
@@ -1054,7 +1048,8 @@ def run_qaqc_one_station(
     errors, end_api, t0_str = setup_error_handling()
 
     # Initialize the logger with the specific log file name
-    log_fname = "qaqc_logs/qaqc_{}.{}.log".format(station, t0_str.split(", ")[0])
+    tsplit = t0_str.split(", ")[0]
+    log_fname = f"qaqc_logs/qaqc_{station}.{tsplit}.log"
     logger = setup_logger(log_file=log_fname, verbose=verbose)
     logger.info(
         f"Starting QAQC for station: {station}\n",
@@ -1110,9 +1105,7 @@ def run_qaqc_one_station(
         ds = ds.drop_duplicates(dim="time")
 
     ## ======== RUN FULL QAQC PIPELINE =========
-    logger.info(
-        "Running QA/QC on: {}\n".format(station),
-    )
+    logger.info(f"Running QA/QC on: {station}\n")
     try:
         # Run main QAQC functions
         test = "run_qaqc_pipeline"  # Used for making error message
@@ -1170,12 +1163,12 @@ def run_qaqc_one_station(
         errors_df.to_csv(errors_s3_filepath)
 
         # Print error file location
-        logger.info("errors saved to {0}\n".format(errors_s3_filepath))
+        logger.info(f"errors saved to {errors_s3_filepath}\n")
 
         # Save log file to s3 bucket
         logfile_s3_filepath = f"s3://{BUCKET_NAME}/{qaqc_dir}{log_fname}"
         logger.info(
-            "Saving log file to {0}\n".format(logfile_s3_filepath),
+           f"Saving log file to {logfile_s3_filepath}\n",
         )
         s3.Bucket(BUCKET_NAME).upload_file(log_fname, f"{qaqc_dir}{log_fname}")
 

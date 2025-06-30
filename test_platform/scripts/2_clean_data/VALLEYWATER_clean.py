@@ -217,7 +217,7 @@ def main():
 
         # Assign appropriate global attributes
         ds.attrs = {
-            "title": "{} cleaned".format(NETWORK),
+            "title": f"{NETWORK} cleaned",
             "institution": "Eagle Rock Analytics",
             "license": "",
             "source": "",

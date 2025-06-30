@@ -79,18 +79,15 @@ def qaqc_climatological_outlier(
     pr_vars_to_anom = [v for v in pr_vars if v in df.columns]
 
     logger.info(
-        "Running {} on {}".format(
-            "qaqc_climatological_outlier", vars_to_anom + pr_vars_to_anom
-        )
+        f"Running qaqc_climatological_outlier on {vars_to_anom + pr_vars_to_anom}"
     )
 
     # whole station bypass check first
     # df is already flagged by gaps function (careful if the order is modified)
-
     for var in vars_to_anom:
         try:
             # only work with non-flagged values
-            logger.info("Checking for climatological outliers in: {}".format(var))
+            logger.info(f"Checking for climatological outliers in: {var}")
             df_valid = grab_valid_obs(
                 new_df, var, kind="drop"
             )  # subset for valid obs, distribution drop yellow flags
@@ -101,9 +98,7 @@ def qaqc_climatological_outlier(
             # Bypass if there are no valid observations remaining
             if len(df_valid[var]) == 0:
                 logger.info(
-                    "No valid (unflagged) observations for: {} to proceed through qaqc_climatological_outlier. Bypassing station.".format(
-                        var
-                    )
+                    f"No valid (unflagged) observations for: {var} to proceed through qaqc_climatological_outlier. Bypassing station."
                 )
                 continue
 
@@ -164,9 +159,7 @@ def qaqc_climatological_outlier(
             # when there is no enough data to run the filtering
             if cut_freq >= data_freq / 2:
                 logger.info(
-                    "bypassing qaqc_climatological_outlier failed on {}: not enough data to run butter filter".format(
-                        var
-                    ),
+                    "bypassing qaqc_climatological_outlier failed on {var}: not enough data to run butter filter"
                 )
                 continue
 
@@ -184,10 +177,8 @@ def qaqc_climatological_outlier(
             df_valid = df_valid.dropna(subset=["flag"])
             if len(df_valid) != 0:
                 logger.info(
-                    "Flagging outliers in climatological outlier check for {0}".format(
-                        var
-                    )
-                )  # only print statement if flags are set
+                    f"Flagging outliers in climatological outlier check for {var}"
+                )
 
             # Flag original data
             new_df.loc[new_df.time.isin(df_valid.time), var + "_eraqc"] = df_valid[
@@ -195,12 +186,8 @@ def qaqc_climatological_outlier(
             ]
 
         except Exception as e:
-            logger.info(
-                "qaqc_climatological_outlier failed with Exception: {} -- bypassing variable".format(
-                    e
-                ),
-            )
-            continue
+           logger.error(f"qaqc_climatological_outlier_precip failed, bypassing {var}")
+           raise e
 
     # precip focused check
     for var in pr_vars_to_anom:
@@ -208,12 +195,8 @@ def qaqc_climatological_outlier(
             new_df = qaqc_climatological_outlier_precip(new_df, var)
 
         except Exception as e:
-            logger.info(
-                "qaqc_climatological_outlier_precip failed with Exception: {} -- bypassing variable".format(
-                    e
-                )
-            )
-            continue
+            logger.error(f"qaqc_climatological_outlier_precip failed, bypassing {var}")
+            raise e
 
     # Plot flagged values
     if plot:
@@ -504,14 +487,14 @@ def qaqc_climatological_outlier_precip(
     1. Incorporate temperature check if temperature is present for station (V2)
     """
 
-    logger.info("Checking for climatological outliers in: {}".format(var))
+    logger.info(f"Checking for climatological outliers in: {var}")
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
 
     # add check in case valid_obs is now length 0
     if len(df_valid) == 0:
-        logger.info("{} has 0 observations, moving to next variable".format(var))
+        logger.info(f"{var} has 0 observations, moving to next variable")
         return new_df
 
     # aggregate to daily
@@ -560,9 +543,7 @@ def qaqc_climatological_outlier_precip(
                 ] = 32
                 if len(flagged_days) != 0:
                     logger.info(
-                        "Flagging {} days in month {} for climatological outlier precip check for {}".format(
-                            len(flagged_days), mon, var
-                        )
+                        f"Flagging {len(flagged_days)} days in month {mon} for climatological outlier precip check for {var}"
                     )
 
             else:
@@ -577,9 +558,7 @@ def qaqc_climatological_outlier_precip(
                 ] = 32
                 if len(flagged_days) != 0:
                     logger.info(
-                        "Flagging {} days in month {} for climatological outlier precip check for {}".format(
-                            len(flagged_days), mon, var
-                        )
+                        f"Flagging {len(flagged_days)} days in month {mon} for climatological outlier precip check for {var}"
                     )
 
         elif p95 == 0:
@@ -595,9 +574,7 @@ def qaqc_climatological_outlier_precip(
             ] = 32
             if len(flagged_days) != 0:
                 logger.info(
-                    "ZERO -- Flagging {} days in month {} for climatological outlier precip check for {}".format(
-                        len(flagged_days), mon, var
-                    )
+                    f"ZERO -- Flagging {len(flagged_days)} days in month {mon} for climatological outlier precip check for {var}"
                 )
 
     return new_df
