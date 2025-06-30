@@ -53,7 +53,10 @@ warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 from qaqc_utils import create_bins_frequent, create_bins
 from IPython.display import display
 
+s3 = boto3.resource("s3")
 BUCKET_NAME = "wecc-historical-wx"
+BUCKET = s3.Bucket(BUCKET_NAME)
+SAVE_DIR = "3_qaqc_wx"
 
 
 def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
@@ -256,6 +259,10 @@ def flagged_timeseries_plot(
     None
     """
 
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     # first check if var has flags, only produce plots of vars with flags
     if len(df[var + "_eraqc"].dropna().unique()) != 0:
         # create figure
@@ -277,9 +284,8 @@ def flagged_timeseries_plot(
         # identify flagged data, can handle multiple flags
         for flag in df[var + "_eraqc"].dropna().unique():
             flag_name = id_flag(flag)
-            flag_label = "{:.3f}% of data flagged by {}".format(
-                100 * len(df.loc[df[var + "_eraqc"] == flag, var]) / len(df), flag_name
-            )
+            p_flagged = 100 * len(df.loc[df[var + "_eraqc"] == flag, var]) / len(df)
+            flag_label = f"{p_flagged:.3f}% of data flagged by {flag_name}"
 
             flagged_data = df[~df[var + "_eraqc"].isna()]
             flagged_data.plot(
@@ -298,38 +304,31 @@ def flagged_timeseries_plot(
 
         # plot aesthetics
         ylab, units, miny, maxy = _plot_format_helper(var)
-        plt.ylabel("{} [{}]".format(ylab, units))
+        plt.ylabel(f"{ylab} [{units}]")
         plt.xlabel("")
         plt.title(
-            "Full station timeseries: {0}".format(df["station"].unique()[0]),
+            f"Full station timeseries: {station}",
             fontsize=10,
         )
 
         # save to AWS
         if savefig:
-            BUCKET_NAME = "wecc-historical-wx"
-            SAVE_DIR = "3_qaqc_wx"
             img_data = BytesIO()
             plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
             img_data.seek(0)
 
-            s3 = boto3.resource("s3")
-            bucket = s3.Bucket(BUCKET_NAME)
-            network = df["station"].unique()[0].split("_")[0]
-            figname = "flagged_timeseries_{0}_{1}".format(
-                df["station"].unique()[0], var
-            )
-            bucket.put_object(
+            figname = f"flagged_timeseries_{station}_{var}"
+            BUCKET.put_object(
                 Body=img_data,
                 ContentType="image/png",
-                Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+                Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
             )
 
             # close figure to save memory
-            plt.close()
+            plt.close("all")
 
         # Useful completion statement
-        logger.info("Flag summary plot produced on: {}".format(var))
+        logger.info(f"Flag summary plot produced on: {var}")
 
         return None
 
@@ -368,6 +367,10 @@ def frequent_plot_helper(
     None
     """
 
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     # plot all valid data within year/season
     _plot = df.plot.hist(column=var, bins=bins, color="k", legend=False, alpha=0.5)
 
@@ -388,10 +391,10 @@ def frequent_plot_helper(
 
     # plot aesthetics
     xlab, units, miny, maxy = _plot_format_helper(var)
-    plt.xlabel("{0} [{1}]".format(xlab, units))
+    plt.xlabel(f"{xlab} [{units}]")
     yr_formatted = str(yr).replace("_", " ")  # simple formatting for plot aesthetic
     plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords="axes fraction", fontsize=10)
-    plt.title("Frequent value check: {}".format(df["station"].unique()[0]), fontsize=10)
+    plt.title(f"Frequent value check: {station}", fontsize=10)
     plt.legend(("Cleaned data", "Flagged"), loc="upper right")
     ax = plt.gca()
     leg = ax.get_legend()
@@ -400,7 +403,7 @@ def frequent_plot_helper(
 
     if var == "rsds":
         plt.annotate(
-            "Sfc. radiation option: \n{}".format(rad_scheme),
+            f"Sfc. radiation option: \n{rad_scheme}",
             xy=(0.02, 0.85),
             xycoords="axes fraction",
             fontsize=10,
@@ -415,25 +418,19 @@ def frequent_plot_helper(
         )
 
     # save figure to AWS
-    network = df["station"].unique()[0].split("_")[0]
-
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_frequent_{0}_{1}_{2}".format(df["station"].unique()[0], var, yr)
-    bucket.put_object(
+    figname = f"qaqc_frequent_{station}_{var}_{yr}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -486,9 +483,8 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                 "month"
             ].unique()  # identify flagged months in that year
 
-            if (
-                3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns
-            ):  # Spring - MAM
+            # Spring - MAM
+            if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns:
                 df_to_plot = df_year.loc[
                     (df_year["month"] == 3)
                     | (df_year["month"] == 4)
@@ -499,7 +495,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                     var,
                     bins,
                     flag=25,
-                    yr=str(y) + "_spring",
+                    yr=f"{str(y)}_spring",
                     rad_scheme=rad_scheme,
                 )
 
@@ -516,7 +512,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                     var,
                     bins,
                     flag=25,
-                    yr=str(y) + "_summer",
+                    yr=f"{str(y)}_summer",
                     rad_scheme=rad_scheme,
                 )
 
@@ -533,7 +529,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                     var,
                     bins,
                     flag=25,
-                    yr=str(y) + "_autumn",
+                    yr=f"{str(y)}_autumn",
                     rad_scheme=rad_scheme,
                 )
 
@@ -551,7 +547,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                     var,
                     bins,
                     flag=25,
-                    yr=str(y + 1) + "_winter",
+                    yr=f"{str(y+1)}_winter",
                     rad_scheme=rad_scheme,
                 )
 
@@ -573,7 +569,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
                     var,
                     bins,
                     flag=25,
-                    yr=str(y) + "_winter",
+                    yr=f"{str(y)}_winter",
                     rad_scheme=rad_scheme,
                 )
 
@@ -599,8 +595,12 @@ def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     -------
     None
     """
-    # valid precipitation variables
 
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
+    # valid precipitation variables
     fig, ax = plt.subplots()
 
     # plot all cleaned data
@@ -633,32 +633,27 @@ def frequent_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int = 300):
     # plot aesthetics
     plt.legend(loc="best")
     ylab, units, miny, maxy = _plot_format_helper(var)
-    plt.ylabel("{} [{}]".format(ylab, units))
+    plt.ylabel(f"{ylab} [{units}]")
     plt.xlabel("")
     plt.title(
-        "Frequent values -- precipitation: {0}".format(df["station"].unique()[0]),
+        f"Frequent values -- precipitation: {station}",
         fontsize=10,
     )
 
     # save figure to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
-    network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_frequent_value_check_{0}_{1}".format(df["station"].unique()[0], var)
-    bucket.put_object(
+    figname = f"qaqc_frequent_value_check_{station}_{var}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -697,6 +692,10 @@ def dist_gap_part1_plot(
     None
     """
 
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     # grab data by months
     df = df.loc[df["month"] == month]
 
@@ -712,9 +711,8 @@ def dist_gap_part1_plot(
 
     # plot flagged data
     flag_name = id_flag(flagval)
-    flag_label = "{:.3f}% of data flagged by {}".format(
-        100 * len(flag_vals) / len(df), flag_name
-    )
+    flag_p = 100 * len(flag_vals) / len(df)
+    flag_label = f"{flag_p:.3f}% of data flagged by {flag_name}"
 
     flag_vals.plot(
         x="time",
@@ -738,41 +736,33 @@ def dist_gap_part1_plot(
         y2=high_bnd,
         alpha=0.25,
         color="0.75",
-        label="{} * IQR".format(iqr_thresh),
+        label=f"{iqr_thresh} * IQR",
     )
 
     # plot aesthetics
     plt.legend(loc="best")
     ylab, units, miny, maxy = _plot_format_helper(var)
-    plt.ylabel("{} [{}]".format(ylab, units))
+    plt.ylabel(f"{ylab} [{units}]")
     plt.xlabel("")
     plt.title(
-        "Distribution gap check pt 1: {0} / month: {1}".format(
-            df["station"].unique()[0], month
-        ),
+        f"Distribution gap check pt 1: {station} / month: {month}",
         fontsize=10,
     )
 
     # save figure to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_dist_gap_check_part1_{0}_{1}_{2}".format(
-        df["station"].unique()[0], var, month
-    )
-    bucket.put_object(
+    figname = f"qaqc_dist_gap_check_part1_{station}_{var}_{month}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -801,6 +791,10 @@ def dist_gap_part2_plot(
     -------
     None
     """
+
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
 
     # select month
     df = df.loc[df["month"] == month]
@@ -851,23 +845,23 @@ def dist_gap_part2_plot(
 
     # title and useful annotations
     plt.title(
-        "Distribution gap check, {0}: {1}".format(df["station"].unique()[0], var),
+        f"Distribution gap check, {station}: {var}",
         fontsize=10,
     )
     plt.annotate(
-        "Month: {}".format(month),
+        f"Month: {month}",
         xy=(0.025, 0.95),
         xycoords="axes fraction",
         fontsize=8,
     )
     plt.annotate(
-        "Mean: {}".format(round(mu, 3)),
+        f"Mean: {round(mu, 3)}",
         xy=(0.025, 0.9),
         xycoords="axes fraction",
         fontsize=8,
     )
     plt.annotate(
-        "Std.Dev: {}".format(round(sigma, 3)),
+        f"Std.Dev: {round(sigma, 3)}",
         xy=(0.025, 0.85),
         xycoords="axes fraction",
         fontsize=8,
@@ -875,25 +869,19 @@ def dist_gap_part2_plot(
     plt.ylabel("Frequency (obs)")
 
     # save figure to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_dist_gap_check_part2_{0}_{1}_{2}".format(
-        df["station"].unique()[0], var, month
-    )
-    bucket.put_object(
+    figname = f"qaqc_dist_gap_check_part2_{station}_{var}_{month}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -917,6 +905,9 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
     -------
     None
     """
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
 
     fig, ax = plt.subplots(figsize=(10, 3))
 
@@ -925,9 +916,8 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
         ax=ax, marker=".", ms=4, lw=1, color="k", alpha=0.5, label="Cleaned data"
     )
 
-    flag_label = "{:.4f}% of data flagged".format(
-        100 * len(df.loc[df[var + "_eraqc"] == flagval, var]) / len(df)
-    )
+    flag_p = 100 * len(df.loc[df[var + "_eraqc"] == flagval, var]) / len(df)
+    flag_label = f"{flag_p:.4f}% of data flagged"
     df.loc[df[var + "_eraqc"] == flagval, var].plot(
         ax=ax, marker="o", ms=7, lw=0, mfc="none", color="C3", label=flag_label
     )
@@ -943,12 +933,9 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
 
     legend = ax.legend(loc=0, prop={"size": 8})
 
-    station = df["station"].unique()[0]
-    network = station.split("_")[0]
-
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper(var)
-    ylab = "{0} [{1}]".format(ylab, units)
+    ylab = f"{ylab} [{units}]"
     ax.set_ylabel(ylab)
     ax.set_xlabel("")
 
@@ -956,23 +943,20 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
     month = df.month.unique()[0]
     year = df.year.unique()[0]
 
-    title = "Unusual large jumps check: {0}".format(station)
+    title = f"Unusual large jumps check: {station}"
     ax.set_title(title, fontsize=10)
 
     # save to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
-    figname = "qaqc_figs/qaqc_unusual_large_jumps_{0}_{1}_{2}-{3}".format(
-        station, var, year, month
-    )
-
-    key = "{0}/{1}/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
+
+    figname = f"qaqc_figs/qaqc_unusual_large_jumps_{station}_{var}_{year}-{month}"
+    BUCKET.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key=f"{SAVE_DIR}/{network}/{figname}.png",
+    )
 
     # close figure to save memory
     plt.close("all")
@@ -984,8 +968,8 @@ def clim_outlier_plot(
     series: pd.DataFrame,
     month: int,
     hour: int,
-    bin_size: int = 0.1,
-    station: str = None,
+    bin_size: float = 0.1,
+    station: str | None = None,
     dpi: int = 300,
 ):
     """Produces a histogram of monthly standardized distribution
@@ -1013,6 +997,10 @@ def clim_outlier_plot(
     None
     """
 
+    # grab station ID, network
+    if station:
+        network = station.split("_")[0]
+
     var = series._name
 
     bins = create_bins(series, bin_size=bin_size)
@@ -1030,15 +1018,13 @@ def clim_outlier_plot(
     p = stats.norm.pdf(bins, mu, std) * area
 
     try:
-        left = np.where(np.logical_and(np.gradient(p) > 0, p <= 0.1))[0][
-            -1
-        ]  # +1 # Manually shift the edge by one bin
+        # +1 # Manually shift the edge by one bin
+        left = np.where(np.logical_and(np.gradient(p) > 0, p <= 0.1))[0][-1]
     except:
         left = 1
     try:
-        right = np.where(np.logical_and(np.gradient(p) < 0, p <= 0.1))[0][
-            0
-        ]  # -1 # Manually shift the edge by one bin
+        # -1 # Manually shift the edge by one bin
+        right = np.where(np.logical_and(np.gradient(p) < 0, p <= 0.1))[0][0]
     except:
         right = len(bins) - 2
 
@@ -1074,18 +1060,18 @@ def clim_outlier_plot(
     # title and useful annotations
     box = dict(facecolor="white", edgecolor="white", alpha=0.85)
     plt.title(
-        "Climatological outlier check, {0}: {1}".format(station, var),
+        f"Climatological outlier check, {station}: {var}",
         fontsize=10,
     )
     plt.annotate(
-        "Month: {}".format(month),
+        f"Month: {month}",
         xy=(0.025, 0.93),
         xycoords="axes fraction",
         fontsize=10,
         bbox=box,
     )
     plt.annotate(
-        "Hour: {}".format(hour),
+        f"Hour: {hour}",
         xy=(0.025, 0.87),
         xycoords="axes fraction",
         fontsize=10,
@@ -1094,26 +1080,19 @@ def clim_outlier_plot(
     plt.ylabel("Frequency (obs)")
 
     # save figure to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    network = station.split("_")[0]
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_climatological_outlier_{0}_{1}_{2}_{3}".format(
-        station, var, month, hour
-    )
-    bucket.put_object(
+    figname = f"qaqc_climatological_outlier_{station}_{var}_{month}_{hour}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figures to save memory
-    plt.close(fig)
+    plt.close("all")
 
     return None
 
@@ -1137,6 +1116,11 @@ def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int =
     -------
     None
     """
+
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     # Copy df to avoid pandas warning
     df = df.copy()
 
@@ -1173,36 +1157,27 @@ def climatological_precip_plot(df: pd.DataFrame, var: str, flag: int, dpi: int =
     # plot aesthetics
     plt.legend(loc="best")
     ylab, units, miny, maxy = _plot_format_helper(var)
-    plt.ylabel("{} [{}]".format(ylab, units))
+    plt.ylabel(f"{ylab} [{units}]")
     plt.xlabel("")
     plt.title(
-        "Climatological outliers -- precipitation: {0}".format(
-            df["station"].unique()[0]
-        ),
+        f"Climatological outliers -- precipitation: {station}",
         fontsize=10,
     )
 
     # save figure to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
-    network = df["station"].unique()[0].split("_")[0]
     img_data = BytesIO()
     plt.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    figname = "qaqc_climatological_outlier_{0}_{1}".format(
-        df["station"].unique()[0], var
-    )
-    bucket.put_object(
+    figname = f"qaqc_climatological_outlier_{station}_{var}"
+    BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname),
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
     )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -1234,6 +1209,11 @@ def unusual_streaks_plot(
     -------
     None
     """
+
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     # Copy df to avoid pandas warning
     df = df.copy()
 
@@ -1306,36 +1286,32 @@ def unusual_streaks_plot(
         )
 
     legend = ax.legend(loc=0, prop={"size": 8})
-    network = station.split("_")[0]
 
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper(var)
-    ylab = "{} [{}]".format(ylab, units)
 
-    ax.set_ylabel(ylab)
+    ax.set_ylabel(f"{ylab} [{units}]")
     ax.set_xlabel("")
 
-    title = "Unusual repeated streaks check: {0}".format(station)
+    title = f"Unusual repeated streaks check: {station}"
     ax.set_title(title, fontsize=10)
     month = df.month.unique()[0]
     year = df.year.unique()[0]
 
     # save to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
-    figname = "qaqc_unusual_repeated_streaks_{0}_{1}_{2}-{3}".format(
-        station, var, year, month
-    )
-    key = "{0}/{1}/qaqc_figs/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
+
+    figname = f"qaqc_unusual_repeated_streaks_{station}_{var}_{year}-{month}"
+    BUCKET.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
+    )
 
     # close figure to save memory
-    plt.close()
+    plt.close("all")
 
     return None
 
@@ -1376,6 +1352,11 @@ def precip_deaccumulation_plot(
     - The plot is saved to AWS S3 in the "wecc-historical-wx" bucket.
     - The `_plot_format_helper("pr")` function is used to determine y-axis labels and units.
     """
+
+    # grab station ID, network
+    station = df["station"].unique()[0]
+    network = station.split("_")[0]
+
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
 
     # Plot variable and flagged data
@@ -1416,8 +1397,8 @@ def precip_deaccumulation_plot(
 
     # Plot aesthetics
     ylab, units, miny, maxy = _plot_format_helper("pr")
-    ylab = "{0} [{1}]".format(ylab, units)
-    title = "Precipitation deaccumulation: {0}".format(station)
+    ylab = f"{ylab} [{units}]"
+    title = f"Precipitation deaccumulation: {station}"
     ax0.set_title(title, fontsize=10)
 
     # Plot oscillating/ringing flags
@@ -1440,17 +1421,16 @@ def precip_deaccumulation_plot(
         legend = ax.legend(loc=0, prop={"size": 8})
 
     # save to AWS
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVE_DIR = "3_qaqc_wx"
-    figname = "qaqc_figs/qaqc_precip_deaccumulation_{0}".format(station)
-
-    key = "{0}/{1}/{2}.png".format(SAVE_DIR, network, figname)
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(BUCKET_NAME)
-    bucket.put_object(Body=img_data, ContentType="image/png", Key=key)
+
+    figname = f"qaqc_figs/qaqc_precip_deaccumulation_{station}"
+    BUCKET.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key=f"{SAVE_DIR}/{network}/{figname}.png",
+    )
 
     # close figure to save memory
     plt.close("all")

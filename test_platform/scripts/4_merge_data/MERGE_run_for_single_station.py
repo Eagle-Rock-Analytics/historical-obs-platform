@@ -74,7 +74,3 @@ def main():
         station=args.station,
         verbose=args.verbose,
     )
-
-
-if __name__ == "__main__":
-    main()

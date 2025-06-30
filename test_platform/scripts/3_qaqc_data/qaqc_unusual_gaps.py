@@ -76,9 +76,7 @@ def qaqc_unusual_gaps(
     vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 
     try:
-        logger.info(
-            "Running {} on {}".format("qaqc_unusual_gaps", vars_to_check),
-        )
+        logger.info(f"Running qaqc_unusual_gaps on {vars_to_check}")
 
         # whole station bypass check first
         df, stn_length = qaqc_dist_whole_stn_bypass_check(
@@ -151,9 +149,7 @@ def qaqc_dist_gap_part1(
 
     for var in vars_to_check:
         try:
-            logger.info(
-                "Running unusual gaps check on: {}, qaqc_dist_gap_part1".format(var),
-            )
+            logger.info(f"Running unusual gaps check on: {var}, qaqc_dist_gap_part1")
             for month in range(1, 13):
                 monthly_df = df.loc[df["month"] == month]
 
@@ -168,9 +164,7 @@ def qaqc_dist_gap_part1(
                 )  # drops data flagged with 20
                 if len(df_valid) == 0 or df_valid[var].isnull().all():
                     logger.info(
-                        "No valid data present for {} in month {} -- skipping to next month".format(
-                            var, month
-                        ),
+                        f"No valid data present for {var} in month {month} -- skipping to next month"
                     )
                     continue  # variable has no valid data
 
@@ -190,9 +184,7 @@ def qaqc_dist_gap_part1(
 
                 for year in years_to_flag:
                     logger.info(
-                        "Median {} value for {}-{} is beyond the {}*IQR limits -- flagging month".format(
-                            var, month, int(year), iqr_thresh
-                        ),
+                        f"Median {var} value for {month}-{int(year)} is beyond the {iqr_thresh}*IQR limits -- flagging month"
                     )
 
                 # flag all obs in that month
@@ -215,9 +207,7 @@ def qaqc_dist_gap_part1(
                         )
         except Exception as e:
             logger.info(
-                "qaqc_dist_gap_part1 failed on {} -- bypassing to next variable".format(
-                    var
-                )
+                f"qaqc_dist_gap_part1 failed on {var} -- bypassing to next variable"
             )
             continue
 
@@ -259,9 +249,7 @@ def qaqc_dist_gap_part2(
 
     for var in vars_to_check:
         try:
-            logger.info(
-                "Running unusual gaps check on: {}, qaqc_dist_gap_part2".format(var),
-            )
+            logger.info(f"Running unusual gaps check on: {var}, qaqc_dist_gap_part2")
             for month in range(1, 13):
                 # Sel month data
                 monthly_df = df.loc[df["month"] == month]
@@ -276,9 +264,7 @@ def qaqc_dist_gap_part2(
                 )  # drops data flagged with 20
                 if len(df_valid) == 0 or df_valid[var].isnull().all() == True:
                     logger.info(
-                        "No valid data present for {} in month {} -- skipping to next month".format(
-                            var, month
-                        ),
+                        f"No valid data present for {var} in month {month} -- skipping to next month"
                     )
                     continue  # variable has no valid data
 
@@ -289,9 +275,7 @@ def qaqc_dist_gap_part2(
                 # Bug due to repeated values giving iqr=0 and failing to calculate bins below
                 if iqr_range(df_valid, var) == 0:
                     logger.info(
-                        "No valid data present for {} in month {} -- skipping to next month".format(
-                            var, month
-                        ),
+                        f"No valid data present for {var} in month {month} -- skipping to next month"
                     )
                     continue
 
@@ -353,11 +337,9 @@ def qaqc_dist_gap_part2(
                             var,
                             network=df["station"].unique()[0].split("_")[0],
                         )
-        except Exception as e:
+        except:
             logger.info(
-                "qaqc_dist_gap_part2 failed on {} -- bypassing to next variable".format(
-                    var
-                )
+                f"qaqc_dist_gap_part2 failed on {var} -- bypassing to next variable"
             )
             continue
 
@@ -533,14 +515,14 @@ def qaqc_unusual_gaps_precip(
     """
     ### Filter df to precipitation variables and sum daily observations
 
-    logger.info("Running qaqc_unusual_gaps_precip on: {}".format(var))
+    logger.info(f"Running qaqc_unusual_gaps_precip on: {var}")
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)
 
     # add check in case valid_obs is now length 0
     if len(df_valid) == 0:
-        logger.info("{} has 0 observations, moving to next variable".format(var))
+        logger.info(f"{var} has 0 observations, moving to next variable")
         return new_df
 
     # aggregate to daily, subset on time, var, and eraqc var

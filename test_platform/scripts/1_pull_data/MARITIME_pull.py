@@ -254,7 +254,7 @@ def get_maritime(stations: pd.DataFrame, network: str, years: list[str] | None =
                         url = f"https://www.ndbc.noaa.gov/data/historical/stdmet/{filename}h{year}.txt.gz"
                         s3_obj = s3.Object(
                             BUCKET_NAME,
-                            directory + "{}h{}.txt.gz".format(filename, year),
+                            directory + f"{filename}h{year}.txt.gz",
                         )
 
                     with requests.get(url, stream=True) as r:

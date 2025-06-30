@@ -308,7 +308,7 @@ def qaqc_deaccumulate_precip(
         if not any(True for item in vars_to_remove if item in var)
     ]  # remove all qc variables so they do not also run through: raw, eraqc, qaqc_process
 
-    logger.info("Running qaqc_deaccumulate_precip on: {}".format(pr_vars))
+    logger.info(f"Running qaqc_deaccumulate_precip on: {pr_vars}")
     vars_to_check = [var for var in df.columns if var in pr_vars]
 
     df = df.copy()
@@ -317,9 +317,7 @@ def qaqc_deaccumulate_precip(
     try:
         for var in vars_to_check:
             try:
-                logger.info(
-                    "Running {} on {}".format("qaqc_deaccumulate_precip", var),
-                )
+                logger.info(f"Running qaqc_deaccumulate_precip on {var}")
 
                 # First, determine if the series is accumulated or instantaneous
                 if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:
@@ -356,26 +354,20 @@ def qaqc_deaccumulate_precip(
                             flags,
                             var,
                         )
-                        logger.info("De-accumulation plot produced for {}".format(var)),
+                        logger.info(f"De-accumulation plot produced for {var}"),
 
                 else:  # If it's not accumulated, bypass and return original df
                     logger.info(
                         "qaqc_deaccumulate_precip bypassed: Precip is not accumulated"
                     )
             except Exception as e:
-                logger.info(
-                    "qaqc_deaccumulate_precip failed on '{}' with Exception: {}".format(
-                        var, e
-                    ),
-                )
-                continue
+                logger.error(f"qaqc_deaccumulate_precip failed on {var}")
+                raise e
 
         # If de-accumulation was successful in at least one of the pr variables
         return df
 
     # If precip de-accumulation failed totally log it and return None
     except Exception as e:
-        logger.info(
-            "qaqc_deaccumulate_precip failed with Exception: {}".format(e),
-        )
-        return None
+        logger.error("qaqc_deaccumulate_precip failed")
+        raise e

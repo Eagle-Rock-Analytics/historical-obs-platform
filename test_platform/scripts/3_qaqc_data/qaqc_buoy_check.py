@@ -16,6 +16,7 @@ Script functions assess QA/QC on buoy stations with known issues, as a part of t
 import numpy as np
 import datetime
 from log_config import logger
+import inspect
 
 from qaqc_utils import *
 
@@ -76,9 +77,7 @@ def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
     station = df["station"].unique()[0]
 
     if station in known_issues:
-        logger.info(
-            "{0} has a known issue, checking data coverage.".format(station),
-        )
+        logger.info(f"{station} has a known issue, checking data coverage.")
 
         # buoys with "data" past their disestablishment dates
         if station == "NDBC_46023":  # disestablished 9/8/2010
@@ -149,9 +148,7 @@ def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
         # if new data is added in the future, needs a manual check and added to known issue list if requires handling
         # most of these should be caught by not having a cleaned data file to begin with, so if this print statement occurs it means new raw data was cleaned and added to 2_clean_wx/
         logger.info(
-            "{0} has a reported disestablishment date, requires manual confirmation of dates of coverage.".format(
-                station
-            )
+            f"{station} has a reported disestablishment date, requires manual confirmation of dates of coverage."
         )
 
         for new_var in qc_vars:
@@ -159,9 +156,9 @@ def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
                 if new_var != "elevation_qaqc":
                     df.loc[:, new_var] = 2  # see era_qaqc_flag_meanings.csv
             except Exception as e:
-                logger.info(
-                    "{0} has a potential issue in buoy QAQC: {1}".format(station, e)
+                logger.error(
+                    f"{inspect.currentframe().f_code.co_name}: {station} has a potential issue in buoy QAQC"
                 )
-                continue
+                raise e
 
     return df
