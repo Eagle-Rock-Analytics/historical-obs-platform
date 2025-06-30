@@ -120,10 +120,9 @@ def get_wecc_stations(terrpath: str, marpath: str, directory: str) -> pd.DataFra
 
     # Read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations
     # Note, this relies on having run the ASOSAWOS pull script prior
-    response = s3.get_object(
-        Bucket=BUCKET_NAME, Key="1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
+    asosawos = pd.read_csv(
+        f"s3://{BUCKET_NAME}/1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
     )
-    asosawos = pd.read_csv(response["Body"])
 
     # create mask and filter
     m1 = weccstations.WBAN.isin(asosawos.WBAN)
@@ -195,7 +194,7 @@ def get_otherisd_data_ftp(
             years = [i for i in years if (len(i) < 5 and int(i) > 1979)]
 
     try:
-        objects = s3.list_objects(Bucket=bucket_name, Prefix=directory)
+        objects = s3.list_objects(Bucket=BUCKET_NAME, Prefix=directory)
         all = objects["Contents"]
 
         # Get date of last edited file

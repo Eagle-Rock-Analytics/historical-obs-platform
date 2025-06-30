@@ -460,9 +460,7 @@ def madis_pull(
             # Set up pause function for large networks
             if row["REPORTING_STATIONS"] >= 1000:
                 resp = input(
-                    "Warning: This network contains {} stations. Are you ready to download it? (Y/N)".format(
-                        row["REPORTING_STATIONS"]
-                    )
+                    f"Warning: This network contains {row["REPORTING_STATIONS"]} stations. Are you ready to download it? (Y/N)"
                 )
                 if resp == "N":
                     print("Skipping to next network.")
@@ -562,9 +560,7 @@ def madis_update(
         if pause:
             if row["REPORTING_STATIONS"] >= 1000:
                 resp = input(
-                    "Warning: This network contains {} stations. Are you ready to download it? (Y/N)".format(
-                        row["REPORTING_STATIONS"]
-                    )
+                    f"Warning: This network contains {row["REPORTING_STATIONS"]} stations. Are you ready to download it? (Y/N)"
                 )
                 if resp == "N":
                     print("Skipping to next network.")

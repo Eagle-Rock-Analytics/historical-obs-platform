@@ -56,7 +56,7 @@ def get_file_paths(network: str) -> tuple[str, str, str]:
     tuple[str, str, str]
         tuple list of rawdir, cleandir, qaqcdir
     """
-    rawdir = "1_raw_wx/{}/".format(network)
-    cleandir = "2_clean_wx/{}/".format(network)
-    qaqcdir = "3_qaqc_wx/{}/".format(network)
+    rawdir = f"1_raw_wx/{network}/"
+    cleandir = f"2_clean_wx/{network}/"
+    qaqcdir = f"3_qaqc_wx/{network}/"
     return rawdir, cleandir, qaqcdir

@@ -1174,7 +1174,6 @@ def clean_madis(
 
                     if flagvals == ["nan"]:
                         # This should not occur, but leave in here for additional check.
-                        # print("Flag value is {}".format(flagvals)) # For testing.
                         ds = ds.drop("pressure_set_1_qc")
                     else:
                         ds = ds.rename({"pressure_set_1_qc": "ps_qc"})
@@ -1257,7 +1256,6 @@ def clean_madis(
 
                         if flagvals == ["nan"]:
                             # This should not occur, but leave in as additional check.
-                            # print("Flag value is {}".format(flagvals)) # For testing.
                             ds = ds.drop("dew_point_temperature_set_1_qc")
                         else:
                             ds = ds.rename(
@@ -1368,7 +1366,6 @@ def clean_madis(
 
                     if flagvals == ["nan"]:
                         # This should not occur, but leave in as additional check.
-                        # print("Flag value is {}".format(flagvals)) # For testing.
                         ds = ds.drop("pr_24h_qc")
                     else:
                         # Reformat to match csv.

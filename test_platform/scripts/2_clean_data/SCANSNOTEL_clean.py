@@ -110,9 +110,9 @@ def clean_scansnotel(rawdir: str, cleandir: str):
         ]
         # Associated columns for each variable
         cols_to_remove = (
-            ["{}_flag".format(elem) for elem in vars_to_remove]
-            + ["{}_value".format(elem) for elem in vars_to_remove]
-            + ["{}_time".format(elem) for elem in vars_to_remove]
+            [f"{elem}_flag" for elem in vars_to_remove]
+            + [f"{elem}_value" for elem in vars_to_remove]
+            + [f"{elem}_time" for elem in vars_to_remove]
         )
 
         # Get list of station IDs from filename and clean.
@@ -271,7 +271,7 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                 del df_stat
 
                 # Update global attributes
-                ds = ds.assign_attrs(title="{} cleaned".format(network))
+                ds = ds.assign_attrs(title=f"{network} cleaned")
                 ds = ds.assign_attrs(institution="Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source="")
                 ds = ds.assign_attrs(
@@ -652,7 +652,7 @@ def clean_scansnotel(rawdir: str, cleandir: str):
                     try:
                         if key != "elevation":
                             if np.isnan(ds[key].values).all():
-                                print("Dropping empty var: {}".format(key))
+                                print(f"Dropping empty var: {key}")
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans

@@ -106,7 +106,7 @@ def qaqc_frequent_vals(
     for var in vars_to_check:
         try:
             logger.info(
-                "Running frequent values check on: {}".format(var),
+                f"Running frequent values check on: {var}",
             )
             df_valid = grab_valid_obs(df, var)  # subset for valid obs
 
@@ -125,9 +125,7 @@ def qaqc_frequent_vals(
             # if no values are flagged as suspect, end function, no need to proceed
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
                 logger.info(
-                    "No unusually frequent values detected for entire {} observation record".format(
-                        var
-                    ),
+                    f"No unusually frequent values detected for entire {var} observation record"
                 )
                 # goes to seasonal check, no bypass
 
@@ -158,11 +156,10 @@ def qaqc_frequent_vals(
             )  ## DECISION: December is from the current year
             if len(df_valid.loc[df_valid[var + "_eraqc"] == 100]) == 0:
                 logger.info(
-                    "No unusually frequent values detected for seasonal {} observation record".format(
-                        var
-                    ),
+                    f"No unusually frequent values detected for seasonal {var} observation record"
                 )
-                continue  # bypasses to next variable
+                # bypasses to next variable
+                continue
 
             else:
                 logger.info(
@@ -188,12 +185,8 @@ def qaqc_frequent_vals(
                 df.loc[isFlagged.index, var + "_eraqc"] = flag_to_place
 
         except Exception as e:
-            logger.info(
-                "qaqc_frequent_precip failed with Exception: {} -- bypassing variable".format(
-                    e
-                ),
-            )
-            continue
+            logger.error("qaqc_frequent_precip failed")
+            raise e
 
         # synergistic flag on tas and tdps/tdps_derived
         # first establish at least tas and one tdps var present
@@ -209,10 +202,8 @@ def qaqc_frequent_vals(
             df = qaqc_frequent_precip(df, v)
 
         except Exception as e:
-            logger.info(
-                "qaqc_frequent_precip failed with Exception: {}".format(e),
-            )
-            continue
+            logger.error("qaqc_frequent_precip failed")
+            raise e
 
     # plots item
     if plots:
@@ -321,9 +312,7 @@ def frequent_bincheck(
             )
 
             if len(flagged_bins) != 0:
-                logger.info(
-                    "Flagging bin: {0}".format(flagged_bins),
-                )
+                logger.info(f"Flagging bin: {flagged_bins}")
 
                 for sus_bin in flagged_bins:
                     df.loc[
@@ -399,9 +388,7 @@ def frequent_bincheck(
                     )
 
                     if len(flagged_bins) != 0:
-                        logger.info(
-                            "Flagging bins: {0}".format(flagged_bins),
-                        )
+                        logger.info(f"Flagging bins: {flagged_bins}")
 
                         for sus_bin in flagged_bins:
                             df.loc[
@@ -457,9 +444,7 @@ def frequent_bincheck(
                     )
 
                     if len(flagged_bins) != 0:
-                        logger.info(
-                            "Flagging frequent bins in: {0}".format(flagged_bins),
-                        )
+                        logger.info(f"Flagging frequent bins in: {flagged_bins}")
 
                         for sus_bin in flagged_bins:
                             # flag jan feb
@@ -611,14 +596,14 @@ def qaqc_frequent_precip(
     [1] GHCN data description, "Global Historical Climatology Network daily (GHCNd)", URL: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
     """
 
-    logger.info("Running qaqc_frequent_precip on: {}".format(var))
+    logger.info(f"Running qaqc_frequent_precip on: {var}")
 
     new_df = df.copy()
     df_valid = grab_valid_obs(new_df, var)  # subset for valid obs
 
     # add check in case valid_obs is now length 0
     if len(df_valid) == 0:
-        logger.info("{} has 0 observations, moving to next variable".format(var))
+        logger.info(f"{var} has 0 observations, moving to next variable")
         return new_df
 
     # aggregate to daily, subset on time, var, and eraqc var
@@ -654,9 +639,7 @@ def qaqc_frequent_precip(
             var + "_eraqc",
         ] = 31  # see flag meanings
         logger.info(
-            "Flagging {} days for frequent value precip check for {}".format(
-                len(flagged_days), var
-            )
+            f"Flagging {len(flagged_days)} days for frequent value precip check for {var}"
         )
 
     return new_df

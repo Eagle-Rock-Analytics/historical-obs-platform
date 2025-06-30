@@ -38,12 +38,12 @@ from log_config import logger
 try:
     from qaqc_utils import *
 except Exception as e:
-    logger.debug("Error importing qaqc_utils: {}".format(e))
+    logger.debug(f"Error importing qaqc_utils: {e}")
 
 try:
     from qaqc_plot import flagged_timeseries_plot
 except Exception as e:
-    logger.debug("Error importing flagged_timeseries_plot: {}".format(e))
+    logger.debug(f"Error importing flagged_timeseries_plot: {e}")
 
 # if __name__ == "__main__":
 WECC_TERR = (
@@ -101,16 +101,15 @@ def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
 
     # identify what variables are left
     remaining_vars = [x for x in list(ds.keys()) if x not in exclude_qaqc]
+    xvars = list(ds.keys())
 
     # if only elevation remains this means there are no data vars and the station will not go through QAQC
     if len(remaining_vars) == 1 and "elevation" in remaining_vars:
-        logger.info("No data variables reported: {}".format(list(ds.keys())))
+        logger.info(f"No data variables reported: {xvars}")
         return None
 
     else:
-        logger.info(
-            "{} data variables will proceed through QA/QC.".format(len(remaining_vars))
-        )
+        logger.info(f"{remaining_vars} data variables will proceed through QA/QC.")
         return ds
 
 
@@ -186,9 +185,7 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
                     df[item],
                 )
 
-                logger.info(
-                    "Updating missing values for: {}".format(item),
-                )
+                logger.info(f"Updating missing values for: {item}")
                 return df
         else:
             # station does not have any actual observations values
@@ -315,9 +312,7 @@ def _grab_dem_elev_m(lats_to_check: list[float], lons_to_check: list[str]) -> fl
 
     except Exception as e:
         logger.info(
-            "In-filling failed, may be related to DEM server. In-filling with 0.0m, but should be checked: {}".format(
-                e
-            )
+            "In-filling failed, may be related to DEM server. In-filling with 0.0m, but should be checked"
         )
         dem_elev_short = 0.00  # m
         return dem_elev_short
@@ -356,12 +351,10 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                     | (df["elevation"] > base_elev + 50)
                 ]
                 # find suspicious elevations
-                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
-                    36  # see era_qaqc_flag_meanings.csv
-                )
-                logger.info(
-                    "Flagging {} elevation values as inconsistent".format(len(susElevs))
-                )
+                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = 36
+                # see era_qaqc_flag_meanings.csv
+                suselevs_len = len(susElevs)
+                logger.info(f"Flagging {suselevs_len} elevation values as inconsistent")
 
         elif len(all_elevs) == 2:
             # small array of elevation values, use counts to identify "normal" range -- or DEM
@@ -376,9 +369,7 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                     # flag elev2
                     df.loc[df["elevation"] == elev2, "elevation_eraqc"] = 36
                     logger.info(
-                        "Flagging {} as an inconsistent elevation value".format(
-                            str(elev2)
-                        )
+                        f"Flagging {str(elev2)} as an inconsistent elevation value"
                     )
 
                 elif len(df.loc[df["elevation"] == elev2]) > len(
@@ -387,9 +378,7 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                     # flag elev1
                     df.loc[df["elevation"] == elev1, "elevation_eraqc"] = 36
                     logger.info(
-                        "Flagging {} as an inconsistent elevation value".format(
-                            str(elev1)
-                        )
+                        f"Flagging {str(elev1)} as an inconsistent elevation value"
                     )
         else:
             # only a single elevation value present
@@ -400,12 +389,10 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
         return df
 
     except Exception as e:
-        logger.info(
-            "qaqc_elev_internal_range_consistency failed: {} -- leaving values as unflagged".format(
-                e
-            )
+        logger.error(
+            "qaqc_elev_internal_range_consistency failed -- leaving values as unflagged"
         )
-        return None
+        raise e
 
 
 def qaqc_elev_infill(df: pd.DataFrame) -> pd.DataFrame | None:
@@ -584,11 +571,8 @@ def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
     # Elevation value is present and within reasonable value range
     else:
         df = df
-        logger.info(
-            "Elevation values post-infilling/correcting: {}".format(
-                df["elevation"].unique()
-            )
-        )
+        e_unique = df["elevation"].unique()
+        logger.info(f"Elevation values post-infilling/correcting: {e_unique}")
 
     return df
 

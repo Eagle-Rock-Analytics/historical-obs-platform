@@ -309,11 +309,11 @@ def clean_cimis(rawdir: str, cleandir: str):
                 del df_stat
 
                 # Update global attributes
-                ds = ds.assign_attrs(title="{} cleaned".format(network))
+                ds = ds.assign_attrs(title=f"{network} cleaned")
                 ds = ds.assign_attrs(institution="Eagle Rock Analytics / Cal Adapt")
                 ds = ds.assign_attrs(source="")
                 ds = ds.assign_attrs(
-                    history="CIMIS_clean.py script run on {} UTC".format(timestamp)
+                    history=f"CIMIS_clean.py script run on {timestamp} UTC"
                 )
                 ds = ds.assign_attrs(
                     comment="Intermediate data product: may not have been subject to any cleaning or QA/QC processing"
@@ -622,7 +622,7 @@ def clean_cimis(rawdir: str, cleandir: str):
                     try:
                         if key != "elevation":
                             if np.isnan(ds[key].values).all():
-                                print("Dropping empty var: {}".format(key))
+                                print(f"Dropping empty var: {key}")
                                 ds = ds.drop(key)
 
                         # only drop elevation if all other variables are also nans

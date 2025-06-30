@@ -139,7 +139,7 @@ def ftp_to_aws(ftp: FTP, file: str, directory: str, rename: str | None = None):
     ftp.retrbinary("RETR " + file, r.write)
     r.seek(0)
     s3.upload_fileobj(r, BUCKET_NAME, directory + file)
-    print("{} saved".format(file))
+    print(f"{file} saved")
     r.close()  # Close file
 
     return None
