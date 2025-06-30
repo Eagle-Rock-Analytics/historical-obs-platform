@@ -79,16 +79,12 @@ def qaqc_unusual_large_jumps(
     ]
     variables = [var for var in check_vars if var in df.columns]
 
-    logger.info(
-        f"Running qaqc_unusual_large_jumps on {variables}"
-    )
+    logger.info(f"Running qaqc_unusual_large_jumps on {variables}")
 
     # Loop through test variables
     for var in variables:
         try:
-            logger.info(
-                f"Running unusual large jumps check on: {var}"
-            )
+            logger.info(f"Running unusual large jumps check on: {var}")
             new_df = grab_valid_obs(df, var)  # subset for valid obs
 
             # first scans suspect values using entire record
@@ -113,9 +109,7 @@ def qaqc_unusual_large_jumps(
             if plot:
                 ## Plotting by month/year will reduce the number of plots
                 keys = bad.groupby(["year", "month"]).groups.keys()
-                logger.info(
-                    f"Plotting {len(keys)} year/month cases"
-                )
+                logger.info(f"Plotting {len(keys)} year/month cases")
                 for k in keys:
                     ind = np.logical_and(
                         df_plot["year"] == k[0], df_plot["month"] == k[1]

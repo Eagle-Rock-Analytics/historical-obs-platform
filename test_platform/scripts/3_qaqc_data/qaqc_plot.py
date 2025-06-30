@@ -321,7 +321,7 @@ def flagged_timeseries_plot(
             BUCKET.put_object(
                 Body=img_data,
                 ContentType="image/png",
-                Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png"
+                Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
             )
 
             # close figure to save memory
@@ -394,7 +394,7 @@ def frequent_plot_helper(
     plt.xlabel(f"{xlab} [{units}]")
     yr_formatted = str(yr).replace("_", " ")  # simple formatting for plot aesthetic
     plt.annotate(yr_formatted, xy=(0.02, 0.95), xycoords="axes fraction", fontsize=10)
-    plt.title(F"Frequent value check: {station}", fontsize=10)
+    plt.title(f"Frequent value check: {station}", fontsize=10)
     plt.legend(("Cleaned data", "Flagged"), loc="upper right")
     ax = plt.gca()
     leg = ax.get_legend()
@@ -484,7 +484,7 @@ def frequent_vals_plot(df: pd.DataFrame, var: str, rad_scheme: str):
             ].unique()  # identify flagged months in that year
 
             # Spring - MAM
-            if (3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns):  
+            if 3 in flagged_szns or 4 in flagged_szns or 5 in flagged_szns:
                 df_to_plot = df_year.loc[
                     (df_year["month"] == 3)
                     | (df_year["month"] == 4)
@@ -955,7 +955,7 @@ def unusual_jumps_plot(df: pd.DataFrame, var: str, flagval: int = 23, dpi: int =
     BUCKET.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key=f"{SAVE_DIR}/{network}/{figname}.png"
+        Key=f"{SAVE_DIR}/{network}/{figname}.png",
     )
 
     # close figure to save memory
@@ -1019,12 +1019,12 @@ def clim_outlier_plot(
 
     try:
         # +1 # Manually shift the edge by one bin
-        left = np.where(np.logical_and(np.gradient(p) > 0, p <= 0.1))[0][-1]  
+        left = np.where(np.logical_and(np.gradient(p) > 0, p <= 0.1))[0][-1]
     except:
         left = 1
     try:
         # -1 # Manually shift the edge by one bin
-        right = np.where(np.logical_and(np.gradient(p) < 0, p <= 0.1))[0][0]  
+        right = np.where(np.logical_and(np.gradient(p) < 0, p <= 0.1))[0][0]
     except:
         right = len(bins) - 2
 
@@ -1305,9 +1305,10 @@ def unusual_streaks_plot(
 
     figname = f"qaqc_unusual_repeated_streaks_{station}_{var}_{year}-{month}"
     BUCKET.put_object(
-        Body=img_data, 
-        ContentType="image/png", 
-        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png")
+        Body=img_data,
+        ContentType="image/png",
+        Key=f"{SAVE_DIR}/{network}/qaqc_figs/{figname}.png",
+    )
 
     # close figure to save memory
     plt.close("all")
@@ -1423,12 +1424,13 @@ def precip_deaccumulation_plot(
     img_data = BytesIO()
     fig.savefig(img_data, format="png", dpi=dpi, bbox_inches="tight")
     img_data.seek(0)
-    
+
     figname = f"qaqc_figs/qaqc_precip_deaccumulation_{station}"
     BUCKET.put_object(
-        Body=img_data, 
-        ContentType="image/png", 
-        Key=f"{SAVE_DIR}/{network}/{figname}.png")
+        Body=img_data,
+        ContentType="image/png",
+        Key=f"{SAVE_DIR}/{network}/{figname}.png",
+    )
 
     # close figure to save memory
     plt.close("all")

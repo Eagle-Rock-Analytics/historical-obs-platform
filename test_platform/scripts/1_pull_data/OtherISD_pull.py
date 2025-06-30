@@ -120,7 +120,9 @@ def get_wecc_stations(terrpath: str, marpath: str, directory: str) -> pd.DataFra
 
     # Read in ASOS and AWOS station files and use to filter to remove ASOS/AWOS stations
     # Note, this relies on having run the ASOSAWOS pull script prior
-    asosawos = pd.read_csv(f"s3://{BUCKET_NAME}/1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv")
+    asosawos = pd.read_csv(
+        f"s3://{BUCKET_NAME}/1_raw_wx/ASOSAWOS/stationlist_ASOSAWOS.csv"
+    )
 
     # create mask and filter
     m1 = weccstations.WBAN.isin(asosawos.WBAN)

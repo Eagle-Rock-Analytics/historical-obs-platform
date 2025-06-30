@@ -326,15 +326,11 @@ def qaqc_unusual_repeated_streaks(
     new_df = df.copy()
 
     variables = [var for var in CHECK_VARS if var in new_df.columns]
-    logger.info(
-        f"Running qaqc_unusual_repeated_streaks on {variables}"
-    )
+    logger.info(f"Running qaqc_unusual_repeated_streaks on {variables}")
 
     # Loop through test variables
     for var in variables:
-        logger.info(
-            f"Running unusual streaks check on: {var}"
-        )
+        logger.info(f"Running unusual streaks check on: {var}")
         try:
             # Create a copy of the original dataframe and drop NaNs in the testing variable
             test_df = new_df.copy().dropna(subset=var)
@@ -420,9 +416,7 @@ def qaqc_unusual_repeated_streaks(
                 )
 
             # Whole day replication for a streak of days
-            logger.info(
-                f"Running whole day repeats on {var}"
-            )
+            logger.info(f"Running whole day repeats on {var}")
             tt00 = time.time()
             threshold = DAY_REPEAT_CRITERIA[var][res]
 

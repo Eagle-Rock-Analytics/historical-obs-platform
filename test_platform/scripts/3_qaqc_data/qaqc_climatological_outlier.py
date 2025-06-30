@@ -186,8 +186,8 @@ def qaqc_climatological_outlier(
             ]
 
         except Exception as e:
-           logger.error(f"qaqc_climatological_outlier_precip failed, bypassing {var}")
-           raise e
+            logger.error(f"qaqc_climatological_outlier_precip failed, bypassing {var}")
+            raise e
 
     # precip focused check
     for var in pr_vars_to_anom:

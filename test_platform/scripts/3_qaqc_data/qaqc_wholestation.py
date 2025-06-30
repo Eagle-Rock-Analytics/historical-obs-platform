@@ -109,9 +109,7 @@ def qaqc_eligible_vars(ds: xr.Dataset) -> xr.Dataset:
         return None
 
     else:
-        logger.info(
-            f"{remaining_vars} data variables will proceed through QA/QC."
-        )
+        logger.info(f"{remaining_vars} data variables will proceed through QA/QC.")
         return ds
 
 
@@ -353,14 +351,10 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
                     | (df["elevation"] > base_elev + 50)
                 ]
                 # find suspicious elevations
-                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = (
-                    36  
-                )
+                df.loc[df.time.isin(susElevs.time), "elevation_eraqc"] = 36
                 # see era_qaqc_flag_meanings.csv
                 suselevs_len = len(susElevs)
-                logger.info(
-                    f"Flagging {suselevs_len} elevation values as inconsistent"
-                )
+                logger.info(f"Flagging {suselevs_len} elevation values as inconsistent")
 
         elif len(all_elevs) == 2:
             # small array of elevation values, use counts to identify "normal" range -- or DEM
@@ -395,7 +389,9 @@ def qaqc_elev_internal_range_consistency(df: pd.DataFrame) -> pd.DataFrame | Non
         return df
 
     except Exception as e:
-        logger.error("qaqc_elev_internal_range_consistency failed -- leaving values as unflagged")
+        logger.error(
+            "qaqc_elev_internal_range_consistency failed -- leaving values as unflagged"
+        )
         raise e
 
 
@@ -576,9 +572,7 @@ def qaqc_elev_range(df: pd.DataFrame) -> pd.DataFrame | None:
     else:
         df = df
         e_unique = df["elevation"].unique()
-        logger.info(
-            f"Elevation values post-infilling/correcting: {e_unique}"
-        )
+        logger.info(f"Elevation values post-infilling/correcting: {e_unique}")
 
     return df
 

@@ -317,9 +317,7 @@ def qaqc_deaccumulate_precip(
     try:
         for var in vars_to_check:
             try:
-                logger.info(
-                    f"Running qaqc_deaccumulate_precip on {var}"
-                )
+                logger.info(f"Running qaqc_deaccumulate_precip on {var}")
 
                 # First, determine if the series is accumulated or instantaneous
                 if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:

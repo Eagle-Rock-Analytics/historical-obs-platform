@@ -159,7 +159,7 @@ def qaqc_frequent_vals(
                     f"No unusually frequent values detected for seasonal {var} observation record"
                 )
                 # bypasses to next variable
-                continue  
+                continue
 
             else:
                 logger.info(
@@ -312,9 +312,7 @@ def frequent_bincheck(
             )
 
             if len(flagged_bins) != 0:
-                logger.info(
-                    f"Flagging bin: {flagged_bins}"
-                )
+                logger.info(f"Flagging bin: {flagged_bins}")
 
                 for sus_bin in flagged_bins:
                     df.loc[
@@ -390,9 +388,7 @@ def frequent_bincheck(
                     )
 
                     if len(flagged_bins) != 0:
-                        logger.info(
-                            f"Flagging bins: {flagged_bins}"
-                        )
+                        logger.info(f"Flagging bins: {flagged_bins}")
 
                         for sus_bin in flagged_bins:
                             df.loc[
@@ -448,9 +444,7 @@ def frequent_bincheck(
                     )
 
                     if len(flagged_bins) != 0:
-                        logger.info(
-                            f"Flagging frequent bins in: {flagged_bins}"
-                        )
+                        logger.info(f"Flagging frequent bins in: {flagged_bins}")
 
                         for sus_bin in flagged_bins:
                             # flag jan feb

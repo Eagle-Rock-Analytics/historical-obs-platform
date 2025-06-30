@@ -76,9 +76,7 @@ def qaqc_unusual_gaps(
     vars_to_pr = [var for var in df.columns if var in vars_for_pr]  # precip vars
 
     try:
-        logger.info(
-           f"Running qaqc_unusual_gaps on {vars_to_check}"
-        )
+        logger.info(f"Running qaqc_unusual_gaps on {vars_to_check}")
 
         # whole station bypass check first
         df, stn_length = qaqc_dist_whole_stn_bypass_check(
@@ -151,9 +149,7 @@ def qaqc_dist_gap_part1(
 
     for var in vars_to_check:
         try:
-            logger.info(
-                f"Running unusual gaps check on: {var}, qaqc_dist_gap_part1"
-            )
+            logger.info(f"Running unusual gaps check on: {var}, qaqc_dist_gap_part1")
             for month in range(1, 13):
                 monthly_df = df.loc[df["month"] == month]
 
@@ -253,9 +249,7 @@ def qaqc_dist_gap_part2(
 
     for var in vars_to_check:
         try:
-            logger.info(
-                f"Running unusual gaps check on: {var}, qaqc_dist_gap_part2"
-            )
+            logger.info(f"Running unusual gaps check on: {var}, qaqc_dist_gap_part2")
             for month in range(1, 13):
                 # Sel month data
                 monthly_df = df.loc[df["month"] == month]

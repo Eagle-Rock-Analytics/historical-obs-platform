@@ -77,9 +77,7 @@ def spurious_buoy_check(df: pd.DataFrame, qc_vars: list[str]) -> pd.DataFrame:
     station = df["station"].unique()[0]
 
     if station in known_issues:
-        logger.info(
-            f"{station} has a known issue, checking data coverage."
-        )
+        logger.info(f"{station} has a known issue, checking data coverage.")
 
         # buoys with "data" past their disestablishment dates
         if station == "NDBC_46023":  # disestablished 9/8/2010

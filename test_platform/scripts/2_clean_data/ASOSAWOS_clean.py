@@ -279,7 +279,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                                 errors["Error"].append(
                                     f"File not in WECC. Lat: {lat} Lon: {lon}"
                                 )
-                                break  
+                                break
                             else:
                                 # POS 16-23: GEOPHYSICAL-POINT-OBSERVATION date, # POS 24-27: GEOPHYSICAL-POINT-OBSERVATION time (in UTC)
                                 time = datetime.strptime(string[15:27], "%Y%m%d%H%M")
@@ -1023,7 +1023,7 @@ def clean_asosawos(rawdir: str, cleandir: str):
                                 print(f"Dropping empty var: {key}")
                                 ds = ds.drop(key)
                                 continue
-                        except: 
+                        except:
                             continue
 
                     # Reorder variables

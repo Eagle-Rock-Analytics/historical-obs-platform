@@ -103,11 +103,11 @@ def create_bins_frequent(
 
     # Compute bin
     # Get the minimum of the data; get closest integer to min (floor)
-    b_min = np.floor(np.nanmin(data))  
+    b_min = np.floor(np.nanmin(data))
     # Get the maximum of the data; get closest integer to max (ceil)
-    b_max = np.ceil(np.nanmax(data))  
+    b_max = np.ceil(np.nanmax(data))
     # Arange the bins; largest bin should be maximum + bin size.
-    bins = np.arange(b_min, b_max + bin_size, bin_size)  
+    bins = np.arange(b_min, b_max + bin_size, bin_size)
 
     return bins
 

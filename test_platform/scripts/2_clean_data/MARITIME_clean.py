@@ -240,15 +240,11 @@ def clean_buoys(rawdir: str, cleandir: str, network: str):
                                     if (df.iloc[1][0] >= 80) & (
                                         df.iloc[1][0] <= 99
                                     ):  # 1980-1999
-                                        df["YYYY"] = df["YY"].apply(
-                                            lambda x: f"19{x}"
-                                        )
+                                        df["YYYY"] = df["YY"].apply(lambda x: f"19{x}")
                                         df = df.iloc[:, 1:]
                                     else:
                                         # 2000-present
-                                        df["YYYY"] = df["YY"].apply(
-                                            lambda x: f"20{x}"
-                                        )
+                                        df["YYYY"] = df["YY"].apply(lambda x: f"20{x}")
                                         df = df.iloc[:, 1:]
 
                                 if (df.columns[0][0].isdigit()) == False:
