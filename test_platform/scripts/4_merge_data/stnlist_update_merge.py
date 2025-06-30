@@ -1,7 +1,7 @@
 """
 stnlist_update_merge.py
 
-This script iterates through a specified network and checks to see what stations have been successfully been hourly standardized and merged,
+This script iterates through a specified network and checks to see what stations have been successfully hourly standardized and merged,
 updating the station list in the 1_raw_wx folder to reflect station availability. Error.csvs in the cleaned bucket are also parsed,
 with relevant errors added to the corresponding stations if station files do not pass merge, or if the errors occur during or after the merge process.
 
@@ -13,6 +13,7 @@ Functions
 - get_station_list: Retrieves specific network stationlist from QAQC bucket
 - get_zarr_last_mod: Identifies the last modified date from a zarr 
 - get_merge_stations: Retrieves list of all stations that pass the merge process
+- fix_start_end_dates: Fixes two kinds of incorrect date encoding listed in the network stationlists. 
 - parse_error_csv: Retrieves all processing error files for a network
 - merge_qa: Update station list and save to AWS, adding merge status, time of merge pass and any relevant errors.
 
@@ -22,6 +23,7 @@ Run this script after merge has been completed for a network (via pcluster run) 
 """
 
 import pandas as pd
+import xarray as xr
 from io import BytesIO, StringIO
 import numpy as np
 import boto3
@@ -131,6 +133,81 @@ def get_merge_stations(network: str) -> pd.DataFrame:
     return pd.DataFrame(df)
 
 
+def fix_start_end_dates(network: str, stations: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fixes two kinds of incorrect date encoding listed in the network stationlists.
+    Kind 1: Missing start and end dates listed in the stationlist for specific networks.
+    Issue originated from source network (not provided via raw station list).
+    Impacted networks: MARITIME, NDBC, CW3E
+    #! Handful of individual stations in RAWS, HADS, CWOP (handle separately)
+
+    Kind 2: End date incorrectly encoded as 2100-12-31. Issue originated from source network (known issue).
+    Impacted networks: SCAN, SNOTEL
+
+    Parameters
+    ----------
+    stations : pd.DataFrame
+        original stationlist
+
+    Returns
+    -------
+    fixed_stns : pd.DataFrame
+        stationlist with corrected start and end dates
+
+    Notes
+    -----
+    To identify the correct start/end date, the station file has to be opened. For the "Kind 2" error,
+    we are also "resetting" the start date for ease of computation. Dates should be identical.
+    #! Nice to have: build in check for identical dates
+    """
+
+    # networks with incorrect date encoding in station list
+    wrong_date = ["MARITIME", "NDBC", "CW3E", "SCAN", "SNOTEL"]
+
+    if network in wrong_date:
+        print(
+            "Network has known issue with start/end date coverage. This may take some time to correct."
+        )
+        for id in stations["ERA-ID"]:
+            print(f"Checking start/end date encoding for {id}...")
+
+            # identify correct start/end date from station timestamps
+            try:
+                ds = xr.open_zarr(
+                    f"s3://{BUCKET_NAME}/{MERGE_WX}{network}/{id}.zarr",
+                    consolidated=False,
+                )
+            except Exception as e:
+                continue
+
+            correct_start = str(ds.time.values[0])
+            correct_end = str(ds.time.values[-1])
+            # save memory
+            ds.close()
+
+            # set correct start/end date time to station list
+            try:
+                stations.loc[stations["ERA-ID"] == id, "start-date"] = correct_start
+                stations.loc[stations["ERA-ID"] == id, "end-date"] = correct_end
+
+            except Exception as e:
+                print(f"Issue setting correct start / end dates for {id}... {e}")
+
+    else:
+        print("Network has no known start/end date issues.")
+
+    # put these columns at specific index (so they're not at the end)
+    try:
+        start = stations.pop("start-date")
+        end = stations.pop("end-date")
+        stations.insert(4, "start-date", start)
+        stations.insert(5, "end-date", end)
+    except:
+        print(f"Issue resetting index on start/end")
+
+    return stations
+
+
 def parse_error_csv(network: str) -> pd.DataFrame:
     """
     Given a network name, return a pandas dataframe containing all errors reported for the network in the merge stage.
@@ -187,10 +264,9 @@ def merge_qa(network: str):
     -------
     None
     """
-    if network == "otherisd":  # Fixing capitalization issues
+    # Fixing capitalization issues
+    if network == "otherisd":
         network = "OtherISD"
-    else:
-        network = network.upper()
 
     # Call functions
     stations = get_station_list(network)  # grabs stationlist_qaqcd
@@ -202,6 +278,9 @@ def merge_qa(network: str):
             "No merged files for this network. Please run the relevant merge script and try again."
         )
         exit()
+
+    # Fix start/end date issues
+    stations = fix_start_end_dates(network, stations)
 
     # Join qaqc'd columns to column list
     stations = stations.merge(merge_ids, left_on="ERA-ID", right_on="ID", how="outer")
