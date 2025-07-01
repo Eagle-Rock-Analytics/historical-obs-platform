@@ -35,7 +35,7 @@ phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": ME
 
 # ---------------------------------------------------------
 # final function
-def get_station_chart(phase):
+def get_station_chart(phase, phase_dict):
     """
     Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
 
