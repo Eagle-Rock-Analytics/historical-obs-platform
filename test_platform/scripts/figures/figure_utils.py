@@ -43,14 +43,15 @@ def get_station_chart(phase):
     ----------
     phase: str
         "pull", "clean", "qaqc" or "merge"
-    directory: string
-        RAW_DIR, CLEAN_DIR, QAQC_FIR, or MERGE_DIR
     
     Returns
     -------
-    summed_df: pd.DataFrame
+    out: 
 
     """
+    if phase not in ['pull','clean','qaqc','merge']:
+        print(f'invalid phase:{phase}')
+        return None
 
     ## Get station list
     directory = phase_dict[phase]
@@ -74,12 +75,12 @@ def get_station_chart(phase):
     # print(dffull[dffull['network']=="MARITIME"])
     subdf = station_list.loc[~station_list["start-date"].isnull()].copy()
 
-    # ! which we filter out depends on the phase, add if here
-    ## Filter out non-downloaded rows  #! raw only
-    subdf = subdf.loc[subdf["pulled"] != "N"].copy()
-
-    # Filter out non-cleaned rows #! clean and QAQC
-    subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
+    if phase == 'pull':
+        ## Filter out non-downloaded rows  #! raw only
+        subdf = subdf.loc[subdf["pulled"] != "N"].copy()
+    else:
+        # Filter out non-cleaned rows #! clean and QAQC
+        subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
 
     # manually filter dates to >01-01-1980 and <today.
     # Timezones so far ignored here but we presume on the scale of month we can safely ignore them for the moment.
@@ -108,21 +109,20 @@ def get_station_chart(phase):
     subdf = subdf[subdf.period.str.len() > 0]
     subdf = subdf.reset_index(drop=True)
 
-    ##! multiple options for this step
-
-    #! 1. from raw phase function
-    out = subdf.explode("period").pivot_table(
-        values="name", index="network", columns="period", aggfunc="count", fill_value=0
-    )
-
-    #! 3. from clean phase function
-    out = subdf.explode("period").pivot_table(
-        values="era-id",
-        index="network",
-        columns="period",
-        aggfunc="count",
-        fill_value=0,
-    )
+    if phase == 'pull':
+        #! from raw phase function
+        out = subdf.explode("period").pivot_table(
+            values="name", index="network", columns="period", aggfunc="count", fill_value=0
+        )
+    else:
+        #! from clean phase function
+        out = subdf.explode("period").pivot_table(
+            values="era-id",
+            index="network",
+            columns="period",
+            aggfunc="count",
+            fill_value=0,
+        )
 
     return out
 
@@ -141,14 +141,106 @@ def get_station_map(phase, shapepath):
 
     Returns
     -------
-    summed_df: pd.DataFrame
+    out: 
 
     """
+    if phase not in ['pull','clean','qaqc','merge']:
+        print(f'invalid phase:{phase}')
+        return None
 
-    return out
+    ## Get station list
+    directory = phase_dict[phase]
+    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv")
 
+    ## Get period
+
+    # Format dates in datetime format (this gets lost in import).
+    station_list["start-date"] = pd.to_datetime(station_list["start-date"], utc=True)
+    station_list["end-date"] = pd.to_datetime(station_list["end-date"], utc=True)
+
+    # Make a geodataframe.
+    gdf = gpd.GeoDataFrame(
+        station_list, geometry=gpd.points_from_xy(station_list.longitude, station_list.latitude)
+    )
+    gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
+
+    # Project data to match base tiles.
+    gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
+
+    # Read in geometry of continental US.
+    us = gpd.read_file(shapepath)
+
+    # Remove territories, AK, HI
+    rem_list = ["HI", "AK", "MP", "GU", "AS", "PR", "VI"]
+    us = us.loc[us.STUSPS.isin(rem_list) == False]
+
+    # Use to clip stations
+    us = us.to_crs(epsg=3857)
+    gdf_us = gdf_wm.clip(us)
+
+    # ------------------------------------------------------------------------------------------------------------
+    # Version 1 - full map
+    ax = gdf_us.plot(
+        "network",
+        figsize=(15, 15),
+        alpha=1,
+        markersize=3,
+        legend=True,
+        cmap="nipy_spectral",
+    )
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+    ax.set_axis_off()
+
+    # Save to AWS
+    img_data = BytesIO()
+    plt.savefig(img_data, format="png")
+    img_data.seek(0)
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    bucket.put_object(
+        Body=img_data, ContentType="image/png", Key="2_clean_wx/clean_station_map.png"
+    )
+
+    # ------------------------------------------------------------------------------------------------------------
+    # Version 2 - only big networks
+    # Sort stations by number of networks
+    gdf_us["network_count"] = gdf_us.groupby("network")["network"].transform(
+        "count"
+    )  # Add network count column.
+
+    # If <100 stations, change to "misc"
+    gdf_us.loc[gdf_us["network_count"] < 100, "network"] = "Misc"
+
+    # Plot
+    ax = gdf_us.plot(
+        "network",
+        figsize=(15, 15),
+        alpha=1,
+        markersize=3,
+        legend=True,
+        cmap="nipy_spectral",
+    )
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+    ax.set_axis_off()
+
+    # Save to AWS
+    img_data = BytesIO()
+    plt.savefig(img_data, format="png")
+    img_data.seek(0)
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    bucket.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key="2_clean_wx/clean_station_map_min.png",
+    )
 
 # stage 1
+
+
+# Run function - generate station map
 def get_station_map(bucket_name, directory, shapepath, update=False):
     s3 = boto3.resource("s3")
     s3_cl = boto3.client("s3")  # for lower-level processes
@@ -220,6 +312,29 @@ def get_station_map(bucket_name, directory, shapepath, update=False):
     )
 
 
+#     # Version 2
+#     # If <100 stations, change to misc
+#     # Sort stations by number of networks
+#     gdf_us['network_count'] = gdf_us.groupby('network')['network'].transform('count') # Add network count column.
+
+#     gdf_us.loc[gdf_us['network_count'] < 100, 'network'] = "Misc"
+
+#     # Plot
+#     ax = gdf_us.plot("network", figsize=(15, 15), alpha=1, markersize = 3, legend = True, cmap = 'nipy_spectral')
+#     cx.add_basemap(ax, source=cx.providers.Stamen.TonerLite)
+#     ax.set_axis_off()
+
+#     # Save to AWS
+#     img_data = BytesIO()
+#     plt.savefig(img_data, format='png')
+#     img_data.seek(0)
+
+#     s3 = boto3.resource('s3')
+#     bucket = s3.Bucket(bucket_name)
+#     bucket.put_object(Body=img_data, ContentType='image/png', Key="1_raw_wx/pull_station_map_min.png")
+
+
+# Stage 2
 # Run function - generate station map
 def get_station_map(bucket_name, directory, shapepath, update=False):
     s3 = boto3.resource("s3")
