@@ -1,195 +1,87 @@
 """figure_utils.py
 
-Resamples data to an hourly timestep according to standard conventions.
+
 
 Functions
 ---------
-- qaqc_flag_fcn: Used for resampling QAQC flag columns.
-- _modify_infill: This function does two things: (1) Flags rows ('y' under 'standardized_infill') that were infilled by resampling in the hourly standardization
-    process, where there were time gaps in the input dataframe. (2) Infills constant variables (ie those in "constant_vars") observations that were left empty because
-    they were in a time gap.
-- merge_hourly_standardization: Resamples meteorological variables to hourly timestep according to standard conventions.
-
+- 
 Intended Use
 ------------
-Script functions are used to standardize all variables to hourly temporal resolution as a part of the merge pipeline.
+Script functions used in visualization notebooks to generate figures
 """
 
-from functools import reduce
-import numpy as np
+import boto3
 import pandas as pd
-import logging
-import inspect
+import numpy as np
+import matplotlib.pylab as plt
+import matplotlib
+from io import BytesIO, StringIO
+from datetime import datetime, timezone, date
+import geopandas as gpd
+import contextily as cx
+
+# Set AWS credentials
+s3 = boto3.resource("s3")
+s3_cl = boto3.client("s3")  # for lower-level processes
+
+# Set relative paths to other folders and objects in repository.
+BUCKET_NAME = "wecc-historical-wx"
+RAW_DIR = '1_raw_wx'
+CLEAN_DIR = '2_clean_wx'
+QAQC_DIR = "3_qaqc_wx"
+MERGE_DIR = "4_merge_wx"
+stations_csv_path = f"s3://{BUCKET_NAME}/{QAQC_DIR}/all_network_stationlist_qaqc.csv"
+
+#! could create dictionary
 
 
 # ---------------------------------------------------------
 # get_station_chart(bucket_name, directory)
 
 # final function
-def get_station_chart(bucket_name, directory, update=False):
+def get_station_chart(directory,stage):
+    """
+    Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
 
+    Parameters
+    ----------
+    stage: str
+        "pull", "clean", "qaqc" or "merge"
+    directory: string
+        RAW_DIR, CLEAN_DIR, QAQC_FIR, or MERGE_DIR
+    
+    Returns
+    -------
+    summed_df: pd.DataFrame
 
-# stage 1
+    """
 
-def get_station_chart(bucket_name, directory, update=False):
-    s3 = boto3.resource("s3")
-    s3_cl = boto3.client("s3")  # for lower-level processes
-    if update == False:
-        obj = s3_cl.get_object(
-            Bucket=bucket_name, Key="1_raw_wx/temp_pull_all_station_list.csv"
-        )
-        body = obj["Body"].read()
-        dffull = pd.read_csv(BytesIO(body), encoding="utf8")
-    elif update == True:
-        dffull = get_station_list(bucket_name, directory)
+    ## Get station list
+    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{stage}.csv")
 
-    # Get period
-
-    # Format dates in datetime format (this gets lost in import).
-    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
-    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
-
-    # Fix nas
-    ## Filter out rows w/o start date
-    ## Note here: we lose MARITIME and NDBC networks.
-    # print(dffull[dffull['network']=="MARITIME"])
-    subdf = dffull.loc[~dffull["start-date"].isnull()].copy()
-
-    ## Filter out non-downloaded rows
-    subdf = subdf.loc[subdf["pulled"] != "N"].copy()
-
-    # manually filter dates to >01-01-1980 and <today.
-    # Timezones so far ignored here but we presume on the scale of month we can safely ignore them for the moment.
-    # Note!: This implicitly assumes stations w/o end date run until present.
-    subdf["start-date"] = subdf["start-date"].apply(
-        lambda x: (
-            x
-            if x > datetime(1980, 1, 1, tzinfo=timezone.utc)
-            else datetime(1980, 1, 1, tzinfo=timezone.utc)
-        )
-    )
-    subdf["end-date"] = subdf["end-date"].apply(
-        lambda x: (
-            x
-            if x < datetime.utcnow().replace(tzinfo=timezone.utc)
-            else datetime.utcnow().replace(tzinfo=timezone.utc)
-        )
-    )
-
-    # Get period of months for range of dates for each station
-    subdf["period"] = [
-        pd.period_range(*v, freq="M")
-        for v in zip(subdf["start-date"], subdf["end-date"])
-    ]
-
-    subdf = subdf[subdf.period.str.len() > 0]
-    subdf = subdf.reset_index(drop=True)
-
-    out = subdf.explode("period").pivot_table(
-        values="name", index="network", columns="period", aggfunc="count", fill_value=0
-    )
-    # out.columns = out.columns.strftime('%b-%y')
-
-    return out
-
-
-# stage 2
-def get_station_chart(bucket_name, directory, update=False):
-    s3 = boto3.resource("s3")
-    s3_cl = boto3.client("s3")
-
-    if update == False:
-        obj = s3_cl.get_object(
-            Bucket=bucket_name, Key="2_clean_wx/temp_clean_all_station_list.csv"
-        )
-        body = obj["Body"].read()
-        dffull = pd.read_csv(BytesIO(body), encoding="utf8")
-    elif update == True:
-        dffull = get_station_list(bucket_name, directory)
-
-    # Get period
-    # Format dates in datetime format (this gets lost in import).
-    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
-    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
-
-    # Fix nas
-    # Filter out rows w/o start date
-    # Note here: we lose MARITIME and NDBC networks
-    # print(dffull[dffull['network']=="MARITIME"])
-    subdf = dffull.loc[~dffull["start-date"].isnull()].copy()
-
-    # Filter out non-cleaned rows
-    subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
-
-    # Manually filter dates to >01-01-1980 and <today.
-    # Timezones so far ignored here but we presume on the scale of month we can safely ignore them for the moment
-    # Note!: This implicitly assumes stations w/o end date run until present
-    subdf["start-date"] = subdf["start-date"].apply(
-        lambda x: (
-            x
-            if x > datetime(1980, 1, 1, tzinfo=timezone.utc)
-            else datetime(1980, 1, 1, tzinfo=timezone.utc)
-        )
-    )
-    subdf["end-date"] = subdf["end-date"].apply(
-        lambda x: (
-            x
-            if x < datetime.utcnow().replace(tzinfo=timezone.utc)
-            else datetime.utcnow().replace(tzinfo=timezone.utc)
-        )
-    )
-
-    # Get period of months for range of dates for each station
-    subdf["period"] = [
-        pd.period_range(*v, freq="M")
-        for v in zip(subdf["start-date"], subdf["end-date"])
-    ]
-
-    subdf = subdf[subdf.period.str.len() > 0]
-    subdf = subdf.reset_index(drop=True)
-
-    out = subdf.explode("period").pivot_table(
-        values="era-id",
-        index="network",
-        columns="period",
-        aggfunc="count",
-        fill_value=0,
-    )
-    # out.columns = out.columns.strftime('%b-%y')
-
-    return out
-
-
-# stage 3
-def get_station_chart(bucket_name, directory):
-    s3 = boto3.resource("s3")
-    s3_cl = boto3.client("s3")  # for lower-level processes
-
-    # read in cleaned station list
-    obj = s3_cl.get_object(
-        Bucket=bucket_name, Key="2_clean_wx/temp_clean_all_station_list.csv"
-    )
-    body = obj["Body"].read()
-    dfall = pd.read_csv(BytesIO(body), encoding="utf8")
-
+    #! only in qaqc
     # read in qaqc training station list
     stns = pd.read_csv("../3_qaqc_data/qaqc_training_station_list.csv")
 
-    dffull = dfall[dfall["era-id"].isin(stns["era-id"])]
+    station_list = station_list[station_list["era-id"].isin(stns["era-id"])]
+    #! only in qaqc ^
 
-    # Get period
+    ## Get period
 
     # Format dates in datetime format (this gets lost in import).
-    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
-    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
+    station_list["start-date"] = pd.to_datetime(station_list["start-date"], utc=True)
+    station_list["end-date"] = pd.to_datetime(station_list["end-date"], utc=True)
 
     # Fix nas
     ## Filter out rows w/o start date
-    ## Note here: we lose MARITIME and NDBC networks.
     # print(dffull[dffull['network']=="MARITIME"])
-    subdf = dffull.loc[~dffull["start-date"].isnull()].copy()
+    subdf = station_list.loc[~station_list["start-date"].isnull()].copy()
 
-    ## Filter out non-cleaned rows
+    # ! which we filter out depends on the phase, add if here
+    ## Filter out non-downloaded rows  #! raw only
+    subdf = subdf.loc[subdf["pulled"] != "N"].copy()
+
+    # Filter out non-cleaned rows #! clean and QAQC
     subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
 
     # manually filter dates to >01-01-1980 and <today.
@@ -219,6 +111,14 @@ def get_station_chart(bucket_name, directory):
     subdf = subdf[subdf.period.str.len() > 0]
     subdf = subdf.reset_index(drop=True)
 
+    ##! multiple options for this step
+
+    #! 1. from raw phase function
+    out = subdf.explode("period").pivot_table(
+        values="name", index="network", columns="period", aggfunc="count", fill_value=0
+    )
+
+    #! 3. from clean phase function
     out = subdf.explode("period").pivot_table(
         values="era-id",
         index="network",
@@ -226,7 +126,6 @@ def get_station_chart(bucket_name, directory):
         aggfunc="count",
         fill_value=0,
     )
-    # out.columns = out.columns.strftime('%b-%y')
 
     return out
 
