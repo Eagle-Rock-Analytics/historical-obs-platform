@@ -19,6 +19,7 @@ from io import BytesIO, StringIO
 from datetime import datetime, timezone, date
 import geopandas as gpd
 import contextily as cx
+from collections import defaultdict
 
 # Set AWS credentials
 s3 = boto3.resource("s3")
@@ -30,22 +31,17 @@ RAW_DIR = '1_raw_wx'
 CLEAN_DIR = '2_clean_wx'
 QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
-stations_csv_path = f"s3://{BUCKET_NAME}/{QAQC_DIR}/all_network_stationlist_qaqc.csv"
-
-#! could create dictionary
-
+phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
 # ---------------------------------------------------------
-# get_station_chart(bucket_name, directory)
-
 # final function
-def get_station_chart(directory,stage):
+def get_station_chart(phase):
     """
     Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
 
     Parameters
     ----------
-    stage: str
+    phase: str
         "pull", "clean", "qaqc" or "merge"
     directory: string
         RAW_DIR, CLEAN_DIR, QAQC_FIR, or MERGE_DIR
@@ -57,7 +53,8 @@ def get_station_chart(directory,stage):
     """
 
     ## Get station list
-    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{stage}.csv")
+    directory = phase_dict[phase]
+    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv")
 
     #! only in qaqc
     # read in qaqc training station list
@@ -131,7 +128,24 @@ def get_station_chart(directory,stage):
 
 
 # ---------------------------------------------------------
-# get_station_map(bucket_name, directory, shapepath, update=False)
+def get_station_map(phase, shapepath):
+    """
+    Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
+
+    Parameters
+    ----------
+    phase: str
+        "pull", "clean", "qaqc" or "merge"
+    directory: string
+        RAW_DIR, CLEAN_DIR, QAQC_FIR, or MERGE_DIR
+
+    Returns
+    -------
+    summed_df: pd.DataFrame
+
+    """
+
+    return out
 
 
 # stage 1
