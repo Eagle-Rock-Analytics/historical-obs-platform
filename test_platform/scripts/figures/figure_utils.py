@@ -35,7 +35,7 @@ phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": ME
 
 # ---------------------------------------------------------
 # final function
-def get_station_chart(phase, phase_dict):
+def get_station_chart(phase):
     """
     Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
 
@@ -118,7 +118,7 @@ def get_station_chart(phase, phase_dict):
     return out
 
 
-def plot_chart(phase, phase_dict):
+def plot_chart(phase):
     """
     Plots the output from get_station_chart()
 
@@ -193,28 +193,28 @@ def plot_chart(phase, phase_dict):
     bucket = s3.Bucket(BUCKET_NAME)
     export_folder = phase_dict[phase]
     export_key = f"{export_folder}/{phase}_stations_over_time.png"
-    # bucket.put_object(
-    #     Body=img_data,
-    #     ContentType="image/png",
-    #     Key=export_key,
-    # )
+    bucket.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key=export_key,
+    )
 
 
 # ---------------------------------------------------------
 def get_station_map_v1(phase, shapepath):
     """
-    
+    Generates and exports a map of station locations from the station list of the input phase.
 
     Parameters
     ----------
     phase: str
         "pull", "clean", "qaqc" or "merge"
     shapepath: string
-        
+
 
     Returns
     -------
-    out: 
+    out:
 
     """
     if phase not in ['pull','clean','qaqc','merge']:
@@ -251,8 +251,7 @@ def get_station_map_v1(phase, shapepath):
     us = us.to_crs(epsg=3857)
     gdf_us = gdf_wm.clip(us)
 
-    # ------------------------------------------------------------------------------------------------------------
-    # Version 1 - full map
+    # Plot
     ax = gdf_us.plot(
         "network",
         figsize=(15, 15),
@@ -279,16 +278,20 @@ def get_station_map_v1(phase, shapepath):
     )
 
 
-def get_station_map_v1(phase, shapepath):
+def get_station_map_v2(phase, shapepath):
     """
+    Generates and exports a map of large station locations from the station list of the input phase.
 
+    Rules
+    -----
+    1. Map networks with >100 stations, binning all other station under "misc"
 
     Parameters
     ----------
     phase: str
         "pull", "clean", "qaqc" or "merge"
-    shapepath: string
-
+    shapepath: str
+        path to
 
     Returns
     -------
@@ -332,8 +335,6 @@ def get_station_map_v1(phase, shapepath):
     us = us.to_crs(epsg=3857)
     gdf_us = gdf_wm.clip(us)
 
-    # ------------------------------------------------------------------------------------------------------------
-    # Version 2 - only big networks
     # Sort stations by number of networks
     gdf_us["network_count"] = gdf_us.groupby("network")["network"].transform(
         "count"
