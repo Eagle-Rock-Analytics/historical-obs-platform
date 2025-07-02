@@ -190,7 +190,6 @@ def plot_chart(phase, phase_dict):
     plt.savefig(img_data, format="png")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
     bucket = s3.Bucket(BUCKET_NAME)
     export_folder = phase_dict[phase]
     export_key = f"{export_folder}/{phase}_stations_over_time.png"
@@ -270,12 +269,14 @@ def get_station_map_v1(phase, shapepath):
     plt.savefig(img_data, format="png")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
+    export_folder = phase_dict[phase]
+    export_key = f"{export_folder}/{phase}_station_map.png"
     bucket.put_object(
-        Body=img_data, ContentType="image/png", Key="2_clean_wx/clean_station_map.png"
+        Body=img_data,
+        ContentType="image/png",
+        Key=export_key,
     )
-
 
 
 def get_station_map_v1(phase, shapepath):
@@ -358,10 +359,11 @@ def get_station_map_v1(phase, shapepath):
     plt.savefig(img_data, format="png")
     img_data.seek(0)
 
-    s3 = boto3.resource("s3")
     bucket = s3.Bucket(BUCKET_NAME)
+    export_folder = phase_dict[phase]
+    export_key = f"{export_folder}/{phase}_station_map_min.png"
     bucket.put_object(
         Body=img_data,
         ContentType="image/png",
-        Key="2_clean_wx/clean_station_map_min.png",
+        Key=export_key,
     )
