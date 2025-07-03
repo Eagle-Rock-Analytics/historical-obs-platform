@@ -1,13 +1,18 @@
 """figure_utils.py
 
-This script contains
+This script contains functions for visualizing stations over time in a map and chart.
 
 Functions
 ---------
--
+- get_station_chart(): prepares station list data to generate a chart of stations acquired over time, for a given phase
+- plot_chart(): plots the output from get_station_chart(), exporting it to AWS
+- get_station_map_v1(): generates and exports a map of station locations from the station list of the input phase
+- get_station_map_v2(): generates and exports a map of large network station locations from the station list of the input phase
+
 Intended Use
 ------------
 Script functions used in visualization notebooks to generate figures
+
 """
 
 import boto3
@@ -36,18 +41,19 @@ phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": ME
 
 # ---------------------------------------------------------
 # final function
-def get_station_chart(phase):
+def get_station_chart(phase: str) -> pd.DataFrame:
     """
-    Sums two input flag count dataframes. This is a helper function for sum_flag_counts().
+    Prepares station list data to generate a chart of stations acquired over time, for a given phase.
 
     Parameters
     ----------
     phase: str
-        "pull", "clean", "qaqc" or "merge"
+        the pipeline phase - "pull", "clean", "qaqc" or "merge"
 
     Returns
     -------
-    out:
+    out: pd.DataFrame
+        station list modified for charting
 
     """
     if phase not in ["pull", "clean", "qaqc", "merge"]:
@@ -125,20 +131,18 @@ def get_station_chart(phase):
     return out
 
 
-def plot_chart(phase):
+def plot_chart(phase: str) -> None:
     """
-    Plots the output from get_station_chart()
+    Plots the output from get_station_chart(), exporting it to AWS.
 
     Parameters
     ----------
     phase: str
-        "pull", "clean", "qaqc" or "merge"
-    phase_dict: dict
-        dictionary of phases and the paths to their directories
+        the pipeline phase - "pull", "clean", "qaqc" or "merge"
 
     Returns
     -------
-    plot
+    None
 
     """
     out = get_station_chart(phase)
@@ -207,21 +211,20 @@ def plot_chart(phase):
     )
 
 
-# ---------------------------------------------------------
-def get_station_map_v1(phase, shapepath):
+def get_station_map_v1(phase: str, shapepath: str) -> None:
     """
     Generates and exports a map of station locations from the station list of the input phase.
 
     Parameters
     ----------
     phase: str
-        "pull", "clean", "qaqc" or "merge"
+        the pipeline phase - "pull", "clean", "qaqc" or "merge"
     shapepath: string
-
+        path to shapefile ofr 2021 US state borders
 
     Returns
     -------
-    out:
+    None
 
     """
     if phase not in ["pull", "clean", "qaqc", "merge"]:
@@ -288,9 +291,9 @@ def get_station_map_v1(phase, shapepath):
     )
 
 
-def get_station_map_v2(phase, shapepath):
+def get_station_map_v2(phase: str, shapepath: str) -> None:
     """
-    Generates and exports a map of large station locations from the station list of the input phase.
+    Generates and exports a map of large network station locations from the station list of the input phase.
 
     Rules
     -----
@@ -299,13 +302,13 @@ def get_station_map_v2(phase, shapepath):
     Parameters
     ----------
     phase: str
-        "pull", "clean", "qaqc" or "merge"
-    shapepath: str
-        path to
+        the pipeline phase - "pull", "clean", "qaqc" or "merge"
+    shapepath: string
+        path to shapefile ofr 2021 US state borders
 
     Returns
     -------
-    out:
+    None
 
     """
     if phase not in ["pull", "clean", "qaqc", "merge"]:
