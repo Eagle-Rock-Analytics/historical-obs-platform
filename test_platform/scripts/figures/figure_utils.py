@@ -37,16 +37,17 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
+
 def get_hdp_colordict() -> dict:
     """
     Builds a dictionary of specified network colors for use in HDP figures,
-    using "network_colors.txt", which is a customized combo of the 
+    using "network_colors.txt", which is a customized combo of the
     "tab20c_r" and "tab20b" matplotlib colormaps.
 
     Parameters
     ----------
     None
-    
+
     Returns
     -------
     color_dict : dict
@@ -68,16 +69,16 @@ def get_hdp_colordict() -> dict:
 def var_fullname(var: str) -> str:
     """
     Returns the full name of variable.
-    
+
     Parameters
     ----------
     var : str
         name of variable
-        
+
     Returns
     --------
     var_title : str
-        long name of variable    
+        long name of variable
     """
 
     if var == "tas":
@@ -113,7 +114,7 @@ def get_station_chart(phase: str) -> tuple[pd.DataFrame, int] | None:
     -------
     out: pd.DataFrame
         station list modified for charting
-    
+
     """
 
     if phase not in ["pull", "clean", "qaqc", "merge"]:
@@ -247,7 +248,9 @@ def plot_chart(phase: str) -> None:
 
     # Annotate text for total number
     plt.annotate(
-        f"Total # of {phase} stations: {phase_stn_count}", xy=(0.025, 0.95), xycoords="axes fraction"
+        f"Total # of {phase} stations: {phase_stn_count}",
+        xy=(0.025, 0.95),
+        xycoords="axes fraction",
     )
 
     # Save to AWS
