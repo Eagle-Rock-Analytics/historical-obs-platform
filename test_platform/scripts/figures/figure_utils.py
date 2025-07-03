@@ -12,7 +12,6 @@ Functions
 Intended Use
 ------------
 Script functions used in visualization notebooks to generate figures
-
 """
 
 import boto3
@@ -38,10 +37,70 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
+def get_hdp_colordict() -> dict:
+    """
+    Builds a dictionary of specified network colors for use in HDP figures,
+    using "network_colors.txt", which is a customized combo of the 
+    "tab20c_r" and "tab20b" matplotlib colormaps.
 
-# ---------------------------------------------------------
-# final function
-def get_station_chart(phase: str) -> pd.DataFrame:
+    Parameters
+    ----------
+    None
+    
+    Returns
+    -------
+    color_dict : dict
+        dictionary of network names to designated colors
+    """
+
+    # initialize color dictionary
+    color_dict = {}
+
+    # read through network_colors text file and assign each network to its designated color
+    with open("network_colors.txt") as f:
+        for line in f:
+            (key, val) = line.split()
+            color_dict[key] = str("#") + str(val)
+
+    return color_dict
+
+
+def var_fullname(var: str) -> str:
+    """
+    Returns the full name of variable.
+    
+    Parameters
+    ----------
+    var : str
+        name of variable
+        
+    Returns
+    --------
+    var_title : str
+        long name of variable    
+    """
+
+    if var == "tas":
+        var_title = f"Air temperature ({var})"
+    if "tdps" in var:
+        var_title = f"Dewpoint temperature ({var})"
+    elif var == "hurs":
+        var_title = f"Relative humidity ({var})"
+    elif var == "rsds":
+        var_title = f"Radiation ({var})"
+    elif var == "sfcwind":
+        var_title = f"Surface wind speed ({var})"
+    elif var == "sfcwind_dir":
+        var_title = f"Surface wind direction ({var})"
+    elif "pr" in var:
+        var_title = f"Precipitation ({var})"
+    elif "ps" in var and "td" not in var:
+        var_title = f"Air pressure ({var})"
+
+    return var_title
+
+
+def get_station_chart(phase: str) -> tuple[pd.DataFrame, int] | None:
     """
     Prepares station list data to generate a chart of stations acquired over time, for a given phase.
 
@@ -54,47 +113,35 @@ def get_station_chart(phase: str) -> pd.DataFrame:
     -------
     out: pd.DataFrame
         station list modified for charting
-
+    
     """
+
     if phase not in ["pull", "clean", "qaqc", "merge"]:
         print(f"invalid phase:{phase}")
         return None
 
-    ## Get station list
+    # Get station list
     directory = phase_dict[phase]
     station_list = pd.read_csv(
         f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv"
     )
 
-    ## Get period
-
+    # Get period
     # Format dates in datetime format (this gets lost in import).
     station_list["start-date"] = pd.to_datetime(station_list["start-date"], utc=True)
     station_list["end-date"] = pd.to_datetime(station_list["end-date"], utc=True)
 
-    # Fix nas
-    ## Filter out rows w/o start date
-    # print(dffull[dffull['network']=="MARITIME"])
-    subdf = station_list.loc[~station_list["start-date"].isnull()].copy()
-
-    if phase == "pull":
-        ## Filter out non-downloaded rows
-        subdf = subdf.loc[subdf["pulled"] != "N"].copy()
-    else:
-        # Filter out non-cleaned rows
-        subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
-
-    # manually filter dates to >01-01-1980 and <today.
+    # Manually filter dates to >01-01-1980 and <today.
     # Timezones so far ignored here but we presume on the scale of month we can safely ignore them for the moment.
     # Note!: This implicitly assumes stations w/o end date run until present.
-    subdf["start-date"] = subdf["start-date"].apply(
+    station_list["start-date"] = station_list["start-date"].apply(
         lambda x: (
             x
             if x > datetime(1980, 1, 1, tzinfo=timezone.utc)
             else datetime(1980, 1, 1, tzinfo=timezone.utc)
         )
     )
-    subdf["end-date"] = subdf["end-date"].apply(
+    station_list["end-date"] = station_list["end-date"].apply(
         lambda x: (
             x
             if x < datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -103,13 +150,22 @@ def get_station_chart(phase: str) -> pd.DataFrame:
     )
 
     # Get period of months for range of dates for each station
-    subdf["period"] = [
+    station_list["period"] = [
         pd.period_range(*v, freq="M")
-        for v in zip(subdf["start-date"], subdf["end-date"])
+        for v in zip(station_list["start-date"], station_list["end-date"])
     ]
 
-    subdf = subdf[subdf.period.str.len() > 0]
+    subdf = station_list[station_list.period.str.len() > 0]
     subdf = subdf.reset_index(drop=True)
+
+    # identify number of stations in each phase
+    if phase == "qaqc":
+        phased = "qaqc"
+    elif phase == "merge":
+        phased = "merged"
+    else:
+        phased = phase + "ed"
+    phase_stn_count = len(subdf.loc[subdf[phased] != "N"])
 
     if phase == "pull":
         out = subdf.explode("period").pivot_table(
@@ -128,7 +184,7 @@ def get_station_chart(phase: str) -> pd.DataFrame:
             fill_value=0,
         )
 
-    return out
+    return out, phase_stn_count
 
 
 def plot_chart(phase: str) -> None:
@@ -143,9 +199,9 @@ def plot_chart(phase: str) -> None:
     Returns
     -------
     None
-
     """
-    out = get_station_chart(phase)
+
+    out, phase_stn_count = get_station_chart(phase)
     # Plot
     outt = out.T.reset_index()
 
@@ -167,7 +223,7 @@ def plot_chart(phase: str) -> None:
         x_compat=True,
         cmap="tab20c_r",
     )  # Get area plot
-    ax.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))  # Fix legend
+    ax.legend(loc="upper left", bbox_to_anchor=(0.01, 0.95), ncol=2)
     ax.tick_params(labelcolor="black", labelsize="medium", width=3)
     ax.set_facecolor("w")
     ax.set_xlabel("Date")
@@ -187,13 +243,11 @@ def plot_chart(phase: str) -> None:
     ax.yaxis.get_ticklocs(minor=True)
 
     # Set x axis labels
-    # #plt.title("Stations Over Time By Network")
     plt.subplots_adjust(left=0.2, bottom=0.2, top=0.8, right=0.8)
 
     # Annotate text for total number
-    # hard coding the number for now, come back to this
     plt.annotate(
-        "Total # of QA/QC'd stations: 937", xy=(0.025, 0.95), xycoords="axes fraction"
+        f"Total # of {phase} stations: {phase_stn_count}", xy=(0.025, 0.95), xycoords="axes fraction"
     )
 
     # Save to AWS
@@ -209,6 +263,8 @@ def plot_chart(phase: str) -> None:
         ContentType="image/png",
         Key=export_key,
     )
+
+    return None
 
 
 def get_station_map_v1(phase: str, shapepath: str) -> None:
@@ -289,6 +345,8 @@ def get_station_map_v1(phase: str, shapepath: str) -> None:
         ContentType="image/png",
         Key=export_key,
     )
+
+    return None
 
 
 def get_station_map_v2(phase: str, shapepath: str) -> None:
@@ -381,3 +439,5 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
         ContentType="image/png",
         Key=export_key,
     )
+
+    return None
