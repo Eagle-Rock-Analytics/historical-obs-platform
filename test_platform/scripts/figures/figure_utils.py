@@ -1,10 +1,10 @@
 """figure_utils.py
 
-
+This script contains
 
 Functions
 ---------
-- 
+-
 Intended Use
 ------------
 Script functions used in visualization notebooks to generate figures
@@ -27,11 +27,12 @@ s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
 BUCKET_NAME = "wecc-historical-wx"
-RAW_DIR = '1_raw_wx'
-CLEAN_DIR = '2_clean_wx'
+RAW_DIR = "1_raw_wx"
+CLEAN_DIR = "2_clean_wx"
 QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
+
 
 # ---------------------------------------------------------
 # final function
@@ -43,19 +44,21 @@ def get_station_chart(phase):
     ----------
     phase: str
         "pull", "clean", "qaqc" or "merge"
-    
+
     Returns
     -------
-    out: 
+    out:
 
     """
-    if phase not in ['pull','clean','qaqc','merge']:
-        print(f'invalid phase:{phase}')
+    if phase not in ["pull", "clean", "qaqc", "merge"]:
+        print(f"invalid phase:{phase}")
         return None
 
     ## Get station list
     directory = phase_dict[phase]
-    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv")
+    station_list = pd.read_csv(
+        f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv"
+    )
 
     ## Get period
 
@@ -68,11 +71,11 @@ def get_station_chart(phase):
     # print(dffull[dffull['network']=="MARITIME"])
     subdf = station_list.loc[~station_list["start-date"].isnull()].copy()
 
-    if phase == 'pull':
-        ## Filter out non-downloaded rows 
+    if phase == "pull":
+        ## Filter out non-downloaded rows
         subdf = subdf.loc[subdf["pulled"] != "N"].copy()
     else:
-        # Filter out non-cleaned rows 
+        # Filter out non-cleaned rows
         subdf = subdf.loc[subdf["cleaned"] != "N"].copy()
 
     # manually filter dates to >01-01-1980 and <today.
@@ -102,9 +105,13 @@ def get_station_chart(phase):
     subdf = subdf[subdf.period.str.len() > 0]
     subdf = subdf.reset_index(drop=True)
 
-    if phase == 'pull':
+    if phase == "pull":
         out = subdf.explode("period").pivot_table(
-            values="name", index="network", columns="period", aggfunc="count", fill_value=0
+            values="name",
+            index="network",
+            columns="period",
+            aggfunc="count",
+            fill_value=0,
         )
     else:
         out = subdf.explode("period").pivot_table(
@@ -134,7 +141,7 @@ def plot_chart(phase):
     plot
 
     """
-    out = get_station_chart(phase, phase_dict)
+    out = get_station_chart(phase)
     # Plot
     outt = out.T.reset_index()
 
@@ -217,13 +224,15 @@ def get_station_map_v1(phase, shapepath):
     out:
 
     """
-    if phase not in ['pull','clean','qaqc','merge']:
-        print(f'invalid phase:{phase}')
+    if phase not in ["pull", "clean", "qaqc", "merge"]:
+        print(f"invalid phase:{phase}")
         return None
 
     ## Get station list
     directory = phase_dict[phase]
-    station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv")
+    station_list = pd.read_csv(
+        f"s3://{BUCKET_NAME}/{directory}/all_network_stationlist_{phase}.csv"
+    )
 
     ## Get period
 
@@ -233,7 +242,8 @@ def get_station_map_v1(phase, shapepath):
 
     # Make a geodataframe.
     gdf = gpd.GeoDataFrame(
-        station_list, geometry=gpd.points_from_xy(station_list.longitude, station_list.latitude)
+        station_list,
+        geometry=gpd.points_from_xy(station_list.longitude, station_list.latitude),
     )
     gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
 
