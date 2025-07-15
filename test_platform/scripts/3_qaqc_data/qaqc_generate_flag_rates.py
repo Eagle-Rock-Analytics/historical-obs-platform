@@ -187,8 +187,6 @@ def station_rates_table(timestep: str) -> None:
     station_list = pd.read_csv(stations_csv_path)
     network_list = station_list["network"].unique()
 
-    network_list = ["ASOSAWOS", "SNOTEL"]
-
     # The function iteratively adds in flag counts to this dataframe
     flag_rate_df = []
 
@@ -212,7 +210,7 @@ def station_rates_table(timestep: str) -> None:
                 flag_rate_df = _pairwise_rate(flags, flag_rate_df, station_name)
 
     # Change "eraqc_flag_values" to "stations"
-    flag_rate_df = flag_rate_df.rename(columns={"eraqc_flag_values": "networks"})
+    flag_rate_df = flag_rate_df.rename(columns={"eraqc_flag_values": "era-id"})
 
     ## Send final flag rates file to AWS as CSV
     csv_s3_filepath = (
