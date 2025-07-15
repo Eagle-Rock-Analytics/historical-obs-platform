@@ -246,7 +246,7 @@ def main():
 
     # step 1: generate per network flag rate table
     print(
-        "Starting flag rate table generation per network -- anticipated time to complete: 3 sec"
+        "Starting flag rate table generation per network -- anticipated time to complete: 1 min"
     )
 
     print("Generating native timestep network rates table...")
@@ -260,10 +260,10 @@ def main():
         "Starting flag rate table generation per station -- anticipated time to complete: 1 hr"
     )
 
-    print("Generating native timestep station rates table...")
+    print("Generating native timestep station rates table...") # takes ~37 minutes
     station_rates_table("native")
 
-    print("Generating hourly timestep station rates table...")
+    print("Generating hourly timestep station rates table...") # takes ~24 minutes
     station_rates_table("hourly")
 
     return None
