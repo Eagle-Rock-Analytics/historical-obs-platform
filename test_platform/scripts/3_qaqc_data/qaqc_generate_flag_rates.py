@@ -1,29 +1,26 @@
 """
-qaqc_success_report_tables.py
+qaqc_generate_flag_rates.py
 
-Creates QAQC flag counts csv files per network from the corresponding eraqc_counts_timestep files that were
+Creates QAQC flag rates csv files per network and per station from the corresponding QAQC flag counts files that were
 generated as a part of the final processing step for stations within the Historical Data Pipeline.
-These tables are used to then generate statistics for the QAQC success report.
+These tables are used to generate statistics and visualizations for the QAQC success report.
 
 This is carried out in two steps:
 
-1. Generate the per-network QAQC flag count tables, at native and hourly timesteps
-2. Generates one flag count table that sums all per-network tables, at native and hourly timesteps
+1. Generate the per-network QAQC flag rates tables, at native and hourly timesteps
+2. Generate the per-station QAQC flag rates tables, at native and hourly timesteps
 
 Functions
 ---------
-- _pairwise_sum(): helper function that merges two input flag tables, used by network_sum_flag_counts() and total_sum_flag_counts().
-- _network_format_table:
-- _total_format_table:
-- network_sum_flag_counts(): sums all station flag count tables for a given network, creating one flag count table for that network
-- generate_station_tables(): runs network_sum_flag_counts() for every network
-- total_sum_flag_counts(): sums all network flag count tables, creating one final flag count table
+- _pairwise_rate(): helper function that generates flag rates dataframe for input flag counts dataframe and then adds it to the running flag rate dataframe
+- network_rates_table(): generates
+- station_rates_table():
 
 Intended Use
 ------------
-Run this script to generate all flag sum tables at the network and total levels.
+Run this script to generate all flag rate tables.
 
-Run "python qaqc_generate_flag_sum.py"
+Run "python qaqc_generate_flag_rates.py"
 
 """
 
@@ -49,7 +46,7 @@ def _pairwise_rate(
 ) -> pd.DataFrame:
     """
     Generates flag rates dataframe for input flag counts dataframe and then adds it to the running flag rate dataframe.
-    Helper function for network_rate_tables() and station_rate_table().
+    Helper function for network_rates_table() and station_rates_table().
 
     Parameters
     ----------
@@ -94,15 +91,15 @@ def _pairwise_rate(
         return rates_df_merged
 
 
-def network_rate_tables(timestep: str) -> None:
+def network_rates_table(timestep: str) -> None:
     """
     Generates a table of flag rates per network and uploads it to AWS.
 
     Parameters
     ----------
     timestep: str
-        if set to 'hourly', merge all hourly QAQC flag count tables
-        if set to 'native', merge all native timestep QAQC flag count tables
+        if set to 'hourly', generate flag rate table from hourly flag counts
+        if set to 'native', generate flag rate table from native flag counts
 
     Returns
     -------
@@ -162,15 +159,15 @@ def network_rate_tables(timestep: str) -> None:
     return None
 
 
-def station_rate_tables(timestep: str) -> None:
+def station_rates_table(timestep: str) -> None:
     """
     Generates a table of flag rates per station.
 
     Parameters
     ----------
     timestep: str
-        if set to 'hourly', merge all hourly QAQC flag count tables
-        if set to 'native', merge all native timestep QAQC flag count tables
+        if set to 'hourly', generate flag rate table from hourly flag counts
+        if set to 'native', generate flag rate table from native flag counts
     Returns
     -------
     None
@@ -255,10 +252,10 @@ def main():
     )
 
     print("Generating native timestep network rates table...")
-    network_rate_tables("native")
+    network_rates_table("native")
 
     print("Generating hourly timestep network rates table...")
-    network_rate_tables("hourly")
+    network_rates_table("hourly")
 
     # step 2: generate per station flag rate table
     print(
@@ -266,10 +263,10 @@ def main():
     )
 
     print("Generating native timestep station rates table...")
-    station_rate_tables("native")
+    station_rates_table("native")
 
     print("Generating hourly timestep station rates table...")
-    station_rate_tables("hourly")
+    station_rates_table("hourly")
 
     return None
 
