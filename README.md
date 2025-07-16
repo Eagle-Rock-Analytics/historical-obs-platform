@@ -35,7 +35,7 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 ## 🙋 Support
 
 - 📧 **Email**: [ADD EMAIL HERE](email)
-- 🐛 **Issues**: [GitHub Issues](LINK ISSUES HERE)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/issues)
 - 💬 **Discussions**: [GitHub Discussions](LINK DISCUSSIONS HERE)
 
 ## 🧑‍💻 Contributors
