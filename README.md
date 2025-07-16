@@ -14,3 +14,15 @@ This repository contains the code (via Python scripts and Jupyter Notebooks) ass
 
 **History**<br>
 **v1.0** -- *In progress*
+
+## Support
+
+- 📧 **Email**: [ADD EMAIL HERE](email)
+- 🐛 **Issues**: [GitHub Issues](LINK ISSUES HERE)
+- 💬 **Discussions**: [GitHub Discussions](LINK DISCUSSIONS HERE)
+
+---
+
+## Contributors
+
+[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
