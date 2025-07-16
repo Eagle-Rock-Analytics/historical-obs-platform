@@ -2,14 +2,14 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-> [!WARNING]
-> This project and it's associated code is under active development.
-
 **Code for Eagle Rock Analytics' cloud-based, historical weather observations data platform**
 
 The [Historical Observations Data Platform](https://eaglerockanalytics.com/project/historical-observations-data-platform/) is a cloud-based, historical weather observations data platform to enable California's energy sector access to high-quality, open climate and weather data. This work is supported by California Energy Commission grant PIR-19-006. This repository contains the code (via Python scripts and Jupyter Notebooks) associated with the full processing pipeline for data ingestion into the Historical Data Platform.
 
 The Platform responds to community partner needs in understanding weather and cliamte information including the severity, duration, frequency, and rate of change over time of extreme weather events, as well as supporting projections downscaling efforts. We implement stringent, customized Quality Assurance/Quality Control (QA/QC) procedures in line with international convention, and updates relevant to the energy sector are accurately captures (such as temperature and precipitation extremes, winds, and solar radiation). 
+
+> [!WARNING]
+> This project is still is under active development.
 
 ## 📊 About the data 
 The Platform has sourced station data from from 27 publicly available historical data observation networks across the Western Electricity Coordinating Council (WECC) domain from 1980-2022 (time period varies between networks and stations). **14,927 stations** total have completed the full quality control and standardization pipelines and are publically available as [cloud-optimized zarrs](https://zarr.dev/) in [Amazon s3 storage](https://cadcat.s3.amazonaws.com/index.html#histwxstns/). 
