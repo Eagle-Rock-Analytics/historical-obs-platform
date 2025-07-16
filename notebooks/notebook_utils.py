@@ -1,4 +1,4 @@
-"""figure_utils.py
+"""notebook_utils.py
 
 This script contains functions for visualizing stations over time in a map and chart.
 
