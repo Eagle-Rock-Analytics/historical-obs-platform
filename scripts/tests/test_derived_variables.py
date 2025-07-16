@@ -7,14 +7,11 @@ To run: type "pytest test_derived_variables.py" from the command line
 import pandas as pd
 import pytest
 import sys
+import os
 import numpy as np
 
 ## Adding 2_clean_data.calc_clean to system path
-## Note to use: must insert full path to where the 2_clean_data dir is stored locally
-sys.path.insert(
-    0,
-    "/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/",
-)
+sys.path.append(os.path.abspath("../scripts/2_clean_data"))
 
 from calc_clean import (
     _calc_dewpointtemp_opt1,
@@ -30,7 +27,7 @@ from calc_clean import (
 
 @pytest.fixture
 def df():
-    return pd.read_csv("test_dataset.csv")
+    return pd.read_csv("../../data/test_dataset.csv")
 
 
 ## -----------------------------------------------------------------------------------------

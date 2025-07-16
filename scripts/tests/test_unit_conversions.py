@@ -9,11 +9,7 @@ import pytest
 import sys
 
 ## Adding 2_clean_data.calc_clean to system path
-## Note to use: must insert full path to where the 2_clean_data dir is stored locally
-sys.path.insert(
-    0,
-    "/path/to/local/historical-obs/historical-obs-platform/test_platform/scripts/2_clean_data/",
-)
+sys.path.append(os.path.abspath("../scripts/2_clean_data"))
 
 from calc_clean import (
     _unit_degC_to_K,
@@ -35,7 +31,7 @@ from calc_clean import (
 
 @pytest.fixture
 def df():
-    return pd.read_csv("test_dataset.csv")
+    return pd.read_csv("../../data/test_dataset.csv")
 
 
 ## -----------------------------------------------------------------------------------------
