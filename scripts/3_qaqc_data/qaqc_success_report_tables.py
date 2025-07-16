@@ -167,7 +167,7 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
 
     # read in flag meanings CSV
 
-    flag_meanings = pd.read_csv("era_qaqc_flag_meanings.csv")
+    flag_meanings = pd.read_csv("../../data/era_qaqc_flag_meanings.csv")
 
     # only run for a valid "timestep" input
     if timestep not in ("hourly", "native"):
@@ -223,7 +223,7 @@ def total_sum_flag_counts(timestep: str) -> None:
     """
     ## Setup
 
-    flag_meanings = pd.read_csv("era_qaqc_flag_meanings.csv")
+    flag_meanings = pd.read_csv("../../data/era_qaqc_flag_meanings.csv")
 
     # only run for a valid "timestep" input
     if timestep not in ("hourly", "native"):
