@@ -1,6 +1,9 @@
 # Mac environment stuffs
+*/.DS_Store
 .DS_Store
-__pycache__/
+
+# pycache 
+*/__pycache/*
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -16,11 +19,11 @@ __pycache__/
 */*.nc
 
 # Logging
-*/qaqc_logs
-*/qaqc_figs
-*/merge_logs
-*/timing
-*/temp
+*/qaqc_figs/
+*/merge_logs/
+*/timing/
+*/temp/
+*/tmp/
 */local_qaqced_files
 default_qaqc_log.log
 default_merge_log.log

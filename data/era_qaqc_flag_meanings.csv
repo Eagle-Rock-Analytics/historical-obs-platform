@@ -1,0 +1,39 @@
+﻿Flag_value,QAQC_function,Flag_meaning
+1,spurious_buoy_check,Suspect observation (i.e. buoy reports wind during day with known proximity issue)
+2,spurious_buoy_check,Out of range for station official data temporal record (i.e. buoy reports data past disestablishment date)
+3,qaqc_elev_infill,Elevation infilled from DEM (USGS 3DEP)
+4,qaqc_elev_infill,Elevation infilled from station
+5,qaqc_elev_infill,Elevation manually infilled to be 0.0 m; occurs for buoy out-of-range of DEM or DEM response fails (check if not buoy)
+6,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height missing
+7,qaqc_sensor_height_t,INACTIVE FLAG: Thermometer height not 2 meters
+8,qaqc_sensor_height_w,INACTIVE FLAG: Anemometer height missing
+9,qaqc_sensor_height_w,INACTIVE FLAG: Anemometer height not 10 meters
+10,qaqc_precip_logic_nonegvals,Precipitation value reported below 0 (negative value)
+11,qaqc_world_record,Value outside of world record range
+12,qaqc_crossvar_logic_tdps_to_tas_supersat,Cross-variable logic check failure: dewpoint temperature exceeds air temperature
+13,qaqc_crossvar_logic_tdps_to_tas_wetbulb,Cross-variable logic check failure: extended streak of a zero dewpoint depression (indicative of instrument failure)
+14,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction is not zero when wind speed is zero
+15,qaqc_crossvar_logic_calm_wind_dir,Cross-variable logic check failure: wind direction manually reset to 360 to represent true northerly winds
+16,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in shorter window is larger than in longer window (e.g. pr_5min > pr_1h)
+17,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation value in longer window is smaller than in shorter window (e.g. pr_24h < pr_1h)
+18,qaqc_precip_logic_accum_amounts,Cross-variable logic check failure: accumulated precipitation in a 24h period is too low compared to accumulated precipitation since local midnight    
+19,qaqc_unusual_gaps,Warning: Whole station has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality.
+20,qaqc_unusual_gaps,Warning: Variable has too few monthly observations to proceed through the monthly distribution gap check. Observations were not assessed for quality.
+21,qaqc_unusual_gaps,Part 1: Monthly median value exceeds set threshold limits around monthly interquartile range for the monthly climatological median value
+22,qaqc_unusual_gaps,Part 2: Unusual gap in monthly distribution detected beyond PDF distribution
+23,qaqc_unusual_large_jumps,Unusual jump (spike) in variable
+24,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the annual scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
+25,qaqc_frequent_vals,Value flagged as unusually frequent in occurrence at the seasonal scale after assessing the entire observation record. Temperature and dew point temperature are synergistically flagged
+26,qaqc_climatological_outlier,Value flagged as a climatological outlier for specific month and hour
+27,qaqc_unusual_repeated_streaks,Same hour observation replication over a number of days or number of observations
+28,qaqc_unusual_repeated_streaks,Straight one after another replications over a number of observartions
+29,qaqc_unusual_repeated_streaks,Whole day replication for a streak of days
+30,VALLEYWATER_clean,Infilled with NaN resulting from off-set times in the raw data due to sensor malfunction. Maintains consistent timesteps throughout timeseries
+31,qaqc_frequent_precip,Value flagged as unusually frequent in occurrence from daily precipitation above moderate rain total
+32,qaqc_climatological_outlier_precip,Value flagged as a climatological outlier in daily precipitation check
+33,qaqc_unusual_gaps_precip,Value flagged as an unusual gap in values in the daily precipitation check
+34,qaqc_deaccumulate_precip,Value flagged has a period of oscillating values (probably sensor malfunction producing ringing-like data) in the accumulated precipitation (that would result on incorrect/false de-accumulated values that look correct): cannot determine which value (higher or lower) is the real one (it has been also converted to nan in the deaccumulated series)
+35,qaqc_deaccumulate_precip,Original precipitation data; deaccumulation process has been applied
+36,qaqc_elev_internal_range_consistency,Range of elevation values reported or in-filled is larger than 50 m; elevation values greater than absolute elevation median value +/-50m are flagged
+37,VALLEYWATER_qaqc_custom,Lone peak identified in precipitation (single observation >= 5.08mm with no other precip obs in +/- 6hr window); VALLEYWATER network flag only
+38,derive_synergistic_flag,At least one input variable to derived variable has a flag placed. Input variable and derived variable are synergistically flagged

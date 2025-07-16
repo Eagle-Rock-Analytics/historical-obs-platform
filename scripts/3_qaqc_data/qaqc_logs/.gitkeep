@@ -1,0 +1,2 @@
+# Need to keep this folder for parallel QAQC in pcluster
+# Otherwise, several runs may attempt to create this folder at the same time, resulting in a conflict
