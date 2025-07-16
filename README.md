@@ -12,7 +12,7 @@ This repository contains the code (via Python scripts and Jupyter Notebooks) ass
 
 ```text
 historical-obs-platform/
-├── data/
+├── data/                      # Miscellaneous supporting data
 ├── environment/               # Files for building the computational environment, including a README with further instructions
 ├── notebooks/                 # Jupyter notebooks for data visualization and analysis 
 ├── scripts/                   # Data processing code for all steps of the QAQC process 
