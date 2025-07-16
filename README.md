@@ -6,6 +6,8 @@ The Historical Observations Data Platform is a cloud-based, historical weather o
 
 This repository contains the code (via Python scripts and Jupyter Notebooks) associated with the full processing pipeline for data ingestion into the Historical Data Platform.
 
+The Historical Observations Data Platform is supported by California Energy Commission grant PIR-19-006.
+
 ---
 
 ## 🗂 Repository Structure
@@ -34,9 +36,8 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 
 ## 🙋 Support
 
-- 📧 **Email**: [ADD EMAIL HERE](email)
+- 📧 **Email**: [info@eaglerockanalytics.com](mailto:info@eaglerockanalytics.com)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/issues)
-- 💬 **Discussions**: [GitHub Discussions](LINK DISCUSSIONS HERE)
 
 ## 🧑‍💻 Contributors
 
