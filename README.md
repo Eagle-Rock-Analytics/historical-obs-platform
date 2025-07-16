@@ -40,6 +40,6 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 - 🐛 **Issues**: [GitHub Issues](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/issues)
 
 ## 🧑‍💻 Contributors
-
+**This is broken until the repo is public**
 
 [![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
