@@ -24,10 +24,9 @@ import pandas as pd
 from datetime import datetime
 import numpy as np
 import boto3
-from io import BytesIO, StringIO
+from io import StringIO
 from zeep import Client  # For calling SOAP APIs
 from zeep.helpers import serialize_object
-import requests
 
 from calc_pull import get_wecc_poly
 

@@ -29,7 +29,6 @@ from io import StringIO
 from shapely.geometry import Point
 import geopandas as gp
 from geopandas.tools import sjoin
-import numpy as np
 
 from calc_pull import get_wecc_poly
 

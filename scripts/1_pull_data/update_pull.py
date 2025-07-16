@@ -33,7 +33,6 @@ from datetime import datetime, timezone, timedelta
 import ASOSAWOS_pullftp
 from SCANSNOTEL_pull import get_scan_station_data
 from OtherISD_pull import get_wecc_stations, get_otherisd_data_ftp
-from MADIS_pull import get_madis_metadata, get_madis_station_csv
 from CW3E_pull import get_cw3e_metadata, get_cw3e_update
 from CIMIS_pull import get_cimis_update_ftp
 from HADS_pull import get_hads_update

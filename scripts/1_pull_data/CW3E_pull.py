@@ -28,12 +28,11 @@ from ftplib import FTP
 from datetime import datetime
 import pandas as pd
 import boto3
-from io import BytesIO, StringIO
-import calc_pull
+from io import StringIO
 import requests
 import config  # Synoptic API keys (obsolete)
 
-from calc_pull import ftp_to_aws
+from calc_pull import ftp_to_aws, get_wecc_poly
 
 s3 = boto3.client("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
@@ -73,7 +72,7 @@ def get_cw3e_metadata(
     Function uses the obsolete Synoptic API, API public token (imported from config.py).
     """
     try:
-        t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath)
+        t, m, bbox = get_wecc_poly(terrpath, marpath)
         bbox_api = bbox.loc[0, :].tolist()  # [lonmin,latmin,lonmax,latmax]
         bbox_api = ",".join([str(elem) for elem in bbox_api])
 

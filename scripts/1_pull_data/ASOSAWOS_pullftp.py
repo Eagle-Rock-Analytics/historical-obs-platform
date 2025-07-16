@@ -37,7 +37,7 @@ from io import BytesIO, StringIO
 import requests
 import numpy as np
 
-from calc_pull import ftp_to_aws
+from calc_pull import ftp_to_aws, get_wecc_poly
 
 s3 = boto3.client("s3")
 BUCKET_NAME = "wecc-historical-wx"
@@ -309,7 +309,7 @@ def get_wecc_stations(terrpath: str, marpath: str) -> pd.DataFrame:
     weccgeo = gp.GeoDataFrame(weccstations, crs="EPSG:4326", geometry=geometry)
 
     # Get bbox of WECC to use to filter stations against
-    t, m, bbox = calc_pull.get_wecc_poly(terrpath, marpath)
+    t, m, bbox = get_wecc_poly(terrpath, marpath)
 
     # Get terrestrial stations, Only keep stations in terrestrial WECC region
     weccgeo = weccgeo.to_crs(t.crs)  # Convert to CRS of terrestrial stations

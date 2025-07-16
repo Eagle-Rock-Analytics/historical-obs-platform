@@ -20,8 +20,6 @@ See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.htm
 
 import requests
 import pandas as pd
-from datetime import datetime
-import re
 import boto3
 from io import StringIO
 import numpy as np
