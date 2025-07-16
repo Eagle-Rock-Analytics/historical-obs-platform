@@ -22,6 +22,7 @@ historical-obs-platform/
 │   ├── 2_clean_data/          # Scripts for cleaning individual networks to a consistent standard
 │   ├── 3_qaqc_data/           # Scripts to QA/QC stations 
 │   ├── 4_merge_data/          # Scripts to close out processing, and standardize to hourly timesteps. Data at conclusion have been fully processed.
+│   ├── misc/                  # Scripts that don't fit into any other categories
 │   ├── pcluster/              # Code and shell scripts for running QAQC and merge scripts in an AWS pcluster environment 
 │   └── tests/                 # Scripts for testing finalized data products         
 ```
