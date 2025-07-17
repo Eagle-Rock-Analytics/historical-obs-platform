@@ -7,10 +7,10 @@ For use within the PIR-19-006 Historical Obsevations Platform.
 Functions
 ---------
 - qaqc_unusual_gaps: Runs all parts of the unusual gaps function, with a whole station bypass check first.
-- qaqc_dist_gap_part1: Identifies suspect months and flags all obs within month. 
-- qaqc_dist_gap_part2: Identifies individual suspect observations and flags the entire month. 
+- qaqc_dist_gap_part1: Identifies suspect months and flags all obs within month.
+- qaqc_dist_gap_part2: Identifies individual suspect observations and flags the entire month.
 - monthly_med: Part 1. Calculates the monthly median.
-- iqr_range: Part 1. Calculates the monthly interquartile range. 
+- iqr_range: Part 1. Calculates the monthly interquartile range.
 - standardized_iqr: Part 2. Standardizes data against the interquartile range.
 - median_clim: Part 2. Calculate climatological median for a specific month and variable.
 - check_differences: Computes pairwise absolute differences between each day and all other days in series.
@@ -18,7 +18,7 @@ Functions
 
 Intended Use
 ------------
-Script functions for the distributional gap QA/QC test, as a part of the QA/QC pipeline. 
+Script functions for the distributional gap QA/QC test, as a part of the QA/QC pipeline.
 """
 
 import numpy as np
@@ -95,9 +95,7 @@ def qaqc_unusual_gaps(
             df_to_run = qaqc_dist_gap_part2(df_to_run, vars_to_check, plots)
 
     except Exception as e:
-        logger.info(
-            "qaqc_unusual_gaps failed with Exception: {}".format(e),
-        )
+        logger.info(f"qaqc_unusual_gaps failed with Exception: {e}")
         return None
 
     # precip flag
@@ -108,7 +106,7 @@ def qaqc_unusual_gaps(
         return df_to_run
 
     except Exception as e:
-        logger.info("qaqc_unusual_gaps_precip failed with Exception: {}".format(e))
+        logger.info(f"qaqc_unusual_gaps_precip failed with Exception: {e}")
         return None
 
 

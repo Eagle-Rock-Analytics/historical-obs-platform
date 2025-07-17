@@ -10,7 +10,7 @@ Approach:
 
 Intended Use
 -------------
-This script runs the full QA/QC pipeline for a single weather station dataset. It processes cleaned output and applies a 
+This script runs the full QA/QC pipeline for a single weather station dataset. It processes cleaned output and applies a
     sequence of QA/QC tests to generate a QA/QC'd station file.
 
 Inputs
@@ -1029,7 +1029,6 @@ def run_qaqc_one_station(
     raw_data_dir, cleaned_data_dir, qaqc_dir, merge_dir = get_file_paths(network)
 
     # Set zarr argument
-    # Are the cleaned (2_qaqc_data/) data in zarr format? or netcdf?
     zarrified_networks = ["VALLEYWATER", "CW3E"]  # Networks with zarrified data
     if network in zarrified_networks:
         zarr = True

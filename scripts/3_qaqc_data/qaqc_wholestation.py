@@ -22,7 +22,7 @@ Functions
 
 Intended Use
 ------------
-Script functions assess QA/QC on the entire station, as a part of the QA/QC pipeline. 
+Script functions assess QA/QC on the entire station, as a part of the QA/QC pipeline.
 """
 
 import geopandas as gp
@@ -628,9 +628,7 @@ def qaqc_sensor_height_t(df: pd.DataFrame) -> pd.DataFrame | None:
 
         return df
     except Exception as e:
-        logger.info(
-            "qaqc_sensor_height_t failed with Exception: {}".format(e),
-        )
+        logger.info(f"qaqc_sensor_height_t failed with Exception: {e}")
         return None
 
 
@@ -687,9 +685,7 @@ def qaqc_sensor_height_w(df: pd.DataFrame) -> pd.DataFrame | None:
         return df
 
     except Exception as e:
-        logger.info(
-            "qaqc_sensor_height_w failed with Exception: {}".format(e),
-        )
+        logger.info(f"qaqc_sensor_height_w failed with Exception: {e}")
         return None
 
 
@@ -836,20 +832,16 @@ def qaqc_world_record(df: pd.DataFrame) -> pd.DataFrame | None:
                 if isOffRecord.any():
                     # keep only true indices
                     isOffRecord_true = isOffRecord[isOffRecord]
-                    df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = (
-                        11  # see era_qaqc_flag_meanings.csv
-                    )
+                    df.loc[df.index.isin(isOffRecord_true.index), var + "_eraqc"] = 11
+                    # see era_qaqc_flag_meanings.csv
+                    total_offrecord = sum(isOffRecord)
                     logger.info(
-                        "Flagging {} observations exceeding world/regional records: {}".format(
-                            sum(isOffRecord), var
-                        )
+                        f"Flagging {total_offrecord} observations exceeding world/regional records: {var}"
                     )
 
         return df
     except Exception as e:
-        logger.info(
-            "qaqc_world_record failed with Exception: {}".format(e),
-        )
+        logger.info(f"qaqc_world_record failed with Exception: {e}")
         return None
 
 
@@ -880,24 +872,18 @@ def flag_summary(df: pd.DataFrame):
     obs_vars = [var.split("_e")[0] for var in eraqc_vars if "accum" not in var]
 
     for var in eraqc_vars:
+        unique_flags = df[var].unique()
+        logger.info(f"Flags set on {var}: {unique_flags}")  # unique flag values
+        df_len = len(df)
+        df_false = len(df.loc[(df[var].isnull() == False)])
+        df_per = round((df_false / df_len) * 100, 3)
         logger.info(
-            "Flags set on {}: {}".format(var, df[var].unique()),
-        )  # unique flag values
-        logger.info(
-            "Coverage of {} obs flagged: {} of {} obs ({}%)".format(
-                var,
-                len(df.loc[(df[var].isnull() == False)]),
-                len(df),
-                round((len(df.loc[(df[var].isnull() == False)]) / len(df)) * 100, 3),
-            )
-        )  # % of coverage flagged
+            f"Coverage of {var} obs flagged: {df_false} of {df_len} obs ({df_per}%)"
+        )
+        # % of coverage flagged
 
     for var in obs_vars:
         try:
             flagged_timeseries_plot(df, var)
         except Exception as e:
-            logger.info(
-                "flagged_timeseries_plot failed for {} with Exception: {}".format(
-                    var, e
-                )
-            )
+            logger.info(f"flagged_timeseries_plot failed for {var} with Exception: {e}")

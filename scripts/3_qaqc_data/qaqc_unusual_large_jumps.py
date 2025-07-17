@@ -13,7 +13,7 @@ Functions
 
 Intended Use
 ------------
-Script functions for the spike QA/QC test, as a part of the QA/QC pipeline. 
+Script functions for the spike QA/QC test, as a part of the QA/QC pipeline.
 """
 
 import numpy as np
@@ -117,11 +117,7 @@ def qaqc_unusual_large_jumps(
                     unusual_jumps_plot(df_plot.loc[ind, :], var, flagval=23)
 
         except Exception as e:
-            logger.info(
-                "qaqc_unusual_large_jumps failed on {} with Exception: {}".format(
-                    var, e
-                )
-            )
+            logger.info(f"qaqc_unusual_large_jumps failed on {var} with Exception: {e}")
             continue
 
     df["time"] = df.index.values
@@ -214,7 +210,7 @@ def potential_spike_check(
                 # i += 1
                 # continue
         except Exception as e:
-            logger.info("potential_spike_check failed on {}: {}".format(i, e))
+            logger.info(f"potential_spike_check failed on {i}: {e}")
             continue
 
     return spikes
