@@ -6,7 +6,7 @@
 
 The [Historical Observations Data Platform](https://eaglerockanalytics.com/project/historical-observations-data-platform/) is a cloud-based, historical weather observations data platform to enable California's energy sector access to high-quality, open climate and weather data. This work is supported by California Energy Commission grant PIR-19-006. This repository contains the code (via Python scripts and Jupyter Notebooks) associated with the full processing pipeline for data ingestion into the Historical Data Platform.
 
-The Platform responds to community partner needs in understanding weather and climate information including the severity, duration, frequency, and rate of change over time of extreme weather events, as well as supporting projections downscaling efforts. We implement stringent, customized Quality Assurance/Quality Control (QA/QC) procedures in line with international protocols with modifications relevant to energy sector (such as temperature and precipitation extremes, winds, and solar radiation). 
+The Platform responds to community partner needs in understanding weather and climate information including the severity, duration, frequency, and rate of change over time of extreme weather events, as well as supporting projections downscaling efforts. We implement stringent Quality Assurance/Quality Control (QA/QC) procedures in line with international protocols and with customized modifications relevant to energy sector (such as temperature and precipitation extremes, winds, and solar radiation). 
 
 > [!WARNING]
 > This project is still is under active development.
