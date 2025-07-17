@@ -351,11 +351,8 @@ def process_output_ds(
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
             mode="w",  # Write & overwrite if file with same name exists already
         )
-    logger.info(
-        "Done saving/pushing file to AWS. Ellapsed time: {:.2f} s.".format(
-            time.time() - t0
-        ),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done saving/pushing file to AWS. Ellapsed time: {ttime:.2f} s.")
     ds.close()
     del ds
 
@@ -704,9 +701,8 @@ def run_qaqc_pipeline(
         stn_to_qaqc = new_df
         logger.info("pass qaqc_deaccumulate_precip")
 
-    logger.info(
-        "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done whole station tests, Ellapsed time: {ttime:.2f} s.\n")
 
     # ---------------------------------------------------------
     ## World record checks: air temperature, dewpoint, wind, pressure
@@ -723,9 +719,8 @@ def run_qaqc_pipeline(
         stn_to_qaqc = new_df
         logger.info("pass qaqc_world_record")
 
-    logger.info(
-        "Done whole station tests, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-    )
+    ttime = time.time() - t0
+    logger.info("Done whole station tests, Ellapsed time: {ttime:.2f} s.\n")
 
     # =========================================================
     ## Part 2: Variable logic checks
@@ -815,9 +810,9 @@ def run_qaqc_pipeline(
             "pass qaqc_crossvar_logic_calm_wind_dir",
         )
 
-    logger.info(
-        "Done logic checks, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-    )
+    ttime = time.time() - t0
+    logger.info("Done logic checks, Ellapsed time: {ttime:.2f} s.\n")
+
     # =========================================================
     ## Part 3: Distribution and timeseries checks - order matters!
     # ---------------------------------------------------------
@@ -842,11 +837,9 @@ def run_qaqc_pipeline(
                 "pass spurious_buoy_check",
             )
 
-        logger.info(
-            "Done QA/QC bouy check, Ellapsed time: {:.2f} s.\n".format(
-                time.time() - t0
-            ),
-        )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC bouy check, Ellapsed time: {ttime:.2f} s.\n")
+
     # ---------------------------------------------------------
     # frequent values
     t0 = time.time()
@@ -865,11 +858,9 @@ def run_qaqc_pipeline(
         stn_to_qaqc = new_df
         logger.info("pass qaqc_frequent_vals")
 
-    logger.info(
-        "Done QA/QC frequent values, Ellapsed time: {:.2f} s.\n".format(
-            time.time() - t0
-        ),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC frequent values, Ellapsed time: {ttime:.2f} s.\n")
+
     # ---------------------------------------------------------
     # distribution / unusual gaps
     t0 = time.time()
@@ -888,9 +879,9 @@ def run_qaqc_pipeline(
         stn_to_qaqc = new_df
         logger.info("pass qaqc_unusual_gaps")
 
-    logger.info(
-        "Done QA/QC unusual gaps, Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC unusual gaps, Ellapsed time: {ttime:.2f} s.\n")
+
     # ---------------------------------------------------------
     # climatological outliers
     t0 = time.time()
@@ -911,11 +902,9 @@ def run_qaqc_pipeline(
             "pass qaqc_climatological_outlier",
         )
 
-    logger.info(
-        "Done QA/QC climatological outliers, Ellapsed time: {:.2f} s.\n".format(
-            time.time() - t0
-        ),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC climatological outliers, Ellapsed time: {ttime:.2f} s.\n")
+
     # ---------------------------------------------------------
     # unusual streaks (repeated values)
     t0 = time.time()
@@ -936,11 +925,9 @@ def run_qaqc_pipeline(
             "pass qaqc_unusual_repeated_streaks",
         )
 
-    logger.info(
-        "Done QA/QC unsual repeated streaks, Ellapsed time: {:.2f} s.\n".format(
-            time.time() - t0
-        ),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC unsual repeated streaks, Ellapsed time: {ttime:.2f} s.\n")
+
     # ---------------------------------------------------------
     # unusual large jumps (spikes)
     t0 = time.time()
@@ -961,11 +948,9 @@ def run_qaqc_pipeline(
             "pass qaqc_unusual_large_jumps",
         )
 
-    logger.info(
-        "Done QA/QC unsual large jumps, Ellapsed time: {:.2f} s.\n".format(
-            time.time() - t0
-        ),
-    )
+    ttime = time.time() - t0
+    logger.info(f"Done QA/QC unsual large jumps, Ellapsed time: {ttime:.2f} s.\n")
+
     ## END QA/QC ASSESSMENT
     # =========================================================
     # Re-index to original time/station values
@@ -1143,9 +1128,8 @@ def run_qaqc_one_station(
     finally:
 
         # Print elapsed time
-        logger.info(
-            "Script complete. Ellapsed time: {:.2f} s.\n".format(time.time() - t0),
-        )
+        ttime = time.time() - t0
+        logger.info(f"Script complete. Ellapsed time: {ttime:.2f} s.\n")
 
         # Convert errors to DataFrame and
         errors_df = pd.DataFrame(errors)
