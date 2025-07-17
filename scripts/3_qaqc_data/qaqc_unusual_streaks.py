@@ -22,7 +22,7 @@ Functions
 
 Intended Use
 ------------
-Script functions for the unusual streaks QA/QC test, as a part of the QA/QC pipeline. 
+Script functions for the unusual streaks QA/QC test, as a part of the QA/QC pipeline.
 """
 
 import boto3
@@ -245,9 +245,7 @@ def infere_res(df: pd.DataFrame) -> dict:
                 resolutions[var] = infere_res_var(df, var)
         except Exception as e:
             logger.info(
-                "Issue in qaqc_unusual_streaks.infere_res: {} -- bypassing variable".format(
-                    e
-                )
+                f"Issue in qaqc_unusual_streaks.infere_res: {e} -- bypassing variable"
             )
             continue
 
@@ -377,15 +375,14 @@ def qaqc_unusual_repeated_streaks(
 
             bad_hourly = hourly_repeats(
                 test_df, var=var, threshold=threshold, min_value=min_value
-            )  # Bad hourly returns a pd.Series of time stamps
+            )
+            # Bad hourly returns a pd.Series of time stamps
             if len(bad_hourly) > 0:
-                new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = (
-                    27  # Flag _eraqc variable
-                )
+                # Flag _eraqc variable
+                new_df.loc[new_df["time"].isin(bad_hourly), var + "_eraqc"] = 27
+                ftime = time.time() - tt00
                 logger.info(
-                    "Hourly repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                        var, time.time() - tt00
-                    ),
+                    f"Hourly repeats flagged for {var}. Ellapsed time: {ftime:.2f}"
                 )
 
             # Straight repeat streak criteria
@@ -404,15 +401,14 @@ def qaqc_unusual_repeated_streaks(
                 threshold,
                 min_value,
                 min_sequence_length=min_sequence_length,
-            )  # Bad straight returns a pd.Series of time stamps
+            )
+            # Bad straight returns a pd.Series of time stamps
             if len(bad_straight) > 0:
-                new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = (
-                    28  # Flag _eraqc variable
-                )
+                new_df.loc[new_df["time"].isin(bad_straight), var + "_eraqc"] = 28
+                # Flag _eraqc variable
+                ftime = time.time() - tt00
                 logger.info(
-                    "Straight repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                        var, time.time() - tt00
-                    ),
+                    f"Straight repeats flagged for {var}. Ellapsed time: {ftime:.2f}"
                 )
 
             # Whole day replication for a streak of days
@@ -428,17 +424,14 @@ def qaqc_unusual_repeated_streaks(
             else:
                 min_value = None
 
-            bad_whole = consecutive_fullDay_repeats(
-                test_df, var, threshold, min_value
-            )  # Bad whole returns a pd.Series of time stamps
+            bad_whole = consecutive_fullDay_repeats(test_df, var, threshold, min_value)
+            # Bad whole returns a pd.Series of time stamps
             if len(bad_whole) > 0:
-                new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = (
-                    29  # Flag _eraqc variable
-                )
+                new_df.loc[new_df["time"].isin(bad_whole), var + "_eraqc"] = 29
+                # Flag _eraqc variable
+                ftime = time.time() - tt00
                 logger.info(
-                    "Whole day repeats flagged for {}. Ellapsed time: {:.2f}".format(
-                        var, time.time() - tt00
-                    ),
+                    f"Whole day repeats flagged for {var}. Ellapsed time: {ftime:.2f}"
                 )
             bad_keys = np.concatenate(
                 [
@@ -468,9 +461,7 @@ def qaqc_unusual_repeated_streaks(
 
         except Exception as e:
             logger.info(
-                "qaqc_unusual_repeated_streaks failed with Exception: {} -- bypassing variable".format(
-                    e
-                ),
+                f"qaqc_unusual_repeated_streaks failed with Exception: {e} -- bypassing variable"
             )
             continue
 
