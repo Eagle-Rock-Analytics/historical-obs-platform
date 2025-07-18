@@ -110,7 +110,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         ylab = "Surface Radiation"
         unit = "$W m^{-2}$"
 
-    elif var == "hurs":
+    elif var == "hurs" or "hurs_derived":
         ylab = "Humidity"
         unit = "%"
 
