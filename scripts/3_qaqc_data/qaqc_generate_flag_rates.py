@@ -168,10 +168,10 @@ def station_rates_table(timestep: str) -> None:
     timestep: str
         if set to 'hourly', generate flag rate table from hourly flag counts
         if set to 'native', generate flag rate table from native flag counts
+
     Returns
     -------
     None
-
     """
     # Record start time
     start_time = time.time()
@@ -241,7 +241,6 @@ def main():
     Returns
     -------
     None
-
     """
 
     # step 1: generate per network flag rate table
