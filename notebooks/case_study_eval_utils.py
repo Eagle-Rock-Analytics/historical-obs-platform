@@ -33,7 +33,11 @@ import cartopy.feature as cf
 from matplotlib.ticker import MaxNLocator
 import cartopy.crs as ccrs
 import datetime
+import sys
+import os
 
+# Import qaqc stage plot functions
+sys.path.append(os.path.abspath("../scripts/3_qaqc_data"))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
 
 CENSUS_SHP = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp"
