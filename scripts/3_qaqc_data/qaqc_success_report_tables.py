@@ -205,6 +205,9 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
     return None
 
 
+flag_meanings = pd.read_csv("era_qaqc_flag_meanings.csv")
+
+
 def total_sum_flag_counts(timestep: str) -> None:
     """
     Sums all network-level QAQC flag counts for a given timestep (hourly or native) and sends to AWS.
