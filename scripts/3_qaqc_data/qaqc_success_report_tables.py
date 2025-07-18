@@ -203,7 +203,10 @@ def network_sum_flag_counts(network: str, timestep: str) -> None:
     print(f"Sending summed counts dataframe for {network} to: {csv_s3_filepath}")
 
     return None
+
+
 flag_meanings = pd.read_csv("era_qaqc_flag_meanings.csv")
+
 
 def total_sum_flag_counts(timestep: str) -> None:
     """
