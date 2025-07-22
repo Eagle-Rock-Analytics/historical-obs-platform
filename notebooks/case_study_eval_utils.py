@@ -414,7 +414,7 @@ def event_info(
     """
 
     start_date = {
-        "santa_ana_wind": "1988-02-16",
+        "santa_ana_wind": "2007-10-19",
         "winter_storm": "1990-12-20",
         "AR": "2017-01-16",
         "mudslide": "2018-01-05",
@@ -426,7 +426,7 @@ def event_info(
     }
 
     end_date = {
-        "santa_ana_wind": "1988-02-19",
+        "santa_ana_wind": "2007-11-16",
         "winter_storm": "1990-12-24",
         "AR": "2017-01-20",
         "mudslide": "2018-01-09",
@@ -519,7 +519,7 @@ def flags_during_event(subset_df: pd.DataFrame, var: str, event: str) -> list[st
 
 
 def find_other_events(
-    df, event_start, event_end, buffer=7, subset=None, return_stn_ids=True
+    df, event_start, event_end, buffer=14, subset=None, return_stn_ids=True
 ):
     """
     Event finder not tied to specified case study events.

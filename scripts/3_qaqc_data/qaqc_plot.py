@@ -114,6 +114,10 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         ylab = "Humidity"
         unit = "%"
 
+    elif var == "hurs_derived":  # added in hurs_derived
+        ylab = "Humidity - derived"
+        unit = "%"
+
     elif var in pr_vars:
         ylab = "Precipitation"
         unit = "mm"
@@ -185,6 +189,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         "pr_localmid": P_X,
         "accum_pr": PACC_X,
         "hurs": H_X,
+        "hurs_derived": H_X,  # added in hurs_derived
         "elevation": E_X,
     }
     mins = {
@@ -206,6 +211,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         "pr_localmid": P_N,
         "accum_pr": P_N,
         "hurs": H_N,
+        "hurs_derived": H_N,  # added in hurs_derived
         "elevation": E_N,
     }
     miny = mins[var]["North_America"]
