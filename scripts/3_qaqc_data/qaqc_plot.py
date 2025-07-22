@@ -115,7 +115,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         unit = "%"
 
     elif var == "hurs_derived":  # added in hurs_derived
-        ylab = "Humidity - derived"
+        ylab = "Humidity"
         unit = "%"
 
     elif var in pr_vars:
