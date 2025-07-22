@@ -201,6 +201,8 @@ def subset_eval_stns(
             "San Diego",
             "San Bernardino",
             "Riverside",
+            "Ventura",
+            "Santa Barbara",
         ]
 
     elif event_to_eval == "winter_storm":
@@ -414,9 +416,7 @@ def event_info(
     """
 
     start_date = {
-        "santa_ana_wind_2021": "2021-01-15",
-        "santa_ana_wind_2007": "2007-10-19",
-        "santa_ana_wind_1988": "1988-02-16",
+        "santa_ana_wind": "2007-10-19",
         "winter_storm": "1990-12-20",
         "AR": "2017-01-16",
         "mudslide": "2018-01-05",
@@ -428,9 +428,7 @@ def event_info(
     }
 
     end_date = {
-        "santa_ana_wind_2021": "2021-01-16",
-        "santa_ana_wind_2007": "2007-11-16",
-        "santa_ana_wind_1988": "1988-02-19",
+        "santa_ana_wind": "2007-11-16",
         "winter_storm": "1990-12-24",
         "AR": "2017-01-20",
         "mudslide": "2018-01-09",
