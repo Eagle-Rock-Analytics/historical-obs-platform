@@ -156,7 +156,7 @@ def subset_eval_stns(
     Parameters
     ----------
     event_to_eval : str
-        options: santa_ana_wind, winter_storm, AR, mudslide, aug2020_heatwave, sep2020_heatwave, aug2022_heatwave, offshore_wind
+        options: santa_ana_wind_2007, santa_ana_wind_2021, santa_ana_wind_1988, winter_storm, AR, mudslide, aug2020_heatwave, sep2020_heatwave, aug2022_heatwave, offshore_wind
     stn_list : pd.DataFrame
         station list
     specific_station : str, optional
@@ -194,7 +194,35 @@ def subset_eval_stns(
     ca_county = gpd.read_file(CENSUS_SHP)
 
     # different areas based on events
-    if event_to_eval == "santa_ana_wind":
+    if event_to_eval == "santa_ana_wind_2007":
+        counties_to_grab = [
+            "Los Angeles",
+            "Orange",
+            "San Diego",
+            "San Bernardino",
+            "Riverside",
+            "Ventura",
+            "Santa Barbara",
+        ]
+    if event_to_eval == "santa_ana_wind_2021":
+        counties_to_grab = [
+            "Del Norte",
+            "Humboldt",
+            "Mendocino",
+            "Sonoma",
+            "Marin",
+            "San Francisco",
+            "Los Angeles",
+            "Orange",
+            "San Diego",
+            "Ventura",
+            "Santa Barbara",
+            "Santa Cruz",
+            "San Mateo",
+            "Monterey",
+            "San Luis Obispo",
+        ]
+    if event_to_eval == "santa_ana_wind_1988":
         counties_to_grab = [
             "Los Angeles",
             "Orange",
