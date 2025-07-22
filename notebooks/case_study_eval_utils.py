@@ -201,6 +201,8 @@ def subset_eval_stns(
             "San Diego",
             "San Bernardino",
             "Riverside",
+            "Ventura",
+            "Santa Barbara",
         ]
 
     elif event_to_eval == "winter_storm":
