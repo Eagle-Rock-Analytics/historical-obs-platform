@@ -52,4 +52,5 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 
 ## 🧑‍💻 Contributors
 
-[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform&nocache=1)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+
