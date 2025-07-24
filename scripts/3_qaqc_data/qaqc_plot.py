@@ -235,7 +235,7 @@ def id_flag(flag_to_id: int) -> str:
         name of QA/QC flag
     """
 
-    flag_df = pd.read_csv("../../data/era_qaqc_flag_meanings.csv")
+    flag_df = pd.read_csv("../data/era_qaqc_flag_meanings.csv")
     fn_name = flag_df.loc[flag_df["Flag_value"] == int(flag_to_id)][
         "QAQC_function"
     ].values[0]

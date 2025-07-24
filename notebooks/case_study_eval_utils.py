@@ -550,8 +550,8 @@ def find_other_events(
         f"Subsetting station record for event duration with {str(buffer)} day buffer..."
     )
 
-    df["start_date"] = pd.to_datetime(df["start_date"])
-    df["end_date"] = pd.to_datetime(df["end_date"])
+    df["start-date"] = pd.to_datetime(df["start-date"])
+    df["end-date"] = pd.to_datetime(df["end-date"])
     event_start = pd.to_datetime(event_start).tz_localize("UTC")
     event_end = pd.to_datetime(event_end).tz_localize("UTC")
 
@@ -560,8 +560,8 @@ def find_other_events(
         & (df["end-date"] >= (event_end + datetime.timedelta(days=buffer)))
     ]
 
-    # exclude "manual check on end date" stations since we don't know when they actually end
-    event_sub = event_sub.loc[event_sub["notes"] != "manual check on end date"]
+    # # exclude "manual check on end date" stations since we don't know when they actually end
+    # event_sub = event_sub.loc[event_sub["notes"] != "manual check on end date"]
 
     # subset to make more manageable
     if subset != None:
