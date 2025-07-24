@@ -556,8 +556,8 @@ def find_other_events(
     event_end = pd.to_datetime(event_end).tz_localize("UTC")
 
     event_sub = df.loc[
-        (df["start_date"] <= (event_start - datetime.timedelta(days=buffer)))
-        & (df["end_date"] >= (event_end + datetime.timedelta(days=buffer)))
+        (df["start-date"] <= (event_start - datetime.timedelta(days=buffer)))
+        & (df["end-date"] >= (event_end + datetime.timedelta(days=buffer)))
     ]
 
     # exclude "manual check on end date" stations since we don't know when they actually end
