@@ -32,8 +32,12 @@ import intake
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Attribute key and value to update
 ATTR_KEY = "DOI"
-ATTR_VALUE = "https://zenodo.org/records/16370140"
+ATTR_VALUE = "https://doi.org/10.5281/zenodo.16370140"
+
+# Path to intake catalog containing paths to the data
+INTAKE_CATALOG = "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection.json"
 
 
 def process_store(s3_path, attr_key, attr_value):
@@ -71,9 +75,7 @@ def main():
     start_time = time.time()
 
     # Open Intake-ESM catalog from a public S3 URL
-    cat = intake.open_esm_datastore(
-        "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection.json"
-    )
+    cat = intake.open_esm_datastore(INTAKE_CATALOG)
     paths_all = cat.df["path"].values
 
     # Number of worker threads to use (adjust as needed)
