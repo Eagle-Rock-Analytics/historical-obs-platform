@@ -1,6 +1,7 @@
 # Historical Observations Data Platform 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![DOI:10.5281/zenodo.16370140](http://zenodo.org/badge/doi/10.5281/zenodo.16370139.svg)](https://doi.org/10.5281/zenodo.16370139)
 
 **Code for Eagle Rock Analytics' cloud-based, historical weather observations data platform**
 
@@ -52,4 +53,5 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 
 ## 🧑‍💻 Contributors
 
-[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform&nocache=1)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+
