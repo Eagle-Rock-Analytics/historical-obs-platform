@@ -75,8 +75,6 @@ def _get_metadata_from_ds(ds: xr.Dataset, network: str, station: str) -> List[st
     """
 
     attrs_dict = {
-        "station_name": station,  # default to station name from arguments
-        "network": network,
         "raw_files_merged": "n/a",
         "anemometer_height_m": "n/a",
         "thermometer_height_m": "n/a",
@@ -93,8 +91,8 @@ def _get_metadata_from_ds(ds: xr.Dataset, network: str, station: str) -> List[st
 
     # Define custom multi-line header (as comment lines)
     metadata_header = [
-        f"# STATION: {attrs_dict['station_name']}",
-        f"# NETWORK: {attrs_dict['network']}",
+        f"# STATION: {station}",
+        f"# NETWORK: {network}",
         f"# RAW FILES MERGED: {attrs_dict['raw_files_merged']}",
         f"# ANEMOMETER HEIGHT (METERS): {attrs_dict['anemometer_height_m']}",
         f"# THERMOMETER HEIGHT (METERS): {attrs_dict['thermometer_height_m']}",
