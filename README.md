@@ -24,6 +24,7 @@ The Platform has sourced station data from from 27 publicly available historical
 ```text
 historical-obs-platform/
 ├── data/                      # Miscellaneous supporting data
+├── data-access/               # Code examples for accessing our data
 ├── environment/               # Files for building the computational environment, including a README with further instructions
 ├── figures/                   # Visualizations
 ├── notebooks/                 # Jupyter notebooks for data visualization and analysis 
