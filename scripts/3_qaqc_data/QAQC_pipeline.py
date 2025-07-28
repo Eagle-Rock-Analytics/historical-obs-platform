@@ -1129,7 +1129,7 @@ def run_qaqc_one_station(
 
         # Print elapsed time
         ttime = time.time() - t0
-        logger.info(f"Script complete. Ellapsed time: {ttime:.2f} s.\n")
+        logger.info(f"Script complete. Elapsed time: {ttime:.2f} s.\n")
 
         # Convert errors to DataFrame and
         errors_df = pd.DataFrame(errors)
