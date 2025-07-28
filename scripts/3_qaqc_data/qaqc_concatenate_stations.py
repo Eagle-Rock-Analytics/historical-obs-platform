@@ -10,10 +10,24 @@ flags groups of stations for concatenation, and merges their data with special h
 After concatenation, the original input datasets are moved or renamed in AWS S3
 to maintain data provenance without deletion.
 
-Key steps:
+Key steps
+---------
 1. Identify stations to concatenate based on location
 2. Concatenate station data with overlap handling
 3. Manage original datasets post-concatenation in AWS
+
+Functions
+---------
+- main(): Orchestrates the full workflow: identifies candidate stations, performs concatenation, and exports results.
+- concatenation_check(): Flags stations at identical lat/lon locations and assigns group IDs.
+- apply_concat_check(): Applies `concatenation_check()` to each network and uploads results to AWS.
+- concatenate_stations(): Coordinates concatenation for each group of stations and handles export.
+- _df_concat(): Concatenates two station datasets, handling overlaps if present.
+- _overlap_concat(): Helper used by `_df_concat()` to resolve overlapping time periods.
+- _more_than_2(): Iteratively merges more than two stations in a group via pairwise concatenation.
+- _concat_export_help(): Prepares and formats concatenated dataset for export, including metadata.
+- concat_export(): Exports final dataset to S3.
+- _rename_file(): Renames original station datasets in S3 to mark them as deprecated.
 
 """
 
