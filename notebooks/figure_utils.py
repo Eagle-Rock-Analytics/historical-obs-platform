@@ -36,6 +36,12 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
+# Read in WECC Shapefiles
+WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
+WECC_TERR = (
+    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
+)
+
 
 def get_hdp_colordict() -> dict:
     """
@@ -441,5 +447,220 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
         ContentType="image/png",
         Key=export_key,
     )
+
+    return None
+
+
+def gdf_setup(var):
+    """
+    Prepares a GeoDataFrame of stations clipped to the WECC boundary and filtered by data availability.
+
+    Parameters
+    ----------
+    var : str
+        Variable name to subset stations by (e.g., 'tmin', 'tmax', 'prcp').
+
+    Returns
+    -------
+    GeoDataFrame
+        A GeoDataFrame of stations within the WECC boundary that have observations for the given variable.
+    """
+
+    # Read in all stations
+    df_all = pd.read_csv(
+        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
+    )
+
+    # Make a geodataframe
+    gdf = gpd.GeoDataFrame(
+        df_all, geometry=gpd.points_from_xy(df_all.longitude, df_all.latitude)
+    )
+    gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
+
+    # Project data to match base tiles.
+    gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
+
+    # Read in geometry of WECC
+    mar = gpd.read_file(WECC_MAR)
+    ter = gpd.read_file(WECC_TERR)
+    wecc = gpd.GeoDataFrame(pd.concat([mar, ter]))
+
+    # Use to clip stations
+    wecc = wecc.to_crs(epsg=3857)
+    gdf_wecc = gdf_wm.clip(wecc)
+    gdf_wecc = gdf_wecc.sort_values(["network"])
+
+    # Setting color
+    color_dict = get_hdp_colordict()
+    gdf_wecc["Color"] = gdf_wecc["network"].map(color_dict)
+
+    # Subsetting based on variable
+    new_gdf = gdf_wecc.loc[gdf_wecc[str(var) + "_nobs"] > 0]
+
+    return new_gdf
+
+
+def single_var_map(var, save_to_aws=False, save_local=False):
+    """
+    Generates and optionally uploads a map of weather stations for a given variable.
+
+    Parameters
+    ----------
+    var : str
+        Short variable name (e.g., 'tmin', 'tmax', 'prcp').
+    save_to_aws : bool, optional
+        If True, the figure is saved and uploaded to the AWS S3 bucket.
+
+    Returns
+    -------
+    None
+        Displays the map and optionally uploads it to S3.
+    """
+
+    # Set name of saved figure
+    figname = f"clean_station_{var}.png"
+
+    # Grab gdf per variable
+    gdf = gdf_setup(var)
+
+    # Figure global settings
+    fig, ax = plt.subplots(figsize=(9, 9))
+    a = 1  # alpha
+    ms = 2  # markersize
+
+    # Enforce WECC boundary, all plots regardless of variable selection
+    ylim = [3.5e6, 8.5e6]  # lat
+    xlim = [-1.53e7, -1.13e7]  # lon
+    ax.set_ylim(ylim)
+    ax.set_xlim(xlim)
+
+    # Set colors
+    color_dict = get_hdp_colordict()
+
+    # Plot by network with correct legend color
+    for ctype, data in gdf.groupby("network"):
+        color = color_dict[ctype]
+        data.plot(color=color, markersize=ms, alpha=a, ax=ax, label=ctype)
+
+    # Add basemap
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+
+    # Add a legend
+    l = ax.legend(loc="lower left", prop={"size": 8}, frameon=True)
+
+    # set title
+    vartitle = var_fullname(var)
+    ax.set_title(vartitle, fontsize=10)
+    ax.set_axis_off()
+
+    # save to AWS
+    if save_to_aws:
+
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png", bbox_inches="tight")
+        img_data.seek(0)
+
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, ContentType="image/png", Key=f"2_clean_wx/{figname}"
+        )
+
+    if save_local:
+        plt.savefig(f"../figures/{figname}", dpi=300)
+
+    return None
+
+
+def plot_combined_station_vars(
+    var_list, ncols=3, legend_fontsize=8, save_to_aws=False, save_local=False
+):
+    """
+    Plots a combined figure with weather station maps for multiple variables and optionally saves the figure.
+
+    Parameters
+    ----------
+    var_list : list of str
+        List of variable names to plot (e.g., ['tas', 'pr', 'hurs']).
+    ncols : int, optional
+        Number of columns in the subplot grid. Default is 3.
+    legend_fontsize : int, optional
+        Font size for legend labels. Default is 8.
+    save_to_aws : bool, optional
+        If True, saves the figure and uploads to AWS S3.
+    save_local : bool, optional
+        If True, saves the figure locally in ../figures/.
+
+    Returns
+    -------
+    None
+    """
+
+    # Set figure name
+    if len(var_list) > 10:
+        figname = "clean_station_allvars.png"
+    else:
+        figname = "clean_station_" + "_".join(var_list) + ".png"
+
+    # Plotting configuration
+    a = 1  # alpha
+    ms = 2  # marker size
+    n = 1  # subplot index
+
+    # Determine number of columns and rows needed
+    nrows = int(np.ceil(len(var_list) / ncols))
+
+    # Initialize figure
+    fig = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8 * ncols, 6 * nrows))
+
+    for var_to_plot in var_list:
+        # Create subplot
+        ax = plt.subplot(nrows, ncols, n)
+
+        # Set map bounds (Web Mercator)
+        ax.set_ylim([3.5e6, 8.5e6])  # latitude bounds
+        ax.set_xlim([-1.53e7, -1.13e7])  # longitude bounds
+
+        # Get clipped station GeoDataFrame for this variable
+        gdf = gdf_setup(var_to_plot)
+
+        # Set colors
+        color_dict = get_hdp_colordict()
+
+        # Plot by network
+        for ctype, data in gdf.groupby("network"):
+            color = color_dict[ctype]
+            data.plot(color=color, markersize=ms, alpha=a, ax=ax, label=ctype)
+
+        # Add base map tiles
+        cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+
+        # Set title
+        ax.set_title(var_fullname(var_to_plot), fontsize=12)
+        ax.set_axis_off()
+
+        # Add legend
+        ax.legend(loc="lower left", prop={"size": legend_fontsize}, frameon=True)
+
+        # Advance subplot index
+        n += 1
+
+    # Adjust spacing
+    plt.tight_layout()
+
+    # Save to AWS S3
+    if save_to_aws:
+        # Save figure to in-memory buffer
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png", bbox_inches="tight", dpi=300)
+        img_data.seek(0)  # rewind to beginning after writing
+
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, ContentType="image/png", Key=f"2_clean_wx/{figname}"
+        )
+
+    # Save to local directory
+    if save_local:
+        plt.savefig(f"../figures/{figname}", dpi=300, bbox_inches="tight")
 
     return None
