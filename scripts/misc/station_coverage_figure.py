@@ -1,5 +1,5 @@
 """
-stations_coverage_figure.py
+station_coverage_figure.py
 
 Generate a map figure showing all finalized, standardized, and QAQC'd stations
 from the Historic Data Platform (HDP). Stations are plotted with colors corresponding
@@ -34,7 +34,7 @@ NETWORK_COLORS_PATH = "../../data/network_colors.txt"
 STATIONLIST_URI = "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
 
 FIGS_DIR = "../../figures/"  # Directory to save figures to (must already exist)
-FIGURE_SAVE_PATH = f"{FIGS_DIR}stations_coverage_map.png"  # Path to save figure to
+FIGURE_SAVE_PATH = f"{FIGS_DIR}station_coverage_map.png"  # Path to save figure to
 
 
 def create_stations_gdf(csv_filepath):
