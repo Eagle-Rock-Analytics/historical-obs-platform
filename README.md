@@ -15,7 +15,14 @@ The Platform responds to community partner needs in understanding weather and cl
 ## 📊 About the data 
 The Platform has sourced station data from from 27 publicly available historical data observation networks across the Western Electricity Coordinating Council (WECC) domain from 1980-2022 (time period varies between networks and stations). **14,927 stations** total have completed the full quality control and standardization pipelines and are publically available as [cloud-optimized zarrs](https://zarr.dev/) in [Amazon s3 storage](https://cadcat.s3.amazonaws.com/index.html#histwxstns/). 
 
-<img src="figures/merge_stations_over_time.png" alt="Merge stations over time" width="600"/>
+The following figure shows the locations of all the stations (by network) that have completed our quality control and standardization process: 
+
+<img src="figures/stations_coverage_map.png" alt="Stations coverage map" width="400"/>
+
+
+
+And here you can see the number of observations throughout the project's time period: 
+<img src="figures/merge_stations_over_time.png" alt="Merge stations over time" width="500"/>
 
 ---
 
