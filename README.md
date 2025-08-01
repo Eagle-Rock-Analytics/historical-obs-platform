@@ -17,7 +17,7 @@ The Platform has sourced station data from from 27 publicly available historical
 
 The following figure shows the locations of all the stations (by network) that have completed our quality control and standardization process: 
 
-<img src="figures/stations_coverage_map.png" alt="Stations coverage map" width="400"/>
+<img src="figures/station_coverage_map.png" alt="Station coverage map" width="400"/>
 
 
 
