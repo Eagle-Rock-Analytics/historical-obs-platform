@@ -170,7 +170,7 @@ def create_map(stations_gdf, colors_dict, fig_filepath, dpi=300):
     ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
 
     # Set title and remove axis
-    ax.set_title("Historic Data Platform Station Coverage", fontsize=16, pad=10)
+    ax.set_title("Historic Data Platform Station Coverage", fontsize=19, pad=10)
     ax.axis("off")
 
     # Save
