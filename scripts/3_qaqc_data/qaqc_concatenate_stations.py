@@ -29,14 +29,18 @@ Functions
 - concat_export: Exports final dataset to S3.
 - _rename_file: Renames original station datasets in S3 to mark them as deprecated.
 
+Intended Use
+------------
+This script only should be run once to concatenate the identified stations into a single record, rather than split across many stations.
+This script will fail on any additional runs because the input stations will be removed from the QAQC directory, causing failure.
+Regeneration of the original input QAQC'd stations is required for a full re-run.
 """
 
 import datetime
 import boto3
 import pandas as pd
 import xarray as xr
-from io import BytesIO, StringIO
-import botocore.client  # needed for type hinting
+from io import StringIO
 from time import time
 from QAQC_pipeline import qaqc_ds_to_df
 
@@ -44,7 +48,6 @@ from QAQC_pipeline import qaqc_ds_to_df
 import warnings
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-
 
 # A list of networks to be checked for concatenation
 target_networks = ["ASOSAWOS", "MARITIME"]
@@ -54,7 +57,7 @@ s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
 # AWS buckets
-BUCKET = "wecc-historical-wx"
+BUCKET_NAME = "wecc-historical-wx"
 QAQC_DIR = "3_qaqc_wx/"
 
 
@@ -78,7 +81,7 @@ def main():
     print(f"Script complete. Elapsed time: {ttime:.2f} s.\n")
 
 
-## Helper functions
+# Helper functions
 def concatenation_check(station_list: list) -> pd.DataFrame:
     """
     This function flags stations that need to be concatenated.
@@ -97,8 +100,7 @@ def concatenation_check(station_list: list) -> pd.DataFrame:
     if success: returns input station list with a flag column assigning an integer to each group of repeat latitudes and longitudes
     if failure: None
     """
-    ##### Flag stations with identical latitudes and longitudes, then assign each group a unique integer
-
+    # Flag stations with identical latitudes and longitudes, then assign each group a unique integer
     # List of possible variable names for longitudes and latitudes
     lat_lon_list = [
         "LAT",
@@ -124,15 +126,14 @@ def concatenation_check(station_list: list) -> pd.DataFrame:
         .ngroup()
     )
 
-    ##### Order station list by flag
+    # Order station list by flag
     concat_station_list = station_list.sort_values("concat_subset")
 
-    ##### Keep only flagged stations
+    # Keep only flagged stations
     concat_station_list = concat_station_list[
         ~concat_station_list["concat_subset"].isna()
     ]
 
-    ##### Format final list
     # Convert flags to integers - this is necessary for the final concatenation step
     concat_station_list["concat_subset"] = concat_station_list["concat_subset"].astype(
         "int32"
@@ -151,9 +152,6 @@ def concatenation_check(station_list: list) -> pd.DataFrame:
 
 def apply_concat_check(
     station_names_list: list,
-    bucket: str = BUCKET,
-    s3_cl: botocore.client.S3 = s3_cl,
-    qaqcdir: str = QAQC_DIR,
 ):
     """
     This function applies the conatenation check to a list of target stations.
@@ -164,55 +162,45 @@ def apply_concat_check(
     ----------
     station_names_list : list of str
         List of the target station names.
-    bucket : str
-        Name of the S3 bucket to upload the results to.
-    s3_cl : botocore.client.S3
-        Boto3 S3 client used to upload the file.
-    qaqcdir: string
-        Name of qaqc directory
 
     Returns
     -------
     if success: uploads list of stations to be concatenated to AWS
     if failure: None
     """
+
     final_list = pd.DataFrame([])
     for station in station_names_list:
 
-        ##### Need to use the QAQC stationlist to implement the QAQC binary Y/N flag
-        ##### Import station list of target station
-        key = "3_qaqc_wx/{}/stationlist_{}_qaqc.csv".format(station, station)
-        bucket_name = "wecc-historical-wx"
-        list_import = s3_cl.get_object(
-            Bucket=bucket,
-            Key=key,
-        )
-        station_list = pd.read_csv(BytesIO(list_import["Body"].read()))
+        # Need to use the QAQC stationlist to implement the QAQC binary Y/N flag
+        # Import station list of target station
+        key = f"3_qaqc_wx/{station}/stationlist_{station}_qaqc.csv"
+        station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{key}")
 
         # subset for only stations that passed QA/QC
         station_list_qc = station_list.loc[station_list["QAQC"] == "Y"]
 
-        ##### Apply concatenation check
+        # Apply concatenation check
         concat_list = concatenation_check(station_list_qc)
 
-        ##### Rename the flags for each subset to <station>_<subset number>
+        # Rename the flags for each subset to <station>_<subset number>
         concat_list["concat_subset"] = (
             station + "_" + concat_list["concat_subset"].astype(str)
         )
 
-        ##### Append to final list of stations to concatenate
+        # Append to final list of stations to concatenate
         final_list = pd.concat([final_list, concat_list])
 
-        ##### Upload to QAQC directory in AWS
+        # Upload to QAQC directory in AWS
         new_buffer = StringIO()
         final_list.to_csv(new_buffer, index=False)
         content = new_buffer.getvalue()
 
         # the csv is stored in each station folder within 3_qaqc_wx
         s3_cl.put_object(
-            Bucket=bucket_name,
+            Bucket=BUCKET_NAME,
             Body=content,
-            Key=qaqcdir + station + "/concat_list_{}.csv".format(station),
+            Key=QAQC_DIR + station + f"/concat_list_{station}.csv",
         )
 
     return None
@@ -243,13 +231,12 @@ def _overlap_concat(df_new: pd.DataFrame, df_old: pd.DataFrame) -> pd.DataFrame:
     df_overlap = df_new[df_new["time"].isin(df_old["time"])]
     print(f"Length of overlapping period: {len(df_overlap)}")
 
-    ##### Split datframes into subsets #####
-
+    # Split datframes into subsets
     # Remove data in time overlap between old and new
     df_old_cleaned = df_old[~df_old["time"].isin(df_overlap["time"])]
     df_new_cleaned = df_new[~df_new["time"].isin(df_overlap["time"])]
 
-    ##### Concatenate subsets #####
+    # Concatenate subsets
     df_concat = pd.concat([df_old_cleaned, df_overlap, df_new_cleaned])
 
     return df_concat
@@ -368,7 +355,7 @@ def _more_than_2(
     # Load datasets into a list
     datasets = [
         xr.open_zarr(
-            "s3://wecc-historical-wx/3_qaqc_wx/{}/{}.zarr".format(network_name, stn),
+            f"s3://wecc-historical-wx/3_qaqc_wx/{network_name}/{stn}.zarr",
             consolidated=True,
         )
         for stn in stns_to_pair["ERA-ID"]
@@ -416,7 +403,6 @@ def _more_than_2(
     print("Progressive concatenation for 2+ stations is complete.")
 
     new_column = [newest_station] * len(df_concat)
-
     df_concat["station"] = new_column
 
     return df_concat, station_names, attrs_new, var_attrs_new, datasets
@@ -461,8 +447,7 @@ def _concat_export_help(
     if failure, returns None
     """
 
-    ##### Prepare concatenated dataset for export
-
+    # Prepare concatenated dataset for export
     # Final sort on time
     df_concat = df_concat.sort_values(by="time")
 
@@ -485,9 +470,9 @@ def _concat_export_help(
 
     # Update 'history' attribute
     timestamp = datetime.datetime.utcnow().strftime("%m-%d-%Y, %H:%M:%S")
-    ds_concat.attrs["history"] = ds_concat.attrs[
-        "history"
-    ] + " \nstation_matching.ipynb run on {} UTC".format(timestamp)
+    ds_concat.attrs["history"] = (
+        ds_concat.attrs["history"] + f" \nstation_matching.ipynb run on {timestamp} UTC"
+    )
 
     # Update 'comment' attribute
     ds_concat.attrs["comment"] = (
@@ -500,10 +485,7 @@ def _concat_export_help(
 
     # Add new qaqc_files_merged attribute
     ds_concat.attrs["qaqc_files_merged"] = (
-        "{}, {} merged. Overlap retained from newer station data.".format(
-            station_name_old,
-            station_name_new,  # extract old and new station names from name dictionary
-        )
+        f"{station_name_old}, {station_name_new} merged. Overlap retained from newer station data."
     )
 
     return ds_concat, station_name_new
@@ -527,13 +509,14 @@ def concat_export(ds: xr.Dataset, network_name: str, station_name_new: str):
     None
     """
 
-    ##### Export
+    # Export
     export_url = (
         f"s3://wecc-historical-wx/3_qaqc_wx/{network_name}/{station_name_new}.zarr"
     )
     print(f"Exporting concatenated dataset... {export_url}")
 
-    ds.to_zarr(export_url, mode="w")  ## WHEN READY TO EXPORT
+    ## TURN OFF FOR TESTING MODE -- WHEN READY FOR EXPORT
+    ds.to_zarr(export_url, mode="w")
 
     return None
 
@@ -541,8 +524,6 @@ def concat_export(ds: xr.Dataset, network_name: str, station_name_new: str):
 def _rename_file(
     stn: xr.Dataset,
     network: str,
-    bucket: str = BUCKET,
-    s3: boto3.resources.factory.s3.ServiceResource = s3,
 ):
     """
     Renames a given file in AWS by copying it over into the new name and then deleting the old file
@@ -553,10 +534,6 @@ def _rename_file(
         qaqc'd dataset to rename in s3
     network: str
         weather station network name
-    bucket: str
-        data bucked name
-    s3: boto3.resources.factory.s3.ServiceResource
-        Boto3 S3 resource used to access and manage S3 objects and buckets.
 
     Returns
     -------
@@ -568,25 +545,23 @@ def _rename_file(
         # pull station name
         old_name = stn.station.values[0]
 
-        old_url = f"s3://{bucket}/3_qaqc_wx/{network}/{old_name}.zarr"
+        old_url = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network}/{old_name}.zarr"
         print(f"Original file name: {old_url}")
 
         # build new name with _c identifier
         new_name = f"{old_name}_c"
-        new_url = f"s3://{bucket}/3_qaqc_wx/{network}/{new_name}.zarr"
+        new_url = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network}/{new_name}.zarr"
 
         # Rename using input and save to new path
         stn.to_zarr(new_url, mode="w")
 
         # Delete older version of the file using just old stn, no s3 bucket portion
-        old_obj = f"3_qaqc_wx/{network}/{old_name}.zarr/"
-
-        for obj in s3.Bucket(bucket).objects.filter(
+        ## TURN OFF FOR TESTING MODE -- WHEN READY FOR EXPORT
+        for obj in s3.Bucket(BUCKET_NAME).objects.filter(
             Prefix=f"3_qaqc_wx/{network}/{old_name}.zarr/"
         ):
             obj.delete()
 
-        # s3_cl.delete_objects(Bucket=bucket, Key=old_obj)
         print(
             f"File {old_name} renamed to {new_name}, exported, and the redundant older file deleted from s3. "
         )
@@ -625,17 +600,13 @@ def concatenate_stations(network_name: str) -> None:
     # Read in full concat station list
     print(network_name)
     concat_list = pd.read_csv(
-        f"s3://wecc-historical-wx/3_qaqc_wx/{network_name}/concat_list_{network_name}.csv"
+        f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/concat_list_{network_name}.csv"
     )
 
     # Identify stns within designated network
     concat_by_network = concat_list.loc[
         concat_list.concat_subset.str.contains(network_name)
     ]
-
-    ####### if need for specific station or for subsetting
-    # concat_by_network = concat_list[concat_list['concat_subset'] == "MARITIME_1"]
-    #######
 
     unique_pair_names = concat_by_network.concat_subset.unique()
     # For MARITIME, remove these stations becuase they're actually separate stations
@@ -659,15 +630,13 @@ def concatenate_stations(network_name: str) -> None:
             print(stns_to_pair)
 
             # Import this subset of datasets and convert to dataframe
-            url_1 = "s3://wecc-historical-wx/3_qaqc_wx/{}/{}.zarr".format(
-                network_name, stns_to_pair.iloc[0]["ERA-ID"]
-            )
-            url_2 = "s3://wecc-historical-wx/3_qaqc_wx/{}/{}.zarr".format(
-                network_name, stns_to_pair.iloc[1]["ERA-ID"]
-            )
+            stnpair0 = stns_to_pair.iloc[0]["ERA-ID"]
+            stnpair1 = stns_to_pair.iloc[1]["ERA-ID"]
+            url_1 = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/{stnpair0}.zarr"
+            url_2 = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/{stnpair1}.zarr"
 
-            print("Retrieving....", url_1)
-            print("Retrieving....", url_2)
+            print(f"Retrieving.... {url_1}")
+            print(f"Retrieving.... {url_2}")
             ds_1 = xr.open_zarr(url_1)
             ds_2 = xr.open_zarr(url_2)
 
