@@ -786,6 +786,7 @@ def event_plot_multiple_stations(
     save_to_aws: str | None = None,
     save_local: str | None = None,
     buffer: int | None = 14,
+    figname: str | None = None,
 ):
     """
     Produces timeseries of variables along with any QAQC flags placed
@@ -810,6 +811,8 @@ def event_plot_multiple_stations(
         if False, do not save figure to local repository
     buffer : int, optional
         number of days to include as a buffer around event start/end date
+    figname: str | None = None
+        exported figure name
 
     Returns
     -------
@@ -903,8 +906,8 @@ def event_plot_multiple_stations(
     )
 
     # Set name of saved figure
-    # ! change name
-    figname = f"{event}_case_study_multi_station_test.png"
+    if figname == None:
+        figname = f"{event}_case_study_multi_station_test.png"
 
     # save to AWS
     if save_to_aws:
