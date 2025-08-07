@@ -37,6 +37,7 @@ import datetime
 import sys
 import os
 from io import BytesIO
+
 # accessible color palette
 plt.style.use("tableau-colorblind10")
 
