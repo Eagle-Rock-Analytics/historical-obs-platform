@@ -21,6 +21,7 @@ Intended Use
 Used in the case study analysis for ease of comparison and tidy notebooks.
 """
 
+import boto3
 from pyproj import CRS, Transformer
 import geopandas as gpd
 from geopandas import GeoDataFrame
@@ -35,12 +36,28 @@ import cartopy.crs as ccrs
 import datetime
 import sys
 import os
+from io import BytesIO
+
+# accessible color palette
+plt.style.use("tableau-colorblind10")
 
 # Import qaqc stage plot functions
 sys.path.append(os.path.abspath("../scripts/3_qaqc_data"))
 from qaqc_plot import flagged_timeseries_plot, _plot_format_helper, id_flag
 
 CENSUS_SHP = "s3://wecc-historical-wx/0_maps/ca_counties/CA_Counties.shp"
+
+# Set AWS credentials
+s3 = boto3.resource("s3")
+s3_cl = boto3.client("s3")  # for lower-level processes
+
+# Set relative paths to other folders and objects in repository.
+BUCKET_NAME = "wecc-historical-wx"
+RAW_DIR = "1_raw_wx"
+CLEAN_DIR = "2_clean_wx"
+QAQC_DIR = "3_qaqc_wx"
+MERGE_DIR = "4_merge_wx"
+phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
 
 def known_issue_check(network: str, var: str, stn: str):
@@ -757,5 +774,158 @@ def event_plot(
         f"QA/QC event evaluation: {event}: {stn}",
         fontsize=10,
     )
+
+    return None
+
+
+def event_plot_multiple_stations(
+    sample: list,
+    var: str,
+    event: str,
+    alt_start_date: str | None = None,
+    alt_end_date: str | None = None,
+    save_to_aws: str | None = None,
+    save_local: str | None = None,
+    buffer: int | None = 14,
+    figname: str | None = None,
+):
+    """
+    Produces timeseries of variables along with any QAQC flags placed
+
+    Parameters
+    ----------
+    sample : list
+        subset of station list to generate plots for
+    var : str
+        name of variable
+    event : str
+        name of case study event
+    alt_start_date : str
+        date of different event, must be in format "YYYY-MM-DD"
+    alt_end_date : str
+        date of different event, must be in format "YYYY-MM-DD"
+    save_to_AWS: str
+        if True, save figure to AWS
+        if False, do not save figure to AWS
+    save_local: str
+        if True, save figure to local repository
+        if False, do not save figure to local repository
+    buffer : int, optional
+        number of days to include as a buffer around event start/end date
+    figname: str | None = None
+        exported figure name
+
+    Returns
+    -------
+    None
+    """
+
+    fig, ax = plt.subplots(figsize=(10, 3))
+    sample = sample.reset_index()
+
+    # Loop through station in sample
+    for i in sample.index:
+        # get the station ID and network name
+        station = sample.loc[i, "era-id"]
+        network = sample.loc[i, "network"]
+
+        # load station datate
+        url = f"s3://{BUCKET_NAME}/{MERGE_DIR}/{network}/{station}.zarr"
+        ds = xr.open_zarr(url)
+        df = ds.to_dataframe()
+        df = df.reset_index()
+
+        # subset data to 14 days before and after the event window
+
+        # grab dates from lookup dictionary
+        event_start, event_end = event_info(event, alt_start_date, alt_end_date)
+
+        # subset for event dates + buffer
+        datemask = (
+            df["time"] >= (pd.Timestamp(event_start) - datetime.timedelta(days=buffer))
+        ) & (df["time"] <= (pd.Timestamp(event_end) + datetime.timedelta(days=buffer)))
+        df = df.loc[datemask]
+
+        df = df.loc[datemask]
+        if var in df.columns:
+            df.plot(
+                ax=ax,
+                x="time",
+                y=var,
+                marker=" ",
+                ms=4,
+                lw=1,
+                # color = custom_cmap(i),
+                alpha=0.5,
+                label=station,
+            )
+
+            # plot any flags placed by QA/QC
+            if len(df[var + "_eraqc"].dropna().unique()) != 0:
+                # identify flagged data, can handle multiple flags
+                for flag in df[var + "_eraqc"].dropna().unique():
+                    flag_name = id_flag(flag)
+                    flag_str = (
+                        100 * len(df.loc[df[var + "_eraqc"] == flag, var]) / len(df)
+                    )
+                    flag_label = f"{flag_str:.3f}% of data flagged by {flag_name}"
+
+                    flagged_data = df[~df[var + "_eraqc"].isna()]
+                    flagged_data.plot(
+                        x="time",
+                        y=var,
+                        ax=ax,
+                        marker="o",
+                        ms=7,
+                        lw=0,
+                        mfc="none",
+                        color="C3",
+                        label=flag_label,
+                    )
+
+    # plot event timeline
+    ax.axvspan(
+        event_start,
+        event_end,
+        color="red",
+        # hatch='/',
+        alpha=0.05,
+        label="{}".format(event),
+    )
+    legend = ax.legend(loc="upper left", prop={"size": 7})
+    leg_lines = legend.get_lines()
+    plt.setp(leg_lines, linewidth=2)
+
+    # plot aesthetics
+    ylab, units, miny, maxy = _plot_format_helper(var)
+    plt.ylabel(f"{ylab} [{units}]")
+    plt.xlabel("")
+    stn = df["station"].unique()[0]
+    plt.title(
+        f"QA/QC event evaluation: {event}",
+        fontsize=10,
+    )
+
+    # Set name of saved figure
+    if figname == None:
+        figname = f"{event}_case_study_multi_station_test.png"
+
+    # save to AWS
+    if save_to_aws:
+
+        s3 = boto3.resource("s3")
+
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png", bbox_inches="tight")
+        img_data.seek(0)
+
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, ContentType="image/png", Key=f"{MERGE_DIR}/{figname}"
+        )
+
+    # save to local
+    if save_local:
+        plt.savefig(f"../figures/{figname}", dpi=300)
 
     return None
