@@ -1,6 +1,7 @@
 # Historical Observations Data Platform 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![DOI:10.5281/zenodo.16370140](http://zenodo.org/badge/doi/10.5281/zenodo.16370139.svg)](https://doi.org/10.5281/zenodo.16370139)
 
 **Code for Eagle Rock Analytics' cloud-based, historical weather observations data platform**
 
@@ -14,7 +15,14 @@ The Platform responds to community partner needs in understanding weather and cl
 ## 📊 About the data 
 The Platform has sourced station data from from 27 publicly available historical data observation networks across the Western Electricity Coordinating Council (WECC) domain from 1980-2022 (time period varies between networks and stations). **14,927 stations** total have completed the full quality control and standardization pipelines and are publically available as [cloud-optimized zarrs](https://zarr.dev/) in [Amazon s3 storage](https://cadcat.s3.amazonaws.com/index.html#histwxstns/). 
 
-<img src="figures/merge_stations_over_time.png" alt="Merge stations over time" width="600"/>
+The following figure shows the locations of all the stations (by network) that have completed our quality control and standardization process: 
+
+<img src="figures/station_coverage_map.png" alt="Station coverage map" width="400"/>
+
+
+
+And here you can see the number of observations throughout the project's time period: 
+<img src="figures/merge_stations_over_time.png" alt="Merge stations over time" width="500"/>
 
 ---
 
@@ -23,6 +31,7 @@ The Platform has sourced station data from from 27 publicly available historical
 ```text
 historical-obs-platform/
 ├── data/                      # Miscellaneous supporting data
+├── data-access/               # Code examples for accessing our data
 ├── environment/               # Files for building the computational environment, including a README with further instructions
 ├── figures/                   # Visualizations
 ├── notebooks/                 # Jupyter notebooks for data visualization and analysis 
@@ -52,4 +61,5 @@ This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file f
 
 ## 🧑‍💻 Contributors
 
-[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=Eagle-Rock-Analytics/historical-obs-platform&nocache=1)](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/graphs/contributors)
+

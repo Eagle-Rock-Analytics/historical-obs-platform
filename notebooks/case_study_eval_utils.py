@@ -201,6 +201,8 @@ def subset_eval_stns(
             "San Diego",
             "San Bernardino",
             "Riverside",
+            "Ventura",
+            "Santa Barbara",
         ]
 
     elif event_to_eval == "winter_storm":
@@ -414,7 +416,7 @@ def event_info(
     """
 
     start_date = {
-        "santa_ana_wind": "1988-02-16",
+        "santa_ana_wind": "2007-10-19",
         "winter_storm": "1990-12-20",
         "AR": "2017-01-16",
         "mudslide": "2018-01-05",
@@ -426,7 +428,7 @@ def event_info(
     }
 
     end_date = {
-        "santa_ana_wind": "1988-02-19",
+        "santa_ana_wind": "2007-11-16",
         "winter_storm": "1990-12-24",
         "AR": "2017-01-20",
         "mudslide": "2018-01-09",
@@ -519,7 +521,7 @@ def flags_during_event(subset_df: pd.DataFrame, var: str, event: str) -> list[st
 
 
 def find_other_events(
-    df, event_start, event_end, buffer=7, subset=None, return_stn_ids=True
+    df, event_start, event_end, buffer=14, subset=None, return_stn_ids=True
 ):
     """
     Event finder not tied to specified case study events.
@@ -548,18 +550,18 @@ def find_other_events(
         f"Subsetting station record for event duration with {str(buffer)} day buffer..."
     )
 
-    df["start_date"] = pd.to_datetime(df["start_date"])
-    df["end_date"] = pd.to_datetime(df["end_date"])
+    df["start-date"] = pd.to_datetime(df["start-date"])
+    df["end-date"] = pd.to_datetime(df["end-date"])
     event_start = pd.to_datetime(event_start).tz_localize("UTC")
     event_end = pd.to_datetime(event_end).tz_localize("UTC")
 
     event_sub = df.loc[
-        (df["start_date"] <= (event_start - datetime.timedelta(days=buffer)))
-        & (df["end_date"] >= (event_end + datetime.timedelta(days=buffer)))
+        (df["start-date"] <= (event_start - datetime.timedelta(days=buffer)))
+        & (df["end-date"] >= (event_end + datetime.timedelta(days=buffer)))
     ]
 
-    # exclude "manual check on end date" stations since we don't know when they actually end
-    event_sub = event_sub.loc[event_sub["notes"] != "manual check on end date"]
+    # # exclude "manual check on end date" stations since we don't know when they actually end
+    # event_sub = event_sub.loc[event_sub["notes"] != "manual check on end date"]
 
     # subset to make more manageable
     if subset != None:

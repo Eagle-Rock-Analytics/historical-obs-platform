@@ -110,7 +110,11 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         ylab = "Surface Radiation"
         unit = "$W m^{-2}$"
 
-    elif var == "hurs":
+    elif var == "hurs" or "hurs_derived":
+        ylab = "Humidity"
+        unit = "%"
+
+    elif var == "hurs_derived":  # added in hurs_derived
         ylab = "Humidity"
         unit = "%"
 
@@ -185,6 +189,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         "pr_localmid": P_X,
         "accum_pr": PACC_X,
         "hurs": H_X,
+        "hurs_derived": H_X,  # added in hurs_derived
         "elevation": E_X,
     }
     mins = {
@@ -206,6 +211,7 @@ def _plot_format_helper(var: str) -> tuple[str, str, float, float]:
         "pr_localmid": P_N,
         "accum_pr": P_N,
         "hurs": H_N,
+        "hurs_derived": H_N,  # added in hurs_derived
         "elevation": E_N,
     }
     miny = mins[var]["North_America"]
@@ -229,7 +235,7 @@ def id_flag(flag_to_id: int) -> str:
         name of QA/QC flag
     """
 
-    flag_df = pd.read_csv("../../data/era_qaqc_flag_meanings.csv")
+    flag_df = pd.read_csv("../data/era_qaqc_flag_meanings.csv")
     fn_name = flag_df.loc[flag_df["Flag_value"] == int(flag_to_id)][
         "QAQC_function"
     ].values[0]
