@@ -36,6 +36,11 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
+# read in  CA county boundaries shapefile
+service_territories = gpd.read_file(
+    "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
+)
+
 
 def get_hdp_colordict() -> dict:
     """
@@ -441,5 +446,77 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
         ContentType="image/png",
         Key=export_key,
     )
+
+    return None
+
+
+def get_station_map(IOU) -> None:
+    """
+    Generates and exports a map of station locations from the station list of the input phase.
+
+    Parameters
+    ----------
+    station_list: str
+    IOU: str
+        the IOU to make the map for
+
+    Returns
+    -------
+    None
+
+    """
+    # read in station list
+    station_list = pd.read_csv(
+        "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
+    )
+
+    # Format dates in datetime format (this gets lost in import).
+    station_list["start-date"] = pd.to_datetime(station_list["start-date"], utc=True)
+    station_list["end-date"] = pd.to_datetime(station_list["end-date"], utc=True)
+
+    # Make a geodataframe.
+    gdf = gpd.GeoDataFrame(
+        station_list,
+        geometry=gpd.points_from_xy(station_list.longitude, station_list.latitude),
+    )
+    gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
+
+    # Project data to match base tiles.
+    gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
+
+    # Remove territories, AK, HI
+    list = [IOU]
+    shapefile = shapefile.to_crs(gdf.crs)
+    shapefile = shapefile.loc[shapefile.ABR.isin(list) == True]
+
+    # Use to clip stations
+    shapefile = shapefile.to_crs(epsg=3857)
+    gdf_us = gdf_wm.clip(shapefile)
+
+    # Plot
+    ax = gdf_us.plot(
+        "network",
+        figsize=(15, 15),
+        alpha=1,
+        markersize=3,
+        legend=True,
+        cmap="nipy_spectral",
+    )
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+    ax.set_axis_off()
+
+    # # Save to AWS
+    # img_data = BytesIO()
+    # plt.savefig(img_data, format="png")
+    # img_data.seek(0)
+
+    # bucket = s3.Bucket(BUCKET_NAME)
+    # export_folder = phase_dict[phase]
+    # export_key = f"{export_folder}/{phase}_station_map.png"
+    # bucket.put_object(
+    #     Body=img_data,
+    #     ContentType="image/png",
+    #     Key=export_key,
+    # )
 
     return None
