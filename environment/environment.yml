@@ -9,7 +9,7 @@ dependencies:
   - geopandas=0.11.1
   - h5netcdf=1.0.2
   - intake=0.7.0 # intake=2.0.8 # 
-  - intake-esm=2023.11.10
+  - intake-esm= 2022.9.18   # 2023.11.10 # 2021.8.17 
   - ipykernel=6.29.5
   - ipython=8.18.1
   - jupyterlab==4.4.4
