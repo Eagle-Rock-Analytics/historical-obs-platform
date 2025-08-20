@@ -7,19 +7,12 @@ This dictionaries developed for this function are specific to a set of stations 
 
 Usage
 -----
-The user runs the function using an airport code:
-asos_station_lookup(code='KSAC')
+The user runs the function using an airport code: asos_station_lookup(code='KSAC')
+Or using the airport city: asos_station_lookup(city='Sacramento')
 
-Or using the airport city:
+The function then identifies this input information as matching with HDP station ID “ASOSAWOS_72483023232”
 
-asos_station_lookup(city='Sacramento')
-
-Script then identifies this input information as matching with HDP station ID “ASOSAWOS_72483023232”
-
-The user can also input the fill airport name:
-
-asos_station_lookup(city='Sacramento Executive Airport')
-
+The user can also input the fill airport name:asos_station_lookup(city='Sacramento Executive Airport')
 In which case the function takes the city indicated in that name and returns the matching HDP station ID.
 
 Output
