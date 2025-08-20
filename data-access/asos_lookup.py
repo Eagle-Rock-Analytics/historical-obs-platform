@@ -22,7 +22,7 @@ The HDP station ID is returned.
 """
 
 
-def asos_station_lookup(code: str | None = None, city: str | None = None) -> str:
+def asos_station_lookup(code: str | None = None, city: str | None = None) -> None:
     """
     Function that returns the HDP station ID for an input of either the
     1. four digit code or (e.g. KSAC)
@@ -41,8 +41,7 @@ def asos_station_lookup(code: str | None = None, city: str | None = None) -> str
 
     Returns
     -------
-    str
-        name (ERA ID) of the associated HDP station (e.g. ASOSAWOS_XXXXXXXX)
+    None
 
     """
     # Define dictionaries matching HDP station IDs to airport codes and cities
