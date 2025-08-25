@@ -37,7 +37,7 @@ MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
 # read in  CA county boundaries shapefile
-service_territories = gpd.read_file(
+SERVICE_TERRITORIES = gpd.read_file(
     "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
 )
 
@@ -450,7 +450,7 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
-def get_station_map(IOU) -> None:
+def get_station_map(IOU: str, save_opt: str=False) -> None:
     """
     Generates and exports a map of station locations from the station list of the input phase.
 
@@ -459,6 +459,8 @@ def get_station_map(IOU) -> None:
     station_list: str
     IOU: str
         the IOU to make the map for
+    save_opt: str
+        if set to TRUE, send to AWS
 
     Returns
     -------
@@ -485,13 +487,14 @@ def get_station_map(IOU) -> None:
     gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
 
     # Remove territories, AK, HI
-    list = [IOU]
-    shapefile = shapefile.to_crs(gdf.crs)
-    shapefile = shapefile.loc[shapefile.ABR.isin(list) == True]
+    SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(gdf.crs)
+    SERVICE_TERRITORIES = SERVICE_TERRITORIES.loc[
+        SERVICE_TERRITORIES.ABR.isin([IOU]) == True
+    ]
 
     # Use to clip stations
-    shapefile = shapefile.to_crs(epsg=3857)
-    gdf_us = gdf_wm.clip(shapefile)
+    # SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(epsg=3857)
+    gdf_us = gdf_wm.clip(SERVICE_TERRITORIES)
 
     # Plot
     ax = gdf_us.plot(
@@ -505,18 +508,18 @@ def get_station_map(IOU) -> None:
     cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
     ax.set_axis_off()
 
-    # # Save to AWS
-    # img_data = BytesIO()
-    # plt.savefig(img_data, format="png")
-    # img_data.seek(0)
+    # Save to AWS
+    img_data = BytesIO()
+    plt.savefig(img_data, format="png")
+    img_data.seek(0)
 
-    # bucket = s3.Bucket(BUCKET_NAME)
-    # export_folder = phase_dict[phase]
-    # export_key = f"{export_folder}/{phase}_station_map.png"
-    # bucket.put_object(
-    #     Body=img_data,
-    #     ContentType="image/png",
-    #     Key=export_key,
-    # )
+    bucket = s3.Bucket(BUCKET_NAME)
+    export_folder = phase_dict[phase]
+    export_key = f"{export_folder}/{phase}_station_map.png"
+    bucket.put_object(
+        Body=img_data,
+        ContentType="image/png",
+        Key=export_key,
+    )
 
     return None
