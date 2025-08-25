@@ -24,9 +24,8 @@ from datetime import datetime, timezone, date
 import geopandas as gpd
 import contextily as cx
 
-import xarray as xr
-import rioxarray as rio
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point
+import pyproj
 
 # Set AWS credentials
 s3 = boto3.resource("s3")
@@ -449,85 +448,65 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
-def clip_to_shapefile(
-    data: xr.Dataset | xr.DataArray,
+def clip_gpd_to_shapefile(
+    gdf: gpd.GeoDataFrame,
     shapefile_path: str,
-    feature: tuple[str, any] = (),
-    name: str = "user-defined",
-    **kwargs,
-) -> xr.Dataset | xr.DataArray:
-    """Use a shapefile to select an area subset of AE data.
-
-    By default, this function will clip the data to the area covered by all features in
-    the shapefile. To clip to specific features, use the `feature` keyword.
-
+) -> gpd.GeoDataFrame:
+    """Use a shapefile to select an area subset of a geodataframe.
+    Used to subset stationlist to shapefile area.
     Parameters
     ----------
-    data : xr.Dataset | xr.DataArray
+    gdf : gpd.GeoDataFrame
         Data to be clipped.
     shapefile_path : str
         Filepath to shapefile. Shapefile must include valid CRS.
-    feature : tuple(str, str | int | float | list)
-        Tuple containing attribute name and value(s) for target feature(s) (optional).
-    name : str
-        Location name to record in data attributes if 'feature' parameter is not set (optional).
-    **kwargs
-        Additional arguments to pass to the rioxarray clip function
-
     Returns
     -------
-    clipped: xr.Dataset | xr.DataArray
-        Returns same type as 'data', but grid is clipped to shapefile feature(s).
-
+    clipped : gpd.GeoDataFrame
+        Subsetted geodataframe within shapefile area of interest.
     """
-    if data.rio.crs is None:
-        raise RuntimeError(
-            "No CRS found on input parameter 'data'. Use rioxarray write_crs() method to set CRS."
+
+    def _latlon_to_mercator_cartopy(lat, lon):
+        """Helper function for coodinate conversion.
+        Paramters
+        ---------
+        lat : float
+            Latitude coordinate.
+        lon : float
+            Longitude coordinate.
+        Returns
+        -------
+        x : float
+            Longitude coordinate.
+        y : float
+            Latitude coordinate.
+        """
+        proj_latlon = pyproj.CRS("EPSG:4326")
+        proj_mercator = pyproj.CRS("EPSG:3857")
+
+        # Transform the coordinates
+        transformer = pyproj.Transformer.from_crs(
+            proj_latlon, proj_mercator, always_xy=True
         )
+        x, y = transformer.transform(lon, lat)
 
-    region = gpd.read_file(shapefile_path)
+        return x, y
 
-    if region.crs is None:
-        raise RuntimeError(
-            "No CRS found on data read from shapefile. Verify that shapefile contains valid CRS information."
-        )
+    # Add geometry column to gdf
+    geom = [
+        Point(_latlon_to_mercator_cartopy(lat, lon))
+        for lat, lon in zip(gdf.latitude, gdf.longitude)
+    ]
 
-    # Select only user provided feature
-    if feature:
-        try:
-            print("Selecting feature", feature)
-            if isinstance(feature[1], list):
-                region = region[region[feature[0]].isin(feature[1])]
-            else:
-                region = region[region[feature[0]] == feature[1]]
-            if len(region) == 0:  # No features found
-                raise ValueError("None of the requested features were found.")
-        except ValueError as err:
-            raise err
-        except Exception as err:
-            raise RuntimeError(
-                "Could not select one or more feature(s) {0} in {1} ".format(
-                    feature, shapefile_path
-                )
-            ) from err
+    # Adds coordinates
+    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
+        crs="EPSG:3857", allow_override=True
+    )
 
-    try:
-        clipped = data.rio.clip(
-            region.geometry.apply(mapping), region.crs, drop=True, **kwargs
-        )
-    except rio.exceptions.NoDataInBounds as err:
-        msg = "Can't clip feature. Your grid resolution may be too low for your shapefile feature, or your shapefile's CRS may be incorrectly set."
-        raise RuntimeError(msg) from err
-    except Exception as err:
-        raise err
+    # Subset for stations within area boundaries
+    sub_gdf = gpd.overlay(sub_gdf, shapefile_path, how="intersection")
 
-    if feature:
-        if isinstance(feature[1], list):
-            location = [str(item) for item in feature[1]]
-        else:
-            location = [str(feature[1])]
-    else:
-        location = [name]
-    clipped.attrs["location_subset"] = location
+    # Useful information
+    print(f"Number of stations within area: {len(sub_gdf)}")
 
-    return clipped
+    return sub_gdf
