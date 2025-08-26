@@ -36,6 +36,7 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
+
 def get_hdp_colordict() -> dict:
     """
     Builds a dictionary of specified network colors for use in HDP figures,
@@ -488,9 +489,7 @@ def get_station_map(
 
     # Remove territories, AK, HI
     service_territories = service_territories.to_crs(gdf_wm.crs)
-    iou_area = service_territories.loc[
-        service_territories.ABR.isin([IOU]) == True
-    ]
+    iou_area = service_territories.loc[service_territories.ABR.isin([IOU]) == True]
 
     # Use to clip stations
     gdf_iou = gdf_wm.clip(iou_area)
