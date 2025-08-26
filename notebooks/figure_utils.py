@@ -445,7 +445,7 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
-def get_station_map(
+def get_service_area_map(
     IOU: str, save_to_aws: str | None = None, save_local: str | None = None
 ) -> None:
     """
