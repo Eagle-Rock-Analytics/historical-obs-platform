@@ -448,6 +448,86 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
+def get_service_area_map(
+    IOU: str, save_to_aws: str | None = None, save_local: str | None = None
+) -> None:
+    """
+    Generates and exports a map of station locations from the station list of the input phase.
+
+    Parameters
+    ----------
+    station_list: str
+    IOU: str
+        the IOU to make the map for
+    save_to_aws : bool, optional
+        If True, the figure is saved and uploaded to the AWS S3 bucket.
+
+    Returns
+    -------
+    None
+
+    """
+    # set name of saved figure
+    figname = f"{IOU}_coverge_map.png"
+
+    # read in station list
+    station_list = pd.read_csv(
+        "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
+    )
+
+    # read in  CA county boundaries shapefile
+    service_territories = gpd.read_file(
+        "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
+    )
+
+    # Make a geodataframe.
+    gdf = gpd.GeoDataFrame(
+        station_list,
+        geometry=gpd.points_from_xy(station_list.longitude, station_list.latitude),
+    )
+    gdf.set_crs(epsg=4326, inplace=True)  # Set CRS
+
+    # Project data to match base tiles.
+    gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
+
+    # Remove territories, AK, HI
+    service_territories = service_territories.to_crs(gdf_wm.crs)
+    iou_area = service_territories.loc[service_territories.ABR.isin([IOU]) == True]
+
+    # Use to clip stations
+    gdf_iou = gdf_wm.clip(iou_area)
+
+    # Plot
+    ax = gdf_iou.plot(
+        "network",
+        figsize=(15, 15),
+        alpha=1,
+        markersize=3,
+        legend=True,
+        cmap="nipy_spectral",
+    )
+    plt.title(f"{IOU} HDP Station Coverage")
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+    ax.set_axis_off()
+
+    # save to AWS
+    if save_to_aws:
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png", bbox_inches="tight")
+        img_data.seek(0)
+
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, ContentType="image/png", Key=f"{MERGE_DIR}/{figname}"
+        )
+
+    # save to local
+    if save_local:
+        plt.savefig(f"../figures/{figname}", dpi=300)
+
+    return None
+
+
 def clip_gpd_to_shapefile(
     gdf: gpd.GeoDataFrame,
     shapefile_path: str,
