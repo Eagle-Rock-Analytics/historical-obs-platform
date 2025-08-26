@@ -36,11 +36,9 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
-# read in  CA county boundaries shapefile
 SERVICE_TERRITORIES = gpd.read_file(
     "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
 )
-
 
 def get_hdp_colordict() -> dict:
     """
@@ -450,7 +448,9 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
-def get_station_map(IOU: str, save_to_aws: str=False) -> None:
+def get_station_map(
+    IOU: str, save_to_aws: str | None = None, save_local: str | None = None
+) -> None:
     """
     Generates and exports a map of station locations from the station list of the input phase.
 
@@ -475,9 +475,10 @@ def get_station_map(IOU: str, save_to_aws: str=False) -> None:
         "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
     )
 
-    # Format dates in datetime format (this gets lost in import).
-    station_list["start-date"] = pd.to_datetime(station_list["start-date"], utc=True)
-    station_list["end-date"] = pd.to_datetime(station_list["end-date"], utc=True)
+    # read in  CA county boundaries shapefile
+    SERVICE_TERRITORIES = gpd.read_file(
+        "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
+    )
 
     # Make a geodataframe.
     gdf = gpd.GeoDataFrame(
@@ -490,16 +491,16 @@ def get_station_map(IOU: str, save_to_aws: str=False) -> None:
     gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
 
     # Remove territories, AK, HI
-    SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(gdf.crs)
+    SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(gdf_wm.crs)
     SERVICE_TERRITORIES = SERVICE_TERRITORIES.loc[
         SERVICE_TERRITORIES.ABR.isin([IOU]) == True
     ]
 
     # Use to clip stations
-    gdf_us = gdf_wm.clip(SERVICE_TERRITORIES)
+    gdf_iou = gdf_wm.clip(SERVICE_TERRITORIES)
 
     # Plot
-    ax = gdf_us.plot(
+    ax = gdf_iou.plot(
         "network",
         figsize=(15, 15),
         alpha=1,
@@ -507,6 +508,7 @@ def get_station_map(IOU: str, save_to_aws: str=False) -> None:
         legend=True,
         cmap="nipy_spectral",
     )
+    plt.title(f"{IOU} HDP Station Coverage")
     cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
     ax.set_axis_off()
 
@@ -520,5 +522,9 @@ def get_station_map(IOU: str, save_to_aws: str=False) -> None:
         bucket.put_object(
             Body=img_data, ContentType="image/png", Key=f"{MERGE_DIR}/{figname}"
         )
+
+    # save to local
+    if save_local:
+        plt.savefig(f"../figures/{figname}", dpi=300)
 
     return None
