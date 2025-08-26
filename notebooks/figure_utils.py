@@ -450,7 +450,7 @@ def get_station_map_v2(phase: str, shapepath: str) -> None:
     return None
 
 
-def get_station_map(IOU: str, save_opt: str=False) -> None:
+def get_station_map(IOU: str, save_to_aws: str=False) -> None:
     """
     Generates and exports a map of station locations from the station list of the input phase.
 
@@ -459,14 +459,17 @@ def get_station_map(IOU: str, save_opt: str=False) -> None:
     station_list: str
     IOU: str
         the IOU to make the map for
-    save_opt: str
-        if set to TRUE, send to AWS
+    save_to_aws : bool, optional
+        If True, the figure is saved and uploaded to the AWS S3 bucket.
 
     Returns
     -------
     None
 
     """
+    # set name of saved figure
+    figname = f"{IOU}_coverge_map.png"
+
     # read in station list
     station_list = pd.read_csv(
         "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
@@ -493,7 +496,6 @@ def get_station_map(IOU: str, save_opt: str=False) -> None:
     ]
 
     # Use to clip stations
-    # SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(epsg=3857)
     gdf_us = gdf_wm.clip(SERVICE_TERRITORIES)
 
     # Plot
@@ -508,18 +510,15 @@ def get_station_map(IOU: str, save_opt: str=False) -> None:
     cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
     ax.set_axis_off()
 
-    # Save to AWS
-    img_data = BytesIO()
-    plt.savefig(img_data, format="png")
-    img_data.seek(0)
+    # save to AWS
+    if save_to_aws:
+        img_data = BytesIO()
+        plt.savefig(img_data, format="png", bbox_inches="tight")
+        img_data.seek(0)
 
-    bucket = s3.Bucket(BUCKET_NAME)
-    export_folder = phase_dict[phase]
-    export_key = f"{export_folder}/{phase}_station_map.png"
-    bucket.put_object(
-        Body=img_data,
-        ContentType="image/png",
-        Key=export_key,
-    )
+        bucket = s3.Bucket(BUCKET_NAME)
+        bucket.put_object(
+            Body=img_data, ContentType="image/png", Key=f"{MERGE_DIR}/{figname}"
+        )
 
     return None
