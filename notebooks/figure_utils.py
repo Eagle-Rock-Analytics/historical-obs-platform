@@ -36,10 +36,6 @@ QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 phase_dict = {"pull": RAW_DIR, "clean": CLEAN_DIR, "qaqc": QAQC_DIR, "merge": MERGE_DIR}
 
-SERVICE_TERRITORIES = gpd.read_file(
-    "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
-)
-
 def get_hdp_colordict() -> dict:
     """
     Builds a dictionary of specified network colors for use in HDP figures,
@@ -476,9 +472,9 @@ def get_station_map(
     )
 
     # read in  CA county boundaries shapefile
-    # SERVICE_TERRITORIES = gpd.read_file(
-    #     "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
-    # )
+    service_territories = gpd.read_file(
+        "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
+    )
 
     # Make a geodataframe.
     gdf = gpd.GeoDataFrame(
@@ -491,13 +487,13 @@ def get_station_map(
     gdf_wm = gdf.to_crs(epsg=3857)  # Web mercator
 
     # Remove territories, AK, HI
-    SERVICE_TERRITORIES = SERVICE_TERRITORIES.to_crs(gdf_wm.crs)
-    SERVICE_TERRITORIES = SERVICE_TERRITORIES.loc[
-        SERVICE_TERRITORIES.ABR.isin([IOU]) == True
+    service_territories = service_territories.to_crs(gdf_wm.crs)
+    iou_area = service_territories.loc[
+        service_territories.ABR.isin([IOU]) == True
     ]
 
     # Use to clip stations
-    gdf_iou = gdf_wm.clip(SERVICE_TERRITORIES)
+    gdf_iou = gdf_wm.clip(iou_area)
 
     # Plot
     ax = gdf_iou.plot(
