@@ -526,8 +526,8 @@ def get_service_area_map(
         plt.savefig(f"../figures/{figname}", dpi=300)
 
     return None
-  
-  
+
+
 def clip_gpd_to_shapefile(
     gdf: gpd.GeoDataFrame,
     shapefile_path: str,
