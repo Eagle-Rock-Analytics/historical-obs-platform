@@ -476,9 +476,9 @@ def get_station_map(
     )
 
     # read in  CA county boundaries shapefile
-    SERVICE_TERRITORIES = gpd.read_file(
-        "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
-    )
+    # SERVICE_TERRITORIES = gpd.read_file(
+    #     "s3://wecc-historical-wx/0_maps/California_Natural_Gas_Service_Area/"
+    # )
 
     # Make a geodataframe.
     gdf = gpd.GeoDataFrame(
