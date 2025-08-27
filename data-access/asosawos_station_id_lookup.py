@@ -37,6 +37,7 @@ asosawos_station_list_path = (
     f"s3://{BUCKET_NAME}/{MERGE_DIR}/ASOSAWOS/stationlist_ASOSAWOS_merge.csv"
 )
 
+
 def asosawos_station_lookup(code: str | None = None, city: str | None = None) -> None:
     """
     Function that returns the HDP station ID for an input of either the
@@ -82,14 +83,14 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
     elif city:
         # this allows for the user to input the city or entire airport name, and is also case-insensitive
         hdp_station = [value for key, value in city_dict.items() if city.upper() in key]
-        if (len(hdp_station) == 1):  
+        if len(hdp_station) == 1:
             # if there is only one station associated with the input
             # now pull the ID out from the list that is returned above
             hdp_station = hdp_station[0]
             print(
                 f"The HDP station name for input airport city '{city}' is {hdp_station}"
             )
-        elif (len(hdp_station) > 1):  
+        elif len(hdp_station) > 1:
             # if there are multuple stations associated with the input
             print(
                 f"There are multiple stations associated with '{city}': {hdp_station}"
