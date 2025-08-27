@@ -70,9 +70,7 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
 
     """
     # Define dictionaries matching HDP station IDs to airport codes and cities
-    merge_list = pd.read_csv(
-        asosawos_station_list_path
-    )
+    merge_list = pd.read_csv(asosawos_station_list_path)
     code_dict = pd.Series(
         merge_list["ERA-ID"].values, index=merge_list["ICAO"]
     ).to_dict()
@@ -93,13 +91,17 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
     elif city:
         # this allows for the user to input the city or entire airport name, and is also case-insensitive
         hdp_station = [value for key, value in city_dict.items() if city.upper() in key]
-        if len(hdp_station) == 1: # if there is only one station associated with the input
+        if (
+            len(hdp_station) == 1
+        ):  # if there is only one station associated with the input
             # now pull the ID out from the list that is returned above
             hdp_station = hdp_station[0]
             print(
                 f"The HDP station name for input airport city '{city}' is {hdp_station}"
             )
-        elif len(hdp_station) > 1: # if there are multuple stations associated with the input
+        elif (
+            len(hdp_station) > 1
+        ):  # if there are multuple stations associated with the input
             print(
                 f"There are multiple stations associated with '{city}': {hdp_station}"
             )
@@ -119,9 +121,9 @@ if __name__ == "__main__":
         f"Would you like to input a city, airport name, or code? (type 'city','airport', or 'code'): "
     )
 
-    if city_or_code == 'code':
+    if city_or_code == "code":
         input_code = input(f"Please type the four-letter airport code (ex: KSAC): ")
         asosawos_station_lookup(code=input_code)
-    elif city_or_code=='city' or city_or_code=='airport':
+    elif city_or_code == "city" or city_or_code == "airport":
         input_city = input(f"Please type the city or airport name: ")
         asosawos_station_lookup(city=input_city)
