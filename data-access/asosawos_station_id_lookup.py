@@ -29,20 +29,13 @@ The script asosawos_station_id_lookup.py:
 """
 
 import pandas as pd
-import boto3
-
-# Set AWS credentials
-s3 = boto3.resource("s3")
-s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
 BUCKET_NAME = "wecc-historical-wx"
-QAQC_DIR = "3_qaqc_wx"
 MERGE_DIR = "4_merge_wx"
 asosawos_station_list_path = (
-    f"s3://wecc-historical-wx/{MERGE_DIR}/ASOSAWOS/stationlist_ASOSAWOS_merge.csv"
+    f"s3://{BUCKET_NAME}/{MERGE_DIR}/ASOSAWOS/stationlist_ASOSAWOS_merge.csv"
 )
-
 
 def asosawos_station_lookup(code: str | None = None, city: str | None = None) -> None:
     """
@@ -66,8 +59,6 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
     Example:
     -------
     asos_station_lookup(code=None, city='Sacramento')
-
-
     """
     # Define dictionaries matching HDP station IDs to airport codes and cities
     merge_list = pd.read_csv(asosawos_station_list_path)
@@ -91,17 +82,15 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
     elif city:
         # this allows for the user to input the city or entire airport name, and is also case-insensitive
         hdp_station = [value for key, value in city_dict.items() if city.upper() in key]
-        if (
-            len(hdp_station) == 1
-        ):  # if there is only one station associated with the input
+        if (len(hdp_station) == 1):  
+            # if there is only one station associated with the input
             # now pull the ID out from the list that is returned above
             hdp_station = hdp_station[0]
             print(
                 f"The HDP station name for input airport city '{city}' is {hdp_station}"
             )
-        elif (
-            len(hdp_station) > 1
-        ):  # if there are multuple stations associated with the input
+        elif (len(hdp_station) > 1):  
+            # if there are multuple stations associated with the input
             print(
                 f"There are multiple stations associated with '{city}': {hdp_station}"
             )
@@ -118,7 +107,7 @@ def asosawos_station_lookup(code: str | None = None, city: str | None = None) ->
 if __name__ == "__main__":
 
     city_or_code = input(
-        f"Would you like to input a city, airport name, or code? (type 'city','airport', or 'code'): "
+        f"Would you like to input a city, airport name, or code? (type 'city', 'airport', or 'code'): "
     )
 
     if city_or_code == "code":
