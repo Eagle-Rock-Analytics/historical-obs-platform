@@ -20,6 +20,18 @@ Output
 The HDP station ID is returned.
 
 """
+import pandas as pd
+import boto3
+
+# Set AWS credentials
+s3 = boto3.resource("s3")
+s3_cl = boto3.client("s3")  # for lower-level processes
+
+# Set relative paths to other folders and objects in repository.
+BUCKET_NAME = "wecc-historical-wx"
+QAQC_DIR = "3_qaqc_wx"
+MERGE_DIR = "4_merge_wx"
+stations_csv_path = f"s3://{BUCKET_NAME}/{MERGE_DIR}/all_network_stationlist_merge.csv"
 
 
 def asos_station_lookup(code: str | None = None, city: str | None = None) -> None:
@@ -47,44 +59,15 @@ def asos_station_lookup(code: str | None = None, city: str | None = None) -> Non
     # Define dictionaries matching HDP station IDs to airport codes and cities
     ## this was developed beforehand matching HDP ASOSAWOS station locations with those in a list of stations provided by partners
 
-    city_dict = {
-        "Arcata": "ASOSAWOS_72594524283",
-        "Eureka": "ASOSAWOS_72594524283",
-        "Blue Canyon": "ASOSAWOS_72584523225",
-        "Burbank": "ASOSAWOS_72288023152",
-        "Fresno": "ASOSAWOS_72389093193",
-        "Fullerton": "ASOSAWOS_72297603166",
-        "Oakland": "ASOSAWOS_72493023230",
-        "Palm Springs": "ASOSAWOS_72286893138",
-        "Palmdale": "ASOSAWOS_72382023182",
-        "Red Bluff": "ASOSAWOS_72591024216",
-        "Riverside": "ASOSAWOS_72286903171",
-        "Sacramento": "ASOSAWOS_72483023232",
-        "San Diego": "ASOSAWOS_72290023188",
-        "San Jose": "ASOSAWOS_72494523293",
-        "Santa Maria": "ASOSAWOS_72394023273",
-        "Santa Rosa": "ASOSAWOS_72495723213",
-        "Torrance": "ASOSAWOS_72295503174",
-    }
-
-    code_dict = {
-        "KACV": "ASOSAWOS_72594524283",
-        "KBLU": "ASOSAWOS_72584523225",
-        "KBUR": "ASOSAWOS_72288023152",
-        "KFAT": "ASOSAWOS_72389093193",
-        "KFUL": "ASOSAWOS_72297603166",
-        "KOAK": "ASOSAWOS_72493023230",
-        "KPSP": "ASOSAWOS_72286893138",
-        "KPMD": "ASOSAWOS_72382023182",
-        "KRBL": "ASOSAWOS_72591024216",
-        "KRAL": "ASOSAWOS_72286903171",
-        "KSAC": "ASOSAWOS_72483023232",
-        "KSAN": "ASOSAWOS_72290023188",
-        "KRHV": "ASOSAWOS_72494523293",
-        "KSMX": "ASOSAWOS_72394023273",
-        "KSTS": "ASOSAWOS_72495723213",
-        "KTOA": "ASOSAWOS_72295503174",
-    }
+    merge_list = pd.read_csv(
+        f"s3://wecc-historical-wx/{MERGE_DIR}/ASOSAWOS/stationlist_ASOSAWOS_merge.csv"
+    )
+    code_dict = pd.Series(
+        merge_list["ERA-ID"].values, index=merge_list["ICAO"]
+    ).to_dict()
+    city_dict = pd.Series(
+        merge_list["ERA-ID"].values, index=merge_list["STATION NAME"]
+    ).to_dict()
 
     # If user inputs an airport code
     if code:
@@ -98,12 +81,16 @@ def asos_station_lookup(code: str | None = None, city: str | None = None) -> Non
     # If user inputs a city
     elif city:
         # this catches cases in which the user inputs the entire airport name
-        hdp_station = [val for key, val in city_dict.items() if key in city]
-        if hdp_station:
+        hdp_station = [value for key, value in city_dict.items() if city.upper() in key]
+        if len(hdp_station) == 1:
             # now pull the ID out from the list that is returned above
             hdp_station = hdp_station[0]
             print(
                 f"The HDP station name for input airport city '{city}' is {hdp_station}"
+            )
+        elif len(hdp_station) > 1:
+            print(
+                f"There are multiple stations associated with '{city}': {hdp_station}"
             )
         else:
             print(f"Input city '{city}' not in station dictionary.")
