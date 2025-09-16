@@ -9,8 +9,6 @@ The [Historical Observations Data Platform](https://eaglerockanalytics.com/proje
 
 The Platform responds to community partner needs in understanding weather and climate information including the severity, duration, frequency, and rate of change over time of extreme weather events, as well as supporting projections downscaling efforts. We implement stringent Quality Assurance/Quality Control (QA/QC) procedures in line with international protocols and with customized modifications relevant to energy sector (such as temperature and precipitation extremes, winds, and solar radiation). 
 
-> [!WARNING]
-> This project is still is under active development.
 
 ## 📊 About the data 
 The Platform has sourced station data from from 27 publicly available historical data observation networks across the Western Electricity Coordinating Council (WECC) domain from 1980-2022 (time period varies between networks and stations). **14,927 stations** total have completed the full quality control and standardization pipelines and are publically available as [cloud-optimized zarrs](https://zarr.dev/) in [Amazon s3 storage](https://cadcat.s3.amazonaws.com/index.html#histwxstns/). 
