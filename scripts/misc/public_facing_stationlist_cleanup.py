@@ -97,6 +97,10 @@ def main():
     )
     merge_df.drop(columns="index_right", inplace=True)
 
+    # Convert geometry to WKT format
+    # WKT (Well-Known Text) is a text format for representing vector geometries
+    merge_df["geometry"] = merge_df.geometry.to_wkt()
+
     # Subset columns
     merge_df_public_facing = merge_df[
         [
