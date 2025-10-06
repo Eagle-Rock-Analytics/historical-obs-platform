@@ -8,11 +8,14 @@ Operations:
 - Filters to successfully merged stations
 - Corrects bad/missing ASOSAWOS elevation values using source data
 - Creates source-id field (uses WBAN codes for ASOSAWOS, era-id suffix for others)
+- Uses existing latitude and longitude columns to create a geometry column 
+- Reads in Tiger US states shapefile and adds US state for each station 
 - Exports subset of columns as CSV for public-facing applications
 """
 
 import pandas as pd
 import numpy as np
+import geopandas as gpd
 
 # s3 Paths
 MERGE_LIST_PATH = "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
@@ -74,18 +77,40 @@ def main():
     )
     merge_df.drop(columns=["WBAN"], inplace=True)
 
+    # Add in geometry column so it can be used as a GeoDataFrame
+    merge_df = gpd.GeoDataFrame(
+        merge_df,
+        geometry=gpd.points_from_xy(merge_df.longitude, merge_df.latitude),
+        crs="EPSG:4326",
+    )
+
+    # Get US states shapefiles from US census Tiger dataset
+    states = gpd.read_file(
+        "https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_20m.zip"
+    )
+    states.to_crs(merge_df.crs, inplace=True)
+    states.rename(columns={"STUSPS": "state"}, inplace=True)
+
+    # Spatial join to find which state each station is in
+    merge_df = gpd.sjoin(
+        merge_df, states[["state", "geometry"]], how="left", predicate="within"
+    )
+    merge_df.drop(columns="index_right", inplace=True)
+
     # Subset columns
     merge_df_public_facing = merge_df[
         [
             "era-id",
             "source-id",
+            "network",
             "latitude",
             "longitude",
+            "state",
             "elevation",
             "start-date",
             "end-date",
-            "network",
             "total_nobs",
+            "geometry",
         ]
     ]
 
