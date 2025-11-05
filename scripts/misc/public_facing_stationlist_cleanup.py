@@ -66,16 +66,16 @@ def main():
         lambda row: row["era-id"].replace(row["network"] + "_", ""), axis=1
     )
 
-    # Except, for Network=ASOSAWOS, the source_id should be WBAN column (airport id)
+    # Except, for Network=ASOSAWOS, the source_id should be ICAO column
     merge_df = merge_df.merge(
-        asosawos_df[["era-id", "WBAN"]].astype({"WBAN": str}), on="era-id", how="left"
+        asosawos_df[["era-id", "ICAO"]].astype({"ICAO": str}), on="era-id", how="left"
     )
     merge_df["source-id"] = np.where(
         merge_df["network"] == "ASOSAWOS",
-        merge_df["WBAN"],
+        merge_df["ICAO"],
         merge_df["source-id"].astype(str),
     )
-    merge_df.drop(columns=["WBAN"], inplace=True)
+    merge_df.drop(columns=["ICAO"], inplace=True)
 
     # Add in geometry column so it can be used as a GeoDataFrame
     merge_df = gpd.GeoDataFrame(
