@@ -248,7 +248,7 @@ def qaqc_dist_whole_stn_bypass_check(
         # The safest way to write this is using direct column access by name:
         # This avoids ambiguity and is the most stable across Pandas versions.
         for col in vars_to_flag:
-            new_df[col] = 19  # see era_qaqc_flag_meanings.csv
+            new_df[col + "_eraqc"] = 19  # see era_qaqc_flag_meanings.csv
 
     return new_df, stn_length
 
