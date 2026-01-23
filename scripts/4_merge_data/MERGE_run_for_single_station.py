@@ -41,6 +41,7 @@ def main():
     -------
     None
     """
+
     # Create argument parser
     parser = argparse.ArgumentParser(
         prog="MERGE_run_for_single_station",  # Program name
@@ -74,3 +75,7 @@ def main():
         station=args.station,
         verbose=args.verbose,
     )
+
+
+if __name__ == "__main__":
+    main()
