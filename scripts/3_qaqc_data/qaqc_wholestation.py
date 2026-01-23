@@ -131,7 +131,7 @@ def qaqc_missing_vals(df: pd.DataFrame) -> pd.DataFrame | None:
 
     logger.info("Running: qaqc_missing_vals")
 
-    missing_vals = pd.read_csv("missing_data_flags.csv")
+    missing_vals = pd.read_csv("../../data/missing_data_flags.csv")
     vars_to_remove = [
         "qc",
         "duration",
