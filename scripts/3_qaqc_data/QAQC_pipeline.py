@@ -346,6 +346,18 @@ def process_output_ds(
         s3.Bucket(BUCKET_NAME).upload_file(filename, filepath)
     elif zarr == True:
         filepath_s3 = f"s3://{BUCKET_NAME}/{qaqcdir}{filename}"
+
+        # Delete existing zarr store before writing
+        # This avoids inconsistencies if there are differences between old vs. new
+        # mode="w" only overwrites arrays with matching names, leaving old arrays behind
+        fs = s3fs.S3FileSystem()
+        if fs.exists(filepath_s3):
+            logger.info(
+                f"Found existing zarr at path {filepath_s3}. Deleting existing file and writing new zarr to the same path."
+            )
+            fs.rm(filepath_s3, recursive=True)
+
+        # Write data to zarr
         ds.to_zarr(
             filepath_s3,
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
