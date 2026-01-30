@@ -21,16 +21,17 @@ Intended Use
 Run this script after QAQC has been completed for a network (via pcluster run) to update the network stationlist for QA/QC success rate tracking.
 """
 
+import os
+import sys
 import pandas as pd
 from io import BytesIO, StringIO
 import numpy as np
 import boto3
 import s3fs
 
-BUCKET_NAME = "wecc-historical-wx"
-RAW_WX = "1_raw_wx/"
-CLEAN_WX = "2_clean_wx/"
-QAQC_WX = "3_qaqc_wx/"
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, RAW_WX, CLEAN_WX, QAQC_WX
+
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
 
@@ -51,7 +52,7 @@ def get_station_list(network: str) -> pd.DataFrame:
         station list of all stations within a network
     """
     station_list = pd.read_csv(
-        f"s3://wecc-historical-wx/{CLEAN_WX}{network}/stationlist_{network}_cleaned.csv"
+        f"s3://wecc-historical-wx/{CLEAN_WX}/{network}/stationlist_{network}_cleaned.csv"
     )
     return station_list
 
@@ -110,7 +111,7 @@ def get_qaqc_stations(network: str) -> pd.DataFrame:
     df = {"ID": [], "Time_QAQC": [], "QAQC": []}
 
     # Construct the S3 path prefix for the network inside the QAQC folder
-    parent_s3_path = f"{BUCKET_NAME}/{QAQC_WX}{network}"
+    parent_s3_path = f"{BUCKET_NAME}/{QAQC_WX}/{network}"
 
     # Use s3fs to list all items under this path
     s3_fs = s3fs.S3FileSystem(anon=False)
@@ -157,7 +158,7 @@ def parse_error_csv(network: str) -> pd.DataFrame:
     errordf = []
 
     # Define the path prefix in the S3 bucket for error CSVs
-    errors_prefix = f"{QAQC_WX}{network}/qaqc_errs/errors"
+    errors_prefix = f"{QAQC_WX}/{network}/qaqc_errs/errors"
 
     # Loop over all objects in the specified S3 prefix
     for item in s3.Bucket(BUCKET_NAME).objects.filter(Prefix=errors_prefix):
@@ -303,7 +304,7 @@ def qaqc_qa(network: str):
     s3_cl.put_object(
         Bucket=BUCKET_NAME,
         Body=content,
-        Key=f"{QAQC_WX}{network}/stationlist_{network}_qaqc.csv",
+        Key=f"{QAQC_WX}/{network}/stationlist_{network}_qaqc.csv",
     )
 
 

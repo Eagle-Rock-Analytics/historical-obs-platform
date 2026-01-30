@@ -23,6 +23,7 @@ QA/QC-processed data for an individual network, priority variables, all times. O
 """
 
 import os
+import sys
 import datetime
 import pandas as pd
 import numpy as np
@@ -33,6 +34,9 @@ from io import StringIO
 import time
 import tempfile
 import logging
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME
 
 try:
     from log_config import setup_logger
@@ -53,7 +57,6 @@ except Exception as e:
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-BUCKET_NAME = "wecc-historical-wx"
 
 # Make local directories to save files temporarily and save timing
 dirs = ["./qaqc_logs/"]

@@ -36,6 +36,8 @@ This script will fail on any additional runs because the input stations will be 
 Regeneration of the original input QAQC'd stations is required for a full re-run.
 """
 
+import os
+import sys
 import datetime
 import boto3
 import pandas as pd
@@ -43,6 +45,9 @@ import xarray as xr
 from io import StringIO
 from time import time
 from QAQC_pipeline import qaqc_ds_to_df
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, QAQC_WX
 
 # Silence warnings
 import warnings
@@ -55,10 +60,6 @@ target_networks = ["ASOSAWOS", "MARITIME"]
 # AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
-
-# AWS buckets
-BUCKET_NAME = "wecc-historical-wx"
-QAQC_DIR = "3_qaqc_wx/"
 
 
 def main():
@@ -200,7 +201,7 @@ def apply_concat_check(
         s3_cl.put_object(
             Bucket=BUCKET_NAME,
             Body=content,
-            Key=QAQC_DIR + station + f"/concat_list_{station}.csv",
+            Key=f"{QAQC_WX}/{station}/concat_list_{station}.csv",
         )
 
     return None

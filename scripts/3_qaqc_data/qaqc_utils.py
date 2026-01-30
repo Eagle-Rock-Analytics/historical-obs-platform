@@ -24,6 +24,7 @@ Intended Use
 Script function utilities, as a part of the QA/QC pipeline. 
 """
 
+import os
 import boto3
 import geopandas as gp
 import numpy as np
@@ -33,9 +34,11 @@ import scipy.stats as stats
 import sys
 from log_config import logger
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, RAW_WX, CLEAN_WX, QAQC_WX, MERGE_WX
+
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-BUCKET_NAME = "wecc-historical-wx"
 
 
 def get_bin_size_by_var(var: str) -> float:
@@ -442,10 +445,10 @@ def get_file_paths(network: str) -> tuple[str, str, str, str]:
     mergedir : str
         Path to the final merged data bucket
     """
-    rawdir = f"1_raw_wx/{network}/"
-    cleandir = f"2_clean_wx/{network}/"
-    qaqcdir = f"3_qaqc_wx/{network}/"
-    mergedir = f"4_merge_wx/{network}/"
+    rawdir = f"{RAW_WX}/{network}/"
+    cleandir = f"{CLEAN_WX}/{network}/"
+    qaqcdir = f"{QAQC_WX}/{network}/"
+    mergedir = f"{MERGE_WX}/{network}/"
     return rawdir, cleandir, qaqcdir, mergedir
 
 

@@ -25,6 +25,8 @@ Intended Use
 Script functions assess QA/QC on the entire station, as a part of the QA/QC pipeline.
 """
 
+import os
+import sys
 import geopandas as gp
 import shapely
 import numpy as np
@@ -35,6 +37,9 @@ import urllib
 import requests
 from log_config import logger
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import WECC_TERR, WECC_MAR, ASCC, MRO
+
 try:
     from qaqc_utils import *
 except Exception as e:
@@ -44,14 +49,6 @@ try:
     from qaqc_plot import flagged_timeseries_plot
 except Exception as e:
     logger.debug(f"Error importing flagged_timeseries_plot: {e}")
-
-# if __name__ == "__main__":
-WECC_TERR = (
-    "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_land.shp"
-)
-WECC_MAR = "s3://wecc-historical-wx/0_maps/WECC_Informational_MarineCoastal_Boundary_marine.shp"
-ASCC = "s3://wecc-historical-wx/0_maps/Alaska_Energy_Authority_Regions.shp"
-MRO = "s3://wecc-historical-wx/0_maps/NERC_Regions_EIA.shp"
 
 
 # Part 1a functions (whole station/network)

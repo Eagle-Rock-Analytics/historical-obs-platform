@@ -25,18 +25,21 @@ Intended Use
 Script functions for the unusual streaks QA/QC test, as a part of the QA/QC pipeline.
 """
 
+import os
+import sys
 import boto3
 import numpy as np
 import pandas as pd
 from log_config import logger
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME
 
 from qaqc_plot import *
 from qaqc_utils import *
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-
-BUCKET_NAME = "wecc-historical-wx"
 
 # Straight repeat streak criteria
 STRAIGHT_REPEAT_CRITERIA = {
