@@ -52,7 +52,6 @@ def eraqc_counts_native_timestep(
         # also replace Nan values with 'no_flag' for two reasons:
         #   1. to enable us to count total observations for the success report
         #   2. to clarify what the Nan value indicates
-        df = df[eraqc_vars].astype(str).replace("nan", "no_flag")
         df = df[eraqc_vars].fillna("no_flag")
 
         # generate df of counts of each unique flag for each variable
