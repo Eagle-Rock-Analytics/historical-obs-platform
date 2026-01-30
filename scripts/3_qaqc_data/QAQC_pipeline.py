@@ -363,8 +363,9 @@ def process_output_ds(
             consolidated=True,  # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html
             mode="w",  # Write & overwrite if file with same name exists already
         )
-    ttime = time.time() - t0
-    logger.info(f"Done saving/pushing file to AWS. Ellapsed time: {ttime:.2f} s.")
+
+        ttime = time.time() - t0
+        logger.info(f"Done saving/pushing file to AWS. Ellapsed time: {ttime:.2f} s.")
     ds.close()
     del ds
 
