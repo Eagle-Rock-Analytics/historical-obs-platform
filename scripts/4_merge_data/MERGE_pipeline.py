@@ -29,6 +29,7 @@ from typing import Dict
 
 import pandas as pd
 import xarray as xr
+import s3fs
 import logging
 
 from merge_log_config import setup_logger, upload_log_to_s3
@@ -438,6 +439,16 @@ def write_zarr_to_s3(
     logger.info(f"{inspect.currentframe().f_code.co_name}: Starting...")
     zarr_s3_path = f"s3://{bucket_name}/{merge_dir}/{network}/{station}.zarr"
     try:
+        # Delete existing zarr store before writing
+        # This avoids inconsistencies if there are differences between old vs. new
+        # mode="w" only overwrites arrays with matching names, leaving old arrays behind
+        fs = s3fs.S3FileSystem()
+        if fs.exists(zarr_s3_path):
+            logger.info(
+                f"Found existing zarr at path {zarr_s3_path}. Deleting existing file and writing new zarr to the same path."
+            )
+            fs.rm(zarr_s3_path, recursive=True)
+
         ds.to_zarr(
             zarr_s3_path,
             consolidated=True,

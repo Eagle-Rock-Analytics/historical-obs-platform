@@ -27,7 +27,7 @@ QA/QC-processed data for the specified station, including priority variables for
 
 Example usage
 -------------
-python QAQC_run_for_single_station.py --station="LOXWFO_CBGC1"
+python QAQC_run_for_single_station.py --station="ASOSAWOS_69007093217"
 """
 
 import argparse
