@@ -11,8 +11,8 @@ BUCKET_NAME = "wecc-historical-wx"
 MAPS_DIR = "0_maps"
 RAW_WX = "1_raw_wx"
 CLEAN_WX = "2_clean_wx"
-QAQC_WX = "3_qaqc_wx"
-MERGE_WX = "4_merge_wx"
+QAQC_WX = "3_qaqc_wx_v2"
+MERGE_WX = "4_merge_wx_v2"
 
 # Commonly used full S3 URIs
 STATIONS_CSV_PATH = f"s3://{BUCKET_NAME}/{CLEAN_WX}/temp_clean_all_station_list.csv"
