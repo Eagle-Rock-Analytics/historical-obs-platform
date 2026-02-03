@@ -41,7 +41,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
-#SBATCH --partition=compute-72cpus
+#SBATCH --partition=compute
 #SBATCH --output=%x_%A_%a_output.txt
 #SBATCH --error=%x_%A_%a_error.txt
 
