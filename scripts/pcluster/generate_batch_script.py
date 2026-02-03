@@ -1,22 +1,22 @@
 """
 generate_batch_script.py
 
-Reads a SLURM batch script template and fills in the network name and number
-of stations to set up an embarrassingly parallel array job. Updates the header
-comment to reflect the specific network.
+Reads a SLURM batch script template (run_{process}_template.sh) and fills in
+the network name and number of stations to set up an embarrassingly parallel
+array job. The --process argument selects which template and output filename
+to use:
 
-This script was used in both the QAQC and the merge steps; to change the template used 
-by the script, simply modify the following paths in the script to point to the appropriate file: 
+  - "qaqc"  -> template: run_qaqc_template.sh,  output: run_qaqc_{network}.sh
+  - "merge"  -> template: run_merge_template.sh, output: run_merge_{network}.sh
 
-template_file = Path("run_merge_template.sh")
-output_file = Path(f"run_merge_{network}.sh")
+Placeholders replaced in the template:
+  {NETWORK} -> network name
+  {NROWS}   -> number of stations in stations_input/{network}-input.dat
 
 Example usage:
 ---------------
-python generate_batch_script.py --network=LOXWFO
-
-This will read the template `run_qaqc_template.sh`, replace placeholders 
-({network}, {nrows}), and write a batch script `run_qaqc_LOXWFO.sh`.
+python generate_batch_script.py --network=LOXWFO --process=qaqc
+python generate_batch_script.py --network=LOXWFO --process=merge
 """
 
 import argparse
@@ -30,13 +30,21 @@ def main():
     parser.add_argument(
         "-n", "--network", required=True, help="Network name (e.g., LOXWFO)"
     )
+    parser.add_argument(
+        "-p",
+        "--process",
+        required=True,
+        choices=["merge", "qaqc"],
+        help="Process type: 'merge' or 'qaqc'",
+    )
     args = parser.parse_args()
     network = args.network
+    process = args.process
 
     # Paths
     input_file = Path(f"stations_input/{network}-input.dat")
-    template_file = Path("run_merge_template.sh")
-    output_file = Path(f"run_merge_{network}.sh")
+    template_file = Path(f"run_{process}_template.sh")
+    output_file = Path(f"run_{process}_{network}.sh")
 
     if not input_file.exists():
         raise FileNotFoundError(f"Missing input file: {input_file}")
