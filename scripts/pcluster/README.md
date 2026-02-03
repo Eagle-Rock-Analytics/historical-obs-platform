@@ -95,12 +95,10 @@ Each SLURM array task processes one station in a fully independent and serial jo
      ```bash
       for net in ASOSAWOS CAHYDRO CIMIS CW3E CWOP CDEC CNRFC CRN HADS HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD RAWS SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_station_list.py --network="$net"; done
      ```
-     And then
-   ```bash 
-     for net in ASOSAWOS CAHYDRO CIMIS CW3E CWOP_1 CWOP_2 CWOP_3 CWOP_4 CWOP_5 CWOP_6 CWOP_7 CWOP_8 CDEC CNRFC CRN HADS_1 HADS_2 HADS_3 HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD RAWS_1 RAWS_2 RAWS_3 SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_batch_script.py --network="$net"; done
-  ```
-
-     
+     And then this commend, just update the "process" argument depending on if you want to generate the qaqc or merge scripts. 
+     ```bash 
+     for net in ASOSAWOS CAHYDRO CIMIS CW3E CWOP_1 CWOP_2 CWOP_3 CWOP_4 CWOP_5 CWOP_6 CWOP_7 CWOP_8 CDEC CNRFC CRN HADS_1 HADS_2 HADS_3 HNXWFO HOLFUY HPWREN LOXWFO MAP MTRWFO NCAWOS NOS-NWLON NOS-PORTS OtherISD RAWS_1 RAWS_2 RAWS_3 SGXWFO SHASAVAL VCAPCD MARITIME NDBC SCAN SNOTEL; do python generate_batch_script.py --network="$net" --process="qaqc"; done
+  ```   
 
 ### Additional Info
  - The station string must match the actual station ID in AWS.
