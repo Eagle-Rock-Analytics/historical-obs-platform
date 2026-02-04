@@ -175,7 +175,7 @@ def apply_concat_check(
 
         # Need to use the QAQC stationlist to implement the QAQC binary Y/N flag
         # Import station list of target station
-        key = f"3_qaqc_wx/{station}/stationlist_{station}_qaqc.csv"
+        key = f"{QAQC_WX}/{station}/stationlist_{station}_qaqc.csv"
         station_list = pd.read_csv(f"s3://{BUCKET_NAME}/{key}")
 
         # subset for only stations that passed QA/QC
@@ -356,7 +356,7 @@ def _more_than_2(
     # Load datasets into a list
     datasets = [
         xr.open_zarr(
-            f"s3://wecc-historical-wx/3_qaqc_wx/{network_name}/{stn}.zarr",
+            f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{stn}.zarr",
             consolidated=True,
         )
         for stn in stns_to_pair["ERA-ID"]
@@ -511,9 +511,7 @@ def concat_export(ds: xr.Dataset, network_name: str, station_name_new: str):
     """
 
     # Export
-    export_url = (
-        f"s3://wecc-historical-wx/3_qaqc_wx/{network_name}/{station_name_new}.zarr"
-    )
+    export_url = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{station_name_new}.zarr"
     print(f"Exporting concatenated dataset... {export_url}")
 
     ## TURN OFF FOR TESTING MODE -- WHEN READY FOR EXPORT
@@ -546,12 +544,12 @@ def _rename_file(
         # pull station name
         old_name = stn.station.values[0]
 
-        old_url = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network}/{old_name}.zarr"
+        old_url = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network}/{old_name}.zarr"
         print(f"Original file name: {old_url}")
 
         # build new name with _c identifier
         new_name = f"{old_name}_c"
-        new_url = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network}/{new_name}.zarr"
+        new_url = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network}/{new_name}.zarr"
 
         # Rename using input and save to new path
         stn.to_zarr(new_url, mode="w")
@@ -559,7 +557,7 @@ def _rename_file(
         # Delete older version of the file using just old stn, no s3 bucket portion
         ## TURN OFF FOR TESTING MODE -- WHEN READY FOR EXPORT
         for obj in s3.Bucket(BUCKET_NAME).objects.filter(
-            Prefix=f"3_qaqc_wx/{network}/{old_name}.zarr/"
+            Prefix=f"{QAQC_WX}/{network}/{old_name}.zarr/"
         ):
             obj.delete()
 
@@ -601,7 +599,7 @@ def concatenate_stations(network_name: str) -> None:
     # Read in full concat station list
     print(network_name)
     concat_list = pd.read_csv(
-        f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/concat_list_{network_name}.csv"
+        f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/concat_list_{network_name}.csv"
     )
 
     # Identify stns within designated network
@@ -633,8 +631,8 @@ def concatenate_stations(network_name: str) -> None:
             # Import this subset of datasets and convert to dataframe
             stnpair0 = stns_to_pair.iloc[0]["ERA-ID"]
             stnpair1 = stns_to_pair.iloc[1]["ERA-ID"]
-            url_1 = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/{stnpair0}.zarr"
-            url_2 = f"s3://{BUCKET_NAME}/3_qaqc_wx/{network_name}/{stnpair1}.zarr"
+            url_1 = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{stnpair0}.zarr"
+            url_2 = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{stnpair1}.zarr"
 
             print(f"Retrieving.... {url_1}")
             print(f"Retrieving.... {url_2}")

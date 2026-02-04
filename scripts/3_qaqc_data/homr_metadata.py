@@ -267,9 +267,9 @@ if __name__ == "__main__":
     import os, sys
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-    from paths import BUCKET_NAME
+    from paths import BUCKET_NAME, QAQC_WX
 
-    SAVEDIR = "3_qaqc_wx/HOMR-Metadata/"
+    SAVEDIR = f"{QAQC_WX}/HOMR-Metadata/"
 
     # get_homr_metadata('20027492') # Run for one station
     get_all_homr_metadata(BUCKET_NAME, SAVEDIR)  # Only run periodically.
