@@ -94,10 +94,10 @@ PYSCRIPT="MERGE_run_for_single_station.py"
 start_time=$(date +%s)
 
 # Load Conda initialization
-source /shared/miniconda3/etc/profile.d/conda.sh
+source /shared/nicole/.mamba/etc/profile.d/conda.sh
 
 # Run the Python script using conda
-conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+conda run -p /shared/nicole/.mamba/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)
