@@ -318,7 +318,7 @@ def _df_concat(
     # If overlap exists, split into subsets and concatenate
     else:
         print("There is overlap")
-        df_concat = _overlap_concat(df_old, df_new)
+        df_concat = _overlap_concat(df_new, df_old)
 
     # Reset station name to be the newer station
     df_concat["station"] = stn_n_to_keep
