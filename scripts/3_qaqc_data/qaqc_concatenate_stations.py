@@ -195,15 +195,9 @@ def apply_concat_check(
         final_list = pd.concat([final_list, concat_list])
 
         # Upload to QAQC directory in AWS
-        new_buffer = StringIO()
-        final_list.to_csv(new_buffer, index=False)
-        content = new_buffer.getvalue()
-
-        # the csv is stored in each station folder within 3_qaqc_wx
-        s3_cl.put_object(
-            Bucket=BUCKET_NAME,
-            Body=content,
-            Key=f"{QAQC_WX}/{station}/concat_list_{station}.csv",
+        final_list.to_csv(
+            f"s3://{BUCKET_NAME}/{QAQC_WX}/{station}/concat_list_{station}.csv",
+            index=False,
         )
 
     return None
@@ -516,7 +510,7 @@ def concat_export(ds: xr.Dataset, network_name: str, station_name_new: str):
     export_url = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{station_name_new}.zarr"
     print(f"Exporting concatenated dataset... {export_url}")
 
-    ds.to_zarr(export_url, mode="w")
+    # ds.to_zarr(export_url, mode="w")
 
     return None
 
@@ -680,16 +674,16 @@ def concatenate_stations(network_name: str) -> None:
             station_names,
         )
 
-        # Delete original input zarrs (provenance tracked in dataset attrs and concat list CSV)
-        print(
-            f"[{strftime('%H:%M:%S')}] Deleting {len(stns_to_pair)} original input zarrs..."
-        )
-        for era_id in stns_to_pair["ERA-ID"]:
-            _delete_zarr(era_id, network_name)
+        # # Delete original input zarrs (provenance tracked in dataset attrs and concat list CSV)
+        # print(
+        #     f"[{strftime('%H:%M:%S')}] Deleting {len(stns_to_pair)} original input zarrs..."
+        # )
+        # for era_id in stns_to_pair["ERA-ID"]:
+        #     _delete_zarr(era_id, network_name)
 
-        # Export final dataset
-        print(f"[{strftime('%H:%M:%S')}] Exporting final dataset...")
-        concat_export(ds_concat, network_name, station_name_new)
+        # # Export final dataset
+        # print(f"[{strftime('%H:%M:%S')}] Exporting final dataset...")
+        # concat_export(ds_concat, network_name, station_name_new)
         print(
             f"[{strftime('%H:%M:%S')}] Done with pair {pair} ({time() - t_pair:.2f}s)"
         )
