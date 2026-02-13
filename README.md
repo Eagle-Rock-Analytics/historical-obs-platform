@@ -44,6 +44,36 @@ historical-obs-platform/
 └──    
 ```
 
+## 🖥️ For developers: Running QAQC and MERGE steps
+
+1. Follow the instructions in the `pcluster` [README](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/tree/main/scripts/pcluster/README.md) to **run QAQC for all networks** in an AWS pcluster environment.
+
+2. Run the **station list generation script** for each network (can be run locally). This uploads a `stationlist_{NETWORK}_qaqc.csv` file to the QAQC bucket in AWS, indicating when QAQC was run and whether each station passed or failed (Y/N), along with any relevant error messages:
+```bash
+   # Single network
+   python scripts/3_qaqc_data/stnlist_update_qaqc.py <NETWORK>
+   # All networks
+   ./scripts/3_qaqc_data/run_stnlist_update_qaqc.sh
+```
+
+3. Run the **concatenation script** to identify and merge co-located stations (same lat/lon) in ASOSAWOS and MARITIME into single records. This only needs to be run once — it deletes the original input stations from S3 after concatenation:
+```bash
+   python scripts/3_qaqc_data/qaqc_concatenate_stations.py
+```
+
+   > **Note:** This script **will fail on re-runs** because it deletes the original input stations. You'd need to regenerate the original QAQC'd stations first to run it again.
+
+4. Follow the instructions in the `pcluster` [README](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/tree/main/scripts/pcluster/README.md) to **run MERGE for all networks** in an AWS pcluster environment.
+
+5. Run the **merge station list generation script** for each network. This uploads a `stationlist_{NETWORK}_merge.csv` file to the merge bucket in AWS, indicating when the merge/hourly standardization was run and whether each station passed or failed (Y/N), along with any relevant error messages:
+```bash
+   # Single network
+   python scripts/4_merge_data/stnlist_update_merge.py <NETWORK>
+   # All networks
+   ./scripts/4_merge_data/run_stnlist_update_merge.sh
+```
+  
+
 ## 🛠️ Computational Environment 
 
 See the [environment](https://github.com/Eagle-Rock-Analytics/historical-obs-platform/tree/main/environment) folder for instructions and files for building the computational environment for this project. 
