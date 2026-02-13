@@ -146,9 +146,17 @@ def qaqc_climatological_outlier(
 
             # Low-pass standardised data
             cut_freq = 1 / (3600 * 24 * 365 / 30)  # In Hz (cut_period : 1 month)
-            data_freq = 1 / (
-                df_valid["time"].diff().mode().values[0].astype("float") / 1e9
-            )  # In Hz
+
+            # Guard against too few valid observations: .diff().mode() returns
+            # an empty Series when there are <=1 valid timestamps, which would
+            # cause an IndexError on .values[0]. Skip the variable instead.
+            time_diff_mode = df_valid["time"].diff().mode()
+            if len(time_diff_mode) == 0:
+                logger.info(
+                    f"Not enough valid observations for {var} to compute data frequency. Bypassing qaqc_climatological_outlier."
+                )
+                continue
+            data_freq = 1 / (time_diff_mode.values[0].astype("float") / 1e9)  # In Hz
 
             # Ensure that the data complies with butter filter requirements
             # In some cases, if the valid data has very far apart values, the
@@ -186,7 +194,7 @@ def qaqc_climatological_outlier(
             ]
 
         except Exception as e:
-            logger.error(f"qaqc_climatological_outlier_precip failed, bypassing {var}")
+            logger.error(f"qaqc_climatological_outlier failed, bypassing {var}")
             raise e
 
     # precip focused check
