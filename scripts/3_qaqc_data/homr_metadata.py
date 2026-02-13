@@ -264,8 +264,12 @@ def get_all_homr_metadata(bucket_name: str, savedir: str):
 
 
 if __name__ == "__main__":
-    BUCKET_NAME = "wecc-historical-wx"
-    SAVEDIR = "3_qaqc_wx/HOMR-Metadata/"
+    import os, sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from paths import BUCKET_NAME, QAQC_WX
+
+    SAVEDIR = f"{QAQC_WX}/HOMR-Metadata/"
 
     # get_homr_metadata('20027492') # Run for one station
     get_all_homr_metadata(BUCKET_NAME, SAVEDIR)  # Only run periodically.

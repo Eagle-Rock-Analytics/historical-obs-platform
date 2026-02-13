@@ -41,7 +41,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
-#SBATCH --partition=compute-72cpus
+#SBATCH --partition=compute
 #SBATCH --output=%x_%A_%a_output.txt
 #SBATCH --error=%x_%A_%a_error.txt
 
@@ -94,10 +94,12 @@ PYSCRIPT="MERGE_run_for_single_station.py"
 start_time=$(date +%s)
 
 # Load Conda initialization
-source /shared/miniconda3/etc/profile.d/conda.sh
+source /shared/nicole/.mamba/etc/profile.d/conda.sh
 
-# Run the Python script using conda
-conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+# Run the Python script
+source /opt/parallelcluster/shared/miniforge3/b/etc/profile.d/conda.sh
+conda activate /shared/nicole/.mamba/envs/hist-obs
+python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)

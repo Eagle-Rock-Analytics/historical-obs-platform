@@ -17,11 +17,11 @@ import pandas as pd
 import numpy as np
 import geopandas as gpd
 
+from paths import BUCKET_NAME, RAW_WX, MERGE_WX
+
 # s3 Paths
-MERGE_LIST_PATH = "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
-ASOSAWOS_ISD_PATH = (
-    "s3://wecc-historical-wx/1_raw_wx/ASOSAWOS/stationlist_ISD_ASOSAWOS.csv"
-)
+MERGE_LIST_PATH = f"s3://{BUCKET_NAME}/{MERGE_WX}/all_network_stationlist_merge.csv"
+ASOSAWOS_ISD_PATH = f"s3://{BUCKET_NAME}/{RAW_WX}/ASOSAWOS/stationlist_ISD_ASOSAWOS.csv"
 
 # CSV-related paths
 CSV_OUTPUT_FILENAME = "historical_wx_stations.csv"

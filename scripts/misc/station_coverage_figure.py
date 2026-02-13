@@ -27,11 +27,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-# from shapely.geometry import Point
+from paths import BUCKET_NAME, MERGE_WX
 
 
 NETWORK_COLORS_PATH = "../../data/network_colors.txt"
-STATIONLIST_URI = "s3://wecc-historical-wx/4_merge_wx/all_network_stationlist_merge.csv"
+STATIONLIST_URI = f"s3://{BUCKET_NAME}/{MERGE_WX}/all_network_stationlist_merge.csv"
 
 FIGS_DIR = "../../figures/"  # Directory to save figures to (must already exist)
 FIGURE_SAVE_PATH = f"{FIGS_DIR}station_coverage_map.png"  # Path to save figure to

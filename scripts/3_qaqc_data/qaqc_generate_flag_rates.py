@@ -24,21 +24,23 @@ Run "python qaqc_generate_flag_rates.py"
 
 """
 
+import os
+import sys
 import time
 import boto3
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, QAQC_WX, MERGE_WX
+
 # Set AWS credentials
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
 
 # Set relative paths to other folders and objects in repository.
-BUCKET_NAME = "wecc-historical-wx"
-QAQC_DIR = "3_qaqc_wx"
-MERGE_DIR = "4_merge_wx"
-stations_csv_path = f"s3://{BUCKET_NAME}/{QAQC_DIR}/all_network_stationlist_qaqc.csv"
+stations_csv_path = f"s3://{BUCKET_NAME}/{QAQC_WX}/all_network_stationlist_qaqc.csv"
 
 
 def _pairwise_rate(
@@ -120,7 +122,7 @@ def network_rates_table(timestep: str) -> None:
     flag_rate_df = []
 
     # Point to folder containing station flag count CSVs
-    flags_prefix = f"{MERGE_DIR}/per_network_flag_counts_{timestep}_timestep"
+    flags_prefix = f"{MERGE_WX}/per_network_flag_counts_{timestep}_timestep"
 
     ## Merge flag counts
 
@@ -192,7 +194,7 @@ def station_rates_table(timestep: str) -> None:
 
     for network in network_list:
         # Point to folder containing station flag count CSVs
-        flags_prefix = f"{MERGE_DIR}/{network}/eraqc_counts_{timestep}_timestep"
+        flags_prefix = f"{MERGE_WX}/{network}/eraqc_counts_{timestep}_timestep"
 
         ## Merge flag counts
 

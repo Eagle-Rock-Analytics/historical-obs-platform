@@ -23,6 +23,7 @@ QA/QC-processed data for an individual network, priority variables, all times. O
 """
 
 import os
+import sys
 import datetime
 import pandas as pd
 import numpy as np
@@ -33,6 +34,9 @@ from io import StringIO
 import time
 import tempfile
 import logging
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, RAW_WX, CLEAN_WX, QAQC_WX, MERGE_WX, STATIONS_CSV_PATH
 
 try:
     from log_config import setup_logger
@@ -53,7 +57,6 @@ except Exception as e:
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")  # for lower-level processes
-BUCKET_NAME = "wecc-historical-wx"
 
 # Make local directories to save files temporarily and save timing
 dirs = ["./qaqc_logs/"]
@@ -179,16 +182,13 @@ def read_network_files(network: str, zarr: bool) -> pd.DataFrame:
     """
 
     # Read csv from s3
-    csv_filepath_s3 = (
-        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
-    )
-    full_df = pd.read_csv(csv_filepath_s3).loc[:, ["era-id", "network"]]
+    full_df = pd.read_csv(STATIONS_CSV_PATH).loc[:, ["era-id", "network"]]
 
     # Add path info as new columns
-    full_df["rawdir"] = full_df["network"].apply(lambda row: f"1_raw_wx/{row}/")
-    full_df["cleandir"] = full_df["network"].apply(lambda row: f"2_clean_wx/{row}/")
-    full_df["qaqcdir"] = full_df["network"].apply(lambda row: f"3_qaqc_wx/{row}/")
-    full_df["mergedir"] = full_df["network"].apply(lambda row: f"4_merge_wx/{row}/")
+    full_df["rawdir"] = full_df["network"].apply(lambda row: f"{RAW_WX}/{row}/")
+    full_df["cleandir"] = full_df["network"].apply(lambda row: f"{CLEAN_WX}/{row}/")
+    full_df["qaqcdir"] = full_df["network"].apply(lambda row: f"{QAQC_WX}/{row}/")
+    full_df["mergedir"] = full_df["network"].apply(lambda row: f"{MERGE_WX}/{row}/")
 
     # If its a zarr store, use the zarr file extension (".zarr")
     if zarr == True:
@@ -1012,9 +1012,7 @@ def run_qaqc_one_station(
     ## ======== BASIC SETUP ========
 
     # Read in csv file containing information about each station
-    stations_df = pd.read_csv(
-        "s3://wecc-historical-wx/2_clean_wx/temp_clean_all_station_list.csv"
-    )
+    stations_df = pd.read_csv(STATIONS_CSV_PATH)
     station_row = stations_df[stations_df["era-id"] == station]
 
     # Check that the input station exists in the station list :)
@@ -1055,17 +1053,19 @@ def run_qaqc_one_station(
     aws_url = aws_url_no_extension + ".zarr" if zarr else aws_url_no_extension + ".nc"
 
     # Open the file
-    logger.info(f"Reading file from AWS S3...")
+    logger.info(f"Opening file from AWS S3: {aws_url}")
     try:
         if zarr:  # Open zarr
             ds = xr.open_zarr(aws_url)
         else:  # Open netcdf
             with fs.open(aws_url) as fileObj:
-                # Now we use the open file handle with xarray, without closing it prematurely
-                ds = xr.open_dataset(fileObj).load()
-    except:
+                logger.info("File opened successfully. Reading dataset...")
+                ds = xr.open_dataset(fileObj)
+                logger.info("Dataset read successfully. Loading into memory...")
+                ds = ds.load()
+    except Exception as e:
         print(
-            f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}"
+            f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}\nError: {e}"
         )
         exit()  # End script here
 

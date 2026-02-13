@@ -29,6 +29,8 @@ Intended Use
 Script functions produce QA/QC figures, as a part of the QA/QC pipeline. 
 """
 
+import os
+import sys
 import boto3
 import numpy as np
 import pandas as pd
@@ -38,6 +40,9 @@ from io import BytesIO
 import scipy.stats as stats
 from log_config import logger
 import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, QAQC_WX
 
 # =======================================================================================================
 # IGNORE PERFORMANCE WARNING FOR NOW
@@ -54,9 +59,8 @@ from qaqc_utils import create_bins_frequent, create_bins
 from IPython.display import display
 
 s3 = boto3.resource("s3")
-BUCKET_NAME = "wecc-historical-wx"
 BUCKET = s3.Bucket(BUCKET_NAME)
-SAVE_DIR = "3_qaqc_wx"
+SAVE_DIR = QAQC_WX
 
 
 def _plot_format_helper(var: str) -> tuple[str, str, float, float]:

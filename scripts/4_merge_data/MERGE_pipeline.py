@@ -23,6 +23,8 @@ Run from command line or as part of a larger batch process for all stations.
 """
 
 from datetime import datetime, timedelta, timezone
+import os
+import sys
 import time
 import inspect
 from typing import Dict
@@ -31,6 +33,9 @@ import pandas as pd
 import xarray as xr
 import s3fs
 import logging
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from paths import BUCKET_NAME, STATIONS_CSV_PATH, QAQC_WX, MERGE_WX
 
 from merge_log_config import setup_logger, upload_log_to_s3
 from merge_hourly_standardization import merge_hourly_standardization
@@ -483,11 +488,6 @@ def run_merge_one_station(
 
     """
 
-    bucket_name = "wecc-historical-wx"
-    stations_csv_path = f"s3://{bucket_name}/2_clean_wx/temp_clean_all_station_list.csv"
-    qaqc_dir = "3_qaqc_wx"
-    merge_dir = "4_merge_wx"
-
     # Log start time
     start_time = time.time()
 
@@ -497,7 +497,7 @@ def run_merge_one_station(
     logger, log_filepath = setup_logger(station, verbose=verbose)
 
     # Load station metadata
-    stations_df = read_station_metadata(stations_csv_path, logger)
+    stations_df = read_station_metadata(STATIONS_CSV_PATH, logger)
 
     # Validate station and get network name
     network_name = validate_station(station, stations_df, logger)
@@ -507,7 +507,7 @@ def run_merge_one_station(
         ## ======== READ IN AND REFORMAT DATA ========
 
         # Load Zarr dataset from S3
-        ds = read_zarr_dataset(bucket_name, qaqc_dir, network_name, station, logger)
+        ds = read_zarr_dataset(BUCKET_NAME, QAQC_WX, network_name, station, logger)
 
         # Get variable attributes from dataset
         var_attrs = get_var_attrs(ds, network_name, logger)
@@ -546,7 +546,7 @@ def run_merge_one_station(
 
         # Write the xarray Dataset as a Zarr file to the specified S3 path
         write_zarr_to_s3(
-            ds_merged, bucket_name, merge_dir, network_name, station, logger
+            ds_merged, BUCKET_NAME, MERGE_WX, network_name, station, logger
         )
 
         # Done! Print elapsed time
@@ -564,7 +564,7 @@ def run_merge_one_station(
         logger.info(f"Elapsed time: {formatted_elapsed}")
 
         # Save log file to s3 bucket
-        upload_log_to_s3(bucket_name, merge_dir, network_name, log_filepath, logger)
+        upload_log_to_s3(BUCKET_NAME, MERGE_WX, network_name, log_filepath, logger)
 
         print("Script complete.")
         print(f"Elapsed time: {formatted_elapsed}")
