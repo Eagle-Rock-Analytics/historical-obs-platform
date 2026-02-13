@@ -5,6 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+START_TIME=$SECONDS
 
 NETWORKS=(
     ASOSAWOS CAHYDRO CIMIS CW3E CDEC CNRFC CRN CWOP HADS
@@ -13,9 +14,14 @@ NETWORKS=(
     NDBC SCAN SNOTEL VALLEYWATER
 )
 
+TOTAL=${#NETWORKS[@]}
+COUNT=0
+
 for network in "${NETWORKS[@]}"; do
-    echo "Updating QAQC station list for $network..."
+    COUNT=$((COUNT + 1))
+    echo "[$COUNT/$TOTAL] Updating QAQC station list for $network..."
     python "$SCRIPT_DIR/stnlist_update_qaqc.py" "$network"
 done
 
-echo "Done."
+ELAPSED=$(( SECONDS - START_TIME ))
+echo "Done. Total runtime: $((ELAPSED / 60))m $((ELAPSED % 60))s"
