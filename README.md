@@ -50,7 +50,10 @@ historical-obs-platform/
 
 2. Run the **station list generation script** for each network (can be run locally). This uploads a `stationlist_{NETWORK}_qaqc.csv` file to the QAQC bucket in AWS, indicating when QAQC was run and whether each station passed or failed (Y/N), along with any relevant error messages:
 ```bash
+   # Single network
    python scripts/3_qaqc_data/stnlist_update_qaqc.py <NETWORK>
+   # All networks
+   ./scripts/3_qaqc_data/run_stnlist_update_qaqc.sh
 ```
 
 3. Run the **concatenation script** to identify and merge co-located stations (same lat/lon) in ASOSAWOS and MARITIME into single records. This only needs to be run once — it deletes the original input stations from S3 after concatenation:
@@ -64,7 +67,10 @@ historical-obs-platform/
 
 5. Run the **merge station list generation script** for each network. This uploads a `stationlist_{NETWORK}_merge.csv` file to the merge bucket in AWS, indicating when the merge/hourly standardization was run and whether each station passed or failed (Y/N), along with any relevant error messages:
 ```bash
+   # Single network
    python scripts/4_merge_data/stnlist_update_merge.py <NETWORK>
+   # All networks
+   ./scripts/4_merge_data/run_stnlist_update_merge.sh
 ```
   
 
