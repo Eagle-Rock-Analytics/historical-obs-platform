@@ -22,11 +22,12 @@ import numpy as np
 import datetime
 from io import BytesIO, StringIO
 
-BUCKET_NAME = "wecc-historical-wx"
-PULL_DIR = "1_raw_wx/"
-CLEAN_DIR = "2_clean_wx/"
-QAQC_DIR = "3_qaqc_wx/"
-MERGE_DIR = "4_merge_wx/"
+from paths import BUCKET_NAME, RAW_WX, CLEAN_WX, QAQC_WX, MERGE_WX
+
+PULL_DIR = f"{RAW_WX}/"
+CLEAN_DIR = f"{CLEAN_WX}/"
+QAQC_DIR = f"{QAQC_WX}/"
+MERGE_DIR = f"{MERGE_WX}/"
 
 s3 = boto3.resource("s3")
 s3_cl = boto3.client("s3")
@@ -408,17 +409,9 @@ def export_stationlist(df_to_save: pd.DataFrame, directory: str, option: str):
     # set-up correct csv to export
     df_to_save = stationlist_cols(df_to_save, option)
 
-    # set-up export to s3
-    csv_buffer = StringIO()
-    df_to_save.to_csv(csv_buffer, na_rep="NaN")
-    content = csv_buffer.getvalue()
-
-    # export
-    s3_cl.put_object(
-        Bucket=BUCKET_NAME,
-        Body=content,
-        Key=f"{directory}all_network_stationlist_{option}.csv",
-    )
+    # Export to s3
+    s3_path = f"s3://{BUCKET_NAME}/{directory}all_network_stationlist_{option}.csv"
+    df_to_save.to_csv(s3_path, na_rep="NaN")
     print(f"all_network_stationlist_{option}.csv generated and saved to AWS.")
 
     return None

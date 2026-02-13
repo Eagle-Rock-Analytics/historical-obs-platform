@@ -1053,17 +1053,19 @@ def run_qaqc_one_station(
     aws_url = aws_url_no_extension + ".zarr" if zarr else aws_url_no_extension + ".nc"
 
     # Open the file
-    logger.info(f"Reading file from AWS S3...")
+    logger.info(f"Opening file from AWS S3: {aws_url}")
     try:
         if zarr:  # Open zarr
             ds = xr.open_zarr(aws_url)
         else:  # Open netcdf
             with fs.open(aws_url) as fileObj:
-                # Now we use the open file handle with xarray, without closing it prematurely
-                ds = xr.open_dataset(fileObj).load()
-    except:
+                logger.info("File opened successfully. Reading dataset...")
+                ds = xr.open_dataset(fileObj)
+                logger.info("Dataset read successfully. Loading into memory...")
+                ds = ds.load()
+    except Exception as e:
         print(
-            f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}"
+            f"{station} did not pass QA/QC because the file could not be opened and/or found in AWS. File path: {aws_url}\nError: {e}"
         )
         exit()  # End script here
 

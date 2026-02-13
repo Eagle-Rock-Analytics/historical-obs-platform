@@ -44,7 +44,7 @@ import boto3
 import pandas as pd
 import xarray as xr
 from io import StringIO
-from time import time, strftime
+from time import time, strftime, sleep
 from QAQC_pipeline import qaqc_ds_to_df
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -510,7 +510,7 @@ def concat_export(ds: xr.Dataset, network_name: str, station_name_new: str):
     export_url = f"s3://{BUCKET_NAME}/{QAQC_WX}/{network_name}/{station_name_new}.zarr"
     print(f"Exporting concatenated dataset... {export_url}")
 
-    # ds.to_zarr(export_url, mode="w")
+    ds.to_zarr(export_url, mode="w")
 
     return None
 
@@ -674,16 +674,19 @@ def concatenate_stations(network_name: str) -> None:
             station_names,
         )
 
-        # # Delete original input zarrs (provenance tracked in dataset attrs and concat list CSV)
-        # print(
-        #     f"[{strftime('%H:%M:%S')}] Deleting {len(stns_to_pair)} original input zarrs..."
-        # )
-        # for era_id in stns_to_pair["ERA-ID"]:
-        #     _delete_zarr(era_id, network_name)
+        # Delete original input zarrs (provenance tracked in dataset attrs and concat list CSV)
+        print(
+            f"[{strftime('%H:%M:%S')}] Deleting {len(stns_to_pair)} original input zarrs..."
+        )
+        for era_id in stns_to_pair["ERA-ID"]:
+            _delete_zarr(era_id, network_name)
 
-        # # Export final dataset
-        # print(f"[{strftime('%H:%M:%S')}] Exporting final dataset...")
-        # concat_export(ds_concat, network_name, station_name_new)
+        # Wait for S3 delete propagation before writing to the same path
+        sleep(10)
+
+        # Export final dataset
+        print(f"[{strftime('%H:%M:%S')}] Exporting final dataset...")
+        concat_export(ds_concat, network_name, station_name_new)
         print(
             f"[{strftime('%H:%M:%S')}] Done with pair {pair} ({time() - t_pair:.2f}s)"
         )

@@ -23,7 +23,7 @@
 
 # Job Information:
 #SBATCH --job-name=merge-missing
-#SBATCH --array=1-465
+#SBATCH --array=1-233
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -80,11 +80,8 @@ PYSCRIPT="MERGE_run_for_single_station.py"
 # Start time tracking
 start_time=$(date +%s)
 
-# Load Conda initialization
-source /shared/nicole/.mamba/etc/profile.d/conda.sh
-
-# Run the Python script using conda
-conda run -p /shared/nicole/.mamba/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+# Run script with the station argument, using the specified conda environment
+/shared/nicole/.mamba/envs/hist-obs/bin/python ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)
