@@ -272,11 +272,17 @@ def merge_qa(network: str):
         network = "OtherISD"
 
     # Call functions
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Fetching QAQC station list from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching QAQC station list from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/..."
+    )
     stations = get_station_list(network)  # grabs stationlist_qaqcd
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Fetching merged stations from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching merged stations from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/..."
+    )
     merge_ids = get_merge_stations(network)  # grabs stations that pass merge
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Parsing error CSVs from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/merge_errs/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Parsing error CSVs from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/merge_errs/..."
+    )
     errors = parse_error_csv(network)  # grabs station error files
 
     if merge_ids.empty:
@@ -377,7 +383,9 @@ def merge_qa(network: str):
         )
 
     # Save station file to cleaned bucket
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Uploading to s3://{BUCKET_NAME}/{MERGE_WX}/{network}/stationlist_{network}_merge.csv...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Uploading to s3://{BUCKET_NAME}/{MERGE_WX}/{network}/stationlist_{network}_merge.csv..."
+    )
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()

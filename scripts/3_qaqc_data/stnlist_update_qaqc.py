@@ -205,11 +205,17 @@ def qaqc_qa(network: str):
         network = network.upper()
 
     # Call functions
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Fetching cleaned station list from s3://{BUCKET_NAME}/{CLEAN_WX}/{network}/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching cleaned station list from s3://{BUCKET_NAME}/{CLEAN_WX}/{network}/..."
+    )
     stations = get_station_list(network)  # grabs stationlist_cleaned
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Fetching QAQC'd stations from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching QAQC'd stations from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/..."
+    )
     qaqc_ids = get_qaqc_stations(network)  # grabs stations that pass qaqc
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Parsing error CSVs from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/qaqc_errs/...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Parsing error CSVs from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/qaqc_errs/..."
+    )
     errors = parse_error_csv(network)  # grabs station error files
 
     if qaqc_ids.empty:
@@ -302,7 +308,9 @@ def qaqc_qa(network: str):
         )
 
     # Save station file to cleaned bucket
-    print(f"  [{datetime.now():%H:%M:%S}] {network}: Uploading to s3://{BUCKET_NAME}/{QAQC_WX}/{network}/stationlist_{network}_qaqc.csv...")
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Uploading to s3://{BUCKET_NAME}/{QAQC_WX}/{network}/stationlist_{network}_qaqc.csv..."
+    )
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
