@@ -156,9 +156,7 @@ def qaqc_climatological_outlier(
                     f"Not enough valid observations for {var} to compute data frequency. Bypassing qaqc_climatological_outlier."
                 )
                 continue
-            data_freq = 1 / (
-                time_diff_mode.values[0].astype("float") / 1e9
-            )  # In Hz
+            data_freq = 1 / (time_diff_mode.values[0].astype("float") / 1e9)  # In Hz
 
             # Ensure that the data complies with butter filter requirements
             # In some cases, if the valid data has very far apart values, the

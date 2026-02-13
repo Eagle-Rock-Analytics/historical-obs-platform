@@ -1406,7 +1406,11 @@ def precip_deaccumulation_plot(
     else:
         z_scores = (df[var] - mean) / std
         valid_values = df[var][z_scores <= 4]
-        ylim1 = np.max(valid_values) if len(valid_values) > 0 and not np.all(np.isnan(valid_values)) else 1
+        ylim1 = (
+            np.max(valid_values)
+            if len(valid_values) > 0 and not np.all(np.isnan(valid_values))
+            else 1
+        )
     ax1.set_ylim(ylim0, ylim1)
 
     station = df["station"].unique()[0]
