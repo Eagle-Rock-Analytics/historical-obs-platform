@@ -1401,23 +1401,12 @@ def precip_deaccumulation_plot(
         label="De-accumulated precip",
     )
 
-    # Set ylims in a way we can avoid big ranges due to outliers/spikes.
-    # Guard against all-NaN or zero-variance data which would produce
-    # NaN/Inf z-scores and cause matplotlib to raise "Axis limits cannot
-    # be NaN or Inf" when calling set_ylim.
+    # Set ylims in a way we can avoid big ranges due to outliers/spikes
     mean = np.mean(df[var])
     std = np.std(df[var])
+    z_scores = (df[var] - mean) / std
     ylim0 = -0.5
-    if np.isnan(mean) or np.isnan(std) or std == 0:
-        ylim1 = 1
-    else:
-        z_scores = (df[var] - mean) / std
-        valid_values = df[var][z_scores <= 4]
-        ylim1 = (
-            np.max(valid_values)
-            if len(valid_values) > 0 and not np.all(np.isnan(valid_values))
-            else 1
-        )
+    ylim1 = np.max(df[var][z_scores <= 4])
     ax1.set_ylim(ylim0, ylim1)
 
     station = df["station"].unique()[0]
