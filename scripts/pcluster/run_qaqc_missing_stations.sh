@@ -82,7 +82,7 @@ start_time=$(date +%s)
 
 # Run script with the station argument, using the specified conda environment
 source /opt/parallelcluster/shared/miniforge3/b/etc/profile.d/conda.sh
-conda activate hist-obs
+conda activate /shared/nicole/.mamba/envs/hist-obs
 python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
