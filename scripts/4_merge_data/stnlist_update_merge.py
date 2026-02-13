@@ -24,6 +24,7 @@ Run this script after merge has been completed for a network (via pcluster run) 
 
 import os
 import sys
+from datetime import datetime
 import pandas as pd
 import xarray as xr
 from io import BytesIO, StringIO
@@ -271,8 +272,17 @@ def merge_qa(network: str):
         network = "OtherISD"
 
     # Call functions
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching QAQC station list from s3://{BUCKET_NAME}/{QAQC_WX}/{network}/..."
+    )
     stations = get_station_list(network)  # grabs stationlist_qaqcd
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Fetching merged stations from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/..."
+    )
     merge_ids = get_merge_stations(network)  # grabs stations that pass merge
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Parsing error CSVs from s3://{BUCKET_NAME}/{MERGE_WX}/{network}/merge_errs/..."
+    )
     errors = parse_error_csv(network)  # grabs station error files
 
     if merge_ids.empty:
@@ -373,6 +383,9 @@ def merge_qa(network: str):
         )
 
     # Save station file to cleaned bucket
+    print(
+        f"  [{datetime.now():%H:%M:%S}] {network}: Uploading to s3://{BUCKET_NAME}/{MERGE_WX}/{network}/stationlist_{network}_merge.csv..."
+    )
     new_buffer = StringIO()
     stations.to_csv(new_buffer, index=False)
     content = new_buffer.getvalue()
@@ -381,15 +394,50 @@ def merge_qa(network: str):
         Body=content,
         Key=f"{MERGE_WX}/{network}/stationlist_{network}_merge.csv",
     )
+    print(f"  [{datetime.now():%H:%M:%S}] {network}: Done.")
 
 
 if __name__ == "__main__":
-    merge_qa("ASOSAWOS")
+    import argparse
 
-# List of all stations for ease of use here:
-# ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-# MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-# NDBC, SCAN, SNOTEL, VALLEYWATER
+    ALL_NETWORKS = [
+        "ASOSAWOS",
+        "CAHYDRO",
+        "CIMIS",
+        "CW3E",
+        "CDEC",
+        "CNRFC",
+        "CRN",
+        "CWOP",
+        "HADS",
+        "HNXWFO",
+        "HOLFUY",
+        "HPWREN",
+        "LOXWFO",
+        "MAP",
+        "MTRWFO",
+        "NCAWOS",
+        "NOS-NWLON",
+        "NOS-PORTS",
+        "otherisd",
+        "RAWS",
+        "SGXWFO",
+        "SHASAVAL",
+        "VCAPCD",
+        "MARITIME",
+        "NDBC",
+        "SCAN",
+        "SNOTEL",
+        "VALLEYWATER",
+    ]
 
-# Note: OtherISD only runs as "otherisd"
-# Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
+    parser = argparse.ArgumentParser(
+        description="Update station list with merge status for a given network."
+    )
+    parser.add_argument(
+        "network",
+        type=str,
+        help=f"Network name (e.g. ASOSAWOS, CWOP, HADS). Valid options: {', '.join(ALL_NETWORKS)}",
+    )
+    args = parser.parse_args()
+    merge_qa(args.network)
