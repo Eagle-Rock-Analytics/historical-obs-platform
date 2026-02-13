@@ -384,12 +384,23 @@ def merge_qa(network: str):
 
 
 if __name__ == "__main__":
-    merge_qa("ASOSAWOS")
+    import argparse
 
-# List of all stations for ease of use here:
-# ASOSAWOS, CAHYDRO, CIMIS, CW3E, CDEC, CNRFC, CRN, CWOP, HADS, HNXWFO, HOLFUY, HPWREN, LOXWFO
-# MAP, MTRWFO, NCAWOS, NOS-NWLON, NOS-PORTS, RAWS, SGXWFO, SHASAVAL, VCAPCD, MARITIME
-# NDBC, SCAN, SNOTEL, VALLEYWATER
+    ALL_NETWORKS = [
+        "ASOSAWOS", "CAHYDRO", "CIMIS", "CW3E", "CDEC", "CNRFC", "CRN",
+        "CWOP", "HADS", "HNXWFO", "HOLFUY", "HPWREN", "LOXWFO", "MAP",
+        "MTRWFO", "NCAWOS", "NOS-NWLON", "NOS-PORTS", "otherisd", "RAWS",
+        "SGXWFO", "SHASAVAL", "VCAPCD", "MARITIME", "NDBC", "SCAN",
+        "SNOTEL", "VALLEYWATER",
+    ]
 
-# Note: OtherISD only runs as "otherisd"
-# Note: Make sure there is no space in the name CAHYDRO ("CA HYDRO" will not run)
+    parser = argparse.ArgumentParser(
+        description="Update station list with merge status for a given network."
+    )
+    parser.add_argument(
+        "network",
+        type=str,
+        help=f"Network name (e.g. ASOSAWOS, CWOP, HADS). Valid options: {', '.join(ALL_NETWORKS)}",
+    )
+    args = parser.parse_args()
+    merge_qa(args.network)
