@@ -1367,6 +1367,13 @@ def precip_deaccumulation_plot(
     station = df["station"].unique()[0]
     network = station.split("_")[0]
 
+    # Skip plotting if de-accumulated precip data is all NaN — nothing to plot,
+    # and matplotlib will raise "Axis limits cannot be NaN or Inf" at various
+    # points (during .plot(), set_ylim(), or savefig()).
+    if df[var].dropna().shape[0] == 0:
+        logger.info(f"Skipping de-accumulation plot for {var}: no valid data to plot")
+        return None
+
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 7))
 
     # Plot variable and flagged data
