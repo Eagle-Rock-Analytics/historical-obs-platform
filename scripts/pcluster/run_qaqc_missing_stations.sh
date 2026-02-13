@@ -81,7 +81,6 @@ PYSCRIPT="QAQC_run_for_single_station.py"
 start_time=$(date +%s)
 
 # Run script with the station argument, using the specified conda environment
-source /opt/parallelcluster/shared/miniforge3/etc/profile.d/conda.sh
 conda activate hist-obs
 python3 ${PYSCRIPT} --station="$STATION"
 
