@@ -96,8 +96,10 @@ start_time=$(date +%s)
 # Load Conda initialization
 source /shared/nicole/.mamba/etc/profile.d/conda.sh
 
-# Run the Python script using conda
-conda run -p /shared/nicole/.mamba/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+# Run the Python script
+source /opt/parallelcluster/shared/miniforge3/b/etc/profile.d/conda.sh
+conda activate /shared/nicole/.mamba/envs/hist-obs
+python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)

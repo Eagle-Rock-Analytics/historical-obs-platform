@@ -81,7 +81,9 @@ PYSCRIPT="MERGE_run_for_single_station.py"
 start_time=$(date +%s)
 
 # Run script with the station argument, using the specified conda environment
-/shared/nicole/.mamba/envs/hist-obs/bin/python ${PYSCRIPT} --station="$STATION"
+source /opt/parallelcluster/shared/miniforge3/b/etc/profile.d/conda.sh
+conda activate /shared/nicole/.mamba/envs/hist-obs
+python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)
