@@ -319,6 +319,12 @@ def qaqc_deaccumulate_precip(
             try:
                 logger.info(f"Running qaqc_deaccumulate_precip on {var}")
 
+                # Skip if precip data has no valid (non-NaN) observations
+                valid_count = df[var].dropna().shape[0]
+                if valid_count == 0:
+                    logger.info(f"qaqc_deaccumulate_precip bypassed: {var} has no valid observations")
+                    continue
+
                 # First, determine if the series is accumulated or instantaneous
                 if is_precip_accumulated(df[var]) and len(vars_to_check) > 0:
 
