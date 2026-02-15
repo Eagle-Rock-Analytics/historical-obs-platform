@@ -1404,9 +1404,15 @@ def precip_deaccumulation_plot(
     # Set ylims in a way we can avoid big ranges due to outliers/spikes
     mean = np.mean(df[var])
     std = np.std(df[var])
-    z_scores = (df[var] - mean) / std
     ylim0 = -0.5
-    ylim1 = np.max(df[var][z_scores <= 4])
+    if std > 0 and np.isfinite(std):
+        z_scores = (df[var] - mean) / std
+        filtered = df[var][z_scores <= 4].dropna()
+        ylim1 = np.max(filtered) if filtered.shape[0] > 0 else df[var].dropna().max()
+    else:
+        ylim1 = df[var].dropna().max()
+    if not np.isfinite(ylim1):
+        ylim1 = 1.0
     ax1.set_ylim(ylim0, ylim1)
 
     station = df["station"].unique()[0]
