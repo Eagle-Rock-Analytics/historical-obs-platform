@@ -357,12 +357,17 @@ def qaqc_deaccumulate_precip(
 
                     # --------------------------------------------------------
                     if plot:
-                        precip_deaccumulation_plot(
-                            df.loc[:, [var, "accum_" + var, "time", "station"]],
-                            flags,
-                            var,
-                        )
-                        logger.info(f"De-accumulation plot produced for {var}"),
+                        try:
+                            precip_deaccumulation_plot(
+                                df.loc[:, [var, "accum_" + var, "time", "station"]],
+                                flags,
+                                var,
+                            )
+                            logger.info(f"De-accumulation plot produced for {var}")
+                        except Exception as plot_err:
+                            logger.warning(
+                                f"De-accumulation plot failed for {var}: {plot_err}"
+                            )
 
                 else:  # If it's not accumulated, bypass and return original df
                     logger.info(
