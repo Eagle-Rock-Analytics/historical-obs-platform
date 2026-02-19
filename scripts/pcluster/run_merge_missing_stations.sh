@@ -1,12 +1,12 @@
 #!/bin/bash -l
 
 ################################################################################
-# SLURM Batch Script Template: run_qaqc_HADS_1.sh
+# SLURM Batch Script Template: run_merge_{NETWORK}.sh
 #
 # Description:
-#   Launches the QA/QC pipeline for historical weather station data.
+#   Launches the merge pipeline for historical weather station data.
 #   Each SLURM array task processes a single station using the script:
-#       ../3_qaqc_data/QAQC_run_for_single_station.py
+#       ../4_merge_data/MERGE_run_for_single_station.py
 #
 #   This is an embarrassingly parallel workload: 
 #   - Each task is independent and processes one station
@@ -14,8 +14,8 @@
 #   - Ideal for SLURM array jobs and horizontal scaling
 #
 # Inputs:
-#   - Station list: stations_input/HADS_1-input.dat
-#   - Python script: ../3_qaqc_data/QAQC_run_for_single_station.py
+#   - Station list: stations_input/{NETWORK}-input.dat
+#   - Python script: ../4_merge_data/MERGE_run_for_single_station.py
 #   - Conda environment: hist-obs
 #
 # SLURM Configuration:
@@ -36,17 +36,17 @@
 
 # Job Information:
 #SBATCH --job-name=hist-obs
-#SBATCH --array=1-1000
+#SBATCH --array=1-10
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
-#SBATCH --partition=compute-72cpus
+#SBATCH --partition=compute
 #SBATCH --output=%x_%A_%a_output.txt
 #SBATCH --error=%x_%A_%a_error.txt
 
 # Get the station name for this array task
-STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/HADS_1-input.dat)
+STATION=$(awk "NR==$SLURM_ARRAY_TASK_ID" stations_input/missing_stations.dat)
 
 # AWS credentials
 # Don't need to hard code them in if they are already saved as environment variables
@@ -85,19 +85,21 @@ log_file="$NEW_OUT"
 } >> "$log_file"
 
 # Change to the directory containing the script
-cd ../3_qaqc_data/ || { echo "Directory change failed"; exit 1; }
+cd ../4_merge_data/ || { echo "Directory change failed"; exit 1; }
 
 # Define the path to your Python script
-PYSCRIPT="QAQC_run_for_single_station.py"
+PYSCRIPT="MERGE_run_for_single_station.py"
 
 # Start time tracking
 start_time=$(date +%s)
 
 # Load Conda initialization
-source /shared/miniconda3/etc/profile.d/conda.sh
+source /shared/nicole/.mamba/etc/profile.d/conda.sh
 
-# Run the Python script using conda
-conda run -p /shared/miniconda3/envs/hist-obs python3 ${PYSCRIPT} --station="$STATION"
+# Run the Python script
+source /opt/parallelcluster/shared/miniforge3/b/etc/profile.d/conda.sh
+conda activate /shared/nicole/.mamba/envs/hist-obs
+python3 ${PYSCRIPT} --station="$STATION"
 
 # End time tracking
 end_time=$(date +%s)

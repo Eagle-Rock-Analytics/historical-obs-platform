@@ -11,12 +11,17 @@ Operations:
 - Uses existing latitude and longitude columns to create a geometry column 
 - Reads in Tiger US states shapefile and adds US state for each station 
 - Exports subset of columns as CSV for public-facing applications
+- Uploads output CSV to S3 merge bucket
 """
+
+import os
+import sys
 
 import pandas as pd
 import numpy as np
 import geopandas as gpd
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from paths import BUCKET_NAME, RAW_WX, MERGE_WX
 
 # s3 Paths
@@ -26,6 +31,7 @@ ASOSAWOS_ISD_PATH = f"s3://{BUCKET_NAME}/{RAW_WX}/ASOSAWOS/stationlist_ISD_ASOSA
 # CSV-related paths
 CSV_OUTPUT_FILENAME = "historical_wx_stations.csv"
 CSV_OUTPUT_FILEPATH = f"../../data/{CSV_OUTPUT_FILENAME}"
+S3_OUTPUT_PATH = f"s3://{BUCKET_NAME}/{MERGE_WX}/{CSV_OUTPUT_FILENAME}"
 
 
 def main():
@@ -121,6 +127,10 @@ def main():
     # Export DataFrame to local csv
     merge_df_public_facing.to_csv(CSV_OUTPUT_FILEPATH, index=False)
     print(f"Output file to {CSV_OUTPUT_FILEPATH}")
+
+    # Upload to S3
+    merge_df_public_facing.to_csv(S3_OUTPUT_PATH, index=False)
+    print(f"Uploaded to {S3_OUTPUT_PATH}")
 
 
 if __name__ == "__main__":
