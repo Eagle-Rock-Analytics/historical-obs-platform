@@ -289,9 +289,9 @@ def qaqc_qa(network: str):
                     stations.loc[index, "Errors_QAQC"] = value
 
     # Print summary
-    qaqc_counts = stations["QAQC"].value_counts()
-    qaqc_y = qaqc_counts.get("Y", 0)
-    qaqc_n = qaqc_counts.get("N", 0)
+    counts = stations["QAQC"].value_counts()
+    qaqc_y = counts.get("Y", 0)
+    qaqc_n = counts.get("N", 0)
 
     if "Y" in stations["QAQC"].values:
         if "N" not in stations["QAQC"].values:
