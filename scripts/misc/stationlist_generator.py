@@ -16,6 +16,11 @@ Intended Use
 Run this script after the corresponding "stnlist_update" script has been completed for all networks in the respective stage of development. 
 """
 
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import boto3
 import pandas as pd
 import numpy as np
@@ -270,7 +275,7 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                 ]
                 if len(colname) > 1:  # If more than one col returned
                     removelist = set(
-                        ["startdate"]
+                        ["startdate", "begindate"]
                     )  # Add any items to be manually removed here.
                     colname = list(set(colname) - removelist)
                     if len(colname) > 1:
@@ -292,7 +297,9 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                     if any(sub in col for sub in ["end", "disconnect"])
                 ]
                 if len(colname) > 1:  # If more than one col returned
-                    removelist = set([])  # Add any items to be manually removed here.
+                    removelist = set(
+                        ["enddate"]
+                    )  # Add any items to be manually removed here.
                     colname = list(set(colname) - removelist)
                     if len(colname) > 1:
                         # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
@@ -365,8 +372,10 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
     dffull["end-date"] = dffull["end-date"].replace("Active", today)
 
     # # Format dates in datetime format
-    dffull["start-date"] = pd.to_datetime(dffull["start-date"], utc=True)
-    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True)
+    dffull["start-date"] = pd.to_datetime(
+        dffull["start-date"], utc=True, format="mixed"
+    )
+    dffull["end-date"] = pd.to_datetime(dffull["end-date"], utc=True, format="mixed")
 
     # # Remove any duplicates (of network and ID)
     if option == "pull":
