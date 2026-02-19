@@ -275,7 +275,7 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                 ]
                 if len(colname) > 1:  # If more than one col returned
                     removelist = set(
-                        ["startdate"]
+                        ["startdate", "begindate"]
                     )  # Add any items to be manually removed here.
                     colname = list(set(colname) - removelist)
                     if len(colname) > 1:
@@ -297,7 +297,9 @@ def retrieve_and_concat_stnlists(directory: str, option: str) -> pd.DataFrame:
                     if any(sub in col for sub in ["end", "disconnect"])
                 ]
                 if len(colname) > 1:  # If more than one col returned
-                    removelist = set([])  # Add any items to be manually removed here.
+                    removelist = set(
+                        ["enddate"]
+                    )  # Add any items to be manually removed here.
                     colname = list(set(colname) - removelist)
                     if len(colname) > 1:
                         # If both start_time (parsed) and begin (not parsed) columns present, remove begin.
