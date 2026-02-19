@@ -19,7 +19,10 @@ Functions
 
 import inspect
 import os
+import sys
 from time import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import contextily as ctx
 import geopandas as gpd
